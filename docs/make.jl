@@ -92,11 +92,14 @@ end
 
 @info "Deploy docs ..."
 
-deploydocs(;
-    repo="github.com/kfgarrity/ThreeBodyTB.jl",
-    push_preview=true,
-    devbranch = "main"
-)
+#deploydocs(;
+#    repo="github.com/kfgarrity/ThreeBodyTB.jl",
+#    push_preview=true,
+#    devbranch = "main"
+#)
+
+
+
 
 
 #deploydocs(

@@ -1,6 +1,10 @@
 ![asdf](https://github.com/usnistgov/ThreeBodyTB.jl/workflows/CI/badge.svg)
 ![![](https://img.shields.io/badge/docs-dev-blue.svg)](https://kfgarrity.github.io/ThreeBodyTB.jl/dev/)
-![![codecov](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl/branch/main/graph/badge.svg?token=U8COIKIWG6)](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl)
+
+<!--
+[![codecov](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl/branch/main/graph/badge.svg?token=U8COIKIWG6)](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl)
+-->
+
 
 <!--  
 [![Coverage Status](https://coveralls.io/repos/github/kfgarrity/ThreeBodyTB.jl/badge.svg?branch=main)](https://coveralls.io/github/kfgarrity/ThreeBodyTB.jl?branch=main)
