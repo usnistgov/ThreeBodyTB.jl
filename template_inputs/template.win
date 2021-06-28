@@ -1,0 +1,48 @@
+#restart           = plot
+write_hr = true
+
+bands_plot        = true
+bands_plot_project = 1
+#bands_plot_format = xmgr
+
+guiding_centres = TRUE
+
+kmesh_tol=0.0000001
+
+num_bands         = JULIANUMBANDS
+num_wann          = JULIANUMWANN
+exclude_bands     = JULIAEXCLUDE
+
+dis_froz_max      = JULIAFROZMAX
+dis_froz_min      = -100.0
+
+dis_num_iter      = 200
+dis_mix_ratio     = 0.5
+
+num_iter          = 0
+num_print_cycles  = 50
+
+begin unit_cell_cart
+bohr
+JULIACELL
+end unit_cell_cart
+
+begin atoms_frac
+JULIAATOMS
+end atoms_frac
+    
+begin projections     
+JULIAPROJECTIONS
+end projections       
+    
+begin kpoint_path
+X 0.5 0 0 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 Z 0 0 0.5
+end kpoint_path
+
+
+mp_grid      = JULIAKGRID
+
+begin kpoints
+JULIAKPOINTS
+end kpoints

@@ -1,0 +1,10 @@
+&projwfc
+   outdir = 'znse.in_vnscf_vol_1'
+   prefix = 'qe.nscf'
+   filpdos='t'
+   lwrite_overlaps = .true.
+   lbinary_data  = .false.
+   pawproj = .false.
+   lsym = .false.
+/
+

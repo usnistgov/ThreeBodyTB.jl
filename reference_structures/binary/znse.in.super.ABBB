@@ -1,0 +1,53 @@
+&control
+    calculation = 'scf'
+    restart_mode='from_scratch',
+prefix = 'qe2'
+    tstress = .true.
+    tprnfor = .true.
+    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psp/'
+    outdir = '/tmp'
+    disk_io = 'low'
+    wf_collect = .true.
+    verbosity = 'high'    
+ /
+&system
+    ibrav=  0, 
+   nat  = 4
+    ntyp= 2
+    ecutwfc= 45,
+    ecutrho= 250,
+    q2sigma= 1
+    ecfixed= 44.5,
+    qcutz= 800
+    occupations= "smearing",
+    degauss= 0.005
+    lda_plus_u= .false.
+    force_symmorphic = true
+/
+&electrons
+    diagonalization='david'
+    mixing_mode = 'local-TF'
+    mixing_beta = 0.3
+    conv_thr = 1d-9
+ /
+&ions
+  ion_dynamics='bfgs',
+/
+&cell
+ cell_dynamics = 'bfgs'
+/
+ATOMIC_SPECIES
+A   26.98  al.pbesol.UPF
+B   26.98  al.pbesol.UPF
+ATOMIC_POSITIONS crystal
+A  0.0 0.0 0.0
+B  0.25 0.25 0.125
+B  0.0 0.0 0.5
+B  0.25 0.25 0.625
+CELL_PARAMETERS
+5.651069521 5.651069521 -0.0
+5.651069521 0.0 5.651069521
+-0.0 11.302139042 11.302139042
+K_POINTS automatic
+10 10 5 0 0 0

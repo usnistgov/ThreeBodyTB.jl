@@ -1,0 +1,61 @@
+&control
+    calculation = 'nscf'
+    restart_mode='from_scratch',
+    prefix = 'qe.nscf'
+    tstress = .true.
+    tprnfor = .true.
+    pseudo_dir = '/home/kfg/codes/ThreeBodyTB.jl/src/../pseudo/gbrv_pbesol',
+!    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psp/'
+    outdir = 'dimer.in_vnscf_coords_3'
+    disk_io = 'low'
+    wf_collect = .true.
+    verbosity = 'high'    
+    nstep = 30
+ /
+&system
+    ibrav = 0 
+    nat=  2 
+    ntyp= 2
+    ecutwfc= 45,
+    ecutrho= 250,
+    q2sigma= 1
+    ecfixed= 44.5,
+    qcutz= 800
+    occupations= "smearing",
+    degauss= 0.01
+    lda_plus_u= .false.
+    force_symmorphic = true
+    nbnd = 33
+
+    nosym = false
+    noinv = false
+/
+&electrons
+    diagonalization='david'
+    mixing_mode = 'local-TF'
+    mixing_beta = 0.3
+    conv_thr = 1d-9
+ /
+&ions
+  ion_dynamics='bfgs',
+/
+&cell
+ cell_dynamics = 'bfgs'
+ cell_dofree = 'all'
+ cell_factor = 1.0
+/
+ATOMIC_SPECIES
+Mg  24.31  mg.pbesol.UPF  
+S  32.06  s.pbesol.UPF  
+ATOMIC_POSITIONS crystal
+Mg   0.0000000000000000e+00  0.0000000000000000e+00 -9.4011162000000009e-02
+S   0.0000000000000000e+00  0.0000000000000000e+00  9.4011162000000009e-02
+CELL_PARAMETERS
+  1.4000000000000000e+01  0.0000000000000000e+00  0.0000000000000000e+00
+  0.0000000000000000e+00  1.4000000000000000e+01  0.0000000000000000e+00
+  0.0000000000000000e+00  0.0000000000000000e+00  2.0000000000000000e+01
+K_POINTS automatic
+       4       4       4 0 0 0

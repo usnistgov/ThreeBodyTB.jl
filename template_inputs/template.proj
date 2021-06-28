@@ -1,0 +1,10 @@
+&projwfc
+   outdir = 'TMPDIR'
+   prefix = 'PREFIX'
+   filpdos='t'
+   lwrite_overlaps = .true.
+   lbinary_data  = .false.
+   pawproj = .false.
+   lsym = .false.
+/
+

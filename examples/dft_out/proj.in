@@ -1,0 +1,10 @@
+&projwfc
+   outdir = 'dft_out/'
+   prefix = 'qe.nscf'
+   filpdos='t'
+   lwrite_overlaps = .true.
+   lbinary_data  = .false.
+   pawproj = .false.
+   lsym = .false.
+/
+

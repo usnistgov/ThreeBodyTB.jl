@@ -1,0 +1,10 @@
+&projwfc
+   outdir = '/home/kfg/codes/ThreeBodyTB.jl/src/../test/data_forces/znse.in_vnscf_vol_2/'
+   prefix = 'qe.nscf'
+   filpdos='t'
+   lwrite_overlaps = .true.
+   lbinary_data  = .false.
+   pawproj = .false.
+   lsym = .false.
+/
+

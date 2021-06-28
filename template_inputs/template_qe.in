@@ -1,0 +1,56 @@
+&control
+    calculation = 'SCF'
+    restart_mode='from_scratch',
+    prefix = 'PREFIX'
+    tstress = .true.
+    tprnfor = .true.
+    pseudo_dir = 'PSEUDODIR',
+!    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psp/'
+    outdir = 'TMPDIR'
+    disk_io = 'low'
+    wf_collect = .true.
+    verbosity = 'high'    
+    nstep = 30
+ /
+&system
+    JULIABRAV 
+    nat=  JULIANAT 
+    ntyp= JULIANTYPE
+    ecutwfc= 45,
+    ecutrho= 250,
+    q2sigma= 1
+    ecfixed= 44.5,
+    qcutz= 800
+    occupations= "smearing",
+    degauss= 0.01
+    lda_plus_u= .false.
+    force_symmorphic = true
+    JULIAOTHER
+    nosym = false
+    noinv = false
+/
+&electrons
+    diagonalization='david'
+    mixing_mode = 'MIXING'
+    mixing_beta = 0.3
+    conv_thr = 1d-9
+ /
+&ions
+  ion_dynamics='bfgs',
+/
+&cell
+ cell_dynamics = 'bfgs'
+ JULIADOFREE
+ JULIACELLFACTOR
+/
+ATOMIC_SPECIES
+JULIAPSP
+ATOMIC_POSITIONS crystal
+JULIACOORDS
+CELL_PARAMETERS
+JULIACELL
+K_POINTS automatic
+JULIAKPOINTS 0 0 0
