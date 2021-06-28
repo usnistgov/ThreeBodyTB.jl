@@ -7,7 +7,9 @@
 
 !!! note
 
-    This package currently barely works. Needs much more testing.
+    This package is currently under development, but basic functionality should work. A manuscript is under preparation.
+
+ThreeBodyTB.jl is a package for tight-binding, written in [Julia](https://julialang.org/).
 
 ## Package Features
 

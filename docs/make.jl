@@ -1,12 +1,14 @@
 push!(LOAD_PATH,"../src/")
 
 using Documenter, ThreeBodyTB
-
+using DocumenterLaTeX
+    
 current=pwd()
 include("../deps/build.jl")
 cd(current)
 
 makedocs(sitename="ThreeBodyTB.jl Documentation")
+#makedocs(sitename="ThreeBodyTB.jl Documentation", format = LaTeX() )
 
 
 #push!(LOAD_PATH,"../src/")
@@ -48,6 +50,7 @@ makedocs(
 
 
 @info "edit docs"
+
 
 DD = ThreeBodyTB.DOCSDIR
 
@@ -100,7 +103,7 @@ end
 
 
 
-
+#deploydocs()
 
 #deploydocs(
 #    repo = "github.com/kfgarrity/ThreeBodyTB.jl.git",
