@@ -25,4 +25,4 @@ Or fit your own coefficients!
 
 Calculate energies, forces, and band structures.
 
-
+ThreeBodyTB is written in the Julia programming language, for easy and efficient computations.
