@@ -88,6 +88,12 @@ export scf_energy
 export scf_energy_force_stress
 export relax_structure
 
+#function amiworking()
+#    println("yes")
+#    pwd()
+#    println(pwd())
+#end
+
 """
     function set_units(;energy=missing, length=missing, both=missing)
 

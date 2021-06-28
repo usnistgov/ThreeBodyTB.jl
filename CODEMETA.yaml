@@ -23,8 +23,8 @@
 
 categories:
   - scientific-software
-  # - ai-ml
-  # - simulation
+   - ai-ml
+   - simulation
   # - visualization
   # - build-tools
   # - hpc-workflow
@@ -33,7 +33,7 @@ themes:
   # - Artificial intelligence
   # - Bioscience
   # - Buildings & Construction
-  # - Chemistry
+   - Chemistry
   # - Cybersecurity
   # - Electronics
   # - Energy
@@ -44,13 +44,13 @@ themes:
   # - Information Technology
   # - Infrastructure
   # - Manufacturing
-  # - Materials
+   - Materials
   # - Mathematics & Statistics
   # - Metrology
   # - Nanotechnology
   # - Neutron research
   # - Performance excellence
-  # - Physics
+   - Physics
   # - Public safety
   # - Resilience
   # - Standards
