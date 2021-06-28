@@ -19,11 +19,12 @@
 - Includes self-consistent treatment of long-range Coulomb interaction.
 - Plotting based on interface of [Plots.jl](http://docs.juliaplots.org/latest/)
 
-## Outline
+## User's guide
 
-- Stuff
-- Other stuff
-
+```@contents
+Pages = ["ug_run.md", "ug_fit.md"]
+Depth = 2
+```
 
 ## Index
 
