@@ -1,0 +1,1 @@
+These are sligtly modified pseudopotentials based on https://www.physics.rutgers.edu/gbrv/
