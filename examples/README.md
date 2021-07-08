@@ -22,3 +22,6 @@ own DFT calculations. Shows how to run Quantum Espresso using the
 calculations, and then fit coefficients to those DFT/TB models. This
 example is only for advanced users who want to fit their own coefficients,
 rather than use the provided coefficients.
+
+See also the [users_guide](https://pages.nist.gov/ThreeBodyTB.jl/ug_run/).
+
