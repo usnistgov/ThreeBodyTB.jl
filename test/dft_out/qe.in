@@ -4,7 +4,7 @@
     prefix = 'qe'
     tstress = .true.
     tprnfor = .true.
-    pseudo_dir = '/home/kfg/codes/ThreeBodyTB.jl/src/../pseudo/gbrv_pbesol',
+    pseudo_dir = '/home/kfg/codes/NIST/ThreeBodyTB.jl/src/../pseudo/gbrv_pbesol',
 !    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5/',
 !    pseudo_dir = '/home/kevin/psuedo/gbrv_1.5/',
 !    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
