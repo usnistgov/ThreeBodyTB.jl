@@ -20,4 +20,5 @@ band structure to a tight-binding model.
 own DFT calculations. Shows how to run Quantum Espresso using the
 `ThreeBodyTB` code, construct tight-binding models for individual DFT
 calculations, and then fit coefficients to those DFT/TB models. This
-example is not necessary to use the pre-fix coefficient library.
+example is only for advanced users who want to fit their own coefficients,
+rather than use the provided coefficients.
