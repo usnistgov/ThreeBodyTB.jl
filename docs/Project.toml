@@ -5,6 +5,6 @@ ThreeBodyTB = "2a26a249-28ed-4bc9-828d-d3ac47f0d73d"
 
 
 [compat]
-Documenter = "0.2, 0.3"
+Documenter = "0.25"
 Plots = "1"
 
