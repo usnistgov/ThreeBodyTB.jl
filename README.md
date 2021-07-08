@@ -13,8 +13,7 @@
 
 # ThreeBodyTB.jl
 
-<img src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
-
+<img align="right" src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
 
 Code for accurate and efficient electronic structure calculations
 using tight-binding (TB), including three-body interactions. Run TB
