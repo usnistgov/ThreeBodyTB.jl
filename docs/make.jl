@@ -1,6 +1,6 @@
 push!(LOAD_PATH,"../src/")
 
-using Documenter, ThreeBodyTB
+using ThreeBodyTB, Documenter
 using DocumenterLaTeX
     
 current=pwd()
