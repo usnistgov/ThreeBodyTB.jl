@@ -28,7 +28,7 @@ ThreeBodyTB is written in the Julia programming language, for easy and efficient
 
 ## Easy Installation
 
-After installing Julia (see [here](https://julialang.org/downloads/), start a REPL and install using the package manager:
+After installing Julia (see [here](https://julialang.org/downloads/)), start a REPL and install using the package manager:
 
 ```
 using Pkg
