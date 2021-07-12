@@ -26,5 +26,22 @@ Calculate energies, forces, and band structures.
 
 ThreeBodyTB is written in the Julia programming language, for easy and efficient computations.
 
+## East Installation
+
+After installing Julia (see [here](https://julialang.org/downloads/), start a REPL and install using the package manager:
+
+```
+using Pkg
+Pkg.add("ThreeBodyTB")
+```
+
+Alternatively, you can install from github directly
+
+```
+using Pkg
+Pkg.add(url="https://github.com/usnistgov/ThreeBodyTB.jl")
+```
+## Documentation
+
 See [documentation](https://pages.nist.gov/ThreeBodyTB.jl/) for more details.
 
