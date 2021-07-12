@@ -26,7 +26,7 @@ Calculate energies, forces, and band structures.
 
 ThreeBodyTB is written in the Julia programming language, for easy and efficient computations.
 
-## East Installation
+## Easy Installation
 
 After installing Julia (see [here](https://julialang.org/downloads/), start a REPL and install using the package manager:
 
