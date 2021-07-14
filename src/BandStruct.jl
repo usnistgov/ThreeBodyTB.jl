@@ -14,6 +14,7 @@ using LinearAlgebra
 using Plots
 using Base.Threads
 using ..CrystalMod:get_grid
+using ..TB:make_kgrid
 using ..TB:calc_energy_fft
 using ..TB:tb_crys
 using ..TB:tb_crys_kspace
@@ -649,23 +650,27 @@ end
 """
     function band_summary(tbc::tb_crys; kgrid=missing)
 """
-function band_summary(tbc::tb_crys; kgrid=missing)
+function band_summary(tbc::tb_crys; kpts=missing, kgrid=missing)
     if ismissing(kgrid)
         kgrid = get_grid(tbc.crys)
     end
+    if ismissing(kpts)
+        println("using kgrid $kgrid")
+        kpts, kweights = make_kgrid(kgrid)
+    end
     
-    return band_summary(tbc, kgrid)
+    return band_summary(tbc, kpts)
 end
 
 """
     function band_summary(tbc::tb_crys_kspace; kgrid=missing)
 """
-function band_summary(tbc::tb_crys_kspace; kgrid=missing)
-    if ismissing(kgrid)
-        kgrid = tbc.tb.K
+function band_summary(tbc::tb_crys_kspace; kpts=missing)
+    if ismissing(kpts)
+        kpts = tbc.tb.K
     end
     
-    return band_summary(tbc, kgrid)
+    return band_summary(tbc, kpts)
 end
 
 
