@@ -1,7 +1,7 @@
 push!(LOAD_PATH,"../src/")
 
-using Documenter, ThreeBodyTB
-using DocumenterLaTeX
+using ThreeBodyTB, Documenter
+#using DocumenterLaTeX
     
 current=pwd()
 include("../deps/build.jl")

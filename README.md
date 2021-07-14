@@ -13,8 +13,7 @@
 
 # ThreeBodyTB.jl
 
-<img src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
-
+<img align="right" src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
 
 Code for accurate and efficient electronic structure calculations
 using tight-binding (TB), including three-body interactions. Run TB
@@ -26,6 +25,23 @@ Or fit your own coefficients!
 Calculate energies, forces, and band structures.
 
 ThreeBodyTB is written in the Julia programming language, for easy and efficient computations.
+
+## Easy Installation
+
+After installing Julia (see [here](https://julialang.org/downloads/)), start a REPL and install using the package manager:
+
+```
+using Pkg
+Pkg.add("ThreeBodyTB")
+```
+
+Alternatively, you can install from github directly
+
+```
+using Pkg
+Pkg.add(url="https://github.com/usnistgov/ThreeBodyTB.jl")
+```
+## Documentation
 
 See [documentation](https://pages.nist.gov/ThreeBodyTB.jl/) for more details.
 
