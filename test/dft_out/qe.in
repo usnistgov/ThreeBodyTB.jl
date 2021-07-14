@@ -34,7 +34,7 @@
 /
 &electrons
     diagonalization='david'
-    mixing_mode = 'local-TF'
+    mixing_mode = 'TF'
     mixing_beta = 0.3
     conv_thr = 1d-9
  /
