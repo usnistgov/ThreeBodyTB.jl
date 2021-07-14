@@ -40,6 +40,7 @@ using ..TB:Hk
 export plot_compare_tb
 export plot_bandstr
 export plot_compare_dft
+export band_summary
 
 
 """
@@ -585,6 +586,76 @@ function plot_compare_dft(tbc, bs; tbc2=missing)
 
 
 end
+
+
+"""
+    function band_summary(tbc, kgrid)
+    
+Summary of band structure. Returns direct gap, indirect gap, gaptype, bandwidth
+"""
+function band_summary(tbc, kgrid)
+    
+    vals = calc_bands(tbc, kgrid)
+
+    nelec = Int64(round(tbc.nelec/2.0))
+    if (nelec - tbc.nelec) > 1e-7
+        println("WARNING, band_summary doesn't work well with non-integer or odd electrons: ", tbc.nelec)
+    end
+
+    vbm = maximum(vals[:,nelec])
+
+    if nelec+1 <= tbc.tb.nwan
+        cbm = minimum(vals[:,nelec+1])
+        directgap = minimum(vals[:,nelec+1] - vals[:,nelec])
+
+    else
+        cbm = vbm
+        directgap = 0.0
+    end
+    
+    indirectgap = cbm - vbm
+
+    if directgap - indirectgap > 1e-5
+        gaptype = :indirect
+    else
+        gaptype = :direct
+    end
+
+    if indirectgap < 0.0
+        gaptype = :metal
+    end
+
+    minband = minimum(vals[:,1])
+
+    bandwidth = vbm - minband
+    
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth)
+
+end
+
+"""
+    function band_summary(tbc::tb_crys; kgrid=missing)
+"""
+function band_summary(tbc::tb_crys; kgrid=missing)
+    if ismissing(kgrid)
+        kgrid = get_grid(tbc.crys)
+    end
+    
+    return band_summary(tbc, kgrid)
+end
+
+"""
+    function band_summary(tbc::tb_crys_kspace; kgrid=missing)
+"""
+function band_summary(tbc::tb_crys_kspace; kgrid=missing)
+    if ismissing(kgrid)
+        kgrid = tbc.tb.K
+    end
+    
+    return band_summary(tbc, kgrid)
+end
+
+
 
 
 end #end module
