@@ -24,7 +24,7 @@ using ..TB:get_energy_electron_density_kspace
 using ..ThreeBodyTB:convert_energy
 using ..ThreeBodyTB:convert_dos
 using ..ThreeBodyTB:global_energy_units
-
+using ..BandStruct:no_display
 
 function get_projtype(tbc, ptype=missing)
 
@@ -838,11 +838,11 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
     xlims!(xl1, xl2)
     
-    if do_display
+    if do_display && ! no_display
         display(plot!([0,0], [0, maximum(dos) * 1.1], color="black", linestyle=:dash, label=""))
     else
 
-    plot!([0,0], [0, maximum(dos) * 1.1], color="black", linestyle=:dash, label="")
+        plot!([0,0], [0, maximum(dos) * 1.1], color="black", linestyle=:dash, label="")
 
     end        
 

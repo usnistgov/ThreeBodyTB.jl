@@ -42,6 +42,13 @@ export plot_bandstr
 export plot_compare_dft
 
 
+global no_display=false
+
+function set_no_display(d)
+    global no_display = d
+end
+
+
 """
     function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing)
 
@@ -451,9 +458,11 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 #    println(names)    
     xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
 
-    if do_display
+    if do_display && no_display == false
+        println("display")
         display(ylabel!(alignstr, guidefontsize=16))
     else
+        println("no display")
         ylabel!(alignstr, guidefontsize=16)
     end
     
@@ -579,8 +588,12 @@ function plot_compare_dft(tbc, bs; tbc2=missing)
     else
         ylabel!("Energy - VBM (Ryd.)", guidefontsize=16)
     end
-    display(ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
 
+    if ! no_display
+        display(ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
+    else
+        ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
+    end
 #    end
 
 

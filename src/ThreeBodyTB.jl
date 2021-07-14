@@ -15,6 +15,8 @@ include("Atomic.jl")
 include("Atomdata.jl")
 include("Crystal.jl")
 
+using Suppressor
+
 using Printf
 using .CrystalMod:crystal
 using .CrystalMod:makecrys
@@ -43,6 +45,7 @@ include("BandStruct.jl")
 using .BandStruct:plot_compare_tb
 using .BandStruct:plot_bandstr
 using .BandStruct:plot_compare_dft
+using .BandStruct:set_no_display
 
 include("DOS.jl")
 using .DOS:dos
@@ -431,8 +434,22 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 
 end
 
+"""
+    function precompile()
 
+For precompiling in order to make a sysimage
+"""
+function my_precompile()
 
+    set_no_display(true)
+    for t in ["calculate_energy_plot_fcc_al.jl", "load_dft_plot.jl", "load_tbc_plot.jl", "plot_Sc_P.jl", "relax_fcc_al.jl"]
+        println("precomp example $t")
+        @suppress include(joinpath( ThreeBodyTB.EXAMPLESDIR ,t))
+    end
+    set_no_display(false)
+
+    Nothing
+end
 
 end #end module
 
