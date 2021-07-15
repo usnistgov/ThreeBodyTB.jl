@@ -250,7 +250,12 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
 #    println()
 
 
+#    energy = convert_energy(energy)
+
     energy = convert_energy(energy)
+    force = convert_force(force)
+    stress = convert_stress(stress)
+
     println()
     println("---------------------------------")
     println("Final Energy $energy ")
@@ -258,9 +263,8 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
     print_with_force_stress(cfinal, force, stress)
     println()
 
-    energy = convert_energy(energy)
-    force = convert_force(force)
-    stress = convert_stress(stress)
+
+    
 
     
 
