@@ -41,8 +41,9 @@ function test_basics()
 
             directgap, indirectgap, gaptype, bandwidth = ThreeBodyTB.BandStruct.band_summary(tbc)
             @test gaptype == :metal
-            @test abs(indirectgap - -1.145422070367502) < 1e-5
-            @test abs(bandwidth - 1.9585164167567308) < 1e-5
+            @test abs(indirectgap) < 1e-5
+            @test abs(directgap) < 1e-5
+            @test abs(bandwidth - 0.8334073432114558) < 1e-5
 
             
             @test abs(energy - energy_fft) < 1e-5
@@ -72,8 +73,9 @@ function test_basics()
 
             directgap, indirectgap, gaptype, bandwidth = ThreeBodyTB.BandStruct.band_summary(tbck)
             @test gaptype == :metal
-            @test abs(indirectgap - -1.090722153068714) < 1e-2
-            @test abs(bandwidth - 1.9093135250588489) < 1e-2
+            @test abs(indirectgap) < 1e-5
+            @test abs(directgap) < 1e-5
+            @test abs(bandwidth - 0.8418566664739338) < 1e-2
             
             vects3, vals3, ham3, S3,e3 =  Hk(tbck, [0 0 0 ])
 

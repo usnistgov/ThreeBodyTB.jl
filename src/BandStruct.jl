@@ -634,13 +634,13 @@ function band_summary(tbc, kpts, fermi=missing)
     
     nelec = Int64(round(tbc.nelec/2.0))
 
-    if abs(nelec - tbc.nelec) > 1e-5
+    if abs(nelec - tbc.nelec / 2.0) > 1e-5
         println("WARNING, band_summary gaps don't work well with non-integer or odd electrons: ", tbc.nelec)
         directgap = 0.0
         indirectgap = 0.0
         vbm = fermi
 
-        return directgap, indirectgap, :metal, vbm - minband
+        return directgap, indirectgap, :metal, convert_energy(vbm - minband)
         
     end
 
