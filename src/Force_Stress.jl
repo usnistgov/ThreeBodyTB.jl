@@ -22,7 +22,7 @@ using FFTW
 using LinearAlgebra
 using ForwardDiff
 #using ReverseDiff
-using Optim
+###using Optim
 using LineSearches
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys

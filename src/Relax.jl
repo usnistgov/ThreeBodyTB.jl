@@ -15,7 +15,7 @@ using LinearAlgebra
 using ..Force_Stress:inv_reshape_vec
 using ..Force_Stress:reshape_vec
 
-using Optim
+##using Optim
 using LineSearches
 using ..ManageDatabase:prepare_database
 using ..ManageDatabase:database_cached
@@ -258,10 +258,10 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #                         show_trace = false)
 
     
-    opts = Optim.Options(g_tol = conv_thr,f_tol = conv_thr, x_tol = conv_thr,
-                             iterations = nsteps,
-                             store_trace = true,
-                             show_trace = false)
+#    opts = Optim.Options(g_tol = conv_thr,f_tol = conv_thr, x_tol = conv_thr,
+#                             iterations = nsteps,
+#                             store_trace = true,
+#                             show_trace = false)
 
 
     #res = optimize(fn,grad, x0, ConjugateGradient(), opts)
@@ -309,23 +309,10 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 =#
     
     res = missing
-    if false
+    #    if false
 
-        #        res = optimize(fn,grad, x0, BFGS(  initial_invH = init, linesearch=LineSearches.MoreThuente() ), opts)
-        #res = optimize(fn,grad, x0, BFGS(initial_invH = init ), opts)
-        #        res = optimize(fn,grad, x0, BFGS(initial_invH = init, linesearch=LineSearches.MoreThuente() ), opts)
-
-        
-        #    try    
-        #res = optimize(fn,grad, x0, BFGS( linesearch=LineSearches.MoreThuente() ), opts)
-
-        #    res = optimize(fn,grad, x0, ConjugateGradient( linesearch=LineSearches.MoreThuente() ) , opts)
-
+        #=
         res = optimize(fn,grad, x0, ConjugateGradient( linesearch=LineSearches.BackTracking( maxstep=0.05  ) ) , opts)
-
-        #    res = optimize(fn,grad, x0, ConjugateGradient( linesearch=LineSearches.BackTracking( maxstep=0.05) ) , opts)
-        #    res = optimize(fn,grad, x0, ConjugateGradient( linesearch=LineSearches.MoreThuente(alphamax=0.05) ) , opts)
-
 
         minvec = Optim.minimizer(res)    
 
@@ -350,52 +337,14 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         fcall = 1000
         firstiter = true
 
-        println("RELAX Round 2")
-        #    res = optimize(fn,grad, x0, ConjugateGradient( linesearch=LineSearches.MoreThuente(alphamax=0.05) ) , opts)
-        res = optimize(fn,grad, x0, ConjugateGradient(  ) , opts)
-
-
-        nat = crys.nat
-
-
-        #    res = optimize(fn,grad, x0, ConjugateGradient(  ) , opts)
-
-        #res = optimize(fn,grad, x0, LBFGS(m=8 ) , opts)
-        
-
-        #    catch e
-        #        if e isa InterruptException
-        #            println("user interrupt")
-        #            return tbc.crys
-        #        else
-        #            println("unknown error")
-        #            return tbc.crys
-        #        end
-        #    end
-        
-        #res = optimize(fn,grad, x0, BFGS(  initial_invH = init, linesearch=LineSearches.HagerZhang() ), opts)    
-
-        energy = res.minimum
-        
-        # bad : res = optimize(fn,grad, x0, ConjugateGradient(linesearch=LineSearches.BackTracking(order=3) ), opts)    
-        #linesearch=LineSearches.BackTracking(order=2),
-        #LineSearches.MoreThuente()
-        #LineSearches.HagerZhang()
-        #linesearch=LineSearches.BackTracking(order=2)
-        #linesearch=LineSearches.StrongWolfe()
-        
-
-        println()
-        println("res")
-        println(res)
-
         minvec = Optim.minimizer(res)    
+        =#
+        ##    else
 
-    else
 
-        minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=5.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr)
+    minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=5.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr)
 
-    end
+##    end
 
 
 #    println("minvec")

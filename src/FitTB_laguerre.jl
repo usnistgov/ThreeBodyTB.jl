@@ -8,7 +8,7 @@ using Plots
 #using JLD
 using LinearAlgebra
 #using Statistics
-using Optim
+#using Optim
 using Random
 #using Calculus
 using DelimitedFiles

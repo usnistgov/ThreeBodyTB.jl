@@ -39,6 +39,12 @@ function test_basics()
 
             energy_fft = ThreeBodyTB.TB.calc_energy_fft(tbc)
 
+            directgap, indirectgap, gaptype, bandwidth = ThreeBodyTB.BandStruct.band_summary(tbc)
+            @test gaptype == :metal
+            @test abs(indirectgap - -1.145422070367502) < 1e-5
+            @test abs(bandwidth - 1.9585164167567308) < 1e-5
+
+            
             @test abs(energy - energy_fft) < 1e-5
 
             energy_calc = ThreeBodyTB.TB.calc_energy(tbc)
@@ -64,6 +70,11 @@ function test_basics()
 
             tbck = ThreeBodyTB.TB.read_tb_crys_kspace("$TESTDIR/data_forces/al_fcc_projham_K.xml.gz")
 
+            directgap, indirectgap, gaptype, bandwidth = ThreeBodyTB.BandStruct.band_summary(tbck)
+            @test gaptype == :metal
+            @test abs(indirectgap - -1.090722153068714) < 1e-2
+            @test abs(bandwidth - 1.9093135250588489) < 1e-2
+            
             vects3, vals3, ham3, S3,e3 =  Hk(tbck, [0 0 0 ])
 
             @test sum(abs.(vals3[1] - vals[1])) < 0.05
@@ -112,9 +123,10 @@ function test_basics()
 
             energies, dos, pdos, names  =  ThreeBodyTB.DOS.gaussian_dos(tbck, do_display=false)
 
-        @test length(energies) == length(dos)
+            @test length(energies) == length(dos)
             @test abs(sum(dos) * (energies[2] - energies[1]) - 4.0) < 1e-2
             ThreeBodyTB.set_units(energy = units_old[1], length=units_old[2])
+
             
         end
     end

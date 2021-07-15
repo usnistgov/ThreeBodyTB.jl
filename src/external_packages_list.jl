@@ -1,6 +1,6 @@
 import Pkg
 
-Pkg.add("Optim")
+##Pkg.add("Optim")
 Pkg.add("ForwardDiff")
 Pkg.add("XMLDict")
 Pkg.add("Plots")
