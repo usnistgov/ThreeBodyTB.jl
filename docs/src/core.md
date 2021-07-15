@@ -21,6 +21,7 @@ plot_bandstr
 dos
 plot_compare_dft
 plot_compare_tb
+band_summary
 ```
 
 ## Utility

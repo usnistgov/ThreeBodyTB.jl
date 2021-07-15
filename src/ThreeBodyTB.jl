@@ -46,6 +46,7 @@ using .BandStruct:plot_compare_tb
 using .BandStruct:plot_bandstr
 using .BandStruct:plot_compare_dft
 using .BandStruct:set_no_display
+using .BandStruct:band_summary
 
 include("DOS.jl")
 using .DOS:dos
@@ -58,6 +59,7 @@ export plot_compare_dft
 export read_tb_crys
 export dos
 export write_tb_crys
+export band_summary
 
 include("RunDFT.jl")
 
