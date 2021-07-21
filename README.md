@@ -1,4 +1,4 @@
-# nist-pages
+# nist-pages branch
 
 This branch exists solely to host documentation for the main branch
 of ThreeBodyTB.jl via pages.nist.gov.
