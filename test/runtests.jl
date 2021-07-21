@@ -1,4 +1,6 @@
 
+ENV["GKSwstype"] = "100"
+
 println("using plot")
 
 using Plots
