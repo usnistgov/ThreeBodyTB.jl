@@ -1,3 +1,16 @@
+
+println("using plot")
+
+using Plots
+
+println("try plot")
+
+plot([0,1,2,3], [0.1, 0.5, 0.5, 0.1])
+println("did plot")
+println("savefig")
+savefig("sf.pdf")
+println("did savefig ")
+
 using ThreeBodyTB
 using Test
 
