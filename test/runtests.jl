@@ -1,17 +1,5 @@
+ENV["GKSwstype"] = "100" #magic fix tests on github headless machines with GR as plotting backend
 
-ENV["GKSwstype"] = "100"
-
-println("using plot")
-
-using Plots
-
-println("try plot")
-
-plot([0,1,2,3], [0.1, 0.5, 0.5, 0.1])
-println("did plot")
-println("savefig")
-savefig("sf.pdf")
-println("did savefig ")
 
 using ThreeBodyTB
 using Test
@@ -30,6 +18,8 @@ include("test_atomicproj.jl")
 
 
 include("test_examples.jl")
+
+delete!(ENV, "GKSwstype") #undo magic to avoid side effects
 
 
 Nothing
