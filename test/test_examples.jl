@@ -7,7 +7,7 @@ EXAMPLESDIR=ThreeBodyTB.EXAMPLESDIR
 for f in readdir("$EXAMPLESDIR")
     if occursin(".jl", f) && !occursin("~", f)
         @testset "example $f" begin
-            @suppress begin 
+            begin 
                 include("$EXAMPLESDIR/$f")
                 @test 1 == 1
             end
