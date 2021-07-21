@@ -4,10 +4,13 @@ using Suppressor
 
 EXAMPLESDIR=ThreeBodyTB.EXAMPLESDIR
 
+disp_old = deepcopy(ThreeBodyTB.BandStruct.no_display)
+ThreeBodyTB.BandStruct.set_no_display(true)
+
 for f in readdir("$EXAMPLESDIR")
     if occursin(".jl", f) && !occursin("~", f)
         @testset "example $f" begin
-            begin 
+            @suppress begin 
                 include("$EXAMPLESDIR/$f")
                 @test 1 == 1
             end
@@ -15,7 +18,7 @@ for f in readdir("$EXAMPLESDIR")
     end
 end
 
-
+ThreeBodyTB.BandStruct.set_no_display(disp_old)
 
 
 @testset "rm example pdfs generated" begin
