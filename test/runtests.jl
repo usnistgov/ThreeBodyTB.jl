@@ -1,7 +1,6 @@
 using ThreeBodyTB
 using Test
 
-include("test_examples.jl")
 
 include("crystal_testing.jl")
 include("test_ewald.jl")
@@ -15,6 +14,7 @@ include("test_makescf.jl")
 include("test_atomicproj.jl")
 
 
+include("test_examples.jl")
 
 
 Nothing
