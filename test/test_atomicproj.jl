@@ -21,7 +21,7 @@ TESTDIR=ThreeBodyTB.TESTDIR
         fil = "$TESTDIR/data_forces/znse.in_vnscf_vol_2/"
         dft = ThreeBodyTB.QE.loadXML(fil*"/qe.save/")
 
-        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfx_workf(dft, directory=fil, nprocs=1, writefile=missing, writefilek=missing, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, only_kspace = false, screening = 1.0 )
+        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfc_workf(dft, directory=fil, nprocs=1, writefile=missing, writefilek=missing, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, only_kspace = false, screening = 1.0 )
 
 
         

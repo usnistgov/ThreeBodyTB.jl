@@ -18,15 +18,15 @@ A brief overview of the steps:
 
 2. Run self-consistent-field (SCF) non-spin-polarized DFT total energy calculations.
 
-3. Run `ThreeBodyTB.AtomicProj.projwfx_workf` to get k-space tight-binding models for each SCF calculation. This runs a non-SCF DFT calculation with `pw.x` and atomic projections with `projwfc.x`, and then calculates the TB model.
+3. Run [`ThreeBodyTB.AtomicProj.projwfc_workf`](@ref) to get k-space tight-binding models for each SCF calculation. This runs a non-SCF DFT calculation with `pw.x` and atomic projections with `projwfc.x`, and then calculates the TB model.
 
-4. Run the fitting code `ThreeBodyTB.FitTB.do_fitting_recursive`
+4. Run the fitting code [`ThreeBodyTB.FitTB.do_fitting_recursive`](@ref)
 
 
 ## 0. Preliminaries
 
 You need to install Quantum Espresso (make pw; make pp) and let the
-code know where the bin/ directory is. For example, `set_bin_dirs(qe="/home/kfg/codes/q-e-qe-6.5/bin/")`.  You also
+code know where the bin/ directory is. For example, [`set_bin_dirs(qe="/home/kfg/codes/q-e-qe-6.5/bin/")`](@ref).  You also
 need to let it know about any mpi commands you may need to run in
 parallel unless you use mpirun. `set_bin_dirs(qe="/home/kfg/codes/q-e-qe-6.5/bin/", mpi="mpirun -np ")`, where you must insert your appropriate command.
 
@@ -47,7 +47,7 @@ with variable numbers of electrons.
 
 ## 1. Do DFT calculations.
 
-You need SCF DFT data to fit to. Create crystal structures with `makecrys` and then run dft calculations. For example:
+You need SCF DFT data to fit to. Create crystal structures with [`makecrys`](@ref) and then run dft calculations. For example:
 
 ```
 c = makecrys([10 0 0; 0 10 0; 0 0 10], [0 0 0], ["H"]);
@@ -59,16 +59,16 @@ and `reference_structures/` for examples of how to create a database of example 
 
 You can load `dft` variables from the
 "prefix.save/data-file-schema.xml" output file as `dft =
-TightlyBound.QE.loadXML("prefix.save")`. You will need the charge
+[`ThreeBodyTB.QE.loadXML`](@ref)("prefix.save")`. You will need the charge
 density in the next step to run the non-SCF calculation, but after
 that you don't need the wavefunctions or charge density from either
 the DFT or NSCF run.
 
 ## 2. Create the tight-binding Hamiltonian for each DFT calculation
 
-The function `AtomicProj.projwfx_workf` will perform all of the
+The function [`ThreeBodyTB.AtomicProj.projwfc_workf`](@ref) will perform all of the
 calculations to create a projected tight-binding Hamiltonian from a
-DFT calculation. The basic steps it will perform are:
+DFT calculation (workf stands for workflow). The basic steps it will perform are:
 
 
 1. Run a non-SCF calculation with more bands, so that every atomic orbital can project onto bands.
@@ -86,7 +86,7 @@ fitting procedure. You can use the Hamiltonian in k-space directly, saving compu
 
 A typical call is
 ```
-tbc, tbck, projection_warning = ThreeBodyTB.AtomicProj.projwfx_workf(
+tbc, tbck, projection_warning = ThreeBodyTB.AtomicProj.projwfc_workf(
      dft,
      directory="dirname",
      nprocs=8,
@@ -94,24 +94,24 @@ tbc, tbck, projection_warning = ThreeBodyTB.AtomicProj.projwfx_workf(
 ```
 
 `tbck` is the important return, which is the tight binding Hamiltonian
-in k-space. `projection_warning` will warn you if the quality of the
+in k-space [`tb_crys_kspace`](@ref). `projection_warning` will warn you if the quality of the
 projection is detected to be low. This can be caused by atoms that are
 too close together or not including enough empty bands to guarantee that
 all of the atomic wavefunctions can project onto some states.
 
 In order to
 fit a SCF model, it is necessary to subtract the self-consistent part
-from the TB Hamiltonian:
+from the TB Hamiltonian with [`ThreeBodyTB.SCF.remove_scf_from_tbc`](@ref):
 
 ``` tbck_scf = ThreeBodyTB.SCF.remove_scf_from_tbc(tbck); ```
 
-You can read/write either `tbck` or `tbck_scf` with `ThreeBodyTB.read_tb_crys_kspace` or `ThreeBodyTB.write_tb_crys_kspace`
+You can read/write either `tbck` or `tbck_scf` with [`ThreeBodyTB.TB.read_tb_crys_kspace`](@ref) or [`ThreeBodyTB.TB.write_tb_crys_kspace`](@ref)
 
 If `only_kspace=false` you will also get the real-space `tbc` output,
 which is similar to the "prefix\_hr.dat" from Wannier90, and you can also use
 `remove_scf_from_tbc` on that struct and use it in the fitting. The
-read/write functions are `ThreeBodyTB.read_tb_crys` and
-`ThreeBodyTB.write_tb_crys`. These files can also be used to
+read/write functions are [`ThreeBodyTB.read_tb_crys`](@ref) and
+[`ThreeBodyTB.write_tb_crys`](@ref). These files can also be used to
 interpolate band structures or DOS to arbitrary k-points like a
 Wannier Hamiltonian, while the k-space versions are limited to fixed
 k-point grids.
@@ -154,7 +154,7 @@ relative to the filled ones. Default is `0.0` (no weight to high energy empty st
 ## 4. Run calculations with new `database`
 
 The dictionary returned by the fitting function has coefficient
-objects (type `CalcTB_laguerre.coefs`) in it, as well as a variable on
+objects (type [`ThreeBodyTB.CalcTB.coefs`](@ref)) in it, as well as a variable on
 whether the coefficients require self-consistency or not. For example,
 if we fit Al coefficients, there will be keys with `(:Al, :Al)`, with
 the two-body interaction coefs, and `(:Al, :Al, :Al)` with the three
@@ -165,7 +165,7 @@ You can save the coefficients in xml files for use later with
 `ThreeBodyTB.CalcTB.read_coefs("Al_2bdy.xml")`
 
 You can use the coefficients to run a calculation by using
-`scf_energy(c; database = database)`, which will override the default
+[`scf_energy(c; database = database)`](@ref), which will override the default
 database and use your database. The force/stress and relaxations
 similarly take `database` variables.
 
@@ -173,7 +173,7 @@ There is also a way to manage a directory with coefficients in it. You
 have to setup your directory structure the same way as
 `dats/pbesol/v1.2/`. Then, you can also load coefficients as needed
 for crystal `c` stored in a directory using
-`ManageDatabase.prepare_database(c; directory="dirname")` into the
+[`ThreeBodyTB.ManageDatabase.prepare_database(c; directory="dirname")`](@ref) into the
 internal database cache, instead of loading from the default directory
 with pre-fit coefficients. Note, this will only work if the coefficients follow my naming
 conventions.

@@ -55,7 +55,7 @@ function example_run_dft()
     try
         
         workd = "dft_out/"
-        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfx_workf(dft, directory=workd, writefile="projham_K.xml", only_kspace = true)
+        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfc_workf(dft, directory=workd, writefile="projham_K.xml", only_kspace = true)
         #this will take a minute or two as well, and can be run in parallel
         
     catch
@@ -63,7 +63,7 @@ function example_run_dft()
         # using precalculated data
         
         workd = ThreeBodyTB.TESTDIR * "/data_forces/znse.in_vnscf_vol_2/"
-        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfx_workf(dft, directory=workd, writefile="projham_K.xml", only_kspace = true)
+        tbc, tbck, proj_warn = ThreeBodyTB.AtomicProj.projwfc_workf(dft, directory=workd, writefile="projham_K.xml", only_kspace = true)
 
     end    
 
