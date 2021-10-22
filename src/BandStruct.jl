@@ -619,13 +619,13 @@ Returns `direct_gap, indirect_gap, gaptype, bandwidth`
 -`bandwidth` : HOMO - minimum_band_energy. Included semicore states if they are in the TB calculation.
 
 """
-function band_summary(tbc, kpts, fermi=missing)
+function band_summary(tbc, kpts, kweights, fermi=missing)
 
 
     vals = calc_bands(tbc, kpts)    
 
     if ismissing(fermi)
-        fermi = calc_fermi(vals, tbc.tb.kweights, tbc.nelec)
+        fermi = calc_fermi(vals, kweights, tbc.nelec)
     end
 
 
