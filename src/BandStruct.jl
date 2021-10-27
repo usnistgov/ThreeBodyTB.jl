@@ -681,16 +681,16 @@ end
 
 Will automatically generate standard k-grid by default.
 """
-function band_summary(tbc::tb_crys; kpts=missing, kgrid=missing)
-    if ismissing(kgrid)
+function band_summary(tbc::tb_crys; kpts=missing, kweights=missing, kgrid=missing)
+    if ismissing(kgrid) 
         kgrid = get_grid(tbc.crys)
     end
-    if ismissing(kpts)
+    if ismissing(kpts) || ismissing( kweights)
         println("using kgrid $kgrid")
         kpts, kweights = make_kgrid(kgrid)
     end
     
-    return band_summary(tbc, kpts, tbc.efermi)
+    return band_summary(tbc, kpts, kweights, tbc.efermi)
 end
 
 """
@@ -700,7 +700,8 @@ Will use internal k-points by default.
 """
 function band_summary(tbc::tb_crys_kspace)
     kpts = tbc.tb.K
-    return band_summary(tbc, kpts, missing)
+    kw = tbc.tb.kweights
+    return band_summary(tbc, kpts, kw)
 end
 
 
