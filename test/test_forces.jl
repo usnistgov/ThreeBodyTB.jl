@@ -28,7 +28,7 @@ function loaddata(dirs; scf=true)
             end
         catch
             println("failed to load $t $tfull")
-#            tbc,tbck,projwarn = ThreeBodyTB.AtomicProj.projwfx_workf(dft, directory=tfull, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15,only_kspace=true )
+#            tbc,tbck,projwarn = ThreeBodyTB.AtomicProj.projwfc_workf(dft, directory=tfull, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15,only_kspace=true )
 #            if scf
 #                tbc_scf = ThreeBodyTB.SCF.remove_scf_from_tbc(tbck)
 #            else

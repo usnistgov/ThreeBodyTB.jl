@@ -1689,7 +1689,7 @@ end
  """
  function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing)
 
- #    println("memory")
+#     println("memory")
      if true
 
          grid = size(hk3)[3:5]
@@ -1698,12 +1698,12 @@ end
          nwan = size(hk3)[1]
          VALS = zeros(Float64, nk, nwan)
          VALS0 = zeros(Float64, nk, nwan)
-         c=0
+#         c=0
 
          thetype=typeof(real(sk3[1,1,1,1,1]))
-         sk = zeros(Complex{thetype}, nwan, nwan)
-         hk = zeros(Complex{thetype}, nwan, nwan)
-         hk0 = zeros(Complex{thetype}, nwan, nwan)
+#         sk = zeros(Complex{thetype}, nwan, nwan)
+#         hk = zeros(Complex{thetype}, nwan, nwan)
+#         hk0 = zeros(Complex{thetype}, nwan, nwan)
 
          VECTS = zeros(Complex{thetype}, nk, nwan, nwan)
          cVECTS = zeros(Complex{thetype}, nk, nwan, nwan)
@@ -1712,16 +1712,27 @@ end
          error_flag = false
 
      end
+#
+#     println("grid", grid)
 
-     #println("grid")
+     @threads for c = 1:grid[1]*grid[2]*grid[3]
 
-     for k1 = 1:grid[1]
-         for k2 = 1:grid[2]
-             for k3 = 1:grid[3]
-                 c += 1
+         k3 = mod(c-1 , grid[3])+1
+         k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+         k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+
+#         k3 = mod(kind-1 , grid[1]*grid[2])+1
+#         k1 = 1 + (kind-1) ÷ grid[2]*grid[[3]
+#                                          
+#     @time for k1 = 1:grid[1]
+#         @threads for k2 = 1:grid[2]
+#             for k3 = 1:grid[3]
+#                 c = k3 + (k2-1) * grid[3] + (k1-1) * grid[2]*grid[3] 
+#                 c += 1
+#                 println("c $c cx $cx")
                  try
-                     hk0[:,:] = 0.5*( (@view hk3[:,:,k1,k2,k3]) + (@view hk3[:,:,k1,k2,k3])')
-                     sk[:,:] = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+                     hk0 = 0.5*( (@view hk3[:,:,k1,k2,k3]) + (@view hk3[:,:,k1,k2,k3])')
+                     sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
 
                      if !ismissing(h1)
                          hk = hk0 + sk .* h1
@@ -1729,8 +1740,8 @@ end
                          hk = hk0
                      end
 
-
                      vals, vects = eigen(hk, sk)
+
                      VALS[c,:] = vals
                      VALS0[c,:] = real.(diag(vects'*hk0*vects))
 
@@ -1752,32 +1763,41 @@ end
                      end
                      error_flag=true
 
-                 end
-             end
+#                 end
+#             end
          end
      end
 
+     #println("stuff")
+     begin
+         maxSK = maximum(abs.(SK), dims=1)[1,:,:]
 
-     maxSK = maximum(abs.(SK), dims=1)[1,:,:]
+         
+         energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
+         
+         occ = gaussian.(VALS.-efermi, smearing)
 
-
-     energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
-
-     occ = gaussian.(VALS.-efermi, smearing)
-
-     energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
+         max_occ = findlast(sum(occ, dims=1) .> 1e-10)[2]
+         
+#         println("occ ", size(occ))
+#         println(occ)
+         
+         energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
          #    println("energy smear $energy_smear")
-
-     energy0 = sum(occ .* VALS0) / nk * 2.0
-
- #    println("ENERGY 0 : $energy0")
-
-     energy0 += energy_smear
-
+         
+         energy0 = sum(occ .* VALS0) / nk * 2.0
+         
+         #    println("ENERGY 0 : $energy0")
+         
+         energy0 += energy_smear
+         
          #    println("sum occ ", sum(occ), "  ", sum(occ) / (grid[1]*grid[2]*grid[3]))#
 
 
-     denmat = zeros(Float64, nwan, nwan)
+         denmat = zeros(Float64, nwan, nwan)
+
+     end
+         
          #    denmatS = zeros(Complex{Float64}, nwan, nwan)
 
 
@@ -1840,8 +1860,8 @@ end
          println("diff denmat2 " , sum(abs.(denmat - denmat2)))
 
  =#
- #    println("charge")
-
+#     println("charge")
+     
      if true
          TEMP = zeros(Complex{Float64}, nwan, nwan) 
          pVECTS = permutedims(VECTS, [1,3,2])
@@ -1858,6 +1878,7 @@ end
  #        count = 0
          @threads for i = 1:nwan
              for j = 1:nwan
+                 
                  if maxSK[i,j] > 1e-7
  #                temp = 0.0
  #                for k = 1:nk
@@ -1878,7 +1899,10 @@ end
  #                    TEMP[i,j] += sum(t_temp .* SK[:,i,j])
 
  #                t_temp[:] = 
-                     TEMP[i,j] += sum( sum(  (@view occ[:,:]).* (@view pVECTS_C[:,:,i])  .* (@view pVECTS[:,:,j]), dims=2) .* (@view SK[:,i,j]))
+
+                     #TEMP[i,j] += sum( sum(  (@view occ[:,:]).* (@view pVECTS_C[:,:,i])  .* (@view pVECTS[:,:,j]), dims=2) .* (@view SK[:,i,j]))
+
+                     TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
 
 
  #                    t_temp[:] = sum(occ[:,:].* pVECTS_C[:,:,i]  .* pVECTS[:,:,j], dims=2)

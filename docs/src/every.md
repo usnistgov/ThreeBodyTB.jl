@@ -27,7 +27,13 @@ ThreeBodyTB.TB.find_vbm_cbm
 ThreeBodyTB.TB.ewald_energy
 ThreeBodyTB.TB.get_dq
 ThreeBodyTB.TB.get_energy_electron_density_kspace
+set_bin_dirs
+```
 
+## AtomicProj
+
+```@autodocs
+Modules = [ThreeBodyTB.AtomicProj]
 ```
 
 ## BandStruct
@@ -133,5 +139,7 @@ Modules = [ThreeBodyTB.SCF]
 ```@autodocs
 Modules = [ThreeBodyTB.Utility]
 ```
+
+
 
 

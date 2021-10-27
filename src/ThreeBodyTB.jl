@@ -22,6 +22,7 @@ using .CrystalMod:crystal
 using .CrystalMod:makecrys
 
 export makecrys
+export crystal
 
 include("Ewald.jl")
 include("DFToutMod.jl")
@@ -34,6 +35,11 @@ include("TB.jl")
 
 using .TB:tb_crys
 using .TB:tb_crys_kspace
+using .TB:tb
+
+export tb_crys
+export tb_crys_kspace
+export tb
 
 using .TB:Hk
 using .TB:calc_bands
@@ -64,6 +70,8 @@ export band_summary
 include("RunDFT.jl")
 
 export set_units
+export set_bin_dirs
+
 
 #include("RunWannier90.jl")
 include("AtomicProj.jl")

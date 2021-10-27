@@ -10,7 +10,7 @@ supported.
 
 ## **Create a crystal object**
 
-Consists of lattice vectors, atomic positions, and atom types. 
+Use [`makecrys`](@ref) to create a [`crystal`](@ref) from lattice vectors, atomic positions, and atom types:
 
 ```@example 1
 using ThreeBodyTB
@@ -19,7 +19,7 @@ pos = [0.0 0.0 0.0];
 types =        ["Al"];
 fcc_al = makecrys(A, pos, types)
 ```
-Current default units are Angstrom and eV. You can change the global units to atomic units with `set_units(both="atomic")` if you prefer.
+Current default units are Angstrom and eV. You can change the global units to atomic units with [`set_units(both="atomic")`](@ref) if you prefer.
 
 Alternatively, you can read the positions from a simple POSCAR or Quantum Espresso input file.
 
@@ -29,7 +29,7 @@ rbcl = makecrys("../src/POSCAR_rbcl")
 
 ## **Do a self-consistent calculation.**
 
-Gets the energy and charge density.
+Gets the energy and charge density with [`scf_energy`](@ref):
 
 ```@example 1
 alp = makecrys("../src/POSCAR_alp")
@@ -40,7 +40,7 @@ This returns the (non-magnetic) atomization energy, and a tight-binding object w
 
 ## **Plot the band structure.**
 
-Using the tight-binding object `tbc_alp` from above. Note: SCF must be done first.
+Using the [`tb_crys`](@ref) tight-binding object `tbc_alp` from above. Note: SCF must be done first.
 
 ```@example 1
 using Plots #hide
@@ -54,7 +54,7 @@ savefig("alp.png"); #hide
 
 Use `do_display=true` (the default) to produce an interactive plot. Here `do_display` is set to `false` because we are saving a static figure with `savefig` for the docs.
 
-The default `plot_bandstr` just picks some random kpoints, but you can add your own kpath. We can also project onto the *s* orbital of Al.
+The default [`plot_bandstr`](@ref) just picks some random kpoints, but you can add your own kpath. We can also project onto the *s* orbital of Al.
 
 ```@example 1
 kpath=[0.0 0.0 0.0; 0.5 0.5 0.5; 0.0 0.5 0.5];
@@ -65,7 +65,7 @@ savefig("alp2.png"); #hide
 
 ![AlP plot 2](alp2.png)
 
-You can also plot the DOS.
+You can also plot the DOS using [`dos`](@ref)
 
 ```@example 1
 dos(tbc_alp, do_display=false);
@@ -77,6 +77,8 @@ savefig("alp_dos.png"); #hide
 Project onto orbitals instead with `proj_type=:orbs`
 
 ## **Calculate force / stress**
+
+With [`scf_energy_force_stress`](@ref)
 
 ```@example 1
 energy, force, stress, tbc = scf_energy_force_stress(tbc_alp);
@@ -93,6 +95,8 @@ nothing #hide
 Can also be called directly on a new crystal structure instead of a `tb_crys` object.
 
 ## **Relax structure**
+
+Using [`relax_structure`](@ref)
 
 ```@example 1
 crys_new, tbc_updated, energy, force, stress = relax_structure(alp);

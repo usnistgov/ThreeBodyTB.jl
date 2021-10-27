@@ -129,17 +129,30 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
         end
     end
 =#
-    for k1 = 1:grid[1]
-        for k2 = 1:grid[2]
-            for k3 = 1:grid[3]
-                c += 1
-                sk[:,:] = ( 0.5 * (sk3[:, :, k1, k2, k3] + sk3[:, :, k1, k2, k3]'))
+#    for k1 = 1:grid[1]
+#        for k2 = 1:grid[2]
+#            for k3 = 1:grid[3]
+#                c += 1
                 for (pind, proj_inds) in enumerate(PROJ)
                     for p in proj_inds
                         for a = 1:tbc.tb.nwan
-                            for j = 1:tbc.tb.nwan
-                                t = vects[c,p,a]*conj(vects[c,j,a])
-                                proj[c,a, pind] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
+                            @threads for j = 1:tbc.tb.nwan
+#                                t = vects[c,p,a]*conj(vects[c,j,a])
+#                                proj[c,a, pind] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
+
+                                t = vects[:,p,a].*conj(vects[:,j,a])
+                                for c = 1:grid[1]*grid[2]*grid[3]
+                                    
+                                    k3 = mod(c-1 , grid[3])+1
+                                    k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+                                    k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+
+                                    
+#                                    sk[:,:] = ( 0.5 * ( (@view sk3[:, :, k1, k2, k3]) + (@view sk3[:, :, k1, k2, k3])'))
+                                
+                                proj[c,a, pind] += 0.5*real( (t[c]*sk3[j,p,k1,k2,k3]  + conj(t[c])* conj(sk3[j,p, k1,k2,k3])))
+
+                                
                             end
                         end
                     end
@@ -150,8 +163,8 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
 #                        println("check ", 0.5*sum(vects[c,:,:]' * (sk3[:, :, k1, k2, k3] + sk3[:, :, k1, k2, k3]') * vects[c,:,:]))
 #                    end
 #                end
-            end
-        end
+#            end
+#        end
     end
 
 
@@ -246,7 +259,7 @@ function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, p
         println("grid $grid")
     end
 
-    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true)
+    @time etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true)
 
 #    println("precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
     
@@ -260,7 +273,7 @@ function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, p
     r = vmax - vmin
 
     if ismissing(npts)
-        npts = Int64(round(r * 150 ))
+        npts = Int64(round(r * 100 ))
     end
     
     energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
@@ -326,7 +339,7 @@ end
 function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
 
 
-    bandenergy, eden, vects, vals, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=0.01)
+    @time bandenergy, eden, vects, vals, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=0.01)
 
 
 #    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true)
@@ -347,7 +360,7 @@ function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_ty
     r = vmax - vmin
 
     if ismissing(npts)
-        npts = Int64(round(r * 150 ))
+        npts = Int64(round(r * 100 ))
     end
     
     energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
@@ -524,7 +537,7 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
     end
 
 
-    etot, efermi, vals, vects,hk3, sk3 = calc_energy_fft(tbc, grid=grid, return_more_info=true)
+    @time etot, efermi, vals, vects,hk3, sk3 = calc_energy_fft(tbc, grid=grid, return_more_info=true)
 
 #    println("vects ", size(vects))
 #    println(vects[1,:,:])
@@ -533,8 +546,8 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
 #    println("sk ", size(sk3))
 #    println(sk3[:,:,1,1,1])
 
-
-
+    
+    begin
     
     vals = vals .- efermi
     
@@ -546,7 +559,7 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
     r = vmax - vmin
 
     if ismissing(npts)
-        npts = Int64(round(r * 150 ))
+        npts = Int64(round(r * 100 ))
     end
 
     
@@ -571,8 +584,8 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
         names=missing
     end
 
-    #println("setup tetra")
-    kpts, kpts_dict, tetra_map = setup_tetra(grid)
+        #println("setup tetra")
+        kpts, kpts_dict, tetra_map = setup_tetra(grid)
 
     #    e=zeros(4)
 
@@ -589,10 +602,13 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
 
     #println("calc dos tetra")
 
+    end
+        
     range = 1:length(energies)
     
     @threads for nt = 1: ntetra
         id = threadid()
+        #id = 1
         ex=zeros(4)
         px=zeros(4)    
         e=zeros(4, tbc.tb.nwan)
@@ -671,6 +687,7 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
 #                for c in 1:length(energies)
                     en = energies[c]
 
+                    
                     if en < ex[4] && en >= ex[1]
                     
                         if en < ex[4] && en >= ex[3]

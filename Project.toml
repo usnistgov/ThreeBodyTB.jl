@@ -1,7 +1,7 @@
 name = "ThreeBodyTB"
 uuid = "2a26a249-28ed-4bc9-828d-d3ac47f0d73d"
 authors = ["Kevin F. Garrity <kevin.garrity@nist.gov>"]
-version = "0.1.0"
+version = "0.3.0"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -27,7 +27,7 @@ FFTW = "1"
 ForwardDiff = "0.10"
 GZip = "0.5"
 LineSearches = "7"
-PackageCompiler = "0, 1"
+PackageCompiler = "1"
 Plots = "1"
 SpecialFunctions = "0.10, 1"
 Suppressor = "0.1.1, 0.2"

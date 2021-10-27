@@ -62,28 +62,39 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 
     println("construct")
     @time tbc = calc_tb_fast(c, database);
-    return scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose)
+    @time t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose)
+    return t
+    
 end
 
 """
     function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 200, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
     if mixing_mode != :simple
         mixing_mode = :pulay
         if mix < 0
-            mix = 0.8
+            if tbc.crys.nat <= 10 
+                mix = 0.5
+            else
+                mix = 0.2
+            end
         end
     else
         if mix < 0
-            mix= 0.1
+            if tbc.crys.nat <= 10 
+                mix= 0.1
+            else
+                mix= 0.05
+            end
+                
         end
     end
 
@@ -168,6 +179,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     efermi = 0.0
 
 
+    println("dq start", round.(dq; digits=2))
+
+    
     function innnerloop(mixA, smearingA, e_denA, conv_thrA, ITERS)
         #main SCF loop
         convA = false
@@ -210,13 +224,15 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
         for iter = 1:ITERS
 
-            dq_old = dq
+            dq_old = deepcopy(dq)
 
             h1, dq = get_h1(tbc, e_denA)
 
 #            println("O ", e_denA)
                 
-#            println("DQ ", dq)
+#            if iter == 1
+#                println("DQ ", round.(dq, digits=2))
+#            end
 
             try
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1)
@@ -231,13 +247,19 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 break
             end
 
+            if iter == 1
+                e_denA[:] = 0.95 * e_den_NEW[:] .+ 0.05 * e_denA[:]
+            end
+            
 #            println("N ", e_den_NEW)
 
             delta_eden_old = delta_eden
             delta_eden = sum(abs.(e_den_NEW - e_denA))
 
 
-#            println("delta eden ", e_den_NEW - e_denA)
+#            println("eden_NEW ", round.(e_den_NEW[1:12] , digits=2))
+#            println("edenA ", round.(e_denA[1:12] , digits=2))
+
             
             energy_charge, pot = ewald_energy(tbc, dq)
             
@@ -247,7 +269,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 mixA = max(mixA * 0.5, 0.0001)
                 nreduce += 1
                 if nreduce > 10
-                    mixA = 0.1
+                    mixA = 0.02
                     nreduce = -5
                 end
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
@@ -271,11 +293,15 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             
             if mixing_mode == :simple 
                 e_denA = e_denA * (1 - mixA ) + e_den_NEW * (mixA )  
-            elseif iter < 3
+            elseif iter < 2
                 if iter == 1
-                    mixA_temp = 0.4
+                    if tbc.crys.nat <= 10
+                        mixA_temp = 0.05
+                    else
+                        mixA_temp = 0.025
+                    end                        
                 else
-                    mixA_temp = 0.2
+                    mixA_temp = 0.02
                 end
 
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
@@ -343,14 +369,20 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             if iter == 1
 #                println("SCF CALC $iter energy   $energy_tot                                  $dq ")
                 @printf("SCF CALC %04i energy  % 10.8f    \n", iter, energy_tot*energy_units )
+#                println("dq ", round.(dq; digits=2))
+                
             else
 #                println("SCF CALC $iter energy   $energy_tot   en_diff ", abs(energy_tot - energy_old), "   dq_diff:   $delta_eden    ")
-                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, delta_eden )
+                #                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, delta_eden )
+                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.(dq - dq_old)) )
+
+#                println("dq ", round.(dq; digits=2))
 #                println(e_denA)
             end
             
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat
-                if delta_eden < 0.05 * tbc.crys.nat
+                #                if delta_eden < 0.05 * tbc.crys.nat
+                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 10
                     convA = true
                     println()
                     eu = energy_tot*energy_units
@@ -387,7 +419,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             mixing_mode = :simple
             e_denS = get_neutral_eden(tbc)
             e_den = 0.5*(e_den + e_denS)
-            mix = 0.05
+            mix = 0.01
 
         end
     end
@@ -397,10 +429,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
         println("SCF STEP 1/2 - get rough charge density")
 #        conv, e_den = innnerloop(0.70, 0.01, e_den, 1e-2, 1)  #first step
-        conv, e_den = innnerloop(0.01, 0.01, e_den, 1e-2, 1)  #first step
+        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-2, 1)  #first step
         energy0 = deepcopy(energy_tot)
 
-        conv, e_den = innnerloop(mix, 0.01, e_den, 1e-3, 5)
+        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-3, 5)
         energy1 = deepcopy(energy_tot)
         
         println("SCF STEP 2/2 - converge final")

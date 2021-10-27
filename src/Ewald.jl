@@ -225,7 +225,9 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
     a3 = sqrt(sum(crys.A[3,:].^2))
     a = (minimum([a1,a2,a3]) - 0.0010) * 0.95
 
-    for N = 1:30
+    
+    
+    for N = 1:70
 
         n1 = max(Int64(ceil( a * N / a1)), 2)
         n2 = max(Int64(ceil( a * N / a2)), 2)

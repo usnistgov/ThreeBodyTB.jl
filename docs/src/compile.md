@@ -33,11 +33,12 @@ space. If you want to update the code, you will have to delete and remake the sy
 ## Python
 
 While running ThreeBodyTB using Julia is the easiest option, I
-understand that many users have existing codes in
-Python. Therefore, I have created a separate github package in python,
-[ThreeBodyTB_python](https://github.com/kfgarrity/ThreeBodyTB_python),
-that hosts a wrapper that allows the user to call my Julia functions
-like they were in python.
+understand that many users have existing codes in Python. Therefore,
+we have created a separate github package in python,
+[TB3PY](https://github.com/usnistgov/tb3py), that hosts a wrapper that
+allows the user to call the Julia functions directly like they were in
+python. It also has a more pythonic interface and integration with
+[jarvis-tools](https://github.com/usnistgov/jarvis).
 
 This works by using the [PyJulia](https://github.com/JuliaPy/pyjulia)
 interface. The wrapper will, if necessary, a) download & install Julia b)
