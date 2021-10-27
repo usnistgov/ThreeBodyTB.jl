@@ -1319,6 +1319,8 @@ Where
 """
 function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
 
+    println("cutoff $cutoff $cutoff2")
+    
     if ismissing(cutoff)
         cutoff = cutoff2X
     end
@@ -1374,7 +1376,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
     found_arr = zeros(Bool, nr)
     found_arr[:] .= false
     
-    @threads for r1 = -R[1]:R[1]
+    @time @threads for r1 = -R[1]:R[1]
     #for r1 = -R[1]:R[1]    
         c1 = r1 + R[1] + 1
         id = threadid()
@@ -1457,7 +1459,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
 
     keep_counter = 0
     
-    for a = 1:crys.nat
+    @time for a = 1:crys.nat
         ta = crys.stypes[a]
         for b = 1:crys.nat
             tb = crys.stypes[b]            
@@ -1507,12 +1509,13 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
         
 
     dmat = dist_arr[:,:,:,2:4] .* dist_arr[:,:,:, 1]
-    if threebody
-#        println("THREE")
+    @time if threebody
+        println("THREE")
         #        @threads for a = 1:crys.nat
         for a = 1:crys.nat        
         ta = crys.stypes[a]
-        id = threadid()
+            #        id = threadid()
+            id = 1
         array_ind3X = AI3[id]
         array_floats3X = AF3[id]
 
@@ -2006,7 +2009,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if verbose println("distances") end
 
-    if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+    @time if (use_threebody || use_threebody_onsite ) && !ismissing(database)
 #        parallel =true
 #        if parallel
 
@@ -2038,8 +2041,8 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 #    end
     
     within_fit = true
-
-    if !ismissing(database)
+    
+    @time if !ismissing(database)
         for key in keys(dmin_types)
             for key2 in keys(database)
                 if key == Set(key2)
@@ -2071,7 +2074,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         end
     end
 
-    if !ismissing(database) && check_frontier
+    @time if !ismissing(database) && check_frontier
 #    if false
         diststuff = (R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3)
         violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose)
@@ -2118,7 +2121,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     if !ismissing(database)
 
         if verbose println("2body") end
-        @threads for c = 1:nkeep_ab
+        @time @threads for c = 1:nkeep_ab
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
             cham = R_keep_ab[c,7]
@@ -2205,7 +2208,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         
 
         if verbose println("3body") end
-        if use_threebody || use_threebody_onsite
+        @time if use_threebody || use_threebody_onsite
             #        if false
             @threads for counter = 1:size(array_ind3)[1]
 #            for counter = 1:size(array_ind3)[1]
@@ -2337,7 +2340,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
         ############ONSITE
         if verbose println("onsite") end
-        for c = 1:nkeep_ab
+        @time for c = 1:nkeep_ab
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
             a1 = R_keep_ab[c,2]
@@ -2385,8 +2388,8 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     end
 
-#    println("make")
-    if true
+    println("make")
+    @time if true
         tb = make_tb(H, ind_arr, S)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]

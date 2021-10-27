@@ -66,7 +66,9 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
 
     println("construct")
     @time tbc = calc_tb_fast(c, database);
-    return scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose)
+    @time t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose)
+    return t
+    
 end
 
 """
