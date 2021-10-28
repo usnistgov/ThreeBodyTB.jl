@@ -26,6 +26,8 @@ export crystal
 
 include("Ewald.jl")
 include("DFToutMod.jl")
+include("RunDFT.jl")
+
 using .DFToutMod:dftout
 using .DFToutMod:makedftout
 export dftout
@@ -46,6 +48,7 @@ using .TB:calc_bands
 using .TB:read_tb_crys
 using .TB:write_tb_crys
 
+include("AtomicProj.jl")
 include("BandStruct.jl")
 
 using .BandStruct:plot_compare_tb
@@ -67,14 +70,12 @@ export dos
 export write_tb_crys
 export band_summary
 
-include("RunDFT.jl")
 
 export set_units
 export set_bin_dirs
 
 
 #include("RunWannier90.jl")
-include("AtomicProj.jl")
 include("CalcTB_laguerre.jl")
 using .CalcTB:calc_tb_fast
 export calc_tb_fast

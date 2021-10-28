@@ -42,7 +42,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     eden = missing #starts off missing
 
     #do this ahead of first iteration, to get memory in correct place
-    tbc = calc_tb_fast(deepcopy(crys), database)
+    tbc = calc_tb_fast(deepcopy(crys), database, verbose=false)
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7)
 
     if error_flag

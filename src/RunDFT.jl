@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing)
 """
 Run SCF calculation using QE
 """
@@ -126,7 +126,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, grid=grid)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, grid=grid, klines=klines)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -152,7 +152,7 @@ Run SCF calculation using QE
 
     if ret != 0 && updated == false
         println("failed DFT, trying with different mixing")
-        tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid)
+        tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
 
         f = open(directory*"/"*inputstr, "w")
         write(f, inputfile)
@@ -225,7 +225,7 @@ end
 
 Make QE inputfile for SCF DFT calculation.
 """
-function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing)
+function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing, klines = missing)
 """
 Make inputfile for SCF calculation
 """
@@ -339,19 +339,48 @@ Make inputfile for SCF calculation
     
     kpoints = [k1, k2, k3]
 =#
-    if ismissing(grid)
-        kpoints = get_grid(crys)
-    else
-        kpoints =  grid
-    end
 
+    if ismissing(klines)
+        if ismissing(grid)
+            kpoints = get_grid(crys)
+        else
+            kpoints =  grid
+        end
+        
 #    if calculation == "nscf"
-#        kpoints = get_grid(c, kden=50.0)
-#    end
+        #        kpoints = get_grid(c, kden=50.0)
+        #    end
+        temp = replace(temp, "JULIAKTYPE" => "K_POINTS automatic")
+        temp = replace(temp, "JULIAKPOINTS" => arr2str(kpoints)*" 0 0 0 ")
 
-    temp = replace(temp, "JULIAKPOINTS" => arr2str(kpoints))
+    else
+        
+#        println("KLINES xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+#        println(klines)
 
+        if calculation != "nscf" 
+            println("warning, you are specifying the klines without using nscf, i hope you know what you are doing")
+        end
 
+        nk = size(klines)[1]
+        if size(klines)[2] == 3
+            klines2 = ones(nk,4)
+            klines2[:,1:3] = klines
+            klines = deepcopy(klines2)
+        end
+
+        kstr = "$nk\n"
+        kstr *= arr2str(klines)
+
+#        println("before ", temp)
+
+        temp = replace(temp, "JULIAKTYPE" => "K_POINTS crystal")
+        temp = replace(temp, "JULIAKPOINTS" => kstr)
+        
+#        println("after", temp)
+
+    end
+        
     if ismissing(tmpdir)
         tmpdir=string(rand(1)[1])
     end
@@ -649,7 +678,7 @@ using ..CrystalMod:crystal
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing)
     
     if ismissing(smearing)
         if calculation=="scf"
@@ -666,11 +695,11 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         end
         qeout = missing
         try
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines)
             return qeout
         catch
             println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines)
             return qeout
 
         end

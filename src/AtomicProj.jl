@@ -231,6 +231,105 @@ run open_grid.x command
         
 end
 
+
+function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=false, only_kspace=false, klines=missing)
+
+    olddir = "$directory/$prefix.save"
+    println("doing nscf")
+    nscfdir = "$directory/$prefix.nscf.save"
+    if isdir(nscfdir)
+        println("removing original nscf directory $nscfdir")
+        rm(nscfdir,recursive=true)
+    end
+    mkpath(nscfdir)
+    #        println("after mkdpath")
+    
+    files = readdir(olddir)
+    for f in files
+        if length(f) > 3 && f[end-2] == 'U' && f[end-1] == 'P' && f[end] == 'F'
+            #                println("found $f , copy")
+            cp("$olddir/$f", "$nscfdir/$f")            
+        end
+    end
+    
+    try
+        if isfile("$olddir/charge-density.dat")
+            cp("$olddir/charge-density.dat",  "$nscfdir/charge-density.dat")
+        end
+        if isfile("$olddir/data-file-schema.xml")
+            cp("$olddir/data-file-schema.xml", "$nscfdir/data-file-schema.xml" )
+        end
+        if isfile("$olddir/data-file-schema.xml.gz")
+            cp("$olddir/data-file-schema.xml.gz", "$nscfdir/data-file-schema.xml.gz" )
+            
+            tounzip = "$nscfdir/data-file-schema.xml.gz"
+            command = `gunzip $tounzip`
+            s = read(command, String)
+            println("gunzipped $tounzip")
+        end
+        if isfile("$olddir/charge-density.dat.gz")
+            cp("$olddir/charge-density.dat.gz", "$nscfdir/charge-density.dat.gz" )
+            
+            tounzip = "$nscfdir/charge-density.dat.gz"
+            command = `gunzip $tounzip`
+            s = read(command, String)
+            println("gunzipped $tounzip")
+            
+        end
+        
+        
+    catch
+        println("missing charge density or xml file, cannot run nscf")
+    end
+    
+    crys = dft.crys
+    tot_charge = dft.tot_charge
+    grid=dft.bandstruct.kgrid
+    
+    if min_nscf
+        println("minimize kgrid")
+        if dft.bandstruct.nks > 100
+            grid = min.(grid, 4)
+        end
+    end
+                
+
+    if only_kspace
+        calc = "nscf-sym"
+    else
+        calc = "nscf"
+    end
+
+    dft_nscf = missing
+    
+    try
+        dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid, klines=klines)
+    catch
+        println()
+        println("first nscf failed, trying backup nscf with fewer extra bands")
+        println()
+        try
+            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines)
+        catch
+            println("try 2")
+            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines)
+        end
+    end
+    
+    dft_nscf.energy = dft.energy
+    dft_nscf.energy_smear = dft.energy_smear
+    dft_nscf.forces = dft.forces
+    dft_nscf.stress = dft.stress        
+    
+    prefix = prefix*".nscf"
+
+    return dft_nscf
+    
+end
+
+
+
+
 """
     function projwfc_workf(dft::dftout)
 
@@ -290,100 +389,10 @@ Steps:
     olddir = "$directory/$prefix.save"
     nscfdir = "$directory/$prefix.nscf.save"
 
-    function run_nscf()
-
-        println("doing nscf")
-        if isdir(nscfdir)
-            println("removing original nscf directory $nscfdir")
-            rm(nscfdir,recursive=true)
-        end
-        mkpath(nscfdir)
-#        println("after mkdpath")
-
-        files = readdir(olddir)
-        for f in files
-            if length(f) > 3 && f[end-2] == 'U' && f[end-1] == 'P' && f[end] == 'F'
-#                println("found $f , copy")
-                cp("$olddir/$f", "$nscfdir/$f")            
-            end
-        end
-
-        try
-            if isfile("$olddir/charge-density.dat")
-                cp("$olddir/charge-density.dat",  "$nscfdir/charge-density.dat")
-            end
-            if isfile("$olddir/data-file-schema.xml")
-                cp("$olddir/data-file-schema.xml", "$nscfdir/data-file-schema.xml" )
-            end
-            if isfile("$olddir/data-file-schema.xml.gz")
-                cp("$olddir/data-file-schema.xml.gz", "$nscfdir/data-file-schema.xml.gz" )
-
-                tounzip = "$nscfdir/data-file-schema.xml.gz"
-                command = `gunzip $tounzip`
-                s = read(command, String)
-                println("gunzipped $tounzip")
-            end
-            if isfile("$olddir/charge-density.dat.gz")
-                cp("$olddir/charge-density.dat.gz", "$nscfdir/charge-density.dat.gz" )
-
-                tounzip = "$nscfdir/charge-density.dat.gz"
-                command = `gunzip $tounzip`
-                s = read(command, String)
-                println("gunzipped $tounzip")
-
-            end
-
-
-        catch
-            println("missing charge density or xml file, cannot run nscf")
-        end
-            
-        crys = dft.crys
-        tot_charge = dft.tot_charge
-        grid=dft.bandstruct.kgrid
-
-        if min_nscf
-            println("minimize kgrid")
-            if dft.bandstruct.nks > 100
-                grid = min.(grid, 4)
-            end
-        end
-                
-
-        if only_kspace
-            calc = "nscf-sym"
-        else
-            calc = "nscf"
-        end
-
-        try
-            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid)
-        catch
-            println()
-            println("first nscf failed, trying backup nscf with fewer extra bands")
-            println()
-            try
-                dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid)
-            catch
-                println("try 2")
-                dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid)
-            end
-        end
-
-        dft_nscf.energy = dft.energy
-        dft_nscf.energy_smear = dft.energy_smear
-        dft_nscf.forces = dft.forces
-        dft_nscf.stress = dft.stress        
-        
-        prefix = prefix*".nscf"
-
-        return dft_nscf
-
-    end
     
     if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))
 
-        dft_nscf = run_nscf()
+        dft_nscf = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
 
     else
         if (isdir(nscfdir))
@@ -504,7 +513,8 @@ Steps:
         println("warning, projected eigs and dft_nscf eigs do not match ", sum(abs.(dft_nscf.bandstruct.eigs[1,:] - p.bs.eigs[1,:])))
         println("rerun nscf")
         prefix = deepcopy(prefix_orig)
-        dft_nscf = run_nscf()
+        dft_nscf = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
+#        dft_nscf = run_nscf()
         println("rerun proj")
         proj()
         p = loadXML_proj("$directory/$newprefix.save", B)

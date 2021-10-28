@@ -38,6 +38,10 @@ using ..TB:tb
 using ..TB:calc_bands
 using ..TB:Hk
 
+using ..AtomicProj:run_nscf
+using ..DFT:runSCF
+using ..QE:loadXML
+
 export plot_compare_tb
 export plot_bandstr
 export plot_compare_dft
@@ -483,7 +487,7 @@ The k-points are fixed by the `bs` object.
 
 `tbc2` is an optional second `tbc_crys`.
 """
-function plot_compare_dft(tbc, bs; tbc2=missing)
+function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
 
     if typeof(bs) == dftout
         bs = bs.bandstruct
@@ -591,6 +595,11 @@ function plot_compare_dft(tbc, bs; tbc2=missing)
         ylabel!("Energy - VBM (Ryd.)", guidefontsize=16)
     end
 
+    if !ismissing(names) && !ismissing(locs)
+        xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
+    end
+    
+
     if ! no_display
         display(ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
     else
@@ -598,6 +607,34 @@ function plot_compare_dft(tbc, bs; tbc2=missing)
     end
 #    end
 
+
+end
+
+"""
+    function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing,   align="vbm")
+
+This function will run a new QE dft calculation and band structure calculation and compare the bands with the tight binding model tbc.
+
+`outdir` is the location the QE files will be stored.
+
+Other options like the other plotting commands
+"""
+function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, align="vbm")
+
+
+    NK = size(kpath)[1]
+
+    K, locs = get_kpath(kpath, names , npts)
+    nk = size(K)[1]
+
+    dft = runSCF(tbc.crys, nprocs=nprocs, prefix=prefix, directory=outdir, tmpdir=outdir, wannier=false, code="QE", skip=true, cleanup=true)
+
+    prefix = dft.prefix
+    dft_nscf = run_nscf(dft, outdir; tmpdir=outdir, nprocs=nprocs, prefix=prefix, min_nscf=false, only_kspace=false, klines=K)
+    
+
+    plot_compare_dft(tbc, dft_nscf.bandstruct;  names=names, locs=locs)    
+    
 
 end
 
