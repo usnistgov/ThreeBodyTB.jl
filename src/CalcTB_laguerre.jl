@@ -1606,6 +1606,12 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
                             
                             array_ind3X[COUNTER[id],:] = [a,b,c,ikeep,c2]
                             array_floats3X[COUNTER[id], :] = [dist_ab, dist_ac, dist_bc, lmn_ab[1],lmn_ab[2], lmn_ab[3], lmn_ac[1],lmn_ac[2], lmn_ac[3], lmn_bc[1],lmn_bc[2], lmn_bc[3], cut_ab*cut_bc*cut_ac, cut_ab2*cut_bc*cut_ac]
+
+                                if COUNTER[id] == 761  ||  COUNTER[id] == 762 || COUNTER[id] == 763 || COUNTER[id] == 764
+
+                                println(array_ind3X[COUNTER[id],:])
+                            end
+                            
 #                            catch
 #                                println(id, " " , COUNTER[id], " ", TOTMEM[id])
 #                            end
@@ -1628,6 +1634,393 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
 #    return R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3
 
 end
+
+
+
+
+
+function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
+
+#    println("cutoff $cutoff $cutoff2")
+    
+    if ismissing(cutoff)
+        cutoff = cutoff2X
+    end
+    
+    if ismissing(cutoff2)
+        cutoff2=cutoff3bX
+    end
+    threebody=true
+    if cutoff2 < 1e-5
+        threebody= false
+    end
+
+    dmin_types = Dict()
+    dmin_types3 = Dict()
+    for t1 = crys.stypes
+        for t2 in crys.stypes
+            dmin_types[Set((t1,t2))] = get_cutoff(t1,t2)[1]
+            for t3 in crys.stypes
+                dmin_types3[Set((t1,t2,t3))] = get_cutoff(t1,t2,t3)
+            end
+        end
+    end
+
+    
+
+    R = get_grid(crys, 35.0)
+    nr = (R[1]*2+1)*(R[2]*2+1)*(R[3]*2+1)
+
+#    println("R grid ", R, " " , nr)
+    
+    dist_arr = zeros(var_type, crys.nat,crys.nat,nr,4)
+                     
+    R_f = zeros(var_type, 3, nthreads())
+    
+    lmn = zeros(var_type, 3)
+
+    coords_ab = zeros(var_type, 3, crys.nat, crys.nat)
+    for a = 1:crys.nat
+        for b = 1:crys.nat
+            coords_ab[:,a,b] = (crys.coords[a,:] .- crys.coords[b,:])' * crys.A 
+        end
+    end
+    
+#    c=0
+    At = crys.A'
+
+    S3 = (2*R[3]+1)
+    S23 = (2*R[3]+1)*(2*R[2]+1)
+
+    c_zero = 0
+
+    Rind = zeros(Int64, nr, 3)
+
+    found_arr = zeros(Bool, nr)
+    found_arr[:] .= false
+
+
+    @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1)
+        
+        r3 = mod(c-1 , R[3]*2+1 ) - R[3]
+        r2 = mod((c-1) ÷ (R[3]*2+1), (R[2]*2+1)) - R[2]
+        r1 = (c-1) ÷ ( (R[2]*2+1)*(R[3]*2+1)) - R[1]
+
+        rf = [r1,r2,r3]
+        
+        Rind[c,:] .= rf
+
+        RF = At*rf
+
+        found = false
+        for a = 1:crys.nat
+            ta = crys.stypes[a]
+            for b = 1:crys.nat
+                tb = crys.stypes[b]            
+                #                        println(R_f2)
+                #                        println(coords_ab[:,a,b])
+                dR = (@view coords_ab[:,a,b]) + RF
+                dist = (dR'*dR)^0.5
+
+                dist_arr[a,b,c,1] = dist
+                        
+                if dist > 1e-7
+                    dist_arr[a,b,c,2:4].= dR/(dist )
+                end
+                cutoff = get_cutoff(ta,tb)[1]
+                if dist < cutoff
+                    found = true
+                end
+                        
+                if r1 == 0 && r2 == 0 && r3 == 0
+                    c_zero = c
+                end
+                if found
+                    found_arr[c] = true
+                end
+            end
+        end
+    end
+
+    
+#    R_reverse = Dict()
+#    for key in 1:size(Rind)[1]
+##        println(key , " ", Rind[key,:])
+#        R_reverse[Rind[key,:]] = key
+#    end
+
+    begin
+            Rdiff = zeros(UInt16, size(Rind)[1], size(Rind)[1])
+            #Rdiff = spzeros(Int32, size(Rind)[1], size(Rind)[1])
+
+        NR1 = (R[1]*2+1)
+        NR2 = (R[2]*2+1)
+        NR3 = (R[3]*2+1)
+
+        rr1 = zeros(size(Rind)[1])
+        rr2 = zeros(size(Rind)[1])
+        rr3 = zeros(size(Rind)[1])
+    end
+        
+#        test = zeros(Bool, size(Rind[1]))
+
+    for c1 = 1:size(Rind)[1]
+        if found_arr[c1]
+
+            rr1[:] .=  -(@view Rind[:, 1]) .+ Rind[c1, 1]
+            rr2[:] .=  -(@view Rind[:, 2]) .+ Rind[c1, 2]
+            rr3[:] .=  -(@view Rind[:, 3]) .+ Rind[c1, 3]
+                    
+                    
+                    #                test = (rr1 .<= R[1]) .& (rr1 .>= -R[1]) .& (rr2 .<= R[2]) .& (rr2 .>= -R[2]) .& (rr3 .<= R[3]) .& (rr3 .>= -R[3])
+                    #                Rdiff[c1,:] = test .* ( (rr1 .+ R[1])*NR3*NR2    .+  (rr2.+R[2])*NR3  .+    rr3 .+ 1 .+ R[3])
+
+                    #                println(size(test))
+
+            for c2 = 1:size(Rind)[1]
+                if found_arr[c2]
+                    if rr1[c2] <= R[1] && rr1[c2] >= -R[1] && rr2[c2] <= R[2] && rr2[c2] >= -R[2] && rr3[c2] <= R[3] && rr3[c2] >= -R[3]
+                        
+                        Rdiff[c1,c2] =  (rr1[c2]+R[1])*NR3*NR2    +  (rr2[c2]+R[2])*NR3  +    rr3[c2] + 1 + R[3]
+                        
+                    end
+                    
+                    
+                end
+            end
+        end
+    end
+    
+    
+
+                        
+                
+                #            continue
+#            for c2 = 1:size(Rind)[1]
+#                if Rdiff in keys(R_reverse)
+#                    c12 = R_reverse[ [r1[c2],r2[c2],r3[c2]] ]
+#                    Rdiff[c1,c2] = c12
+#                end
+#            end
+#        end
+        
+#    end
+
+
+    
+    R_keep = zeros(Int64, 0, 4)
+    R_dict = Dict()
+    fcount =0
+    for i in 1:nr
+        if found_arr[i]
+            c = Rind[i,:]
+            R_keep = [R_keep; [0 c']]
+            fcount += 1
+            R_dict[c] = fcount
+            if i == c_zero
+                c_zero = fcount
+            end
+        end
+    end
+
+    R_keep_ab = zeros(Int64, crys.nat*crys.nat*nr, 7)
+    
+    ind_cutoff = Dict()
+    ind_cutoff3bX = Dict()
+
+    keep_counter = 0
+    
+    for a = 1:crys.nat
+        ta = crys.stypes[a]
+        for b = 1:crys.nat
+            tb = crys.stypes[b]            
+            ind = dist_arr[a,b,:,1] .> 1e-7
+            
+            dmin = minimum( dist_arr[a,b,ind,1])
+            if dmin < dmin_types[Set((ta,tb))]
+                dmin_types[Set((ta,tb))] = dmin
+            end
+
+            cutoff = get_cutoff(ta,tb)[1]
+            ind2 = findall(dist_arr[a,b,:,1] .< cutoff)
+            ind_cutoff[(a,b)] = deepcopy(ind2)
+            for i in ind2
+                keep_counter += 1
+                r = Rind[i,:]
+                ikeep = R_dict[r]
+                
+                R_keep_ab[keep_counter,:] = [i, a, b, r[1], r[2], r[3], ikeep ]
+            end
+            
+            ind3 = findall(dist_arr[a,b,:,1] .< cutoff3bX)
+            ind_cutoff3bX[(a,b)] = deepcopy(ind3)
+
+        end
+    end
+
+    
+    R_keep_ab = R_keep_ab[1:keep_counter,:]
+    
+    ############
+
+    MEMCHUNK = min(nr*nr * crys.nat^3, 20000)
+    TOTMEM = MEMCHUNK * ones(Int64, nthreads())
+
+    AI3 = []
+    AF3 = []
+    COUNTER = zeros(Int64, nthreads())
+    for i = 1:nthreads()
+        array_ind3 = zeros(Int64, MEMCHUNK, 5)
+        array_floats3 = zeros(var_type, MEMCHUNK , 14)
+        push!(AI3, array_ind3)
+        push!(AF3, array_floats3)
+    end
+
+    
+        
+
+    dmat = dist_arr[:,:,:,2:4] .* dist_arr[:,:,:, 1]
+
+
+    
+
+    
+#    println("threebody")
+    if threebody
+        #        for a = 1:crys.nat        
+        #                       ta = crys.stypes[a]
+        #id = 1
+        
+        #             for b = 1:crys.nat
+
+        @threads for ab = 1:crys.nat^2
+            b = mod(ab-1, crys.nat)+1
+            a = (ab-1) ÷ crys.nat   +1
+            
+            ta = crys.stypes[a]
+
+            tb = crys.stypes[b]
+            cutoff = get_cutoff(ta,tb)[1]
+
+            id = threadid()
+            #id = 1
+            array_ind3X = AI3[id]
+            array_floats3X = AF3[id]
+
+            
+            for c1 = ind_cutoff[(a,b)]
+
+                dist_ab = dist_arr[a,b, c1 , 1]
+                lmn_ab = dist_arr[a,b, c1  , 2:4]
+                
+                d_ab = dmat[a,b, c1,:]
+                
+                cut_ab = cutoff_fn(dist_ab, cutoff - cutoff_length, cutoff)
+                
+
+                
+                for c = 1:crys.nat
+                    
+                    tc = crys.stypes[c]
+                    cutoff3 = get_cutoff(ta,tb,tc)
+                    
+                    cut_ab2 = cutoff_fn(dist_ab, cutoff3 - cutoff_length, cutoff3)
+                    
+                    for c2 in ind_cutoff[(a,c)]
+                        
+                        dist_ac = dist_arr[a,c, c2, 1]
+                        
+                        if dist_ac > cutoff3
+                            continue
+                        end
+                        
+                        c12 = Rdiff[c1,c2]
+                        
+                        
+                        if c12 == 0
+                            continue
+                        end
+                        
+
+                        
+                        #                            
+                        #                            
+                        #                            if rdiff in keys(R_reverse)
+                        #                                c12 = R_reverse[ rdiff ]
+                        #                            else
+                        #                                continue
+                        #                            end
+                        
+                        dist_bc = dist_arr[c, b, c12, 1]
+                        
+
+                        
+                        if dist_bc < cutoff3 && dist_ab > 1e-5 && dist_bc > 1e-5 && dist_ac > 1e-5
+                            lmn_bc = - (@view  dist_arr[c,b,c12, 2:4])
+                            
+                            lmn_ac = (@view dist_arr[a,c, c2, 2:4])
+                            #                            lmn_bc = - temp ./ dist_bc
+                            
+                            
+                            
+                            d0=dmin_types3[Set((ta,tb,tc))]
+                            if (dist_bc + dist_ab + dist_ac)/3.0 < d0
+                                dmin_types3[Set((ta,tb,tc))]  = (dist_bc + dist_ab + dist_ac)/3.0
+                            end
+                            
+                            cut_ac = cutoff_fn(dist_ac, cutoff3 - cutoff_length, cutoff3)
+                            cut_bc = cutoff_fn(dist_bc, cutoff3 - cutoff_length, cutoff3)
+                            
+                            COUNTER[id] += 1
+                            if COUNTER[id] > TOTMEM[id] #need more memory
+                                TOTMEM[id] += MEMCHUNK
+                                array_ind3X = [array_ind3X;zeros(Int64, MEMCHUNK, 5)]
+                                AI3[id] = array_ind3X
+                                array_floats3X = [array_floats3X; zeros(var_type, MEMCHUNK , 14)]
+                                AF3[id] = array_floats3X
+                                
+                            end
+
+                            r = Rind[c1,:]
+                            ikeep = R_dict[r]
+                            
+                            
+                            array_ind3X[COUNTER[id],:] .= [a,b,c,ikeep,c2]
+                            array_floats3X[COUNTER[id], :] .= [dist_ab, dist_ac, dist_bc, lmn_ab[1],lmn_ab[2], lmn_ab[3], lmn_ac[1],lmn_ac[2], lmn_ac[3], lmn_bc[1],lmn_bc[2], lmn_bc[3], cut_ab*cut_bc*cut_ac, cut_ab2*cut_bc*cut_ac]
+
+                            
+#                            if COUNTER[id] == 761  ||  COUNTER[id] == 762 || COUNTER[id] == 763 || COUNTER[id] == 764
+#                                println(array_ind3X[COUNTER[id],:])
+#                            end
+
+                            
+                            #                            catch
+                            #                                println(id, " " , COUNTER[id], " ", TOTMEM[id])
+                            #                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+#    end
+
+
+
+                            
+                
+    array_ind3 = zeros(Int64, 0, 5)
+    array_floats3 = zeros(var_type, 0 , 14)
+    for (counter, i,f) in zip(COUNTER, AI3, AF3)
+        array_ind3 = [array_ind3; i[1:counter, :]]
+        array_floats3 = [array_floats3; f[1:counter,:]]
+    end
+    
+    return R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3
+#    return R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3
+
+end
+
 
 #=
 #old version, slower.
@@ -2013,7 +2406,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 #        parallel =true
 #        if parallel
 
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel2(crys,cutoff2X, cutoff3bX,var_type=var_type)
 
         #        else
 #            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, cutoff3bX,var_type=var_type)
@@ -2022,7 +2415,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 #        parallel = true
 #        if parallel
 
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel2(crys,cutoff2X, 0.0,var_type=var_type)
 
     #else
     #        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, 0.0,var_type=var_type)

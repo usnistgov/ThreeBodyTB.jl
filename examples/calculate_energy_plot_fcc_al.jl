@@ -13,7 +13,7 @@ types=["Al"];
 #positions, crystal units
 pos=zeros((1,3));
 
-#lattice vectors, in Bohr units currently
+#lattice vectors, in Angstrom units units currently
 A=[ [3.8 3.8 0]; [3.8 0 3.8 ]; [ 0 3.8 3.8]] * 0.529177;
 
 #makes the crystal

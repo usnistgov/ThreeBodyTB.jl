@@ -11,7 +11,7 @@ function test_basics()
 
     @testset "test basic scf Hk TB manipulation" begin
 
-        @suppress begin
+         @suppress begin
 #        if true
 
             units_old = ThreeBodyTB.set_units()
