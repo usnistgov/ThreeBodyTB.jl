@@ -1513,6 +1513,44 @@ end
      end
  end
 
+ function orb_num(orb::Symbol)
+     if orb == :s
+         return 1
+     elseif orb == :pz
+         return 2
+     elseif orb == :px
+         return 3
+     elseif orb == :py
+         return 4
+     elseif orb == :dz2
+         return 5
+     elseif orb == :dxz
+         return 6
+     elseif orb == :dyz
+         return 7
+     elseif orb == :dx2_y2
+         return 8
+     elseif orb == :dxy
+         return 9
+     elseif orb == :fz3
+         return 10
+     elseif orb == :fxz2
+         return 11
+     elseif orb == :fyz2
+         return 12
+     elseif orb == :fz_x2y2
+         return 13
+     elseif orb == :fxyz
+         return 14
+     elseif orb == :fx_x2_3y2
+         return 15
+     elseif orb == :fy_3x2_y2
+         return 16
+     else
+         println("not coded yet $orb orb_num")
+     end
+ end
+
 
 
  #function calc_bands(h::tb, kpoints::Array{Float64,2})

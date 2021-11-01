@@ -1050,8 +1050,10 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             ret = ham(zeros(3*ct.nat + 6))
 
             #ret = ham(zeros( 6))
-
+            
+            #chunksize=min(12, 3*ct.nat + 6)
             chunksize=min(9, 3*ct.nat + 6)
+            #chunksize=min(6, 3*ct.nat + 6)
             
             cfg = ForwardDiff.JacobianConfig(ham, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
             #cfg = ForwardDiff.JacobianConfig(ham, zeros( 6), ForwardDiff.Chunk{chunksize}())

@@ -32,6 +32,7 @@ using ..CrystalMod:orbital_index
 using ..TB:make_tb_crys
 using ..TB:make_tb
 using ..TB:make_kgrid
+using ..TB:orb_num
 using ..TB:Hk
 using ..TB:summarize_orb
 using ..TB:summarize_orb_num
@@ -52,7 +53,7 @@ using Random
 
 #include("Coef_format_convert.jl")
 
-
+const one = [1.0]
 
 #using PyPlot
 using Plots
@@ -100,6 +101,8 @@ Hold the TB coefficients for 2body or 3body interactions
 - `sizeH::Int64` 
 - `sizeS::Int64`
 - `inds::Dict{Array{Symbol}, Array{Int64,1}}` Holds inds that tell which coeffiecients correspond to which atoms/orbitals
+- `inds_int::Dict{Array{Symbol}, Any}` Holds inds that tell which coeffiecients correspond to which atoms/orbitals, but integer array
+- `ninds_int::Dict{Array{Symbol}, Array{UInt16,2}}` Holds number of coefs
 - `names::Set` Names of atoms
 - `orbs::Array{Any,1}` Orbitals 
 - `cutoff::Float64` cutoff distance
@@ -117,6 +120,8 @@ struct coefs
     sizeS::Int64
     #    inds::Dict{Tuple, Array{Int64,1}}
     inds::Dict{Array{Symbol}, Array{Int64,1}}
+    inds_int::Dict{Array{Symbol}, Any}
+
 #    names::Array{String,1}
     names::Set
     orbs::Array{Any,1}
@@ -271,6 +276,7 @@ See `coefs` to understand arguments.
 """
 function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, maxmin_val_train=missing, dist_frontier=missing, version=2)
 
+    println("make coefs")
 #    sort!(at_list)
 
     if version == 2
@@ -330,8 +336,66 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     end
 
 
+    inds_int = Dict()
+    ninds_int = Dict()
 
-    return coefs(dim, datH, datS, totH, totS, data_info, at_list, orbs, cutoff, min_dist, maxmin_val_train, dist_frontier2, version)
+    if dim == 2
+        ninds_int = zeros(UInt16, 4,4)
+
+        for k in keys(data_info)
+            if length(k) == 4
+                continue
+            end
+
+            t1,s1,t2,s2,HH = k
+
+            if !haskey(inds_int, [t1,t2])
+                inds_int[[t1,t2]] = (zeros(UInt16, 4,4,32),zeros(UInt16, 4,4,32), zeros(UInt16, 4,4), zeros(UInt16, 4,4))
+            end
+
+            if HH == :H
+                i1 = summarize_orb_num(s1) + 1
+                i2 = summarize_orb_num(s2) + 1
+                n = length(data_info[[t1,s1,t2,s2,HH]])
+                inds_int[[t1,t2]][3][i1,i2] = n
+                inds_int[[t1,t2]][1][i1,i2,1:n] = data_info[[t1,s1,t2,s2,HH]]
+            end
+            if HH == :S
+                i1 = summarize_orb_num(s1) + 1
+                i2 = summarize_orb_num(s2) + 1
+                n = length(data_info[[t1,s1,t2,s2,HH]])
+                inds_int[[t1,t2]][4][i1,i2] = n
+                inds_int[[t1,t2]][2][i1,i2,1:n] = data_info[[t1,s1,t2,s2,HH]]
+            end
+        end
+    end
+
+
+    if dim == 3
+        ninds_int = zeros(UInt16, 4,4)
+
+        for k in keys(data_info)
+            if length(k) == 4
+                continue
+            end
+
+            t1,s1,t2,s2,t3,HH = k
+
+            if !haskey(inds_int, [t1,t2,t3])
+                inds_int[[t1,t2,t3]] = (zeros(UInt16, 4,4,32), zeros(UInt16, 4,4))
+            end
+
+            if HH == :H
+                i1 = summarize_orb_num(s1) + 1
+                i2 = summarize_orb_num(s2) + 1
+                n = length(data_info[[t1,s1,t2,s2,t3,HH]])
+                inds_int[[t1,t2,t3]][2][i1,i2] = n
+                inds_int[[t1,t2,t3]][1][i1,i2,1:n] = data_info[[t1,s1,t2,s2,t3,HH]]
+            end
+        end
+    end
+
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, maxmin_val_train, dist_frontier2, version)
 
 end
     
@@ -1317,7 +1381,7 @@ Where
 - `dmin_types3` minimum 3body distances between types of atoms.
 
 """
-function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
+function distances_etc_3bdy_parallel_old(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
 
 #    println("cutoff $cutoff $cutoff2")
     
@@ -1639,7 +1703,7 @@ end
 
 
 
-function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
+function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_type=Float64)
 
 #    println("cutoff $cutoff $cutoff2")
     
@@ -1727,8 +1791,8 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
                 if dist > 1e-7
                     dist_arr[a,b,c,2:4].= dR/(dist )
                 end
-                cutoff = get_cutoff(ta,tb)[1]
-                if dist < cutoff
+                cutoffXX = get_cutoff(ta,tb)[1]
+                if dist < cutoffXX
                     found = true
                 end
                         
@@ -1841,8 +1905,8 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
                 dmin_types[Set((ta,tb))] = dmin
             end
 
-            cutoff = get_cutoff(ta,tb)[1]
-            ind2 = findall(dist_arr[a,b,:,1] .< cutoff)
+            cutoffYY = get_cutoff(ta,tb)[1]
+            ind2 = findall(dist_arr[a,b,:,1] .< cutoffYY)
             ind_cutoff[(a,b)] = deepcopy(ind2)
             for i in ind2
                 keep_counter += 1
@@ -1900,7 +1964,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
             ta = crys.stypes[a]
 
             tb = crys.stypes[b]
-            cutoff = get_cutoff(ta,tb)[1]
+            cutoffZZ = get_cutoff(ta,tb)[1]
 
             id = threadid()
             #id = 1
@@ -1915,7 +1979,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
                 
                 d_ab = dmat[a,b, c1,:]
                 
-                cut_ab = cutoff_fn(dist_ab, cutoff - cutoff_length, cutoff)
+                cut_ab = cutoff_fn(dist_ab, cutoffZZ - cutoff_length, cutoffZZ)
                 
 
                 
@@ -2371,6 +2435,528 @@ electron density and Fermi level will be wrong.
 """
 function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false)
 
+    #    use_threebody= false
+    #    use_threebody_onsite=false
+    
+    if verbose
+        println()
+        println("-----")
+        println("Construct tight-binding model from crystal structure")
+        println()
+    end
+
+    if ismissing(var_type)
+        var_type=Float64
+    end
+
+    if ismissing(database)
+        println("missing database, creating empty tbc")
+    end
+
+    
+    if ismissing(reference_tbc)
+        prepare_for_fitting = false
+    else
+        prepare_for_fitting = true
+    end
+    
+
+    
+    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+
+    if verbose println("distances") end
+
+    if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+        #        parallel =true
+        #        if parallel
+
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
+
+        #        else
+        #            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, cutoff3bX,var_type=var_type)
+        #        end        
+    else
+        #        parallel = true
+        #        if parallel
+
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type)
+
+        #else
+        #        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, 0.0,var_type=var_type)
+        #    end
+        
+    end
+
+    #    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 7.0)
+
+    #    println("size R_keep_ab ", size(R_keep_ab))
+    #    println("size array_ind3 ", size(array_ind3))
+
+    #    if ismissing(dist_etc)
+    #    else
+    #        (R_keep, R_keep2, dist_arr, c_zero) = dist_etc
+    #    end
+    
+    within_fit = true
+    
+    if !ismissing(database)
+        for key in keys(dmin_types)
+            for key2 in keys(database)
+                if key == Set(key2)
+                    if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2
+                        println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors")
+                        println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                        within_fit = false
+                    end
+                end
+            end
+        end
+        #        for key in keys(dmin_types3)
+        #            for key2 in keys(database)
+        #                if key == Set(key2)
+        #                    if dmin_types3[key] < database[key2].min_dist*1.04 && length(key2) == 3
+        #                        println("WARNING : structure has 3body distances less than or close to min fitting data distances, may result in errors")
+        #                        println(key, "  ",key2, " : ", dmin_types3[key], " <~ ", database[key2].min_dist)
+        #                        within_fit = false
+        #                    end
+        #                end
+        #            end
+        #        end
+        
+        c_zero_ref=1
+        if !(ismissing(reference_tbc))
+            if size(reference_tbc.tb.ind_arr)[1] > 1
+                c_zero_ref = reference_tbc.tb.r_dict[[0,0,0]]
+            end
+        end
+    end
+
+    if !ismissing(database) && check_frontier
+        #    if false
+        diststuff = (R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3)
+        violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose)
+        if vio_bool == false
+            within_fit = false
+        end
+    end
+    if check_only==true
+        return within_fit
+    end
+    
+    nwan = length(keys(ind2orb))
+
+    nkeep=size(R_keep)[1]
+    #    nkeep2=size(R_keep2)[1]    
+    #    println("nkeep, $nkeep, nkeep2, $nkeep2")
+    
+
+    H = zeros(var_type, nwan, nwan, nkeep)
+    S = zeros(var_type, nwan, nwan, nkeep)    
+
+
+    ind_arr = zeros(Int64, nkeep, 3)
+    ind_arr[:,:] = R_keep[:,2:4]
+
+    #    lmn = zeros(var_type, 3)
+    #    dist = 0.0
+    #    lmn31 = zeros(var_type, 3)
+    #    dist31 = 0.0
+
+    #    lmn32 = zeros(var_type, 3)
+    #    dist32 = 0.0
+
+    #    lmn41 = zeros(var_type, 3)
+    #    dist14 = 0.0
+    #    dist43 = 0.0
+
+
+    norb = zeros(UInt16, crys.nat)
+    orbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    sorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    sumorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    for a = 1:crys.nat
+        ox = orb2ind[a]
+        norb[a] = length(ox)            
+        for (co,o) = enumerate(orb2ind[a])
+            a1,t,s = ind2orb[o]
+            sumO = summarize_orb_num(s)
+            orbs[a,co] = o
+            
+            sorbs[a,co] = orb_num(s)
+            sumorbs[a,co] = sumO + 1
+        end
+    end
+
+    
+    warned = false
+    warned_onsite = false
+
+    nkeep_ab = size(R_keep_ab)[1]
+
+    if !ismissing(database)
+
+        if verbose println("2body") end
+        LMN = zeros(var_type, 3, nthreads())
+        @threads for c = 1:nkeep_ab
+            id = threadid()
+
+            #        ind_arr[c,:] = R_keep_ab[c][4:6]
+            cind = R_keep_ab[c,1]
+            cham = R_keep_ab[c,7]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
+
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+            
+            coef = database[(t1,t2)]
+
+            indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+
+            cutoff2Xt = get_cutoff(t1,t2)[1]
+            dist_a = dist_arr[a1,a2,cind,1]
+            if (dist_a > cutoff2Xt || dist_a < 1e-5)
+                continue
+            end
+            LMN[:,id] .= (dist_arr[a1,a2,cind,2:4])
+
+            lag = two_body_S(dist_a)
+
+            if dist_a < cutoff2Xt - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist_a, cutoff2Xt - cutoff_length, cutoff2Xt)
+            end
+            cutoff2Xa = get_cutoff(t1,t2)[1]
+
+            ####            for o1 = orb2ind[a1]
+            ####                a1a,t1,s1 = ind2orb[o1]
+            ####                sum1 = summarize_orb(s1)
+            ####                for o2 = orb2ind[a2]
+            ####                    a2a,t2,s2 = ind2orb[o2]
+            ####                    at_set = Set((t1,t2))
+            ####
+            ####                    cutoff2Xa = get_cutoff(t1,t2)[1]
+            ####
+            ####                    #                println("asdf $c $cind $a1 $a2 $o1 $o2 $s1 $s2")
+            ####                    #        for o1 = 1:nwan
+            ####                    #            a1,t1,s1 = ind2orb[o1]
+            ####                    #            for o2 = 1:nwan
+            ####                    #                a2, t2,s2 = ind2orb[o2]
+            ####                    
+            ####                    dist = dist_arr[a1,a2,cind,1]
+            ####
+            ####
+            ####                    if (dist > cutoff2Xa || dist < 1e-5)
+            ####                        continue
+            ####                    end
+            ####                    
+            ####                    lmn = dist_arr[a1,a2,cind,2:4]
+            ####                    #               println("jkl $t1 $t2 $s1 $s2 $dist $lmn")
+            ####
+            ####
+            ####                    (h,s) = calc_twobody(t1,t2,s1,s2,dist,lmn, database)
+            ####
+            ####                    if dist < cutoff2Xa - cutoff_length
+            ####                        cut = 1.0
+            ####                    else
+            ####                        cut = cutoff_fn(dist, cutoff2Xa - cutoff_length, cutoff2Xa)
+            ####                    end
+            ####
+            ####                    H[o1, o2, cham] += h  *cut
+            ####                    S[o1, o2, cham] += s  *cut
+
+            
+            #            for o1 = orb2ind[a1]
+            #                a1a,t1,s1 = ind2orb[o1]
+            #                sum1 = summarize_orb(s1)
+            #                for o2 = orb2ind[a2]
+            #                    a2a,t2,s2 = ind2orb[o2]
+            #                    at_set = Set((t1,t2))
+
+            
+            for o1x = 1:norb[a1]
+                o1 = orbs[a1,o1x]
+                s1 = sorbs[a1,o1x]
+                sum1 = sumorbs[a1,o1x]
+                
+                for o2x = 1:norb[a2]
+                    o2 = orbs[a2,o2x]
+                    s2 = sorbs[a2,o2x]
+                    sum2 = sumorbs[a2,o2x] 
+
+                    (hw,sw) = calc_twobody_faster(t1,t2,s1,s2,sum1, sum2, dist_a,LMN[:,id], coef, indH[sum1,sum2,:], indS[sum1,sum2,:],lag)
+
+                    H[o1, o2, cham] += hw  *cut
+                    S[o1, o2, cham] += sw  *cut
+
+
+                end
+            end
+        end
+
+        #############
+        #threebody
+
+        #        memory0=zeros(var_type, 3)
+        #        memory1=zeros(var_type, 3)
+        #        memory2=zeros(var_type, 3)
+        #        memoryV=zeros(var_type, n_3body)
+
+        #        lmn = zeros(var_type, 3)
+
+        H_thread = zeros(var_type,  nwan, nwan,  nkeep,  nthreads() )
+
+
+        memory0_th=zeros(var_type, 3, nthreads())
+        memory1_th=zeros(var_type, 3, nthreads())
+        memory2_th=zeros(var_type, 3, nthreads())
+        memoryV_th=zeros(var_type, n_3body, nthreads())
+
+        hh = zeros(var_type, 3,3, nthreads())
+        Htemp = zeros(var_type, 16,16, nthreads())
+        
+        #        v =Array{Symbol}(undef, 6, nthreads())
+        
+
+        #        sdict = Dict()
+        #        sumdict = Dict()
+        #        for a1 = 1:crys.nat
+        #            sdict[a1] = Symbol[]
+        #            sumdict[a1] = Symbol[]
+        #            
+        #            for o1 = orb2ind[a1]
+        #                a1a,t1,s1 = ind2orb[o1]
+        #                sum1 = summarize_orb(s1)
+        #                push!(sdict[a1], s1)
+        #                push!(sumdict[a1], sum1)
+        #            end
+        #            
+        #        end
+        
+
+
+
+
+        if verbose println("3body") end
+        if use_threebody || use_threebody_onsite
+            #        if false
+            @threads for counter = 1:size(array_ind3)[1]
+                #            for counter = 1:size(array_ind3)[1]
+                id = threadid()
+                #id = 1
+                a1 = array_ind3[counter,1]
+                a2 = array_ind3[counter,2]
+                a3 = array_ind3[counter,3]
+
+                cind1 = array_ind3[counter,4]
+                #                cind2 = array_ind3[counter,5]
+
+                dist = array_floats3[counter, 1]
+                dist31 = array_floats3[counter, 2]
+                dist32 = array_floats3[counter, 3]
+                
+                #                lmn[:] = array_floats3[counter, 4:6]
+                #                lmn31[:] = array_floats3[counter, 7:9]
+                #                lmn32[:] = array_floats3[counter, 10:12]
+
+                lmn = array_floats3[counter, 4:6]
+                lmn31 = array_floats3[counter, 7:9]
+                lmn32 = array_floats3[counter, 10:12]
+
+                memory0=memory0_th[:,id]
+                memory1=memory1_th[:,id]
+                memory2=memory2_th[:,id]
+                memoryV=memoryV_th[:,id]
+
+
+                cut = array_floats3[counter, 13]
+
+                t1 = crys.stypes[a1]
+                t2 = crys.stypes[a2]
+                t3 = crys.stypes[a3]
+
+                #                v = [t1,:s,t2,:s,t3,:H]
+
+
+                
+                if haskey(database, (t1, t2, t3))
+                    cdat = database[(t1,t2,t3)]
+                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+                    if use_threebody
+
+                        
+                        
+                        three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
+                        #puts what we need in memoryV
+
+
+
+                        for sum1 = 1:3
+                            for sum2 = 1:3
+                                hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
+                            end
+                        end
+
+                        sym31 = 1.0
+                        sym32 = 1.0                        
+                        
+                        #                        Htemp = zeros(norb[a1], norb[a2])
+                        Htemp[:,:, id] .= 0.0
+                        
+                        for o1x = 1:norb[a1]
+                            o1 = orbs[a1,o1x]
+                            s1 = sorbs[a1,o1x]
+                            sum1 = sumorbs[a1,o1x]
+                            
+                            sym31 = symmetry_factor_int(s1,1,lmn31,one ) 
+
+                            for o2x = 1:norb[a2]
+                                o2 = orbs[a2,o2x]
+                                s2 = sorbs[a2,o2x]
+                                sum2 = sumorbs[a2,o2x] 
+
+                                sym32 = symmetry_factor_int(s2,1,lmn32, one)    
+
+                                #                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id]  * sym31 * sym32
+                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32 
+                                
+                                #                                @inbounds H_thread[o1, o2, cind1, id ] += hh[sum1,sum2, id]  * sym31 * sym32
+
+
+                                
+                                
+                            end
+                        end
+                        Htemp[1:norb[a1],1:norb[a2], id] .*= cut * 10^3
+                        
+                        @inbounds H_thread[orbs[a1,1:norb[a1]] , orbs[a2,1:norb[a2]]  , cind1, id ] .+= (@view Htemp[1:norb[a1],1:norb[a2], id])
+                        
+                    end
+                    ############################################
+                    if use_threebody_onsite
+                        #        if false
+                        cut2 = array_floats3[counter, 14]
+                        o = calc_threebody_onsite(t1,t2,t3,dist,dist31,dist32, database, set_maxmin=set_maxmin, memory=memoryV)
+                        for o1 = orb2ind[a1]
+                            #                            a1a,t1,s1 = ind2orb[o1]
+                            @inbounds H_thread[ o1, o1,c_zero, id] += o  * cut2
+                        end
+                    elseif !warned_onsite && use_threebody_onsite
+                        println("WARNING, missing 3bdy onsite ", (t1, t2, t3))
+                        warned_onsite = true
+                        within_fit = false
+                    end
+                    ###########################################
+
+                elseif !warned
+                    println("WARNING, missing 3bdy ", (t1, t2, t3))
+                    within_fit = false
+
+                    warned = true
+                end
+            end
+        end
+
+        #        println("thread sum")
+        #        println(size(H))
+        #        println(size(H_thread))
+
+        
+        H += sum(H_thread, dims=4)[:,:,:]
+        #        H += sum(H_thread, dims=4)[:, :,:]
+
+
+
+        lmn = zeros(var_type, 3)
+
+        ############ONSITE
+
+        Hon = zeros(var_type, nwan,nwan, nthreads())
+        Son = zeros(var_type, nwan,nwan, nthreads())
+        
+        if verbose println("onsite") end
+        @threads for c = 1:nkeep_ab
+            id = threadid()
+
+            #        ind_arr[c,:] = R_keep_ab[c][4:6]
+            cind = R_keep_ab[c,1]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+
+            dist = dist_arr[a1,a2,cind,1]
+            LMN[:, id] = dist_arr[a1,a2,cind,2:4]
+
+            cutoff_onXa = get_cutoff(t1,t2)[2]
+
+            if (dist > cutoff_onXa)
+                continue
+            end
+
+            if dist < cutoff_onXa - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist, cutoff_onXa - cutoff_length, cutoff_onXa)
+            end
+
+            
+            for o1 = orb2ind[a1]
+                a1a,t1a,s1 = ind2orb[o1]
+                sum1 = summarize_orb(s1)
+                for o2 = orb2ind[a1]
+                    a2a,t2a,s2 = ind2orb[o2]
+                    
+                    if dist < 1e-5 #true onsite
+                        (h,s) = calc_onsite(t1,s1,s2, database)
+                        #                        S[o1, o2, c_zero] += s 
+                        #                        H[o1, o2, c_zero] += h
+                        Son[o1, o2, id] += s 
+                        Hon[o1, o2, id] += h
+                        
+                    else
+                        o = calc_twobody_onsite(t1,t2, s1,s2,dist,LMN[:,id], database)
+                        Hon[o1, o2, id] += o * cut
+                        #                        H[o1, o2, c_zero] += o  * cut
+                    end
+                    
+
+
+
+                end
+
+            end
+        end
+        H[:,:,c_zero] += sum(Hon, dims=3)[:,:]
+        S[:,:,c_zero] += sum(Son, dims=3)[:,:]
+
+    end
+
+    
+
+    if verbose println("make") end
+    if true
+        tb = make_tb(H, ind_arr, S)
+        if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
+            scf = database["scf"]
+        else
+            scf = false
+        end
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+    end
+    if verbose 
+        println("-----")
+        println()
+    end
+
+    return tbc
+
+end
+
+
+function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false)
+
 #    use_threebody= false
 #    use_threebody_onsite=false
     
@@ -2406,7 +2992,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 #        parallel =true
 #        if parallel
 
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel2(crys,cutoff2X, cutoff3bX,var_type=var_type)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
 
         #        else
 #            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, cutoff3bX,var_type=var_type)
@@ -2415,7 +3001,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 #        parallel = true
 #        if parallel
 
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel2(crys,cutoff2X, 0.0,var_type=var_type)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type)
 
     #else
     #        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy(crys,cutoff2X, 0.0,var_type=var_type)
@@ -2514,7 +3100,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     if !ismissing(database)
 
         if verbose println("2body") end
-        @threads for c = 1:nkeep_ab
+        @time @threads for c = 1:nkeep_ab
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
             cham = R_keep_ab[c,7]
@@ -2527,7 +3113,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
                     a2a,t2,s2 = ind2orb[o2]
                     at_set = Set((t1,t2))
 
-                    cutoff2X = get_cutoff(t1,t2)[1]
+                    cutoff2Xa = get_cutoff(t1,t2)[1]
 
                     #                println("asdf $c $cind $a1 $a2 $o1 $o2 $s1 $s2")
                     #        for o1 = 1:nwan
@@ -2538,7 +3124,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
                     dist = dist_arr[a1,a2,cind,1]
 
 
-                    if (dist > cutoff2X || dist < 1e-5)
+                    if (dist > cutoff2Xa || dist < 1e-5)
                         continue
                     end
                     
@@ -2548,10 +3134,10 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
                     (h,s) = calc_twobody(t1,t2,s1,s2,dist,lmn, database)
 
-                    if dist < cutoff2X - cutoff_length
+                    if dist < cutoff2Xa - cutoff_length
                         cut = 1.0
                     else
-                        cut = cutoff_fn(dist, cutoff2X - cutoff_length, cutoff2X)
+                        cut = cutoff_fn(dist, cutoff2Xa - cutoff_length, cutoff2Xa)
                     end
 
                     H[o1, o2, cham] += h  *cut
@@ -2603,10 +3189,10 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         if verbose println("3body") end
         if use_threebody || use_threebody_onsite
             #        if false
-            @threads for counter = 1:size(array_ind3)[1]
-#            for counter = 1:size(array_ind3)[1]
-                id = threadid()
-#                id = 1
+            for counter = 1:size(array_ind3)[1]
+                #            for counter = 1:size(array_ind3)[1]
+                #id = threadid()
+                id = 1
                 a1 = array_ind3[counter,1]
                 a2 = array_ind3[counter,2]
                 a3 = array_ind3[counter,3]
@@ -2647,8 +3233,10 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
                         
                         three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV) #puts what we need in memoryV
-
+                        
                         for o1 = orb2ind[a1]
+                        #    id = threadid()
+
                             a1a,t1,s1 = ind2orb[o1]
                             sum1 = summarize_orb(s1)
 
@@ -2669,6 +3257,8 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
                                 h = ( (@view memoryV[1:s])'* (@view cdat.datH[ind]))[1] * 10^3        
 
                                 @inbounds H_thread[o1, o2, cind1, id] += h  * cut * sym31 * sym32
+                                
+#                                @inbounds H_thread[o1, o2, cind1, id] +=  cut * sym31 * sym32 
                                 
 
                                 #                                
@@ -4691,216 +5281,224 @@ end
 #    return    exp(-d1 * dist) * (d2  + dist * d3 )    
 #end
 
+
+function symmetry_factor(s1,s2,lmn, dat)
+    i1 = orb_num(s1)
+    i2 = orb_num(s2)
+    return symmetry_factor_int(i1,i2,lmn,dat)
+end
+    
+
 """
     function symmetry_factor(s1,s2,lmn, dat)
 
 All of the spd Slater-Koster matrix elements. `dat` is preallocated memory.
 """
-function symmetry_factor(s1,s2,lmn, dat)
+function symmetry_factor_int(s1,s2,lmn, dat)
 """
 Slater-Koster factors
 """
     
-    if s1 == :s && s2 == :s
+    if s1 == 1 && s2 == 1    #    if s1 == :s && s2 == :s
         return dat[1]
 
-    elseif s1 == :s && s2 == :px
+    elseif s1 == 1 && s2 == 3    #    elseif s1 == :s && s2 == :px
         return lmn[1]*dat[1]
-    elseif s1 == :s && s2 == :py
+    elseif s1 == 1 && s2 == 4    #    elseif s1 == :s && s2 == :py
         return lmn[2]*dat[1]
-    elseif s1 == :s && s2 == :pz
+    elseif s1 == 1 && s2 == 2    #    elseif s1 == :s && s2 == :pz
         return lmn[3]*dat[1]
-    elseif s1 == :px && s2 == :s
+    elseif s1 == 3 && s2 == 1    #    elseif s1 == :px && s2 == :s
         return -lmn[1]*dat[1]
-    elseif s1 == :py && s2 == :s
+    elseif s1 == 4 && s2 == 1    #    elseif s1 == :py && s2 == :s
         return -lmn[2]*dat[1]
-    elseif s1 == :pz && s2 == :s
+    elseif s1 == 2 && s2 == 1    #    elseif s1 == :pz && s2 == :s
         return -lmn[3]*dat[1]
 
-    elseif s1 == :px && s2 == :px
+    elseif s1 == 3 && s2 == 3    #    elseif s1 == :px && s2 == :px
         return lmn[1]^2*dat[1] + (1.0-lmn[1]^2)*dat[2]
-    elseif s1 == :py && s2 == :py
+    elseif s1 == 4 && s2 == 4    #    elseif s1 == :py && s2 == :py
         return lmn[2]^2*dat[1] + (1.0-lmn[2]^2)*dat[2]
-    elseif s1 == :pz && s2 == :pz
+    elseif s1 == 2 && s2 == 2    #    elseif s1 == :pz && s2 == :pz
         return lmn[3]^2*dat[1] + (1.0-lmn[3]^2)*dat[2]
 
-    elseif s1 == :px && s2 == :py
+    elseif s1 == 3 && s2 == 4    #    elseif s1 == :px && s2 == :py
         return lmn[1]*lmn[2]*dat[1] - lmn[1]*lmn[2]*dat[2]
-    elseif s1 == :px && s2 == :pz
+    elseif s1 == 3 && s2 == 2    #    elseif s1 == :px && s2 == :pz
         return lmn[1]*lmn[3]*dat[1] - lmn[1]*lmn[3]*dat[2]
-    elseif s1 == :py && s2 == :pz
+    elseif s1 == 4 && s2 == 2    #    elseif s1 == :py && s2 == :pz
         return lmn[2]*lmn[3]*dat[1] - lmn[2]*lmn[3]*dat[2]
-    elseif s1 == :py && s2 == :px
+    elseif s1 == 4 && s2 == 3    #    elseif s1 == :py && s2 == :px
         return lmn[2]*lmn[1]*dat[1] - lmn[2]*lmn[1]*dat[2]
-    elseif s1 == :pz && s2 == :px
+    elseif s1 == 2 && s2 == 3    #    elseif s1 == :pz && s2 == :px
         return lmn[3]*lmn[1]*dat[1] - lmn[3]*lmn[1]*dat[2]
-    elseif s1 == :pz && s2 == :py
+    elseif s1 == 2 && s2 == 4    #    elseif s1 == :pz && s2 == :py
         return lmn[3]*lmn[2]*dat[1] - lmn[3]*lmn[2]*dat[2]
 
 
 #s d
-    elseif s1 == :s && s2 == :dz2
+    elseif s1 == 1 && s2 == 5    #    elseif s1 == :s && s2 == :dz2
         return (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1]
 
-    elseif s1 == :s && s2 == :dxz
+    elseif s1 == 1 && s2 == 6    #    elseif s1 == :s && s2 == :dxz
         return sqrt3 * lmn[1] * lmn[3] * dat[1]
 
-    elseif s1 == :s && s2 == :dyz
+    elseif s1 == 1 && s2 == 7    #    elseif s1 == :s && s2 == :dyz
         return sqrt3 * lmn[2] * lmn[3] * dat[1]
 
-    elseif s1 == :s && s2 == :dxy
+    elseif s1 == 1 && s2 == 9    #    elseif s1 == :s && s2 == :dxy
         return sqrt3 * lmn[1] * lmn[2] * dat[1]
 
-    elseif s1 == :s && s2 == :dx2_y2
+    elseif s1 == 1 && s2 == 8    #    elseif s1 == :s && s2 == :dx2_y2
         return sqrt3d2 * (lmn[1]^2 - lmn[2]^2) * dat[1]
 #d s are same
-    elseif s1 == :dz2 && s2 == :s
+    elseif s1 == 5 && s2 == 1    #    elseif s1 == :dz2 && s2 == :s
         return (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1]
 
-    elseif s1 == :dxz && s2 == :s
+    elseif s1 == 6 && s2 == 1    #    elseif s1 == :dxz && s2 == :s
         return sqrt3 * lmn[1] * lmn[3] * dat[1]
 
-    elseif s1 == :dyz && s2 == :s
+    elseif s1 == 7 && s2 == 1    #    elseif s1 == :dyz && s2 == :s
         return sqrt3 * lmn[2] * lmn[3] * dat[1]
 
-    elseif s1 == :dxy && s2 == :s
+    elseif s1 == 9 && s2 == 1    #    elseif s1 == :dxy && s2 == :s
         return sqrt3 * lmn[1] * lmn[2] * dat[1]
 
-    elseif s1 == :dx2_y2 && s2 == :s
+    elseif s1 == 8 && s2 == 1    #    elseif s1 == :dx2_y2 && s2 == :s
         return sqrt3d2 * (lmn[1]^2 - lmn[2]^2) * dat[1]
 # p d
-    elseif s1 == :px && s2 == :dxy
+    elseif s1 == 3 && s2 == 9    #    elseif s1 == :px && s2 == :dxy
         return sqrt3 * lmn[1]^2 * lmn[2] * dat[1] + lmn[2] * ( 1.0 - 2.0 * lmn[1]^2) * dat[2]
 
-    elseif s1 == :px && s2 == :dyz
+    elseif s1 == 3 && s2 == 7    #    elseif s1 == :px && s2 == :dyz
         return sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] - 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
-    elseif s1 == :px && s2 == :dxz
+    elseif s1 == 3 && s2 == 6    #    elseif s1 == :px && s2 == :dxz
         return sqrt3 * lmn[1]^2 * lmn[3] * dat[1] + lmn[3] * (1.0 - 2.0 * lmn[1]^2) * dat[2]
 
-    elseif s1 == :px && s2 == :dx2_y2
+    elseif s1 == 3 && s2 == 8    #    elseif s1 == :px && s2 == :dx2_y2
         return sqrt3d2 * lmn[1] * (lmn[1]^2 - lmn[2]^2) * dat[1] + lmn[1] * (1.0 - lmn[1]^2 + lmn[2]^2) * dat[2]
 
-    elseif s1 == :px && s2 == :dz2
+    elseif s1 == 3 && s2 == 5    #    elseif s1 == :px && s2 == :dz2
         return lmn[1] * (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1] -  sqrt3 * lmn[1] * lmn[3]^2 * dat[2]
 ##
-    elseif s1 == :py && s2 == :dxy
+    elseif s1 == 4 && s2 == 9    #    elseif s1 == :py && s2 == :dxy
         return sqrt3 * lmn[2]^2 * lmn[1] * dat[1] + lmn[1] * ( 1.0 - 2.0 * lmn[2]^2) * dat[2]
 
-    elseif s1 == :py && s2 == :dyz
+    elseif s1 == 4 && s2 == 7    #    elseif s1 == :py && s2 == :dyz
         return sqrt3 * lmn[2]^2 * lmn[3] * dat[1] + lmn[3] * ( 1.0 - 2.0 * lmn[2]^2) * dat[2]
 
-    elseif s1 == :py && s2 == :dxz
+    elseif s1 == 4 && s2 == 6    #    elseif s1 == :py && s2 == :dxz
         return sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] - 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
 
-    elseif s1 == :py && s2 == :dx2_y2
+    elseif s1 == 4 && s2 == 8    #    elseif s1 == :py && s2 == :dx2_y2
         return sqrt3d2 * lmn[2] * (lmn[1]^2 - lmn[2]^2) * dat[1] - lmn[2] * (1.0 - lmn[2]^2 + lmn[1]^2) * dat[2]
-    elseif s1 == :py && s2 == :dz2
+    elseif s1 == 4 && s2 == 5    #    elseif s1 == :py && s2 == :dz2
         return lmn[2] * (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1] -  sqrt3 * lmn[2] * lmn[3]^2 * dat[2]
 
 ##
-    elseif s1 == :pz && s2 == :dxy
+    elseif s1 == 2 && s2 == 9    #    elseif s1 == :pz && s2 == :dxy
         return sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] - 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
 
-    elseif s1 == :pz && s2 == :dyz
+    elseif s1 == 2 && s2 == 7    #    elseif s1 == :pz && s2 == :dyz
         return sqrt3 * lmn[3]^2 * lmn[2] * dat[1] + lmn[2] * ( 1.0 - 2.0 * lmn[3]^2) * dat[2]
 
-    elseif s1 == :pz && s2 == :dxz
+    elseif s1 == 2 && s2 == 6    #    elseif s1 == :pz && s2 == :dxz
         return sqrt3 * lmn[3]^2 * lmn[1] * dat[1] + lmn[1] * ( 1.0 - 2.0 * lmn[3]^2) * dat[2]
 
-    elseif s1 == :pz && s2 == :dx2_y2
+    elseif s1 == 2 && s2 == 8    #    elseif s1 == :pz && s2 == :dx2_y2
         return sqrt3d2 * lmn[3] * (lmn[1]^2 - lmn[2]^2) * dat[1] - lmn[3] * (lmn[1]^2 - lmn[2]^2) * dat[2]
-    elseif s1 == :pz && s2 == :dz2
+    elseif s1 == 2 && s2 == 5    #    elseif s1 == :pz && s2 == :dz2
         return lmn[3] * (lmn[3]^2 - 0.5*(lmn[1]^2 + lmn[2]^2)) * dat[1] +  sqrt3 * lmn[3] *( lmn[1]^2 +  lmn[2]^2) * dat[2]
 ## d  p picks up negative signs
 ##
-    elseif  s1 == :dxy && s2 == :px 
+    elseif  s1 == 9 && s2 == 3     #    elseif  s1 == :dxy && s2 == :px 
         return -sqrt3 * lmn[1]^2 * lmn[2] * dat[1] - lmn[2] * ( 1.0 - 2.0 * lmn[1]^2) * dat[2]
 
-    elseif  s1 == :dyz && s2 == :px
+    elseif  s1 == 7 && s2 == 3    #    elseif  s1 == :dyz && s2 == :px
         return -sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] + 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
-    elseif  s1 == :dxz && s2 == :px
+    elseif  s1 == 6 && s2 == 3    #    elseif  s1 == :dxz && s2 == :px
         return -sqrt3 * lmn[1]^2 * lmn[3] * dat[1] - lmn[3] * (1.0 - 2.0 * lmn[1]^2) * dat[2]
 
-    elseif  s1 == :dx2_y2 && s2 == :px
+    elseif  s1 == 8 && s2 == 3    #    elseif  s1 == :dx2_y2 && s2 == :px
         return -sqrt3d2 * lmn[1] * (lmn[1]^2 - lmn[2]^2) * dat[1] - lmn[1] * (1.0 - lmn[1]^2 + lmn[2]^2) * dat[2]
 
-    elseif  s1 == :dz2 && s2 == :px
+    elseif  s1 == 5 && s2 == 3    #    elseif  s1 == :dz2 && s2 == :px
         return -lmn[1] * (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1] +  sqrt3 * lmn[1] * lmn[3]^2 * dat[2]
 ##
-    elseif  s1 == :dxy && s2 == :py
+    elseif  s1 == 9 && s2 == 4    #    elseif  s1 == :dxy && s2 == :py
         return -sqrt3 * lmn[2]^2 * lmn[1] * dat[1] - lmn[1] * ( 1.0 - 2.0 * lmn[2]^2) * dat[2]
 
-    elseif  s1 == :dyz && s2 == :py
+    elseif  s1 == 7 && s2 == 4    #    elseif  s1 == :dyz && s2 == :py
         return -sqrt3 * lmn[2]^2 * lmn[3] * dat[1] - lmn[3] * ( 1.0 - 2.0 * lmn[2]^2) * dat[2]
 
-    elseif  s1 == :dxz && s2 == :py
+    elseif  s1 == 6 && s2 == 4    #    elseif  s1 == :dxz && s2 == :py
         return -sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] + 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
 
-    elseif  s1 == :dx2_y2 && s2 == :py
+    elseif  s1 == 8 && s2 == 4    #    elseif  s1 == :dx2_y2 && s2 == :py
         return -sqrt3d2 * lmn[2] * (lmn[1]^2 - lmn[2]^2) * dat[1] + lmn[2] * (1.0 - lmn[2]^2 + lmn[1]^2) * dat[2]
-    elseif  s1 == :dz2 && s2 == :py
+    elseif  s1 == 5 && s2 == 4    #    elseif  s1 == :dz2 && s2 == :py
         return -lmn[2] * (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1] +  sqrt3 * lmn[2] * lmn[3]^2 * dat[2]
 
 ##
-    elseif  s1 == :dxy && s2 == :pz
+    elseif  s1 == 9 && s2 == 2    #    elseif  s1 == :dxy && s2 == :pz
         return -sqrt3 * lmn[1] * lmn[2] * lmn[3] * dat[1] + 2.0 * lmn[1] * lmn[2] * lmn[3] * dat[2]
 
 
-    elseif  s1 == :dyz && s2 == :pz
+    elseif  s1 == 7 && s2 == 2    #    elseif  s1 == :dyz && s2 == :pz
         return -sqrt3 * lmn[3]^2 * lmn[2] * dat[1] - lmn[2] * ( 1.0 - 2.0 * lmn[3]^2) * dat[2]
 
-    elseif  s1 == :dxz && s2 == :pz
+    elseif  s1 == 6 && s2 == 2    #    elseif  s1 == :dxz && s2 == :pz
         return -sqrt3 * lmn[3]^2 * lmn[1] * dat[1] - lmn[1] * ( 1.0 - 2.0 * lmn[3]^2) * dat[2]
 
-    elseif  s1 == :dx2_y2 && s2 == :pz
+    elseif  s1 == 8 && s2 == 2    #    elseif  s1 == :dx2_y2 && s2 == :pz
         return -sqrt3d2 * lmn[3] * (lmn[1]^2 - lmn[2]^2) * dat[1] + lmn[3] * (lmn[1]^2 - lmn[2]^2) * dat[2]
-    elseif  s1 == :dz2 && s2 == :pz
+    elseif  s1 == 5 && s2 == 2    #    elseif  s1 == :dz2 && s2 == :pz
         return -lmn[3] * (lmn[3]^2 - (lmn[1]^2 + lmn[2]^2)/2.0) * dat[1] -  sqrt3 * lmn[3] *( lmn[1]^2 +  lmn[2]^2) * dat[2]
 
 
 ########## d d
 
-    elseif  (s1 == :dxy && s2 == :dxy) 
+    elseif  (s1 == 9 && s2 == 9)     #    elseif  (s1 == :dxy && s2 == :dxy) 
         return 3.0 * lmn[1]^2 * lmn[2]^2 * dat[1] + (lmn[1]^2 + lmn[2]^2 - 4.0 * lmn[1]^2 * lmn[2]^2) * dat[2] + (lmn[3]^2 + lmn[1]^2 * lmn[2]^2) * dat[3]
-    elseif  (s1 == :dxy && s2 == :dyz) || (s2 == :dxy && s1 == :dyz)
+    elseif  (s1 == 9 && s2 == 7) || (s2 == 9 && s1 == 7)    #    elseif  (s1 == :dxy && s2 == :dyz) || (s2 == :dxy && s1 == :dyz)
         return 3.0 * lmn[1] * lmn[2]^2 * lmn[3] * dat[1] + lmn[1] * lmn[3] * (1.0 - 4.0 * lmn[2]^2) * dat[2] + lmn[1] * lmn[3] *(lmn[2]^2 - 1.0) * dat[3]
-    elseif  (s1 == :dxy && s2 == :dxz) || (s2 == :dxy && s1 == :dxz)
+    elseif  (s1 == 9 && s2 == 6) || (s2 == 9 && s1 == 6)    #    elseif  (s1 == :dxy && s2 == :dxz) || (s2 == :dxy && s1 == :dxz)
         return 3.0 * lmn[1]^2 * lmn[2] * lmn[3] * dat[1] + lmn[2] * lmn[3] * (1.0 - 4.0 * lmn[1]^2) * dat[2] + lmn[2] * lmn[3] *(lmn[1]^2 - 1.0) * dat[3]
-    elseif  (s1 == :dxy && s2 == :dx2_y2) || (s2 == :dxy && s1 == :dx2_y2)
+    elseif  (s1 == 9 && s2 == 8) || (s2 == 9 && s1 == 8)    #    elseif  (s1 == :dxy && s2 == :dx2_y2) || (s2 == :dxy && s1 == :dx2_y2)
         return 3.0/2.0 * lmn[1] * lmn[2] * (lmn[1]^2 - lmn[2]^2)* dat[1] + 2.0 * lmn[1] * lmn[2] *(lmn[2]^2 - lmn[1]^2) * dat[2] + 0.5* lmn[1] * lmn[2] * (lmn[1]^2 - lmn[2]^2) * dat[3]
-    elseif  (s1 == :dxy && s2 == :dz2) || (s2 == :dxy && s1 == :dz2)
+    elseif  (s1 == 9 && s2 == 5) || (s2 == 9 && s1 == 5)    #    elseif  (s1 == :dxy && s2 == :dz2) || (s2 == :dxy && s1 == :dz2)
         return sqrt3 * lmn[1] * lmn[2] * (lmn[3]^2 - 0.5*(lmn[1]^2 + lmn[2]^2)) * dat[1] - 2.0*sqrt3 * lmn[1] * lmn[2] * lmn[3]^2 * dat[2] + sqrt3d2* lmn[1] * lmn[2] * (1.0 + lmn[3]^2) * dat[3]
 
-    elseif  (s1 == :dyz && s2 == :dyz) 
+    elseif  (s1 == 7 && s2 == 7)     #    elseif  (s1 == :dyz && s2 == :dyz) 
         return  3.0 * lmn[2]^2 * lmn[3]^2 * dat[1] + (lmn[2]^2 + lmn[3]^2 - 4.0 * lmn[2]^2 * lmn[3]^2) * dat[2] + (lmn[1]^2 + lmn[2]^2 * lmn[3]^2) * dat[3]
-    elseif  (s1 == :dxz && s2 == :dxz) 
+    elseif  (s1 == 6 && s2 == 6)     #    elseif  (s1 == :dxz && s2 == :dxz) 
         return  3.0 * lmn[1]^2 * lmn[3]^2 * dat[1] + (lmn[1]^2 + lmn[3]^2 - 4.0 * lmn[1]^2 * lmn[3]^2) * dat[2] + (lmn[2]^2 + lmn[1]^2 * lmn[3]^2) * dat[3]
-    elseif  (s1 == :dxz && s2 == :dyz) || (s2 == :dxz && s1 == :dyz)
+    elseif  (s1 == 6 && s2 == 7) || (s2 == 6 && s1 == 7)    #    elseif  (s1 == :dxz && s2 == :dyz) || (s2 == :dxz && s1 == :dyz)
         return 3.0 * lmn[1] * lmn[3]^2 * lmn[2] * dat[1] + lmn[1] * lmn[2] * (1.0 - 4.0 * lmn[3]^2) * dat[2] + lmn[1] * lmn[2] *(lmn[3]^2 - 1.0) * dat[3]
 
 
-    elseif  (s1 == :dyz && s2 == :dx2_y2) || (s2 == :dyz && s1 == :dx2_y2)
+    elseif  (s1 == 7 && s2 == 8) || (s2 == 7 && s1 == 8)    #    elseif  (s1 == :dyz && s2 == :dx2_y2) || (s2 == :dyz && s1 == :dx2_y2)
         return 3.0/2.0 * lmn[2] * lmn[3] * (lmn[1]^2 - lmn[2]^2)* dat[1] -  lmn[2] * lmn[3] *(1.0 + 2.0* (lmn[1]^2 - lmn[2]^2)) * dat[2] + lmn[2] * lmn[3] * (1.0 + 0.5*(lmn[1]^2 - lmn[2]^2)) * dat[3]
-    elseif  (s1 == :dyz && s2 == :dz2) || (s2 == :dyz && s1 == :dz2)
+    elseif  (s1 == 7 && s2 == 5) || (s2 == 7 && s1 == 5)    #    elseif  (s1 == :dyz && s2 == :dz2) || (s2 == :dyz && s1 == :dz2)
         return sqrt3 * lmn[2] * lmn[3] * (lmn[3]^2 - 0.5*(lmn[1]^2 + lmn[2]^2)) * dat[1] + sqrt3 * lmn[2] * lmn[3] * (lmn[1]^2 + lmn[2]^2 - lmn[3]^2) * dat[2] - sqrt3d2* lmn[2] * lmn[3] * (lmn[1]^2 + lmn[2]^2) * dat[3]
 
-    elseif  (s1 == :dxz && s2 == :dx2_y2) || (s2 == :dxz && s1 == :dx2_y2)
+    elseif  (s1 == 6 && s2 == 8) || (s2 == 6 && s1 == 8)    #    elseif  (s1 == :dxz && s2 == :dx2_y2) || (s2 == :dxz && s1 == :dx2_y2)
         return 3.0/2.0 * lmn[3] * lmn[1] * (lmn[1]^2 - lmn[2]^2)* dat[1] +  lmn[3] * lmn[1] *(1.0 - 2.0* (lmn[1]^2 - lmn[2]^2)) * dat[2] - lmn[3] * lmn[1] * (1.0 - 0.5*(lmn[1]^2 - lmn[2]^2)) * dat[3]
 
 
-    elseif  (s1 == :dxz && s2 == :dz2) || (s2 == :dxz && s1 == :dz2)
+    elseif  (s1 == 6 && s2 == 5) || (s2 == 6 && s1 == 5)    #    elseif  (s1 == :dxz && s2 == :dz2) || (s2 == :dxz && s1 == :dz2)
         return sqrt3 * lmn[1] * lmn[3] * (lmn[3]^2 - 0.5*(lmn[1]^2 + lmn[2]^2)) * dat[1] + sqrt3 * lmn[1] * lmn[3] * (lmn[1]^2 + lmn[2]^2 - lmn[3]^2) * dat[2] - sqrt3d2* lmn[1] * lmn[3] * (lmn[1]^2 + lmn[2]^2) * dat[3]
 
-    elseif  (s1 == :dx2_y2 && s2 == :dx2_y2)
+    elseif  (s1 == 8 && s2 == 8)    #    elseif  (s1 == :dx2_y2 && s2 == :dx2_y2)
         return 0.75*(lmn[1]^2 - lmn[2]^2)^2 * dat[1] + (lmn[1]^2 + lmn[2]^2 - (lmn[1]^2 - lmn[2]^2)^2) * dat[2] + (lmn[3]^2 + 0.25*(lmn[1]^2 - lmn[2]^2)^2) * dat[3]
-    elseif  (s1 == :dz2 && s2 == :dz2)
+    elseif  (s1 == 5 && s2 == 5)    #    elseif  (s1 == :dz2 && s2 == :dz2)
         return (lmn[3]^2 - 0.5*(lmn[1]^2 + lmn[2]^2))^2 * dat[1] + 3.0*lmn[3]^2*(lmn[1]^2 + lmn[2]^2) * dat[2] + 0.75 * (lmn[1]^2 + lmn[2]^2)^2 * dat[3]
-    elseif  (s1 == :dx2_y2 && s2 == :dz2) || (s2 == :dx2_y2 && s1 == :dz2)
+    elseif  (s1 == 8 && s2 == 5) || (s2 == 8 && s1 == 5)    #    elseif  (s1 == :dx2_y2 && s2 == :dz2) || (s2 == :dx2_y2 && s1 == :dz2)
         return sqrt3d2 * (lmn[1]^2 - lmn[2]^2)*(lmn[3]^2 - 0.5* (lmn[1]^2 + lmn[2]^2)) * dat[1] + sqrt3 * lmn[3]^2 * (lmn[2]^2 - lmn[1]^2) * dat[2] + 0.25*sqrt3*(1 + lmn[3]^2)*(lmn[1]^2 - lmn[2]^2) * dat[3]
 
 
@@ -5176,6 +5774,89 @@ function calc_twobody(t1,t2,orb1,orb2,dist,lmn, database)
         
         Htot = symmetry_factor(orb1,orb2,lmn, [H1 ])
         Stot = symmetry_factor(orb1,orb2,lmn, [S1 ])
+
+    end
+    
+    return Htot, Stot
+    
+end
+
+
+"""
+    function calc_twobody(t1,t2,orb1,orb2,dist,lmn, database) 
+
+Two body intersite Hamiltonian and overlap matrix els.
+"""
+function calc_twobody_faster(t1,t2,orb1,orb2,s1, s2, dist,lmn, c, indH, indS, lag)
+
+#    c = database[(t1,t2)]
+    
+    if dist < c.min_dist * 0.95
+        dist = c.min_dist * 0.95
+    end
+
+#    println("faster", [t1,t2,orb1,orb2,s1, s2])
+    
+#    s1=summarize_orb(orb1)
+#    s2=summarize_orb(orb2)
+
+#    indH = c.inds[[t1,s1,t2,s2,:H]]
+#    indS = c.inds[[t1,s1,t2,s2,:S]]
+    
+#    H1 =  two_body_H(dist, c.datH[indH[1:n_2body]])
+#    S1 =  two_body_S(dist, c.datS[indS[1:n_2body_S]])
+
+    H1 = sum((@view lag[1:n_2body]) .* c.datH[@view indH[1:n_2body]])
+    S1 = sum((@view lag[1:n_2body_S]) .* c.datS[@view indS[1:n_2body_S]])
+
+    
+    if (s1 == 2 && s2 == 2)  #:p :p
+
+#        H2 =  two_body_H(dist, c.datH[indH[1+n_2body:n_2body*2]])
+#        S2 =  two_body_S(dist, c.datS[indS[1+n_2body_S:n_2body_S*2]])
+
+        H2 = sum((@view lag[1:n_2body]) .* c.datH[@view indH[1+n_2body:n_2body*2]])
+        S2 = sum((@view lag[1:n_2body_S]) .* c.datS[@view indS[1+n_2body_S:n_2body_S*2]])
+
+        
+        Htot = symmetry_factor_int(orb1,orb2,lmn, [H1 H2 ])
+        Stot = symmetry_factor_int(orb1,orb2,lmn, [S1 S2 ])
+
+    elseif (s1 == 2 && s2 == 3) || ( s2 == 2 && s1 == 3) #p d
+
+#        H2 =  two_body_H(dist, c.datH[indH[1+n_2body:n_2body*2]])
+#        S2 =  two_body_S(dist, c.datS[indS[1+n_2body_S:n_2body_S*2]])
+
+        H2 = sum((@view lag[1:n_2body]) .* c.datH[@view indH[1+n_2body:n_2body*2]])
+        S2 = sum((@view lag[1:n_2body_S]) .* c.datS[@view indS[1+n_2body_S:n_2body_S*2]])
+
+        
+        
+        Htot = symmetry_factor_int(orb1,orb2,lmn, [H1 H2 ])
+        Stot = symmetry_factor_int(orb1,orb2,lmn, [S1 S2 ])
+
+    elseif (s1 == 3 && s2 == 3) #dd
+
+#        H2 =  two_body_H(dist, c.datH[indH[1+n_2body:n_2body*2]])
+#        S2 =  two_body_S(dist, c.datS[indS[1+n_2body_S:n_2body_S*2]])
+
+#        H3 =  two_body_H(dist, c.datH[indH[1+2*n_2body:n_2body*3]])
+#        S3 =  two_body_S(dist, c.datS[indS[1+2*n_2body_S:n_2body_S*3]])
+
+        H2 = sum((@view lag[1:n_2body]) .* c.datH[@view indH[1+n_2body:n_2body*2]])
+        S2 = sum((@view lag[1:n_2body_S]) .* c.datS[@view indS[1+n_2body_S:n_2body_S*2]])
+
+        H3 = sum((@view lag[1:n_2body]) .* c.datH[@view indH[1+n_2body*2:n_2body*3]])
+        S3 = sum((@view lag[1:n_2body_S]) .* c.datS[@view indS[1+2*n_2body_S:n_2body_S*3]])
+        
+        
+        Htot = symmetry_factor_int(orb1,orb2,lmn, [H1 H2 H3 ])
+        Stot = symmetry_factor_int(orb1,orb2,lmn, [S1 S2 S3 ])
+        
+    else
+        
+        Htot = symmetry_factor_int(orb1,orb2,lmn, [H1 ])
+        Stot = symmetry_factor_int(orb1,orb2,lmn, [S1 ])
 
     end
     
