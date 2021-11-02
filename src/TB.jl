@@ -1730,6 +1730,7 @@ end
 #     println("memory")
      if true
 
+         
          grid = size(hk3)[3:5]
          #    print("calc_energy_charge_fft_band grid $grid")
          nk = prod(grid)
@@ -1749,6 +1750,11 @@ end
 
          error_flag = false
 
+         if ismissing(h1)
+             h1 = zeros(nwan,nwan)
+         end
+
+         
      end
 #
 #     println("grid", grid)
@@ -1772,11 +1778,11 @@ end
                      hk0 = 0.5*( (@view hk3[:,:,k1,k2,k3]) + (@view hk3[:,:,k1,k2,k3])')
                      sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
 
-                     if !ismissing(h1)
+#                     if !ismissing(h1)
                          hk = hk0 + sk .* h1
-                     else
-                         hk = hk0
-                     end
+#                     else
+#                         hk = hk0
+#                     end
 
                      vals, vects = eigen(hk, sk)
 
