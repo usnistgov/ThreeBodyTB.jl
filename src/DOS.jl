@@ -136,12 +136,12 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
                 for (pind, proj_inds) in enumerate(PROJ)
                     for p in proj_inds
                         for a = 1:tbc.tb.nwan
-                            @threads for j = 1:tbc.tb.nwan
+                            for j = 1:tbc.tb.nwan
 #                                t = vects[c,p,a]*conj(vects[c,j,a])
 #                                proj[c,a, pind] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
 
                                 t = vects[:,p,a].*conj(vects[:,j,a])
-                                for c = 1:grid[1]*grid[2]*grid[3]
+                                @threads for c = 1:grid[1]*grid[2]*grid[3]
                                     
                                     k3 = mod(c-1 , grid[3])+1
                                     k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
@@ -150,7 +150,7 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
                                     
 #                                    sk[:,:] = ( 0.5 * ( (@view sk3[:, :, k1, k2, k3]) + (@view sk3[:, :, k1, k2, k3])'))
                                 
-                                proj[c,a, pind] += 0.5*real( (t[c]*sk3[j,p,k1,k2,k3]  + conj(t[c])* conj(sk3[j,p, k1,k2,k3])))
+                                    proj[c,a, pind] += 0.5*real( (t[c]*sk3[j,p,k1,k2,k3]  + conj(t[c])* conj(sk3[j,p, k1,k2,k3])))
 
                                 
                             end
