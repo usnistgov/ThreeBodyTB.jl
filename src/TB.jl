@@ -1983,6 +1983,10 @@ end
 
      if ismissing(grid)
          grid = get_grid(tbc.crys)
+     else
+         if length(grid) != 3
+             grid = get_grid(tbc.crys, grid) 
+         end
      end
  #    println("calc_energy_charge_fft grid $grid")
      hk3, sk3 = myfft_R_to_K(tbc, grid)
@@ -1995,7 +1999,7 @@ end
          echarge = 0.0
      end
      eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
-
+     tbc.efermi = efermi
 
  #    println("energy comps $eband $etypes $echarge")
      energy = eband + etypes + echarge
@@ -2458,6 +2462,10 @@ end
 
      if ismissing(grid)
          grid = get_grid(tbc.crys)
+     else
+         if length(grid) != 3
+             grid = get_grid(tbc.crys, grid)
+         end
      end
 
  #    println("grid ", grid)

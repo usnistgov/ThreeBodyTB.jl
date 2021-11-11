@@ -344,7 +344,11 @@ Make inputfile for SCF calculation
         if ismissing(grid)
             kpoints = get_grid(crys)
         else
-            kpoints =  grid
+            if length(grid) == 3
+                kpoints =  grid
+            else
+                kpoints = get_grid(crys, grid)
+            end
         end
         
 #    if calculation == "nscf"
