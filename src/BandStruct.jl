@@ -388,6 +388,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             vals = vals .- efermi
             alignstr = "Energy - E_F ($units)"
         elseif align == "vbm" || align == "valence"
+
             vbm = maximum(vals[vals .< efermi])
             vals = vals .- vbm
             alignstr = "Energy - VBM ($units)"
