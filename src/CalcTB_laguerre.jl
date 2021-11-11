@@ -2466,7 +2466,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if verbose println("distances") end
 
-    if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+    @time if (use_threebody || use_threebody_onsite ) && !ismissing(database)
         #        parallel =true
         #        if parallel
 
@@ -2531,7 +2531,8 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         end
     end
 
-    if !ismissing(database) && check_frontier
+    if verbose println("check_frountier") end
+    @time if !ismissing(database) && check_frontier
         #    if false
         diststuff = (R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3)
         violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose)
@@ -2597,7 +2598,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
         if verbose println("2body") end
         LMN = zeros(var_type, 3, nthreads())
-        @threads for c = 1:nkeep_ab
+        @time @threads for c = 1:nkeep_ab
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -2739,7 +2740,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
 
         if verbose println("3body") end
-        if use_threebody || use_threebody_onsite
+        @time if use_threebody || use_threebody_onsite
             #        if false
             @threads for counter = 1:size(array_ind3)[1]
                 #            for counter = 1:size(array_ind3)[1]
@@ -2876,7 +2877,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         Son = zeros(var_type, nwan,nwan, nthreads())
         
         if verbose println("onsite") end
-        @threads for c = 1:nkeep_ab
+        @time @threads for c = 1:nkeep_ab
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -2936,7 +2937,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     
 
     if verbose println("make") end
-    if true
+    @time if true
         tb = make_tb(H, ind_arr, S)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]
