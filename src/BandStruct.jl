@@ -631,8 +631,12 @@ function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0
     dft = runSCF(tbc.crys, nprocs=nprocs, prefix=prefix, directory=outdir, tmpdir=outdir, wannier=false, code="QE", skip=true, cleanup=true)
 
     prefix = dft.prefix
-    dft_nscf = run_nscf(dft, outdir; tmpdir=outdir, nprocs=nprocs, prefix=prefix, min_nscf=false, only_kspace=false, klines=K)
-    
+    if isdir("$outdir/$prefix.nscf.save")
+        println("loading nscf from file")
+        dft_nscf = loadXML("$outdir/$prefix.nscf.save")
+    else
+        dft_nscf = run_nscf(dft, outdir; tmpdir=outdir, nprocs=nprocs, prefix=prefix, min_nscf=false, only_kspace=false, klines=K)
+    end
 
     plot_compare_dft(tbc, dft_nscf.bandstruct;  names=names, locs=locs)    
     

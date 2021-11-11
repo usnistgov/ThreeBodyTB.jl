@@ -481,7 +481,7 @@ function parsePOSCAR(lines)
     coords = zeros(nat,3)
     for i = 1:nat
 
-        coords[i,:] = parseARRfloat(split(lines[8+i]))
+        coords[i,:] = parseARRfloat(split(lines[8+i])[1:3])
     end
 
     if cart
@@ -872,6 +872,10 @@ function get_grid(c, kden=55.0)
     k1 = min(k1, 14)
     k2 = min(k2, 14)
     k3 = min(k3, 14)
+
+#    k1 = min(k1, 30)
+#    k2 = min(k2, 30)
+#    k3 = min(k3, 30)
 
     
     kpoints = [k1, k2, k3]

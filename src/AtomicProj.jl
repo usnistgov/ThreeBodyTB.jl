@@ -323,7 +323,7 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     
     prefix = prefix*".nscf"
 
-    return dft_nscf
+    return dft_nscf, prefix
     
 end
 
@@ -392,7 +392,7 @@ Steps:
     
     if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))
 
-        dft_nscf = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
+        dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
 
     else
         if (isdir(nscfdir))
