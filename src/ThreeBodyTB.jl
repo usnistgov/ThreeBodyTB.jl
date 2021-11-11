@@ -118,9 +118,11 @@ Set global units for energy/length. Run with no arguments to check/return curren
 - Set both at the same time with `both="atomic"` or `both="eVAng"`
 - Internally, all units are atomic. Only main public facing functions actually change units.
 """
-function set_units(;energy=missing, length=missing, both=missing)
+function set_units(a=missing;energy=missing, length=missing, both=missing)
 
-    
+    if !ismissing(a)
+        both = a
+    end
     
     if !ismissing(both)
         both = String(both)
