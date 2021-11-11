@@ -64,7 +64,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 """
 function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 
-    println("construct")
+
     @time tbc = calc_tb_fast(c, database);
     @time t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose)
     return t

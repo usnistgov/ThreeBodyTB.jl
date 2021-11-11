@@ -2466,7 +2466,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if verbose println("distances") end
 
-    @time if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+    if (use_threebody || use_threebody_onsite ) && !ismissing(database)
         #        parallel =true
         #        if parallel
 
@@ -2532,7 +2532,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     end
 
     if verbose println("check_frountier") end
-    @time if !ismissing(database) && check_frontier
+    if !ismissing(database) && check_frontier
         #    if false
         diststuff = (R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3)
         violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose)
@@ -2598,7 +2598,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
         if verbose println("2body") end
         LMN = zeros(var_type, 3, nthreads())
-        @time @threads for c = 1:nkeep_ab
+        @threads for c = 1:nkeep_ab
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -2740,7 +2740,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
 
         if verbose println("3body") end
-        @time if use_threebody || use_threebody_onsite
+        if use_threebody || use_threebody_onsite
             #        if false
             @threads for counter = 1:size(array_ind3)[1]
                 #            for counter = 1:size(array_ind3)[1]
@@ -2795,7 +2795,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
                         for sum1 = 1:3
                             for sum2 = 1:3
-                                hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
+                                @inbounds hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
                             end
                         end
 
@@ -2804,14 +2804,14 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
                         
                         #                        Htemp = zeros(norb[a1], norb[a2])
                         Htemp[:,:, id] .= 0.0
-                        
+
                         for o1x = 1:norb[a1]
                             o1 = orbs[a1,o1x]
                             s1 = sorbs[a1,o1x]
                             sum1 = sumorbs[a1,o1x]
                             
                             sym31 = symmetry_factor_int(s1,1,lmn31,one ) 
-
+                            
                             for o2x = 1:norb[a2]
                                 o2 = orbs[a2,o2x]
                                 s2 = sorbs[a2,o2x]
@@ -2877,7 +2877,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         Son = zeros(var_type, nwan,nwan, nthreads())
         
         if verbose println("onsite") end
-        @time @threads for c = 1:nkeep_ab
+        @threads for c = 1:nkeep_ab
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -2937,7 +2937,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     
 
     if verbose println("make") end
-    @time if true
+    if true
         tb = make_tb(H, ind_arr, S)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]
@@ -3450,7 +3450,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
     nowarn = true
 
-    for c = 1:nkeep_ab
+    println("a")
+    @time for c = 1:nkeep_ab
 
         cind = R_keep_ab[c,1]
         cham = R_keep_ab[c,7]
@@ -3504,7 +3505,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     end
     #threebody
 
-    for counter = 1:size(array_ind3)[1]
+    println("b")
+    @time for counter = 1:size(array_ind3)[1]
         a1 = array_ind3[counter,1]
         a2 = array_ind3[counter,2]
         a3 = array_ind3[counter,3]
@@ -3528,10 +3530,16 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
             dist32=tmp2
         end
 
+
+
 #        println("dist $t1 $t2 $t3 ", [dist,dist31,dist32])
 
 
         if test_frontier                 ##############
+            if dist > 6.0 || dist31 > 6.0 || dist32 > 6.0
+                continue
+            end
+
             if haskey(frontier, (t1,t2,t3))
 
                 if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
@@ -3546,9 +3554,6 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                 end
 
                 vio = true
-                if dist > 6.0 || dist31 > 6.0 || dist32 > 6.0
-                    vio = false
-                end
                 for f in vals
 
                     if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
