@@ -79,7 +79,7 @@ export set_bin_dirs
 include("CalcTB_laguerre.jl")
 using .CalcTB:calc_tb_fast
 export calc_tb_fast
-
+using .CalcTB:calc_twobody
 include("SCF.jl")
 
 
@@ -467,6 +467,45 @@ function my_precompile()
 
     Nothing
 end
+
+"""
+    function calc_twobody(t1::String,t2::String,orb1::String,orb2::String,dist,lmn; database=missing)
+
+Get twobody terms. Returns hamiltonian and overlap (H,S) between atom t1 orb1 and atom t2 orb2, that are dist appart with direction cosines lmn
+"""
+function get_twobody(t1::String,t2::String,orb1::String,orb2::String,dist::Number,lmn; database=missing)
+
+    if ismissing(database)
+        ManageDatabase.prepare_database([t1,t2])
+        database = ManageDatabase.database_cached
+    end
+
+    if global_length_units == "Å"
+        dist = dist / Ang
+    end
+    h,s = calc_twobody(Symbol(t1),Symbol(t2),Symbol(orb1), Symbol(orb2), dist, lmn, database)
+    return convert_energy(h), s
+end
+
+"""
+    function calc_twobody(t1::String,t2::String,orb1::String,orb2::String,R; database=missing)
+
+Get twobody terms. Returns hamiltonian and overlap (H,S) between atom t1 orb1 and atom t2 orb2, that are positioned at R = R2 - R1 (R is an array with 3 reals). Does not apply to onsite matrix elements
+"""
+
+function get_twobody(t1::String,t2::String,orb1::String,orb2::String, R; database=missing)
+
+    dist = sum(R.^2)^0.5
+    if dist > 1e-5
+        lmn = R / dist
+    else
+        lmn = zero(3)
+        println("warning, doesn't apply to onsite $dist")
+    end
+    return get_twobody(t1,t2,orb1, orb2, dist, lmn, database=database)
+    
+end
+
 
 end #end module
 
