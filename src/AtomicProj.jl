@@ -794,6 +794,86 @@ function make_proj(bs, proj, overlaps)
     
 end
 
+function shift_eigenvalues(d::dftout)
+
+    wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
+
+    efermi_dft = d.bandstruct.efermi
+
+#=    #decide semicore
+    p2 = zeros(p.bs.nbnd)
+    INDSEMI = zeros(Int64, p.bs.nks, nsemi)
+    for k = 1:p.bs.nks
+        p2[:] = real.(sum(p.proj[k,semicore,:] .* conj.(p.proj[k,semicore,:]) , dims=1))
+        INDSEMI[k, :] = sortperm(p2, rev=true)[1:nsemi]
+        if sum(p2) < nsemi - 0.5
+            println("warning, identify semicore")
+        end
+#        if k < 10
+#            println("p2 ", p2)
+#            println(k, " indsemi " , INDSEMI[k, :])
+#        end
+
+    end
+    println("INDSEMI ", INDSEMI)
+=#
+    NBND = d.bandstruct.nbnd - nsemi
+    EIGS = zeros(d.bandstruct.nks, NBND)
+#    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, NBND)
+
+    # setup data
+    for k = 1:d.bandstruct.nks
+        counter = 0
+        for n = 1:d.bandstruct.nbnd
+            #if !(n in INDSEMI[k, :])
+            if true
+                counter += 1
+                EIGS[k,counter] = d.bandstruct.eigs[k,n]
+#                PROJ[k,:,counter] = p.proj[k,wan,n]
+                
+            end
+        end
+#        if k < 20
+#            println("$k EIGS ", EIGS[k,1:5])
+#        end
+        
+
+#        if k < 2
+#            println("ALLEIGS k $k ", p.bs.eigs[k,1:4])
+#            println("EIGS    k $k ", EIGS[k,1:4])#
+#
+#        end
+    end
+
+        
+    println("shifting eigenvalues to match dft atomization energy")
+    ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
+    #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
+    band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
+    
+    #        println("d.crys")
+    #        println(d.crys)
+    
+    etypes = types_energy(d.crys)
+    
+    
+    etot_dft = d.energy
+    e_smear = d.energy_smear
+    
+    atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
+    
+    
+    println("atomization_energy $atomization_energy")
+    
+    band_en = band_en 
+    shift = (atomization_energy - band_en  )/nval
+    
+    
+    EIGS = EIGS .+ shift
+    
+    return EIGS
+
+end
 
 
 #function create_temp(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true)
