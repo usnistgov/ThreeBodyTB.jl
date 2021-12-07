@@ -321,7 +321,13 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 B[1,2] = R1' * R2
                 B[2,1] = R2' * R1
 
-                c = B \ R
+                c = zeros(2)
+                try
+                    c = B \ R
+                catch
+                    c = [0.5,0.5]
+                end
+
                 #n_pulay[:] = B \ R
                 
 #                n_pulay = n2 * c[1,1] + e_den_NEW * c[2,1]

@@ -161,6 +161,7 @@ function setup_proto_data()
     CalcD["trimer"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer", "nscf"]
     CalcD["trimer_dense"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer_dense", "nscf"]
     CalcD["trimer2"] =       ["$STRUCTDIR/trimer.in2", "none", "2Dxy", "coords_trimer2", "nscf"]
+    CalcD["trimer3"] =       ["$STRUCTDIR/trimer.in3", "none", "2Dxy", "coords_trimer3", "nscf"]
 
     CalcD["trimer_ab2"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_ab", "nscf"]
     CalcD["trimer2_ab2"] =       ["$STRUCTDIR/binary/trimer.in2.ab2", "none", "2Dxy", "coords_trimer_ab", "nscf"]
@@ -612,6 +613,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif (newst == "coords_trimer"  ||  newst == "coords_trimer2" || newst == "coords_trimer_ab" || newst == "coords_trimer_ab_big" )
 #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
             ncalc = length([1.05, 1.1,  1.2,  1.3])
+        elseif newst == "coords_trimer3"
+            ncalc = 5*4*2
         elseif (newst == "coords_trimer_dense" || newst == "coords_trimer_ab_dense" )
             ncalc = length([1.0, 0.95])
         elseif newst == "trimer_tern"
@@ -947,6 +950,24 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A[3,3] = a / 0.4 * x
                     push!(torun, deepcopy(c))
                 end
+            elseif newst == "coords_trimer3"
+                a = min_dimer_dist_dict[T1]
+                for x in [1.15, 1.2, 1.25, 1.3, 1.35]
+                    for y in [1.15, 1.2, 1.25, 1.3]
+                        for z in [0, 0.5]
+                            c = deepcopy(cnew)
+                            c.A[1,1] = 15
+                            c.A[2,2] = 10
+                            c.A[3,3] = 15
+                            c.coords[:,:] = zeros(3,3)
+                            c.coords[2,1] = a*x/15
+                            c.coords[3,3] = a*y/15
+                            c.coords[3,1] = a*z/15
+                            push!(torun, deepcopy(c))
+                        end
+                    end
+                end
+
             elseif newst == "coords_trimer_dense"
                 a = min_dimer_dist_dict[T1]
                 for x in [1.0, 0.95]
@@ -1251,7 +1272,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     if calc_mode == "nscf"
 
                         try
-                            tbc, tbck = ThreeBodyTB.AtomicProj.projwfx_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true)
+                            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true)
                         catch err3
                             println("err3")
                             println(err3)

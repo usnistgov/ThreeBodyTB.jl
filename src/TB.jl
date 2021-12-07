@@ -1799,7 +1799,7 @@ end
 
                      if error_flag == false
                          println("error calc_energy_fft $k1 $k2 $k3 usually negative overlap eig")
-                         sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                         sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
                          valsS, vectsS = eigen(sk)
                          println(valsS)
                          error_flag=true

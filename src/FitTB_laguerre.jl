@@ -704,7 +704,8 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
 
     
-    if do_plot == true
+#    if do_plot == true
+    if false
 
         
         if mode == :rspace
@@ -1168,11 +1169,26 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
             wghts = dft_list[n].bandstruct.kweights
 
 #            println("get k $n ", typeof(list_of_tbcs[n]), " " , typeof(list_of_tbcs[n]) == tb_crys_kspace{Float64})
+
             if typeof(list_of_tbcs[n]) == tb_crys_kspace{Float64} #superceeding
-#                println("modk qqqqqqqqqqqqqqqqqqqqqqqqqqqqwq")
-                kpts = list_of_tbcs[n].tb.K
-                wghts = list_of_tbcs[n].tb.kweights
+                kpts2 = list_of_tbcs[n].tb.K
+                goodk = []
+                for k2 = 1:size(list_of_tbcs[n].tb.K)[1]
+                    for k in 1:size(kpts)[1]
+                        if sum(abs.(kpts2[k2,:] - kpts[k,:])) < 1e-7
+                            push!(goodk, k)
+                            break
+                        end
+                    end
+                end
+                kpts = kpts[goodk,:]
+                wghts = wghts[goodk]
             end
+
+#                println("modk qqqqqqqqqqqqqqqqqqqqqqqqqqqqwq")
+#                kpts = list_of_tbcs[n].tb.K
+#                wghts = list_of_tbcs[n].tb.kweights
+#            end
 
 #randomly downselect kpoints of number kpoints > NLIM            
             if size(kpts)[1] > NLIM
@@ -1263,7 +1279,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=false)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
 
 end
 
@@ -1446,21 +1462,36 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         band_en = band_en 
         shift = (atomization_energy - band_en  )/nval
 
-        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
+#        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
+#        println("nk $nk")
+#        println(kpoints)
+#        print("xx")
 
         for k in 1:nk
 
-            if !ismissing(tbc) && (fit_to_dft_eigs) 
+            if !ismissing(tbc) 
                 vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[k,:])  #reference
                 VALS[c,k,1:nw] = vals                           #reference
                 VALS0[c,k,1:nw] = vals0                          #reference
                 vmat[k, :,:] = vects
                 smat[k, :,:] = sk
-                
-
+                if fit_to_dft_eigs
+                    n = min(d.bandstruct.nbnd - nsemi, nw)    
+                    nval_int = Int64(round(nval))
+#                    println("mix fit_to_dft_eigs $fit_to_dft_eigs old $c $k ", VALS[c,k,1:n])
+                    for k2 in 1:d.bandstruct.nks
+                        if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
+                            n = min(d.bandstruct.nbnd - nsemi, nw)    
+                            VALS[c,k,1+nval_int:n] = 0.5 * VALS[c,k,1+nval_int:n] + 0.5*(d.bandstruct.eigs[k2,nsemi+1+nval_int:nsemi+n] .+ shift)
+#                            println("change")
+                            break
+                        end
+                    end
+#                    println("mix fit_to_dft_eigs $fit_to_dft_eigs new $c $k ", VALS[c,k,1:n])
+                end
             else
                 
-                println("missing tbc $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!!!!!!x" )
+ #               println("missing tbc $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!!!!!!x" )
                 for k2 in 1:d.bandstruct.nks
                     if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
                         VALS[c,k,:] .= 100.0
