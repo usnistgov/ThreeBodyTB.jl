@@ -62,3 +62,4 @@ ThreeBodyTB.jl can take advantage of multiple processors if you define
 the environment variable ```JULIA_NUM_THREADS``` or start julia with
 ```juila --threads 8``` as appropriate for your system.
 
+See also the [user's guide](https://pages.nist.gov/ThreeBodyTB.jl/ug_run/)
