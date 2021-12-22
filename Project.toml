@@ -1,7 +1,7 @@
 name = "ThreeBodyTB"
 uuid = "2a26a249-28ed-4bc9-828d-d3ac47f0d73d"
 authors = ["Kevin F. Garrity <kevin.garrity@nist.gov>"]
-version = "0.3.0"
+version = "0.4.0"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"

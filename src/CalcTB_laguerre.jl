@@ -3450,8 +3450,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
     nowarn = true
 
-    println("a")
-    @time for c = 1:nkeep_ab
+#    println("a")
+    for c = 1:nkeep_ab
 
         cind = R_keep_ab[c,1]
         cham = R_keep_ab[c,7]
@@ -3505,8 +3505,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     end
     #threebody
 
-    println("b")
-    @time for counter = 1:size(array_ind3)[1]
+
+    for counter = 1:size(array_ind3)[1]
         a1 = array_ind3[counter,1]
         a2 = array_ind3[counter,2]
         a3 = array_ind3[counter,3]

@@ -56,10 +56,13 @@ energy, tbc, flag = scf_energy(c)
 plot_bandstr(tbc)
 ```
 
-*Note:* julia compiles code the first time you run a function, but
+See also the [user's guide](https://pages.nist.gov/ThreeBodyTB.jl/ug_run/) for more detail.
+
+
+*Performance Note:* julia compiles code the first time you run a function, but
 subsequent runs of this code will take under 1 second. Also,
 ThreeBodyTB.jl can take advantage of multiple processors if you define
-the environment variable ```JULIA_NUM_THREADS``` or start julia with
-```juila --threads 8``` as appropriate for your system.
+the environment variable ```JULIA_NUM_THREADS=8;export JULIA_NUM_THREADS``` 
+or start julia with ```julia --threads 8``` where
+the number of threads is set as appropriate for your system.
 
-See also the [user's guide](https://pages.nist.gov/ThreeBodyTB.jl/ug_run/)

@@ -114,4 +114,9 @@ Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende
 
 Force/Stress defaults are eV/Ang and eV/Ang^3.
 
+## **Available parameters**
 
+Pre-fit TB parameters are these elements and any binary combinations
+of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correct.
+
+![Available orbitals](./orbs.png)

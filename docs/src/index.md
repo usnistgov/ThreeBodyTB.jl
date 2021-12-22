@@ -4,6 +4,7 @@
 **A three-body tight binding program written in Julia**
 
 *Primary Maintainer: Kevin F. Garrity, [NIST](https://www.nist.gov/people/kevin-garrity)*
+
 Other Contributors: Kamal Choudhury, NIST
 
 !!! note
@@ -16,12 +17,14 @@ ThreeBodyTB.jl is a package for tight-binding, written in [Julia](https://julial
 
 - Run tight-binding calculations with near DFT level accuracy (PBEsol functional).
 - Get results in seconds based on pre-fit parameters from across periodic table.
+- Coefficients **pre-computed** for 65 elements and **any** binary combination of those elements
 - Calculate band structures and total energies.
 - Get forces, stresses, and relax structures.
 - Parameters based on two- and **three-body** interactions.
 - Includes self-consistent treatment of long-range Coulomb interaction.
+- See also our python interface to this Julia code: [TB3py](https://github.com/usnistgov/tb3py)
+- Based on over **800,000 DFT** calculations available at [jarvis-qetb](https://jarvis.nist.gov/jarvisqetb/)
 - Plotting based on interface of [Plots.jl](http://docs.juliaplots.org/latest/)
-- See also our python interface to the julia code: [TB3py](https://github.com/usnistgov/tb3py)
 
 ## User's guide
 
