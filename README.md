@@ -28,7 +28,7 @@ ThreeBodyTB is written in the Julia programming language, for easy and efficient
 
 ## Easy Installation
 
-After installing Julia (see [here](https://julialang.org/downloads/)), start a REPL and install using the package manager:
+After installing julia (see [here](https://julialang.org/downloads/)), start a REPL and install using the package manager:
 
 ```
 using Pkg
@@ -44,4 +44,21 @@ Pkg.add(url="https://github.com/usnistgov/ThreeBodyTB.jl")
 ## Documentation
 
 See [documentation](https://pages.nist.gov/ThreeBodyTB.jl/) for more details.
+
+## Example code
+
+Example of creating a crystal structure of AlP (zincblende) and calculating the energy and band structure.
+
+```
+using ThreeBodyTB
+c = makecrys([2.6 2.6 0;2.6 0 2.6;0 2.6 2.6], [0 0 0; 0.25 0.25 0.25], ["Al", "P"])
+energy, tbc, flag = scf_energy(c)
+plot_bandstr(tbc)
+```
+
+*Note:* julia compiles code the first time you run a function, but
+subsequent runs of this code will take under 1 second. Also,
+ThreeBodyTB.jl can take advantage of multiple processors if you define
+the environment variable ```JULIA_NUM_THREADS``` or start julia with
+```juila --threads 8``` as appropriate for your system.
 
