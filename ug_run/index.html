@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Running Calculations · ThreeBodyTB.jl Documentation</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/><link href="../assets/nist-combined.css" rel="stylesheet" type="text/css"/>      <link rel="stylesheet" href="../assets/nist-combined.css"> <script src="../assets/jquery-1.9.0.min.js" type="text/javascript" defer="defer"></script><script src="../assets/nist-header-footer.js" type="text/javascript" defer="defer"></script><script async type="text/javascript" id="_fed_an_ua_tag" src="https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=NIST&subagency=github&pua=UA-66610693-1&yt=true&exts=ppsx,pps,f90,sch,rtf,wrl,txz,m1v,xlsm,msi,xsd,f,tif,eps,mpg,xml,pl,xlt,c"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="ThreeBodyTB.jl Documentation logo"/></a><div class="docs-package-name"><span class="docs-autofit">ThreeBodyTB.jl Documentation</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">User Guide</span><ul><li class="is-active"><a class="tocitem" href>Running Calculations</a><ul class="internal"><li><a class="tocitem" href="#**Create-a-crystal-object**"><span><strong>Create a crystal object</strong></span></a></li><li><a class="tocitem" href="#**Do-a-self-consistent-calculation.**"><span><strong>Do a self-consistent calculation.</strong></span></a></li><li><a class="tocitem" href="#**Plot-the-band-structure.**"><span><strong>Plot the band structure.</strong></span></a></li><li><a class="tocitem" href="#**Calculate-force-/-stress**"><span><strong>Calculate force / stress</strong></span></a></li><li><a class="tocitem" href="#**Relax-structure**"><span><strong>Relax structure</strong></span></a></li></ul></li><li><a class="tocitem" href="../ug_fit/">Fit Coefficients</a></li></ul></li><li><span class="tocitem">Core User Interface</span><ul><li><a class="tocitem" href="../structs/">Structs</a></li><li><a class="tocitem" href="../core/">Functions</a></li></ul></li><li><a class="tocitem" href="../compile/">Compile/Python</a></li><li><a class="tocitem" href="../every/">Additional Docstrings</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">User Guide</a></li><li class="is-active"><a href>Running Calculations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Running Calculations</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/usnistgov/ThreeBodyTB.jl/blob/master/docs/src/ug_run.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Running-tight-binding-calculations"><a class="docs-heading-anchor" href="#Running-tight-binding-calculations">Running tight-binding calculations</a><a id="Running-tight-binding-calculations-1"></a><a class="docs-heading-anchor-permalink" href="#Running-tight-binding-calculations" title="Permalink"></a></h1><p>How to run tight-binding calculations using the pre-fit tight-binding coefficients. Note, only elemental and binary systems are currently supported.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Running a julia function for the first time will compile the function. Future runs will be <em>much</em> faster.</p></div></div><h2 id="**Create-a-crystal-object**"><a class="docs-heading-anchor" href="#**Create-a-crystal-object**"><strong>Create a crystal object</strong></a><a id="**Create-a-crystal-object**-1"></a><a class="docs-heading-anchor-permalink" href="#**Create-a-crystal-object**" title="Permalink"></a></h2><p>Use <a href="../core/#ThreeBodyTB.CrystalMod.makecrys"><code>makecrys</code></a> to create a <a href="../structs/#ThreeBodyTB.CrystalMod.crystal"><code>crystal</code></a> from lattice vectors, atomic positions, and atom types:</p><pre><code class="language-julia">using ThreeBodyTB
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Running Calculations · ThreeBodyTB.jl Documentation</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/><link href="../assets/nist-combined.css" rel="stylesheet" type="text/css"/>      <link rel="stylesheet" href="../assets/nist-combined.css"> <script src="../assets/jquery-1.9.0.min.js" type="text/javascript" defer="defer"></script><script src="../assets/nist-header-footer.js" type="text/javascript" defer="defer"></script><script async type="text/javascript" id="_fed_an_ua_tag" src="https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=NIST&subagency=github&pua=UA-66610693-1&yt=true&exts=ppsx,pps,f90,sch,rtf,wrl,txz,m1v,xlsm,msi,xsd,f,tif,eps,mpg,xml,pl,xlt,c"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="ThreeBodyTB.jl Documentation logo"/></a><div class="docs-package-name"><span class="docs-autofit">ThreeBodyTB.jl Documentation</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">User Guide</span><ul><li class="is-active"><a class="tocitem" href>Running Calculations</a><ul class="internal"><li><a class="tocitem" href="#**Create-a-crystal-object**"><span><strong>Create a crystal object</strong></span></a></li><li><a class="tocitem" href="#**Do-a-self-consistent-calculation.**"><span><strong>Do a self-consistent calculation.</strong></span></a></li><li><a class="tocitem" href="#**Plot-the-band-structure.**"><span><strong>Plot the band structure.</strong></span></a></li><li><a class="tocitem" href="#**Calculate-force-/-stress**"><span><strong>Calculate force / stress</strong></span></a></li><li><a class="tocitem" href="#**Relax-structure**"><span><strong>Relax structure</strong></span></a></li><li><a class="tocitem" href="#**Available-parameters**"><span><strong>Available parameters</strong></span></a></li></ul></li><li><a class="tocitem" href="../ug_fit/">Fit Coefficients</a></li></ul></li><li><span class="tocitem">Core User Interface</span><ul><li><a class="tocitem" href="../structs/">Structs</a></li><li><a class="tocitem" href="../core/">Functions</a></li></ul></li><li><a class="tocitem" href="../compile/">Compile/Python</a></li><li><a class="tocitem" href="../every/">Additional Docstrings</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">User Guide</a></li><li class="is-active"><a href>Running Calculations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Running Calculations</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/usnistgov/ThreeBodyTB.jl/blob/master/docs/src/ug_run.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Running-tight-binding-calculations"><a class="docs-heading-anchor" href="#Running-tight-binding-calculations">Running tight-binding calculations</a><a id="Running-tight-binding-calculations-1"></a><a class="docs-heading-anchor-permalink" href="#Running-tight-binding-calculations" title="Permalink"></a></h1><p>How to run tight-binding calculations using the pre-fit tight-binding coefficients. Note, only elemental and binary systems are currently supported.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Running a julia function for the first time will compile the function. Future runs will be <em>much</em> faster.</p></div></div><h2 id="**Create-a-crystal-object**"><a class="docs-heading-anchor" href="#**Create-a-crystal-object**"><strong>Create a crystal object</strong></a><a id="**Create-a-crystal-object**-1"></a><a class="docs-heading-anchor-permalink" href="#**Create-a-crystal-object**" title="Permalink"></a></h2><p>Use <a href="../core/#ThreeBodyTB.CrystalMod.makecrys"><code>makecrys</code></a> to create a <a href="../structs/#ThreeBodyTB.CrystalMod.crystal"><code>crystal</code></a> from lattice vectors, atomic positions, and atom types:</p><pre><code class="language-julia">using ThreeBodyTB
 A = [2.1 2.1 0.0;2.1 0.0 2.1;0.0 2.1 2.1];
 pos = [0.0 0.0 0.0];
 types =        [&quot;Al&quot;];
@@ -26,19 +26,20 @@ Begin scf_energy-------------
 Load TB parameters from file
 prepare atoms [&quot;Al&quot;, &quot;P&quot;]
 
-construct
 
 -----
 Construct tight-binding model from crystal structure
 
 distances
+check_frountier
 CHECK FRONTIER - everything fine
 2body
 3body
 onsite
+make
 -----
 
-  0.180329 seconds (3.02 M allocations: 144.057 MiB)
+  0.065024 seconds (1.64 M allocations: 118.413 MiB, 32.08% gc time)
 ------
 Do SCF
 Mixing mode: pulay
@@ -46,24 +47,30 @@ Get initial guess from tbc
 DQ: [0.0, -0.0]
 
 Parameters:
-smearing = 0.01 conv_thr = 1.0e-5, iters = 75, mix = 0.8, grid = missing
+smearing = 0.01 conv_thr = 1.0e-5, iters = 75, mix = 0.5, grid = missing
 
 START SCF ----------------
+dq start[0.0, 0.0]
 SCF CALC 0001 energy  -10.42350021
-SCF CALC 0002 energy  -10.39235446  en_diff:   3.114575E-02  dq_diff:   9.077615E-01
-SCF CALC 0003 energy  -10.37239696  en_diff:   1.995750E-02  dq_diff:   7.231044E-01
-SCF CALC 0004 energy  -10.28933097  en_diff:   8.306599E-02  dq_diff:   1.452555E-01
-SCF CALC 0005 energy  -10.26727897  en_diff:   2.205201E-02  dq_diff:   2.901010E-02
-SCF CALC 0006 energy  -10.26272388  en_diff:   4.555090E-03  dq_diff:   5.804629E-03
-SCF CALC 0007 energy  -10.26180215  en_diff:   9.217278E-04  dq_diff:   1.160782E-03
-SCF CALC 0008 energy  -10.26161767  en_diff:   1.844756E-04  dq_diff:   2.321653E-04
+SCF CALC 0002 energy  -10.24668598  en_diff:   1.768142E-01  dq_diff:   2.430874E+00
+SCF CALC 0003 energy  -10.24965650  en_diff:   2.970519E-03  dq_diff:   2.048571E-02
+SCF CALC 0004 energy  -10.25609985  en_diff:   6.443359E-03  dq_diff:   4.504717E-02
+SCF CALC 0005 energy  -10.25883441  en_diff:   2.734558E-03  dq_diff:   1.938020E-02
+SCF CALC 0006 energy  -10.26020629  en_diff:   1.371874E-03  dq_diff:   9.783404E-03
+SCF CALC 0007 energy  -10.26088960  en_diff:   6.833124E-04  dq_diff:   4.888346E-03
+SCF CALC 0008 energy  -10.26123074  en_diff:   3.411420E-04  dq_diff:   2.444346E-03
+SCF CALC 0009 energy  -10.26140118  en_diff:   1.704372E-04  dq_diff:   1.222178E-03
+SCF CALC 0010 energy  -10.26148636  en_diff:   8.518531E-05  dq_diff:   6.110918E-04
+SCF CALC 0011 energy  -10.26152895  en_diff:   4.258433E-05  dq_diff:   3.055466E-04
+SCF CALC 0012 energy  -10.26155024  en_diff:   2.129009E-05  dq_diff:   1.527734E-04
 
-YES convergence in 8 iters, energy -10.261617674454586 eV   dq = [-1.163, 1.163]
+YES convergence in 12 iters, energy -10.261550238376099 eV   dq = [-1.163, 1.163]
 END SCF ------------------
 
+  0.485015 seconds (814.80 k allocations: 396.463 MiB, 14.42% gc time)
 scf_energy success, done
 
-The energy is -10.261617674454586 eV</pre><p>This returns the (non-magnetic) atomization energy, and a tight-binding object with the TB matrix elements and SCF electron density calculated for post-processing.</p><h2 id="**Plot-the-band-structure.**"><a class="docs-heading-anchor" href="#**Plot-the-band-structure.**"><strong>Plot the band structure.</strong></a><a id="**Plot-the-band-structure.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Plot-the-band-structure.**" title="Permalink"></a></h2><p>Using the <a href="../structs/#ThreeBodyTB.TB.tb_crys"><code>tb_crys</code></a> tight-binding object <code>tbc_alp</code> from above. Note: SCF must be done first.</p><pre><code class="language-julia">plot_bandstr(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">plot_bandstr
+The energy is -10.261550238376099 eV</pre><p>This returns the (non-magnetic) atomization energy, and a tight-binding object with the TB matrix elements and SCF electron density calculated for post-processing.</p><h2 id="**Plot-the-band-structure.**"><a class="docs-heading-anchor" href="#**Plot-the-band-structure.**"><strong>Plot the band structure.</strong></a><a id="**Plot-the-band-structure.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Plot-the-band-structure.**" title="Permalink"></a></h2><p>Using the <a href="../structs/#ThreeBodyTB.TB.tb_crys"><code>tb_crys</code></a> tight-binding object <code>tbc_alp</code> from above. Note: SCF must be done first.</p><pre><code class="language-julia">plot_bandstr(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">plot_bandstr
 align vbm
 color = blue markersize = 0
 no display</pre><p><img src="../alp.png" alt="AlP plot"/></p><p>Use <code>do_display=true</code> (the default) to produce an interactive plot. Here <code>do_display</code> is set to <code>false</code> because we are saving a static figure with <code>savefig</code> for the docs.</p><p>The default <a href="../core/#ThreeBodyTB.BandStruct.plot_bandstr"><code>plot_bandstr</code></a> just picks some random kpoints, but you can add your own kpath. We can also project onto the <em>s</em> orbital of Al.</p><pre><code class="language-julia">kpath=[0.0 0.0 0.0; 0.5 0.5 0.5; 0.0 0.5 0.5];
@@ -72,6 +79,7 @@ plot_bandstr(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_
 plot_bandstr
 align vbm
 no display</pre><p><img src="../alp2.png" alt="AlP plot 2"/></p><p>You can also plot the DOS using <a href="../core/#ThreeBodyTB.DOS.dos"><code>dos</code></a></p><pre><code class="language-julia">dos(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">grid [14, 14, 14]
+  0.135595 seconds (71.70 k allocations: 73.312 MiB, 7.69% gc time)
 Projection type: atomic
 PROJ
 (&quot;P&quot;, [5, 6, 7, 8], 4)
@@ -87,20 +95,20 @@ show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-
 
 Calculate Force, Stress (no scf)
 get_energy_force_stress_fft
-  1.077321 seconds (7.49 M allocations: 928.572 MiB, 34.52% gc time)
+  1.054822 seconds (5.06 M allocations: 1.087 GiB, 37.90% gc time)
 done
 ----
-energy -10.261580756479718
+energy -10.261560882898987
 
 Forces
 2×3 Matrix{Float64}:
- -1.37137e-11  -1.37136e-11  -1.3714e-11
+ -1.37155e-11  -1.37151e-11  -1.37152e-11
   0.0           0.0           0.0
 Stress
 3×3 Matrix{Float64}:
- 0.138528  0.0       0.0
- 0.0       0.138528  0.0
- 0.0       0.0       0.138528</pre><p>Can also be called directly on a new crystal structure instead of a <code>tb_crys</code> object.</p><h2 id="**Relax-structure**"><a class="docs-heading-anchor" href="#**Relax-structure**"><strong>Relax structure</strong></a><a id="**Relax-structure**-1"></a><a class="docs-heading-anchor-permalink" href="#**Relax-structure**" title="Permalink"></a></h2><p>Using <a href="../core/#ThreeBodyTB.relax_structure"><code>relax_structure</code></a></p><pre><code class="language-julia">crys_new, tbc_updated, energy, force, stress = relax_structure(alp);
+ 0.138527  0.0       0.0
+ 0.0       0.138527  0.0
+ 0.0       0.0       0.138527</pre><p>Can also be called directly on a new crystal structure instead of a <code>tb_crys</code> object.</p><h2 id="**Relax-structure**"><a class="docs-heading-anchor" href="#**Relax-structure**"><strong>Relax structure</strong></a><a id="**Relax-structure**-1"></a><a class="docs-heading-anchor-permalink" href="#**Relax-structure**" title="Permalink"></a></h2><p>Using <a href="../core/#ThreeBodyTB.relax_structure"><code>relax_structure</code></a></p><pre><code class="language-julia">crys_new, tbc_updated, energy, force, stress = relax_structure(alp);
 
 println(&quot;Energy new $energy&quot;)
 println()
@@ -110,17 +118,6 @@ println()
 println(&quot;Stress&quot;)
 show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-example-output">prepare atoms [&quot;Al&quot;, &quot;P&quot;]
 relax_structure conv_thr 0.002 energy_conv_thr (Ryd) 0.0002
-
------
-Construct tight-binding model from crystal structure
-
-distances
-CHECK FRONTIER - everything fine
-2body
-3body
-onsite
------
-
 ------
 Do SCF
 Mixing mode: pulay
@@ -128,22 +125,31 @@ Get initial guess from tbc
 DQ: [0.0, -0.0]
 
 Parameters:
-smearing = 0.01 conv_thr = 1.0e-7, iters = 75, mix = 0.8, grid = missing
+smearing = 0.01 conv_thr = 1.0e-7, iters = 200, mix = 0.5, grid = missing
 
 START SCF ----------------
+dq start[0.0, 0.0]
 SCF CALC 0001 energy  -10.42350021
-SCF CALC 0002 energy  -10.39235446  en_diff:   3.114575E-02  dq_diff:   9.077615E-01
-SCF CALC 0003 energy  -10.37239696  en_diff:   1.995750E-02  dq_diff:   7.231044E-01
-SCF CALC 0004 energy  -10.28933097  en_diff:   8.306599E-02  dq_diff:   1.452555E-01
-SCF CALC 0005 energy  -10.26727897  en_diff:   2.205201E-02  dq_diff:   2.901010E-02
-SCF CALC 0006 energy  -10.26272388  en_diff:   4.555090E-03  dq_diff:   5.804629E-03
-SCF CALC 0007 energy  -10.26180215  en_diff:   9.217278E-04  dq_diff:   1.160782E-03
-SCF CALC 0008 energy  -10.26161767  en_diff:   1.844756E-04  dq_diff:   2.321653E-04
-SCF CALC 0009 energy  -10.26158076  en_diff:   3.691797E-05  dq_diff:   4.643256E-05
-SCF CALC 0010 energy  -10.26157337  en_diff:   7.383469E-06  dq_diff:   9.286542E-06
-SCF CALC 0011 energy  -10.26157190  en_diff:   1.476750E-06  dq_diff:   1.857307E-06
+SCF CALC 0002 energy  -10.24668598  en_diff:   1.768142E-01  dq_diff:   2.430874E+00
+SCF CALC 0003 energy  -10.24965650  en_diff:   2.970519E-03  dq_diff:   2.048571E-02
+SCF CALC 0004 energy  -10.25609985  en_diff:   6.443359E-03  dq_diff:   4.504717E-02
+SCF CALC 0005 energy  -10.25883441  en_diff:   2.734558E-03  dq_diff:   1.938020E-02
+SCF CALC 0006 energy  -10.26020629  en_diff:   1.371874E-03  dq_diff:   9.783404E-03
+SCF CALC 0007 energy  -10.26088960  en_diff:   6.833124E-04  dq_diff:   4.888346E-03
+SCF CALC 0008 energy  -10.26123074  en_diff:   3.411420E-04  dq_diff:   2.444346E-03
+SCF CALC 0009 energy  -10.26140118  en_diff:   1.704372E-04  dq_diff:   1.222178E-03
+SCF CALC 0010 energy  -10.26148636  en_diff:   8.518531E-05  dq_diff:   6.110918E-04
+SCF CALC 0011 energy  -10.26152895  en_diff:   4.258433E-05  dq_diff:   3.055466E-04
+SCF CALC 0012 energy  -10.26155024  en_diff:   2.129009E-05  dq_diff:   1.527734E-04
+SCF CALC 0013 energy  -10.26156088  en_diff:   1.064452E-05  dq_diff:   7.638676E-05
+SCF CALC 0014 energy  -10.26156621  en_diff:   5.322131E-06  dq_diff:   3.819339E-05
+SCF CALC 0015 energy  -10.26156887  en_diff:   2.661033E-06  dq_diff:   1.909670E-05
+SCF CALC 0016 energy  -10.26157020  en_diff:   1.330508E-06  dq_diff:   9.548349E-06
+SCF CALC 0017 energy  -10.26157086  en_diff:   6.652522E-07  dq_diff:   4.774175E-06
+SCF CALC 0018 energy  -10.26157119  en_diff:   3.326256E-07  dq_diff:   2.387087E-06
+SCF CALC 0019 energy  -10.26157136  en_diff:   1.663126E-07  dq_diff:   1.193544E-06
 
-YES convergence in 11 iters, energy -10.261571896261046 eV   dq = [-1.163, 1.163]
+YES convergence in 19 iters, energy -10.261571360762517 eV   dq = [-1.163, 1.163]
 END SCF ------------------
 
 starting vec
@@ -153,16 +159,17 @@ starting vec
 Conj Grad START
 
 START SCF ----------------
-SCF CALC 0001 energy  -10.26157160
-SCF CALC 0002 energy  -10.26157157  en_diff:   3.244714E-08  dq_diff:   2.203338E-07
+dq start[0.0, 0.0]
+SCF CALC 0001 energy  -10.26157144
+SCF CALC 0002 energy  -10.26157153  en_diff:   8.701624E-08  dq_diff:   6.244729E-07
 
-YES convergence in 2 iters, energy -10.261571568465252 eV   dq = [-1.163, 1.163]
+YES convergence in 2 iters, energy -10.261571530935061 eV   dq = [-1.163, 1.163]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.752912 seconds (7.49 M allocations: 928.572 MiB, 13.88% gc time)
+  0.870611 seconds (5.06 M allocations: 1.087 GiB, 12.95% gc time)
 
-FCALL 1 en:  -0.7542113251935126 (Ryd)  fsum:  9.238935969867992e-13  ssum:  0.0026132419734498495    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FCALL 1 en:  -0.7542113224350956 (Ryd)  fsum:  9.238855355689506e-13  ssum:  0.0026132419609586595    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 A1=     +2.60000  +2.60000  +0.00000  |  +0.13853  +0.00000  +0.00000
 A2=     +2.60000  +0.00000  +2.60000  |  +0.00000  +0.13853  +0.00000
@@ -173,23 +180,30 @@ P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
 
 
 START SCF ----------------
-SCF CALC 0001 energy  -10.77406918
-SCF CALC 0002 energy  -10.73232516  en_diff:   4.174402E-02  dq_diff:   1.948531E-01
-SCF CALC 0003 energy  -10.72003551  en_diff:   1.228965E-02  dq_diff:   1.505436E-01
-SCF CALC 0004 energy  -10.68614796  en_diff:   3.388756E-02  dq_diff:   3.139261E-02
-SCF CALC 0005 energy  -10.67841771  en_diff:   7.730242E-03  dq_diff:   6.172964E-03
-SCF CALC 0006 energy  -10.67689772  en_diff:   1.519994E-03  dq_diff:   1.242025E-03
-SCF CALC 0007 energy  -10.67658984  en_diff:   3.078795E-04  dq_diff:   2.478466E-04
-SCF CALC 0008 energy  -10.67652847  en_diff:   6.136700E-05  dq_diff:   4.961009E-05
-SCF CALC 0009 energy  -10.67651618  en_diff:   1.229194E-05  dq_diff:   9.918999E-06
+dq start[0.0, 0.0]
+SCF CALC 0001 energy  -10.77406936
+SCF CALC 0002 energy  -10.66263972  en_diff:   1.114296E-01  dq_diff:   6.133443E-01
+SCF CALC 0003 energy  -10.66341365  en_diff:   7.739346E-04  dq_diff:   3.594524E-03
+SCF CALC 0004 energy  -10.67104778  en_diff:   7.634124E-03  dq_diff:   3.581870E-02
+SCF CALC 0005 energy  -10.67379272  en_diff:   2.744942E-03  dq_diff:   1.304421E-02
+SCF CALC 0006 energy  -10.67515510  en_diff:   1.362376E-03  dq_diff:   6.507522E-03
+SCF CALC 0007 energy  -10.67583457  en_diff:   6.794725E-04  dq_diff:   3.253946E-03
+SCF CALC 0008 energy  -10.67617388  en_diff:   3.393097E-04  dq_diff:   1.627030E-03
+SCF CALC 0009 energy  -10.67634343  en_diff:   1.695482E-04  dq_diff:   8.135294E-04
+SCF CALC 0010 energy  -10.67642817  en_diff:   8.474744E-05  dq_diff:   4.067683E-04
+SCF CALC 0011 energy  -10.67647054  en_diff:   4.236706E-05  dq_diff:   2.033850E-04
+SCF CALC 0012 energy  -10.67649172  en_diff:   2.118186E-05  dq_diff:   1.016927E-04
+SCF CALC 0013 energy  -10.67650231  en_diff:   1.059051E-05  dq_diff:   5.084643E-05
+SCF CALC 0014 energy  -10.67650761  en_diff:   5.295166E-06  dq_diff:   2.542323E-05
+SCF CALC 0015 energy  -10.67651026  en_diff:   2.647540E-06  dq_diff:   1.271162E-05
 
-YES convergence in 9 iters, energy -10.676516181896753 eV   dq = [-0.949, 0.949]
+YES convergence in 15 iters, energy -10.676510255924832 eV   dq = [-0.949, 0.949]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.618648 seconds (5.76 M allocations: 781.688 MiB, 19.97% gc time)
+  0.808259 seconds (3.90 M allocations: 990.433 MiB, 17.93% gc time)
 
-FCALL 2 en:  -0.7847091806818304 (Ryd)  fsum:  9.227596632263136e-9  ssum:  0.00019373959579506276    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FCALL 2 en:  -0.7847087451310859 (Ryd)  fsum:  9.227630907280231e-9  ssum:  0.00019374308031405585    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 A1=     +2.80318  +2.80318  +0.00000  |  -0.01027  -0.00000  -0.00000
 A2=     +2.80318  +0.00000  +2.80318  |  -0.00000  -0.01027  -0.00000
@@ -198,20 +212,21 @@ A3=     +0.00000  +2.80318  +2.80318  |  -0.00000  -0.00000  -0.01027
 Al   +0.00000  +0.00000  +0.00000 |  -0.00000  -0.00000  -0.00000
 P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
 
-MY CG quadratic linesearch iter 1 fn val: -0.7847091806818304 | rms grad: 0.057596919388852225 within_stepsize: false , old step: 0.32751888994745676 , new step_size: 0.10565125482176024
-MY CG quadratic linesearch iter 2 fn val: -0.7847091806818304 | rms grad: 0.057596919388852225 within_stepsize: true , old step: 0.10565125482176024 , new step_size: 0.15847688223264036
+MY CG quadratic linesearch iter 1 fn val: -0.7847087451310859 | rms grad: 0.05759798164164776 within_stepsize: false , old step: 0.3275195802771361 , new step_size: 0.10565147750875359
+MY CG quadratic linesearch iter 2 fn val: -0.7847087451310859 | rms grad: 0.05759798164164776 within_stepsize: true , old step: 0.10565147750875359 , new step_size: 0.15847721626313038
 
 START SCF ----------------
-SCF CALC 0001 energy  -10.68005595
-SCF CALC 0002 energy  -10.68005582  en_diff:   1.305952E-07  dq_diff:   4.971397E-07
+dq start[0.0, 0.0]
+SCF CALC 0001 energy  -10.68005485
+SCF CALC 0002 energy  -10.68005569  en_diff:   8.399086E-07  dq_diff:   4.092795E-06
 
-YES convergence in 2 iters, energy -10.680055819817575 eV   dq = [-0.959, 0.959]
+YES convergence in 2 iters, energy -10.680055690575825 eV   dq = [-0.959, 0.959]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.649802 seconds (5.76 M allocations: 781.694 MiB, 17.37% gc time)
+  0.927344 seconds (3.90 M allocations: 990.438 MiB, 31.00% gc time)
 
-FCALL 3 en:  -0.7849693391759904 (Ryd)  fsum:  1.2197892382858207e-8  ssum:  0.00011613992097187021    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FCALL 3 en:  -0.7849693296769005 (Ryd)  fsum:  1.2198061221457809e-8  ssum:  0.00011614206339563123    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 A1=     +2.79405  +2.79405  -0.00000  |  -0.00616  -0.00000  -0.00000
 A2=     +2.79405  -0.00000  +2.79405  |  -0.00000  -0.00616  -0.00000
@@ -220,19 +235,20 @@ A3=     -0.00000  +2.79405  +2.79405  |  -0.00000  -0.00000  -0.00616
 Al   -0.00000  -0.00000  -0.00000 |  +0.00000  +0.00000  +0.00000
 P    +0.25000  +0.25000  +0.25000 |  -0.00000  -0.00000  -0.00000
 
-MY CG quadratic linesearch iter 3 fn val: -0.7849693391759904 | rms grad: 0.0341908455769083 within_stepsize: true , old step: 0.15847688223264036 , new step_size: 0.23771532334896056
+MY CG quadratic linesearch iter 3 fn val: -0.7849693296769005 | rms grad: 0.034191485087545964 within_stepsize: true , old step: 0.15847721626313038 , new step_size: 0.23771582439469557
 
 START SCF ----------------
-SCF CALC 0001 energy  -10.68164733
-SCF CALC 0002 energy  -10.68164722  en_diff:   1.148512E-07  dq_diff:   4.443982E-07
+dq start[0.0, 0.0]
+SCF CALC 0001 energy  -10.68164643
+SCF CALC 0002 energy  -10.68164715  en_diff:   7.167380E-07  dq_diff:   3.539612E-06
 
-YES convergence in 2 iters, energy -10.681647215759623 eV   dq = [-0.968, 0.968]
+YES convergence in 2 iters, energy -10.681647150688127 eV   dq = [-0.968, 0.968]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.660508 seconds (5.76 M allocations: 781.694 MiB, 18.10% gc time)
+  0.678092 seconds (3.90 M allocations: 990.445 MiB, 10.57% gc time)
 
-FCALL 4 en:  -0.7850863045778641 (Ryd)  fsum:  5.897272050584866e-8  ssum:  4.1088586439110974e-5    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FCALL 4 en:  -0.785086299795199 (Ryd)  fsum:  5.897348932761092e-8  ssum:  4.1089258104637116e-5    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 A1=     +2.78591  +2.78591  -0.00000  |  -0.00218  -0.00000  -0.00000
 A2=     +2.78591  -0.00000  +2.78591  |  -0.00000  -0.00218  -0.00000
@@ -241,48 +257,49 @@ A3=     -0.00000  +2.78591  +2.78591  |  -0.00000  -0.00000  -0.00218
 Al   +0.00000  +0.00000  +0.00000 |  -0.00000  -0.00000  -0.00000
 P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
 
-MY CG quadratic linesearch iter 4 fn val: -0.7850863045778641 | rms grad: 0.011990883456657095 within_stepsize: true , old step: 0.23771532334896056 , new step_size: 0.3549336488594925
+MY CG quadratic linesearch iter 4 fn val: -0.785086299795199 | rms grad: 0.011991080376410947 within_stepsize: true , old step: 0.23771582439469557 , new step_size: 0.3565737365920434
 
 START SCF ----------------
-SCF CALC 0001 energy  -10.68185680
-SCF CALC 0002 energy  -10.68186058  en_diff:   3.772649E-06  dq_diff:   1.426638E-05
+dq start[0.0, 0.0]
+SCF CALC 0001 energy  -10.68186423
+SCF CALC 0002 energy  -10.68186497  en_diff:   7.367556E-07  dq_diff:   3.664477E-06
 
-YES convergence in 2 iters, energy -10.681860575935096 eV   dq = [-0.973, 0.973]
+YES convergence in 2 iters, energy -10.681864967487188 eV   dq = [-0.973, 0.973]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.889526 seconds (5.76 M allocations: 781.698 MiB, 37.66% gc time)
+  0.911800 seconds (3.90 M allocations: 990.443 MiB, 31.29% gc time)
 
-FCALL 5 en:  -0.7851019862558227 (Ryd)  fsum:  3.663487529374331e-7  ssum:  2.463952693760994e-7    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FCALL 5 en:  -0.7851023090288308 (Ryd)  fsum:  3.6833778778375063e-7  ssum:  5.43724380921922e-8    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-A1=     +2.78166  +2.78166  -0.00000  |  -0.00001  -0.00000  -0.00000
-A2=     +2.78166  -0.00000  +2.78166  |  -0.00000  -0.00001  -0.00000
-A3=     -0.00000  +2.78166  +2.78166  |  -0.00000  -0.00000  -0.00001
+A1=     +2.78164  +2.78164  -0.00000  |  -0.00000  -0.00000  -0.00000
+A2=     +2.78164  -0.00000  +2.78164  |  -0.00000  -0.00000  -0.00000
+A3=     -0.00000  +2.78164  +2.78164  |  -0.00000  -0.00000  -0.00000
 
 Al   -0.00000  -0.00000  -0.00000 |  +0.00000  +0.00000  +0.00000
 P    +0.25000  +0.25000  +0.25000 |  -0.00000  -0.00000  -0.00000
 
-yes conv sum_grad 7.168101367606944e-5 fn_diff_1 0.00011696540187366988 fn_diff_2 1.5681677958623297e-5
+yes conv sum_grad 1.6267652092480303e-5 fn_diff_1 0.00011697011829847614 fn_diff_2 1.600923363187512e-5
 Relax done
 
 ---------------------------------
-Final Energy -10.681860575935096
-A1=     +2.78166  +2.78166  -0.00000  |  -0.00120  -0.00000  -0.00000
-A2=     +2.78166  -0.00000  +2.78166  |  -0.00000  -0.00120  -0.00000
-A3=     -0.00000  +2.78166  +2.78166  |  -0.00000  -0.00000  -0.00120
+Final Energy -10.681864967487188
+A1=     +2.78164  +2.78164  -0.00000  |  -0.00026  -0.00000  -0.00000
+A2=     +2.78164  -0.00000  +2.78164  |  -0.00000  -0.00026  -0.00000
+A3=     -0.00000  +2.78164  +2.78164  |  -0.00000  -0.00000  -0.00026
 
 Al   -0.00000  -0.00000  -0.00000 |  +0.00010  +0.00010  +0.00010
 P    +0.25000  +0.25000  +0.25000 |  -0.00010  -0.00010  -0.00010
 
 
-Energy new -10.681860575935096
+Energy new -10.681864967487188
 
 Force
 2×3 Matrix{Float64}:
-  3.84538e-6   3.84538e-6   3.84538e-6
- -3.84538e-6  -3.84538e-6  -3.84538e-6
+  3.86625e-6   3.86625e-6   3.86625e-6
+ -3.86625e-6  -3.86625e-6  -3.86625e-6
 Stress
 3×3 Matrix{Float64}:
- -1.30612e-5  -5.37793e-8  -5.37793e-8
- -5.37793e-8  -1.30612e-5  -5.37793e-8
- -5.37793e-8  -5.37793e-8  -1.30612e-5</pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 21 July 2021 16:35">Wednesday 21 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ -2.88127e-6  -5.39451e-8  -5.39451e-8
+ -5.39451e-8  -2.88127e-6  -5.39451e-8
+ -5.39451e-8  -5.39451e-8  -2.88127e-6</pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p><h2 id="**Available-parameters**"><a class="docs-heading-anchor" href="#**Available-parameters**"><strong>Available parameters</strong></a><a id="**Available-parameters**-1"></a><a class="docs-heading-anchor-permalink" href="#**Available-parameters**" title="Permalink"></a></h2><p>Pre-fit TB parameters are these elements and any binary combinations of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correct.</p><p><img src="../orbs.png" alt="Available orbitals"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 21 December 2021 20:18">Tuesday 21 December 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
