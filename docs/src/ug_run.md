@@ -117,6 +117,6 @@ Force/Stress defaults are eV/Ang and eV/Ang^3.
 ## **Available parameters**
 
 Pre-fit TB parameters are these elements and any binary combinations
-of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correct.
+of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correctly.
 
 ![Available orbitals](./orbs.png)
