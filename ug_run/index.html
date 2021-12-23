@@ -39,7 +39,7 @@ onsite
 make
 -----
 
-  0.065024 seconds (1.64 M allocations: 118.413 MiB, 32.08% gc time)
+  0.064838 seconds (1.64 M allocations: 118.413 MiB)
 ------
 Do SCF
 Mixing mode: pulay
@@ -67,7 +67,7 @@ SCF CALC 0012 energy  -10.26155024  en_diff:   2.129009E-05  dq_diff:   1.527734
 YES convergence in 12 iters, energy -10.261550238376099 eV   dq = [-1.163, 1.163]
 END SCF ------------------
 
-  0.485015 seconds (814.80 k allocations: 396.463 MiB, 14.42% gc time)
+  0.657587 seconds (814.82 k allocations: 396.464 MiB, 15.05% gc time)
 scf_energy success, done
 
 The energy is -10.261550238376099 eV</pre><p>This returns the (non-magnetic) atomization energy, and a tight-binding object with the TB matrix elements and SCF electron density calculated for post-processing.</p><h2 id="**Plot-the-band-structure.**"><a class="docs-heading-anchor" href="#**Plot-the-band-structure.**"><strong>Plot the band structure.</strong></a><a id="**Plot-the-band-structure.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Plot-the-band-structure.**" title="Permalink"></a></h2><p>Using the <a href="../structs/#ThreeBodyTB.TB.tb_crys"><code>tb_crys</code></a> tight-binding object <code>tbc_alp</code> from above. Note: SCF must be done first.</p><pre><code class="language-julia">plot_bandstr(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">plot_bandstr
@@ -79,7 +79,7 @@ plot_bandstr(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_
 plot_bandstr
 align vbm
 no display</pre><p><img src="../alp2.png" alt="AlP plot 2"/></p><p>You can also plot the DOS using <a href="../core/#ThreeBodyTB.DOS.dos"><code>dos</code></a></p><pre><code class="language-julia">dos(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">grid [14, 14, 14]
-  0.135595 seconds (71.70 k allocations: 73.312 MiB, 7.69% gc time)
+  0.194499 seconds (71.70 k allocations: 73.312 MiB, 6.85% gc time)
 Projection type: atomic
 PROJ
 (&quot;P&quot;, [5, 6, 7, 8], 4)
@@ -95,7 +95,7 @@ show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-
 
 Calculate Force, Stress (no scf)
 get_energy_force_stress_fft
-  1.054822 seconds (5.06 M allocations: 1.087 GiB, 37.90% gc time)
+  1.186074 seconds (5.06 M allocations: 1.087 GiB, 45.10% gc time)
 done
 ----
 energy -10.261560882898987
@@ -167,7 +167,7 @@ YES convergence in 2 iters, energy -10.261571530935061 eV   dq = [-1.163, 1.163]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.870611 seconds (5.06 M allocations: 1.087 GiB, 12.95% gc time)
+  0.998125 seconds (5.06 M allocations: 1.087 GiB, 18.68% gc time)
 
 FCALL 1 en:  -0.7542113224350956 (Ryd)  fsum:  9.238855355689506e-13  ssum:  0.0026132419609586595    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -201,7 +201,7 @@ YES convergence in 15 iters, energy -10.676510255924832 eV   dq = [-0.949, 0.949
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.808259 seconds (3.90 M allocations: 990.433 MiB, 17.93% gc time)
+  1.125386 seconds (3.90 M allocations: 990.433 MiB, 39.42% gc time)
 
 FCALL 2 en:  -0.7847087451310859 (Ryd)  fsum:  9.227630907280231e-9  ssum:  0.00019374308031405585    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -224,7 +224,7 @@ YES convergence in 2 iters, energy -10.680055690575825 eV   dq = [-0.959, 0.959]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.927344 seconds (3.90 M allocations: 990.438 MiB, 31.00% gc time)
+  1.003617 seconds (3.90 M allocations: 990.440 MiB, 21.13% gc time)
 
 FCALL 3 en:  -0.7849693296769005 (Ryd)  fsum:  1.2198061221457809e-8  ssum:  0.00011614206339563123    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -246,7 +246,7 @@ YES convergence in 2 iters, energy -10.681647150688127 eV   dq = [-0.968, 0.968]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.678092 seconds (3.90 M allocations: 990.445 MiB, 10.57% gc time)
+  0.945768 seconds (3.90 M allocations: 990.444 MiB, 18.20% gc time)
 
 FCALL 4 en:  -0.785086299795199 (Ryd)  fsum:  5.897348932761092e-8  ssum:  4.1089258104637116e-5    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -268,7 +268,7 @@ YES convergence in 2 iters, energy -10.681864967487188 eV   dq = [-0.973, 0.973]
 END SCF ------------------
 
 get_energy_force_stress_fft
-  0.911800 seconds (3.90 M allocations: 990.443 MiB, 31.29% gc time)
+  0.873360 seconds (3.90 M allocations: 990.443 MiB, 20.96% gc time)
 
 FCALL 5 en:  -0.7851023090288308 (Ryd)  fsum:  3.6833778778375063e-7  ssum:  5.43724380921922e-8    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -302,4 +302,4 @@ Stress
 3×3 Matrix{Float64}:
  -2.88127e-6  -5.39451e-8  -5.39451e-8
  -5.39451e-8  -2.88127e-6  -5.39451e-8
- -5.39451e-8  -5.39451e-8  -2.88127e-6</pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p><h2 id="**Available-parameters**"><a class="docs-heading-anchor" href="#**Available-parameters**"><strong>Available parameters</strong></a><a id="**Available-parameters**-1"></a><a class="docs-heading-anchor-permalink" href="#**Available-parameters**" title="Permalink"></a></h2><p>Pre-fit TB parameters are these elements and any binary combinations of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correct.</p><p><img src="../orbs.png" alt="Available orbitals"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 21 December 2021 20:18">Tuesday 21 December 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ -5.39451e-8  -5.39451e-8  -2.88127e-6</pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p><h2 id="**Available-parameters**"><a class="docs-heading-anchor" href="#**Available-parameters**"><strong>Available parameters</strong></a><a id="**Available-parameters**-1"></a><a class="docs-heading-anchor-permalink" href="#**Available-parameters**" title="Permalink"></a></h2><p>Pre-fit TB parameters are these elements and any binary combinations of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correctly.</p><p><img src="../orbs.png" alt="Available orbitals"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 22 December 2021 21:42">Wednesday 22 December 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
