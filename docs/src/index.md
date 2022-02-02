@@ -13,6 +13,10 @@ Other Contributors: Kamal Choudhury, NIST
 
 ThreeBodyTB.jl is a package for tight-binding, written in [Julia](https://julialang.org/).
 
+For background on the method, please see our preprint at
+[arXiv:2112.11585](https://arxiv.org/abs/2112.11585).
+
+
 ## Package Features
 
 - Run tight-binding calculations with near DFT level accuracy (PBEsol functional).
