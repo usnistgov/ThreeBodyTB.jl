@@ -24,6 +24,7 @@ calculate fermi energy using bisection
 """
 function calc_fermi(eigs, weights, nelec, smearing = 0.01)
 
+
 #    println("calc_fermi eigs ", eigs)
 
     efermi_max = maximum(eigs[:])+0.1
@@ -34,7 +35,7 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
     norm = sum(weights)
 
     n2= Int64(round(nelec/2))
-
+    
 #    println(size(eigs), " n2 $n2")
 
     if  abs(nelec - n2*2) < 1e-7
@@ -70,6 +71,28 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
     
 end
 
+
+
+function calc_fermi_sp(eigs, weights, nelec, smearing = 0.01)
+    nspin = 1
+    if length(size(eigs)) == 3
+        nspin = size(eigs)[2]
+    end
+
+    if nspin == 2
+        nw = size(eigs)[3]
+        nk = size(eigs)[1]
+        eigs2 = zeros(nk, nw*nspin)
+        for spin = nspin
+            eigs2[1:nk,1:nw] = eigs[:,1,:] 
+            eigs2[1:nk,nw+1:2*nw] = eigs[:,2,:] 
+        end
+        return calc_fermi(eigs2, weights, 2*nelec, smearing )
+    else
+        return calc_fermi(eigs, weights, nelec, smearing )
+    end        
+end
+
 """
     function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false)
 
@@ -77,12 +100,22 @@ Calculate band energy. Has options for additional return variables. Calculates f
 """
 function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false)
 
-    efermi = calc_fermi(eigs, weights, nelec, smearing)
+    efermi = calc_fermi_sp(eigs, weights, nelec, smearing)
     norm = sum(weights)
     
     occ = gaussian.(eigs.-efermi, smearing)
 
-    ek = sum(eigs.*occ, dims=2).*weights * 2.0 / norm  
+    nspin = 1
+    if length(size(eigs)) == 3
+        nspin = size(eigs)[2]
+    end
+
+    if nspin == 1
+        ek = sum(eigs.*occ, dims=2).*weights * 2.0 / norm  
+    elseif nspin == 2
+        ek = sum(eigs.*occ, dims=[2,3]).*weights  / norm  
+    end
+
     #    energy = sum(sum(eigs.*occ, dims=2).*weights) * 2.0 / norm
     energy=sum(ek)
 
@@ -114,8 +147,17 @@ function smearing_energy(eigs, weights, efermi, smearing = 0.01)
     
     dgauss = gaussian_derivative(eigs.-efermi, smearing)
 
-    ek = smearing * sum(dgauss, dims=2).*weights * 2.0 / norm  
+    nspin = 1
+    if length(size(eigs)) == 3
+        nspin = size(eigs)[2]
+    end
 
+    if nspin == 1
+        ek = smearing * sum(dgauss, dims=2).*weights * 2.0 / norm  
+    else
+        ek = smearing * sum(dgauss, dims=[2,3]).*weights * 1.0 / norm  
+    end
+    
     energy=sum(ek)
 
     return energy

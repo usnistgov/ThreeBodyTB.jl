@@ -77,20 +77,21 @@ Holds data from projwfc.x
 - `natwfc::Int64` number of atomic wavefunctions, from dft projection
 - `proj::Array{Complex{Float64}, 3}`  atomc projections `nk × natwfc × nbnd` , where `nbnd` is the number of bands in DFT
 - `overlaps::Array{Complex{Float64}, 3} overlap matrix from dft `nk × natwfc × natwfc`
-
+- `nspin::Int64` number of psins
 This is created from `loadXML_proj`, which calls `make_proj`
 """
 mutable struct proj_dat
 
     bs::bandstructure
     natwfc::Int64
-    proj::Array{Complex{Float64}, 3}
+    nspin::Int64
+    proj::Array{Complex{Float64}, 4}
     overlaps::Array{Complex{Float64}, 3}    
 end
 
 #print proj dat
 Base.show(io::IO, d::proj_dat) = begin
-    println(io,"projection data: nbnd = ", d.bs.nbnd, "; nkpts = ", d.bs.nks, "; natwfc = ", d.natwfc)
+    println(io,"projection data: nbnd = ", d.bs.nbnd, "; nkpts = ", d.bs.nks, "; natwfc = ", d.natwfc, "nspin = ", d.nspin)
 end   
 
 
@@ -301,18 +302,23 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     end
 
     dft_nscf = missing
+
+    magnetic = false
+    if dft.nspin == 2
+        magnetic = true
+    end
     
     try
-        dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid, klines=klines)
+        dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid, klines=klines, magnetic=magnetic)
     catch
         println()
         println("first nscf failed, trying backup nscf with fewer extra bands")
         println()
         try
-            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines)
+            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
         catch
             println("try 2")
-            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines)
+            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
         end
     end
     
@@ -509,8 +515,8 @@ Steps:
     println("P OVERLAPS ", size(p.overlaps))
     
     #check if p matches dft_nscf
-    if sum(abs.(dft_nscf.bandstruct.eigs[1,:] - p.bs.eigs[1,:])) > 1e-5
-        println("warning, projected eigs and dft_nscf eigs do not match ", sum(abs.(dft_nscf.bandstruct.eigs[1,:] - p.bs.eigs[1,:])))
+    if sum(abs.(dft_nscf.bandstruct.eigs[1,:,1] - p.bs.eigs[1,:,1])) > 1e-5
+        println("warning, projected eigs and dft_nscf eigs do not match ", sum(abs.(dft_nscf.bandstruct.eigs[1,:,1] - p.bs.eigs[1,:,1])))
         println("rerun nscf")
         prefix = deepcopy(prefix_orig)
         dft_nscf = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
@@ -527,8 +533,12 @@ Steps:
     println()
     projection_warning = false
     if freeze
+
+        
         band_froz = Int64(round(dft_nscf.bandstruct.nelec/2))+1
-        en_froz = minimum(dft_nscf.bandstruct.eigs[:,band_froz])
+
+
+        en_froz = minimum(dft_nscf.bandstruct.eigs[:,band_froz,:])
         en_froz = max(en_froz, dft.bandstruct.efermi + 0.05)
         println("en_froz: ", en_froz, " band froz $band_froz")
         println("efermi energy ", dft.bandstruct.efermi)
@@ -682,8 +692,8 @@ function loadXML_proj(savedir, B=missing)
 #    println(units_energy, " " , units_kpt)
 #    println("nbands: ", nbnd," nk: ", nk)
 
-    proj = zeros(Complex{Float64}, nk, natwfc, nbnd)
-    eigs = zeros(nk,nbnd)
+    proj = zeros(Complex{Float64}, nk, natwfc, nspin, nbnd)
+    eigs = zeros(nk,nbnd, nspin)
 
     kpts = zeros(Float64, nk,3)
     weights = zeros(Float64, nk)
@@ -697,31 +707,51 @@ function loadXML_proj(savedir, B=missing)
         weights = parse_str_ARR_float(da["WEIGHT_OF_K-POINTS"][""])
 
         dap = da["PROJECTIONS"]
-        
-
-        for k in 1:nk
-            t = dap["K-POINT."*string(k)]
-            for a in 1:natwfc
-                proj[k, a, :] =  parse_str_ARR_complex(t["ATMWFC."*string(a)][""])
-            end
-        end
-        
-    
         dae = da["EIGENVALUES"]
-        
-        for k in 1:nk
-            eigs[k, :] = parse_str_ARR_float(dae["K-POINT."*string(k)]["EIG"][""])
-            
-        end
-
-        kpts = reshape(kpts, 3,nk)'
-
         dao = da["OVERLAPS"]
-
+        kpts = reshape(kpts, 3,nk)'
         
-        for k in 1:nk
-            t = dao["K-POINT."*string(k)]
-            overlaps[k, :,:] = reshape(parse_str_ARR_complex(t["OVERLAP.1"][""]), natwfc, natwfc)'
+
+        if nspin == 1
+            for k in 1:nk
+                t = dap["K-POINT."*string(k)]
+                for a in 1:natwfc
+                    proj[k, a,1, :] =  parse_str_ARR_complex(t["ATMWFC."*string(a)][""])
+                end
+            end
+            
+            for k in 1:nk
+                eigs[k, :] = parse_str_ARR_float(dae["K-POINT."*string(k)]["EIG"][""])
+                
+            end
+            
+            for k in 1:nk
+                t = dao["K-POINT."*string(k)]
+                overlaps[k, :,:] = reshape(parse_str_ARR_complex(t["OVERLAP.1"][""]), natwfc, natwfc)'
+            end
+        elseif nspin == 2
+            for k in 1:nk
+                t = dap["K-POINT."*string(k)]
+                for a in 1:natwfc
+                    proj[k, a,1, :] =  parse_str_ARR_complex(t["SPIN.1"]["ATMWFC."*string(a)][""])
+                end
+                for a in 1:natwfc
+                    proj[k, a,2, :] =  parse_str_ARR_complex(t["SPIN.2"]["ATMWFC."*string(a)][""])
+                end
+            end
+            for k in 1:nk
+                eigs[k, :, 1] = parse_str_ARR_float(dae["K-POINT."*string(k)]["EIG.1"][""])
+            end
+            for k in 1:nk
+                eigs[k, :, 2] = parse_str_ARR_float(dae["K-POINT."*string(k)]["EIG.2"][""])
+            end
+            
+            for k in 1:nk
+                t = dao["K-POINT."*string(k)]
+                overlaps[k, :,:] = reshape(parse_str_ARR_complex(t["OVERLAP.1"][""]), natwfc, natwfc)'
+            end
+            
+            
         end
 
         
@@ -767,7 +797,7 @@ function loadXML_proj(savedir, B=missing)
 
 #    println(overlaps)
 
-    bs = DFToutMod.makebs(nelec, efermi, kpts, weights, [0,0,0], eigs)
+    bs = DFToutMod.makebs(nelec, efermi, kpts, weights, [0,0,0], eigs, nspin=nspin)
     
     return make_proj(bs, proj, overlaps)
     
@@ -783,14 +813,14 @@ function make_proj(bs, proj, overlaps)
     if bs.nks != size(proj)[1] || bs.nks != size(overlaps)[1]
         error("make_proj something wrong nks ", bs.nks," ",size(proj)[1]," ",size(overlaps)[1])
     end
-    if bs.nbnd != size(proj)[3]
-        error("make_proj something wrong nbnd ", bs.nbnd," ",size(proj)[3])
+    if bs.nbnd != size(proj)[4]
+        error("make_proj something wrong nbnd ", bs.nbnd," ",size(proj)[4])
     end
     if size(proj)[2] != size(overlaps)[2] ||  size(proj)[2] !=	size(overlaps)[3]
         error("make_proj something wrong in natwfc ",  size(proj)[2]," ",size(overlaps)[2]," " ,size(overlaps)[3])
     end
 
-    return proj_dat(bs, size(proj)[2], proj, overlaps)
+    return proj_dat(bs, size(proj)[2], bs.nspin, proj, overlaps)
     
 end
 
@@ -905,34 +935,38 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
     #decide semicore
     p2 = zeros(p.bs.nbnd)
-    INDSEMI = zeros(Int64, p.bs.nks, nsemi)
+    INDSEMI = zeros(Int64, p.bs.nks, p.nspin, nsemi)
     for k = 1:p.bs.nks
-        p2[:] = real.(sum(p.proj[k,semicore,:] .* conj.(p.proj[k,semicore,:]) , dims=1))
-        INDSEMI[k, :] = sortperm(p2, rev=true)[1:nsemi]
-        if sum(p2) < nsemi - 0.5
-            println("warning, identify semicore")
-        end
-        if k < 10
-            println("p2 ", p2)
-            println(k, " indsemi " , INDSEMI[k, :])
+        for spin = 1:p.nspin
+            p2[:] = real.(sum(p.proj[k,semicore,spin, :] .* conj.(p.proj[k, semicore,spin, :]) , dims=1))
+            INDSEMI[k,spin,  :] = sortperm(p2, rev=true)[1:nsemi]
+            if sum(p2) < nsemi - 0.5
+                println("warning, identify semicore")
+            end
+#            if k < 10
+#                println("p2 ", p2)
+#                println(k, " indsemi " , INDSEMI[k, :])
+#            end
         end
 
     end
     println("INDSEMI ", INDSEMI)
 
     NBND = p.bs.nbnd - nsemi
-    EIGS = zeros(p.bs.nks, NBND)
-    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, NBND)
+    EIGS = zeros(p.bs.nks, p.nspin, NBND)
+    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, p.nspin, NBND)
 
     # setup data
     for k = 1:p.bs.nks
-        counter = 0
-        for n = 1:p.bs.nbnd
-            if !(n in INDSEMI[k, :])
-                counter += 1
-                EIGS[k,counter] = p.bs.eigs[k,n]
-                PROJ[k,:,counter] = p.proj[k,wan,n]
-                
+        for spin in p.nspin
+            counter = 0
+            for n = 1:p.bs.nbnd
+                if !(n in INDSEMI[k,spin, :])
+                    counter += 1
+                    EIGS[k,spin,counter] = p.bs.eigs[k,n, spin]
+                    PROJ[k,:,spin, counter] = p.proj[k,wan,spin, n]
+                    
+                end
             end
         end
 #        if k < 20

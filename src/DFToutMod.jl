@@ -22,6 +22,9 @@ using ..ThreeBodyTB:convert_force
 using ..ThreeBodyTB:convert_stress
 using ..ThreeBodyTB:global_energy_units
 
+
+
+
 ##using Formatting
 
 export dftout
@@ -46,22 +49,24 @@ Band structure. Has
 - `nbnd::Int` Number of bands
 - `nks::Int` Number of k-points
 - `nelec::Float64` Number of electrons
+- `nspin::Int64` Number of spins (2 for spin-polarized (magnetic), 1 non-sp)
 - `efermi::Float64` Fermi energy
 - `kpts::Array{Float64,2}` List of k-points, `nks × 3` array in BZ crystal units.
 - `kweights::Array{Float64,1}` Weights of k-points (`nks`).
 - `kgrid::Array{Int,1}` Equivalent gamma centered Monkhorst-Pack k-grid dimensions, if applies.
-- `eigs::Array{Float64,2}` Eigenvalues. `nks × nbnd`
+- `eigs::Array{Float64,3}` Eigenvalues. `nks × nbnd × nspin`
 
 """
 mutable struct bandstructure
     nbnd::Int
     nks::Int
     nelec::Float64
+    nspin::Int64
     efermi::Float64
     kpts::Array{Float64,2}
     kweights::Array{Float64,1}
     kgrid::Array{Int,1}
-    eigs::Array{Float64,2}
+    eigs::Array{Float64,3}
 end
 
 """
@@ -81,6 +86,10 @@ DFT output struct. Has
 - `outdir::String` Directly loaded from
 - `tot_charge::Float64` If charge of unit cell is nonzero
 - `atomize_energy::Float64` Atomization energy, relative to non-spin-polarized atoms.
+- `nspin::Int64` number of spins (1 = non-sp, 2= spin-polarized)
+- `mag_tot::Float64` Total magnetization  = sum_i mag_i
+- `mag_abs::Float64` Absolute magnetization = sum_i | mag_i |
+
 """
 mutable struct dftout
 
@@ -96,7 +105,9 @@ mutable struct dftout
     outdir::String
     tot_charge::Float64
     atomize_energy::Float64
-
+    nspin::Int64
+    mag_tot::Float64
+    mag_abs::Float64
 end
 
 """
@@ -142,17 +153,25 @@ Base.show(io::IO, d::dftout) = begin
         @printf(io, "% .5f  % .5f  % .5f\n", stress[i,1], stress[i,2], stress[i,3])        
     end
     println(io,)
-    println(io, "Atomization energy (no spin): ", convert_energy(d.atomize_energy), " $global_energy_units ")
+    println(io, "Atomization energy (no spin reference): ", convert_energy(d.atomize_energy), " $global_energy_units ")
     println(io,"=========================")
-    println(io,"Has bandstructure: ", d.hasband,"; Has hamiltonian: ", d.hasham)
+    if d.nspin == 2
+        hasspin = true
+    else
+        hasspin = false
+    end
+    println(io," Has bandstructure: ", d.hasband,"; Has hamiltonian: ", d.hasham, "; has spin: ", hasspin)
+    if hasspin
+        @printf(io, " Net magnetization: % .5f ; Absolute magnetization: % .5f \n", d.mag_tot, d.mag_abs)
+    end
     println(io)
     
 end   
 
 #print bandstructure
 Base.show(io::IO, d::bandstructure) = begin
-    println(io,"nbnd = ", d.nbnd, "; nkpts = ", d.nks)
-    println(io,"nelec = ", d.nelec, "; efermi = ", d.efermi)
+    println(io,"nbnd = ", d.nbnd, "; nkpts = ", d.nks, "; nspin = ", d.nspin)
+    println(io,"nelec = ", d.nelec, "; efermi = ", convert_energy(d.efermi))
 
     println(io)
 
@@ -160,22 +179,35 @@ Base.show(io::IO, d::bandstructure) = begin
 #    pst = "%-3s % .5f % .5f % .5f , % .5f, "
 #    println(pst)
 
-    for i = 1:min(d.nks, 200)
-        t = @sprintf("%-3s", i)
-        k = @sprintf(" [ % .5f % .5f % .5f ]", d.kpts[i,1],d.kpts[i,2],d.kpts[i,3]  )
-        kw = @sprintf(" % .5f ",  d.kweights[i])
-        v = " "
-        for j = 1:d.nbnd
-            v = v * @sprintf(" % .5f",d.eigs[i,j]) 
+    function prt(spin)
+        for i = 1:min(d.nks, 200)
+            t = @sprintf("%-3s", i)
+            k = @sprintf(" [ % .5f % .5f % .5f ]", d.kpts[i,1],d.kpts[i,2],d.kpts[i,3]  )
+            kw = @sprintf(" % .5f ",  d.kweights[i])
+            v = " "
+            for j = 1:d.nbnd
+                v = v * @sprintf(" % .5f",convert_energy.(d.eigs[i,j, spin])) 
+            end
+            println(io,t,kw,k,v)
+            
         end
-        println(io,t,kw,k,v)
-
+        if d.nks > 200
+            println(io, "... [truncated]")
+        end
+        println(io)
     end
-    if d.nks > 200
-        println(io, "... [truncated]")
-    end
-    println(io)
     
+    if d.nspin == 1
+        prt(1)
+    else
+        println(io, "SPIN UP")
+        prt(1)
+        println(io, "-------")
+        println(io, "SPIN DN")
+        prt(2)
+        println(io, "-------")
+    end
+
 end   
 
 """
@@ -183,20 +215,37 @@ end
 
 Constructor for `bandstructure`.
 """
-function makebs(nelec::Number, efermi::Number,  kpoints, kweights,kgrid, vals)
+function makebs(nelec::Number, efermi::Number,  kpoints, kweights,kgrid, vals; nspin=1)
+    nks = size(kpoints,1)
+    nbnd = size(vals,2)
+
+    if nspin == 2 && length(size(vals)) != 3
+        println("makebs eigenvalues not consistent with nspin $npin vs ", size(vals))
+    end
+
+    if length(size(vals)) == 2 #need to add dummy spin axis in non-sp case
+        v = zeros(nks, nbnd, 1)
+        v[:,:,1] = vals[:,:]
+        vals = v
+    end
+
     try
         kpoints = convert(Array{Float64,2},kpoints)
         kweights = convert(Array{Float64,1}, kweights)
-        vals = convert(Array{Float64,2}, vals)
+        vals = convert(Array{Float64,3}, vals)
     catch
         println(typeof(kpoints), typeof(kweights), typeof(vals))
         error("error make bs type conversion")
     end
-    nks = size(kpoints,1)
+
     if nks != size(kweights,1) || nks != size(vals,1)
         error("kpoints kweights eigs don't match")
     end
-    nbnd = size(vals,2)
+
+    if nspin != size(vals)[3]
+        println("ERROR creating band structure nspin $nspin size vals ", size(vals))
+    end
+
 
     K2 = zeros(Float64,size(kpoints))
     for i in 1:nks
@@ -204,13 +253,13 @@ function makebs(nelec::Number, efermi::Number,  kpoints, kweights,kgrid, vals)
     end
 
 
-    return bandstructure(nbnd, nks, nelec, efermi, K2, kweights, kgrid, vals)
+    return bandstructure(nbnd, nks, nelec, nspin, efermi, K2, kweights, kgrid, vals)
 
 end
 
-function make_empty_bs()
+function make_empty_bs(;nspin=1)
     
-    return bandstructure(1, 1, 1, 0.0, zeros(1,3), zeros(3), [1, 1, 1], zeros(1,1))
+    return bandstructure(1, 1, 1, nspin, 0.0, zeros(1,3), zeros(3), [1, 1, 1], zeros(1,1))
 
 end
 
@@ -219,7 +268,7 @@ end
 
 Constructor for dftout. Usually called by function that loads DFT output files, not called directly.
 """
-function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
+function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; nspin=1, mag_tot = 0.0, mag_abs = 0.0, prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
 """
 Creates a struct with the desired data
 """
@@ -251,11 +300,12 @@ Creates a struct with the desired data
     atomize_energy = energy - etotal_atoms
     
                 
+
     
     if ismissing(bandstruct)
-        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy) #, missing, False, False)
+        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs) #, missing, False, False)
     else
-        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy) #, missing, False, False)
+        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs) #, missing, False, False)
     end    
 end
 
@@ -263,12 +313,12 @@ end
 """
     function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
 """
-function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
+function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0)
     c = makecrys(A,pos,types, units="Bohr")
     if ismissing(bandstruct)
-        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=0.0)
+        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=0.0, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
     else
-        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=0.0)
+        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=0.0, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
     end
 end
 

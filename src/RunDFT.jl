@@ -470,7 +470,8 @@ function makedict(savedir)
     elseif isfile(savedir*"/data-file-schema.xml.gz")
         filename=savedir*"/data-file-schema.xml.gz"
     else
-        println("error warning missing data-file-schema.xml or data-file-schema.xml.gz")
+        println("ERROR warning missing data-file-schema.xml or data-file-schema.xml.gz")
+        println()
         filename=missing
     end
 
@@ -578,12 +579,25 @@ function loadXML(savedir)
     energy = parse(Float64,out["etot"]) * convert_ha_ryd
     energy_smear = parse(Float64,out["demet"]) * convert_ha_ryd
 
+
+    nspin = 1
+    mag_tot = 0.0
+    mag_abs = 0.0
+    if "spin" in keys(d["espresso"]["input"])
+        lsda = d["espresso"]["input"]["spin"]["lsda"]
+        if lsda == "true"
+            nspin = 2
+        end
+        if "magnetization" in keys(d["espresso"]["output"])
+            mag_tot = parse(Float64, d["espresso"]["output"]["magnetization"]["total"])
+            mag_abs = parse(Float64, d["espresso"]["output"]["magnetization"]["absolute"])
+        end
+    end
+
     bs = loadXML_bs(d)
-
     bs.kgrid=kgrid
-
     
-    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge)
+    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs)
 
 #    println("end loadXML")
 
@@ -615,7 +629,23 @@ function loadXML_bs(d)
     convert_ha_ryd = 2.0
     
     out = d["espresso"]["output"]["band_structure"]
-    nbnd = parse(Int,out["nbnd"])
+    nspin = 1
+    if "nbnd" in keys(out)
+        nbnd = parse(Int,out["nbnd"])
+        nspin = 1
+    elseif "nbnd_up" in keys(out)
+        nspin = 2
+        nbnd_up = parse(Int,out["nbnd_up"])
+        nbnd_dn = parse(Int,out["nbnd_dw"])
+
+        if nbnd_up != nbnd_up
+            println("band numbers don't match for some reason !!!!! $nbnd_up $nbnd_dn")
+        end
+        nbnd = nbnd_up
+    end
+
+
+
     nelec = parse(Float64,out["nelec"])
     efermi = parse(Float64,out["fermi_energy"]) * convert_ha_ryd
 
@@ -633,7 +663,7 @@ function loadXML_bs(d)
 
     
     nks = parse(Int, out["nks"])
-    bandstruct = zeros(nks, nbnd)
+    bandstruct = zeros(nks, nbnd, nspin)
     kpts = zeros(nks, 3)
     weights = zeros(nks)    
     for b = 1:nks
@@ -641,14 +671,20 @@ function loadXML_bs(d)
 
         weights[b] = parse(Float64, ks["k_point"][:weight] )
         kpts[b,:] = parse_str_ARR_float(ks["k_point"][""])
-        bandstruct[b,:] = parse_str_ARR_float(ks["eigenvalues"][""])
+        if nspin == 1
+            bandstruct[b,:,1] = parse_str_ARR_float(ks["eigenvalues"][""])
+        else
+            eig = parse_str_ARR_float(ks["eigenvalues"][""])
+            bandstruct[b,:,1] = eig[1:nbnd] #up
+            bandstruct[b,:,2] = eig[1+nbnd:2*nbnd] #down
+        end
     end
 
     kpts = kpts * inv(B)
     
     bandstruct *= convert_ha_ryd
 
-    bs = DFToutMod.makebs(nelec,efermi, kpts, weights, [0,0,0], bandstruct)
+    bs = DFToutMod.makebs(nelec,efermi, kpts, weights, [0,0,0], bandstruct; nspin=nspin)
 
     return bs
     
