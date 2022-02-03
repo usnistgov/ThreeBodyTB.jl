@@ -102,7 +102,7 @@ mutable struct tb{T}
     #    S::Array{Complex{Float64},3}
     S::Array{Complex{T},3}    
     scf::Bool
-    h1::Array{T,3} #scf term
+    h1::Array{T,2} #scf term
 
 end
 
@@ -130,7 +130,7 @@ Main tight-binding object, holds the tight-binding model `tb` and information ab
 - `dftenergy::Float64` DFT energy for reference, only for fit to DFT cases.
 - `scf::Bool`  `true` if requires self-consistency.
 - `gamma::Array{T, 2}` has the Ewald calculation results, needed for self-consistency.
-- `eden::Array{Float64,1}` electron density, by orbital, if calculated by self-consistency.
+- `eden::Array{Float64,2}` electron density, by orbital, if calculated by self-consistency.
 - `within_fit::Bool` is `true` if model is passes tests of being within the fitting parameter space, `false` for extrapolation
 - `energy::Float64` energy in Ryd, if calculated.
 - `efermi::Float64` Fermi energy in Ryd, if calculated.
@@ -144,7 +144,7 @@ mutable struct tb_crys{T}
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
-    eden::Array{Float64,1}
+    eden::Array{Float64,2}
     within_fit::Bool
     energy::Float64
     efermi::Float64
@@ -240,7 +240,7 @@ Hold k-point tight binding and crystal structure. Similar to `tb_crys`
 - `dftenergy::Float64`
 - `scf::Bool`
 - `gamma::Array{T, 2}`
-- `eden::Array{Float64,1}`
+- `eden::Array{Float64,2}`
 """
 mutable struct tb_crys_kspace{T}
 
@@ -251,7 +251,7 @@ mutable struct tb_crys_kspace{T}
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
-    eden::Array{Float64,1}
+    eden::Array{Float64,2}
     energy::Float64
 
 end
@@ -403,9 +403,6 @@ function read_tb_crys(filename; directory=missing)
         gamma = reshape(gamma, s, s)
         
     end
-    if "eden" in keys(d)
-        eden  = parse_str_ARR_float(d["eden"])
-    end
     
 
     ##tb
@@ -439,6 +436,11 @@ function read_tb_crys(filename; directory=missing)
         h1 =  missing
     end
 
+
+    if "eden" in keys(d)
+        eden  = parse_str_ARR_float(d["eden"])
+        eden = reshape(eden, nspin, nwan)
+    end
     
     function readstr(st)
 
@@ -448,7 +450,7 @@ function read_tb_crys(filename; directory=missing)
         lines = split(st, "\n")
         for line in lines
             sp = split(line)
-            if length(sp) == 7
+            if length(sp) == 7 || length(sp) == 9
                 m = parse(Int64,sp[2])
                 n = parse(Int64,sp[3])
                 r = parse(Int64,sp[1])
@@ -648,22 +650,22 @@ get tbc object from xml file, written by write_tb_crys (see below)
     
     function readstr(st)
 
-        H = zeros(Complex{Float64}, nwan,nwan,nk)
+        H = zeros(Complex{Float64}, nwan,nwan,nk, nspin)
         S = zeros(Complex{Float64}, nwan,nwan,nk)        
         
         lines = split(st, "\n")
         for line in lines
             sp = split(line)
-            if length(sp) == 7
+            if length(sp) == 7 || length(sp) == 9
                 m = parse(Int64,sp[2])
                 n = parse(Int64,sp[3])
                 r = parse(Int64,sp[1])
                 if nspin == 1
-                    H[1, m,n,r] = parse(Float64,sp[4]) + im*parse(Float64,sp[5])
+                    H[m,n,r,1] = parse(Float64,sp[4]) + im*parse(Float64,sp[5])
                     S[m,n,r] = parse(Float64,sp[6]) + im*parse(Float64,sp[7])
                 else
-                    H[1, m,n,r] = parse(Float64,sp[4]) + im*parse(Float64,sp[5])
-                    H[2, m,n,r] = parse(Float64,sp[6]) + im*parse(Float64,sp[7])
+                    H[m,n,r,1] = parse(Float64,sp[4]) + im*parse(Float64,sp[5])
+                    H[m,n,r,2] = parse(Float64,sp[6]) + im*parse(Float64,sp[7])
                     S[m,n,r] = parse(Float64,sp[8]) + im*parse(Float64,sp[9])
                 end
             end
@@ -674,13 +676,15 @@ get tbc object from xml file, written by write_tb_crys (see below)
         
     Hk,Sk = readstr(d["tightbinding"]["Hk"])
 
+    println("hk ", sum(abs.(Hk)))
+    
 #    println("read ")
 #    println("h1")
 #    println(h1)
 
-    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, grid=grid, nonorth=nonorth, nspin=nspin)
+    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, grid=grid, nonorth=nonorth)
 
-    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, nspin=nspin)
+    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma)
 
     return tbck
         
@@ -741,9 +745,9 @@ function write_tb_crys(filename, tbc::tb_crys)
     
     function makestr(H,S, nonorth, ind_arr)
 
-        nw = size(H)[1]
-        nr = size(H)[3]
-        nspin = size(H)[4]
+        nw = size(H)[2]
+        nr = size(H)[4]
+        nspin = size(H)[1]
         #        st = ""
         io_tmp = IOBuffer() #writing to iostream is much faster than making a giant string 
         #strings in julia are immutable, so the entire thing had to be copied over and over
@@ -766,6 +770,7 @@ function write_tb_crys(filename, tbc::tb_crys)
 
                     if nspin == 2
                         @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f \n", r, m,n,real(H[1, m,n,r]), imag(H[1, m,n,r]),real(H[2, m,n,r]), imag(H[2, m,n,r]), Sr, Si)
+
                     else
                         @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f \n", r, m,n,real(H[1, m,n,r]), imag(H[1, m,n,r]),Sr, Si)                   
                     end
@@ -778,8 +783,8 @@ function write_tb_crys(filename, tbc::tb_crys)
         return st
 
     end
-
-st = makestr(tbc.tb.H, tbc.tb.S, tbc.tb.nonorth, tbc.tb.ind_arr)
+    println("a")
+    st = makestr(tbc.tb.H, tbc.tb.S, tbc.tb.nonorth, tbc.tb.ind_arr)
     
     addelement!(tightbinding, "H", st)
     
@@ -847,9 +852,9 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     
     function makestr(H,S, nonorth)
 
-        nspin = size(H)[1]        
-        nw = size(H)[2]
-        nr = size(H)[4]
+        nspin = size(H)[4]        
+        nw = size(H)[1]
+        nr = size(H)[3]
 
 #        st = ""
         io_tmp = IOBuffer() #writing to iostream is much faster than making a giant string 
@@ -871,9 +876,9 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
                     end
                     
                     if  nspin == 1
-                        @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f \n", r, m,n,real(H[1,m,n,r]), imag(H[1,m,n,r]),Sr, Si)
+                        @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f \n", r, m,n,real(H[m,n,r,1]), imag(H[m,n,r,1]),Sr, Si)
                     else
-                        @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f  % 2.10f % 2.10f \n", r, m,n,real(H[1,m,n,r]), imag(H[1,m,n,r]),real(H[2, m,n,r]), imag(H[2,m,n,r]), Sr, Si)
+                        @printf(io_tmp, "% 3s % 3s % 3s % 2.10f % 2.10f % 2.10f % 2.10f  % 2.10f % 2.10f \n", r, m,n,real(H[m,n,r,1]), imag(H[m,n,r,1]),real(H[ m,n,r,2]), imag(H[m,n,r,2]), Sr, Si)
                     end
 #                    st = st*t
 
@@ -887,7 +892,7 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
 
     end
 
-    st = makestr(tbc.tb.Hk, tbc.tb.Sk, tbc.tb.nonorth, tbc.tb.K)
+    st = makestr(tbc.tb.Hk, tbc.tb.Sk, tbc.tb.nonorth)
     
     addelement!(tightbinding, "Hk", st)
     
@@ -914,15 +919,24 @@ end
 
 Constructor function for `tb_crys` object
 """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, nspin=1 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
 
     T = typeof(crys.coords[1,1])
-
+    nspin = ham.nspin
     if ismissing(eden)
         if scf == false
-            eden = zeros(ham.nwan)
+            eden = zeros(nspin,ham.nwan)
         else
             eden = get_neutral_eden(crys, ham.nwan)
+            t = get_neutral_eden(crys, hamk.nwan)
+            eden = zeros(nspin, hamk.nwan)
+            if nspin == 1
+                eden[1,:] = t
+            elseif nspin == 2
+                eden[1,:] = t
+                eden[2,:] = t
+            end
+            
         end
     end
 
@@ -931,6 +945,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 
+    nspin = ham.nspin
+    
 #    println("type scf " , typeof(scf))
 #    println("type gamma " , typeof(gamma))
 #    println("type eden " , typeof(eden))
@@ -944,15 +960,25 @@ end
 
 Constructor function for `tb_crys_kspace` object
 """
-function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, screening=1.0, nspin=1)
+function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, screening=1.0)
 
+    nspin = hamk.nspin
+    
     T = typeof(crys.coords[1,1])
 
     if ismissing(eden)
         if scf == false
-            eden = zeros(hamk.nwan)
+            eden = zeros(nspin, hamk.nwan)
         else
-            eden = get_neutral_eden(crys, hamk.nwan)
+            t = get_neutral_eden(crys, hamk.nwan)
+            eden = zeros(nspin, hamk.nwan)
+            if nspin == 1
+                eden[1,:] = t
+            elseif nspin == 2
+                eden[1,:] = t
+                eden[2,:] = t
+            end
+
         end
     end
     
@@ -993,7 +1019,7 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing)
     else
         scf = true
     end
-    
+
     return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, h1)
 end
 
@@ -1026,8 +1052,12 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing)
     else
         scf = true
     end
-    
-    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, h1)
+
+    println("size H ", size(H), " ", typeof(H), " npin $nspin ")
+    println("T ", T)
+    println("S ", size(S), " " , typeof(S))
+    println("size h1 ", size(h1), "  ", typeof(h1))
+    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf, h1)
 end
 
 
@@ -1040,9 +1070,9 @@ end
 Constructor for `tb_kspace`
 """
 function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
-    nw=size(Hk,2)
-    nk=size(Hk,4)
-    nspin=size(Hk,1)
+    nw=size(Hk,1)
+    nk=size(Hk,3)
+    nspin=size(Hk,4)
 
 #    println("make_tb_k $nw $nk xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") 
 #    for k in 1:nk
@@ -1275,12 +1305,12 @@ end
  """
  function Hk(h::tb_crys_kspace, kpoint; scf=missing, spin=1)
 
-     return Hk(h.tb, kpoint, scf=scf, spin=1)
+     return Hk(h.tb, kpoint, scf=scf, spin=spin)
 
  end
 
  """
-     function Hk(h::tb_k, kpoint)
+     function Hk(h::tb_k, kpoint; scf=missing, spin=1)
 
  Calculate band structure at a k-point from `tb_k`. Must be pre-calculated k-point.
  """
@@ -1290,6 +1320,11 @@ end
          scf = h.scf
      end
 
+     if spin == 2 && h.nspin == 1
+         println("ERROR, asking for spin 2 from nsp ham")
+     end
+
+     
      kpoint = vec(kpoint)
 
      hk = zeros(Complex{Float64}, h.nwan, h.nwan)
@@ -1321,7 +1356,7 @@ end
          end
      end
 
-     hk0[:,:] = h.Hk[spin, :,:,ind]
+     hk0[:,:] = h.Hk[:,:,ind, spin]
      hk0 = 0.5*(hk0 + hk0')
 
      sk[:,:] = h.Sk[:,:,ind]
@@ -1366,7 +1401,7 @@ end
 
 
  """
-     function Hk(hk,sk, h::tb, kpoint)
+     function Hk(hk,sk, h::tb, kpoint; spin=1)
 
  Hk function with pre-allocated memory hk, sk
  """
@@ -1485,18 +1520,18 @@ end
  - `kpoints::Array{Float64,2}` - k-point array. e.g. `[0.0 0.0 0.0; 0.0 0.0 0.1]`
  - `spin::Int ` - spin component (1 or 2) if magnetic, only 1 is non-sp.
  """
- function calc_bands(tbc::tb_crys, kpoints::Array{Float64,2}; spin=1)
+ function calc_bands(tbc::tb_crys, kpoints::Array{Float64,2})
  #    if tbc.scf == true
  #        h1, dq = get_h1(tbc, tbc.eden)
  #    else
  #        h1 == missing
  #    end
-     return calc_bands(tbc.tb, kpoints, spin=spin)
+     return calc_bands(tbc.tb, kpoints)
  end
 
- function calc_bands(tbc::tb_crys_kspace, kpoints::Array{Float64,2};spin=1)
+ function calc_bands(tbc::tb_crys_kspace, kpoints::Array{Float64,2})
 
-     return calc_bands(tbc.tb, kpoints, spin=spin)
+     return calc_bands(tbc.tb, kpoints)
 
  end
 
@@ -1505,7 +1540,7 @@ end
 
  Calculate bandstructure for k-points from k-point array. h is a `tb` or `tb_k` object.
  """
- function calc_bands(h, kpoints::Array{Float64,2}; spin=1)
+ function calc_bands(h, kpoints::Array{Float64,2})
  """
  calculate band structure at group of points
  """
@@ -1518,23 +1553,25 @@ end
  #    hktemp= zeros(Complex{T}, h.nwan, h.nwan)
  #    sktemp= zeros(Complex{T}, h.nwan, h.nwan)
 
+
      nk = size(kpoints,1)
 
  #    println("vals time")
 
-     Vals = zeros(Float64, nk,h.nwan)
+     Vals = zeros(Float64,  nk,h.nwan,h.nspin )
 
-     for i = 1:nk
-
-         vect, vals, hk, sk, vals0 = Hk(h, kpoints[i,:], spin=spin)
-         Vals[i,:] = vals
- #        if sum(abs.(kpoints[i,:])) == 0
- #            println("k0")
- #            println(vals)
- #        end
-
+     for spin = 1:h.nspin
+         for i = 1:nk
+             
+             vect, vals, hk, sk, vals0 = Hk(h, kpoints[i,:], spin=spin)
+             Vals[i,:, spin] = vals
+             #        if sum(abs.(kpoints[i,:])) == 0
+             #            println("k0")
+             #            println(vals)
+             #        end
+             
+         end
      end
-
      return Vals
 
  end    
@@ -1659,7 +1696,7 @@ end
  function Hk(tbc::tb_crys, kpoint; spin=1 )
 
 
-     return Hk(tbc.tb, kpoint)
+     return Hk(tbc.tb, kpoint, spin=spin)
 
  end
 
@@ -1712,7 +1749,7 @@ end
      nwan = size(hk3)[1]
      nspin = size(hk3)[3]
 
-     VALS = zeros(Float64, nk,nspin,  nwan)
+     VALS = zeros(Float64, nk,nwan,nspin)
 
      if return_more_info == true
          VECTS = zeros(Complex{Float64}, nk,nspin, nwan, nwan)
@@ -1740,7 +1777,8 @@ end
                          end
                          
                          vals, vects = eigen(hk, sk)
-                         VALS[c,spin, :] = real(vals)
+                         VALS[c, :,spin] = real(vals)
+
                          if return_more_info
                              VECTS[c,spin, :,:] = vects
                          end
@@ -1796,8 +1834,8 @@ end
          nk = prod(grid)
          nwan = size(hk3)[1]
          nspin = size(hk3)[3]
-         VALS = zeros(Float64, nk, nspin, nwan)
-         VALS0 = zeros(Float64, nk, nspin, nwan)
+         VALS = zeros(Float64, nk, nwan, nspin)
+         VALS0 = zeros(Float64, nk,nwan, nspin)
 #         c=0
 
          thetype=typeof(real(sk3[1,1,1,1,1]))
@@ -1843,8 +1881,8 @@ end
                          hk = hk0 + sk .* h1
                          vals, vects = eigen(hk, sk)
                          
-                         VALS[c,spin, :] = vals
-                         VALS0[c,spin, :] = real.(diag(vects'*hk0*vects))
+                         VALS[c,:, spin] = vals
+                         VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
                          VECTS[c,spin, :,:] = vects
                      end
                  catch e
@@ -1877,7 +1915,7 @@ end
          
          occ = gaussian.(VALS.-efermi, smearing)
 
-         max_occ = findlast(sum(occ, dims=1) .> 1e-10)[2]
+         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-10)[2]
          
 #         println("occ ", size(occ))
 #         println(occ)
@@ -1898,133 +1936,45 @@ end
 
      end
          
-         #    denmatS = zeros(Complex{Float64}, nwan, nwan)
-
-
- #=        println("cd")
+     if true
          TEMP = zeros(Complex{Float64}, nwan, nwan) 
-         #    println("occ")
-         #    for nk = 1:(grid[1]*grid[2]*grid[3])
-         #        println(nk)
-         #        println(VALS[nk,:])
-         #        println(occ[nk,:])
-         #    end
-         @time for nk = 1:(grid[1]*grid[2]*grid[3])
-             for a = 1:nwan
-                 for i = 1:nwan
-                     for j = 1:nwan
-                         TEMP[i,j] = VECTS[nk,i,a]' * SK[nk,i,j] * (VECTS[nk,j,a])
-                     end
-                 end
-                 TEMP =   (TEMP + conj(TEMP))
-                 #            println("typeof temp ", typeof(TEMP), " " , size(TEMP))
-                 #            println("typeof denmat ", typeof(denmat), " " , size(denmat))
-                 denmat += 0.5*occ[nk,a] * real.( TEMP)
-                 #            denmatS += 0.5*occ[nk,a] * TEMP * SK[nk,:,:]'
 
-             end
-         end
-
-         denmat = denmat / (grid[1]*grid[2]*grid[3])
-         #    denmatS = denmatS / (grid[1]*grid[2]*grid[3])
-
-         println("cd 2")
-         TEMP = zeros(Complex{Float64}, nwan, nwan) 
-         denmat2 = zeros(Float64, nwan, nwan)
-
-         @time if true
- #            occ_p = permutedims(occ, [2 1])
- #            VECTS_p = permutedims(VECTS, [3 1 2])
-             cVECTS = conj(VECTS)
-
-             tij = 0.0+0.0im
+         for spin = 1:nspin
              TEMP[:,:] .= 0.0
-             for i = 1:nwan
+             pVECTS = permutedims(VECTS[:,spin,:,:][:,:,:], [1,3,2])
+             pVECTS_C = conj(pVECTS)
+             
+             #        cVECTS = conj(VECTS)
+             grid3 = prod(grid)
+             t_temp = zeros(Complex{Float64},grid3 )
+             @threads for i = 1:nwan
                  for j = 1:nwan
-                     tij = 0.0
-                     for a = 1:nwan
-                         #for nk = 1:(grid[1]*grid[2]*grid[3])
-                         tij += sum(occ[:,a].* cVECTS[:,i,a]  .* (VECTS[:,j,a] .* SK[:,i,j]))
- #                        end
-                         #tij = sum(occ_p[:,nk] .* cVECTS_p[:,nk,i]  .* VECTS_p[:,nk,j])
-
+                     
+                     if maxSK[i,j] > 1e-7
+                         
+                         TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
+                         
                      end
-                     TEMP[i,j] += tij
-
+                     
                  end
              end
              TEMP =   (TEMP + conj(TEMP))
-             denmat2 += 0.5* real.( TEMP)
+             denmat[spin,:,:] += 0.5* real.( TEMP)
+             denmat[spin,:,:] = denmat[spin,:,:] / (grid[1]*grid[2]*grid[3])
          end
-         denmat2 = denmat2 / (grid[1]*grid[2]*grid[3])
-         println("diff denmat2 " , sum(abs.(denmat - denmat2)))
+         chargeden = zeros(nspin, nwan)
+         for spin = 1:nspin
+             chargeden[spin,:] = sum(denmat[spin,:,:][:,:], dims=1)
+         end
+         
+     end
 
- =#
-#     println("charge")
+     if nspin == 2
+         energy0 = energy0 / 2.0
+     end
+         
      
-     if true
-         TEMP = zeros(Complex{Float64}, nspin, nwan, nwan) 
-         pVECTS = permutedims(VECTS, [1,3,2])
-         pVECTS_C = conj(pVECTS)
-
- #        cVECTS = conj(VECTS)
-         grid3 = prod(grid)
-         t_temp = zeros(Complex{Float64},grid3 )
- #        println("loop")
- #        println(size(occ))
- #        println(size(pVECTS_C))
- #        println(size(SK))
- #        println("nwan $nwan grid $grid grid3 $grid3, nk $nk")
- #        count = 0
-         @threads for i = 1:nwan
-             for j = 1:nwan
-                 
-                 if maxSK[i,j] > 1e-7
-
- #                temp = 0.0
- #                for k = 1:nk
- #                    for a = 1:nwan
- #                        temp += occ[k,a]* pVECTS_C[k,a,i]  * pVECTS[k,a,j] * SK[k,i,j]
- #                    end
- #                end
- #                TEMP[i,j] = temp
-
-   #              if i == 1 && j < 3
- #                for k = 1:grid3
-  #                   t_temp[k] = sum(occ[k,:].* cVECTS[k,i,:]  .* VECTS[k,j,:])
-  #               end
-   #              TEMP[i,j] += sum(t_temp .* SK[:,i,j])
-  #               else
-
- #                   t_temp[:] = sum(occ[:,:].* cVECTS[:,i,:]  .* VECTS[:,j,:], dims=2)
- #                    TEMP[i,j] += sum(t_temp .* SK[:,i,j])
-
- #                t_temp[:] = 
-
-                     #TEMP[i,j] += sum( sum(  (@view occ[:,:]).* (@view pVECTS_C[:,:,i])  .* (@view pVECTS[:,:,j]), dims=2) .* (@view SK[:,i,j]))
-
-                     TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
-
-
- #                    t_temp[:] = sum(occ[:,:].* pVECTS_C[:,:,i]  .* pVECTS[:,:,j], dims=2)
- #                    TEMP[i,j] += sum(t_temp .* SK[:,i,j])
-  #               else
- #                    count += 1
-                 end
-
- #                end
-             end
-         end
-
-         TEMP =   (TEMP + conj(TEMP))
-         denmat += 0.5* real.( TEMP)
-
-         denmat = denmat / (grid[1]*grid[2]*grid[3])
-         chargeden = sum(denmat, dims=1)
-     end    
-
-
-     return energy0, efermi, chargeden[:], VECTS, VALS, error_flag
+     return energy0, efermi, chargeden, VECTS, VALS, error_flag
 
 
  end 
@@ -2058,15 +2008,19 @@ end
      eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
      tbc.efermi = efermi
 
- #    println("energy comps $eband $etypes $echarge")
+     #println("energy comps $eband $etypes $echarge")
      energy = eband + etypes + echarge
 
      return energy, efermi, chargeden, VECTS, VALS, error_flag
 
  end
 
+"""
+    function dumb_cd(tbc; grid=missing, smearing=0.01)
 
- function dumb_cd(tbc, nband; grid=missing, smearing=0.01)
+I don't remember what this function is for. It seems to have something to do with charge density, but it doesn't pay attention to the occupations
+"""
+ function dumb_cd(tbc; grid=missing, smearing=0.01)
 
      if ismissing(grid)
          grid = get_grid(tbc.crys)
@@ -2085,43 +2039,47 @@ end
 
      nw = size(sk3)[1]
 
-     charge = zeros(nw, nw)
-     charge2 = zeros(nw)
+     nspin = tbc.nspin
+     
+     charge = zeros(nspin, nw, nw)
+     chargeX = zeros(nspin, nw)
 
-     c=0
-     for k1 in 1:K1
-         for k2 in 1:K2
-             for k3 in 1:K3
-                 c += 1
-                 sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+     for spin = 1:nspin
 
-                 for a = 1:nband
-                     for ind1 = 1:nw
-                         for ind2 = 1:nw
-                             charge[ind1,ind2] += real( 0.5* ( VECTS[c,ind1,a]' * VECTS[c,ind2,a] * sk[ind1,ind2]  + VECTS[c,ind1,a] * VECTS[c,ind2,a]' * conj(sk[ind1,ind2])))
+         c=0
+         for k1 in 1:K1
+             for k2 in 1:K2
+                 for k3 in 1:K3
+                     c += 1
+                     sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                     
+                     for a = 1:nw
+                         for ind1 = 1:nw
+                             for ind2 = 1:nw
+                                 charge[spin, ind1,ind2] += real( 0.5* ( VECTS[c,spin, ind1,a]' * VECTS[c,spin,ind2,a] * sk[ind1,ind2]  + VECTS[c,spin,ind1,a] * VECTS[c,spin,ind2,a]' * conj(sk[ind1,ind2])))
+                             end
                          end
                      end
+
+                     #                sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                     #                st = (sk ^ -0.5)
+                     #                ht =  st *   (sk.*h1 + hk3[:,:,k1,k2,k3]) * st
+                     #                val, vect = eigen(0.5*(ht + ht'))
+                     #                println(val - VALS[c,:])
+                     #                for a = 1:nband
+                     #                    charge2 += 0.5*real(conj(vect[:,a]) .* vect[:,a] + (vect[:,a]) .* conj(vect[:,a]) )
+                     #                end
+                     
+
                  end
-
- #                sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
- #                st = (sk ^ -0.5)
- #                ht =  st *   (sk.*h1 + hk3[:,:,k1,k2,k3]) * st
- #                val, vect = eigen(0.5*(ht + ht'))
- #                println(val - VALS[c,:])
- #                for a = 1:nband
- #                    charge2 += 0.5*real(conj(vect[:,a]) .* vect[:,a] + (vect[:,a]) .* conj(vect[:,a]) )
- #                end
-
-
              end
          end
+         charge[spin,:,:] = charge[spin,:,:] / K1/K2/K3
+         chargeX[spin,:] =  sum(charge[spin,:,:][:,:], dims=1)[:]
      end
-     charge = charge / K1/K2/K3
-     charge2 = charge2 / K1/K2/K3
-     chargeX =  sum(charge, dims=1)[:]
-     return chargeX, charge2
- end    
-
+     return chargeX, charge
+     
+ end
 
  """
      function calc_energy(tbc::tb_crys; smearing=0.01, returnk=false)
@@ -2236,23 +2194,34 @@ end
 
  returns regular MP Gamma-centered k-point grid and (equal) k-weights.
  """
- function make_kgrid(kgrid)
-     kpts = zeros(Float64, prod(kgrid),3)
-     kweights = ones(Float64, prod(kgrid))/prod(kgrid) * 2.0
-     c=0
-     for k1 = 0:kgrid[1]-1
-         for k2 = 0:kgrid[2]-1
-             for k3 = 0:kgrid[3]-1
-                 c+=1
-                 kpts[c,1] = Float64(k1)/Float64(kgrid[1])
-                 kpts[c,2] = Float64(k2)/Float64(kgrid[2])
-                 kpts[c,3] = Float64(k3)/Float64(kgrid[3])
-             end
-         end
-     end
-     return kpts, kweights
+function make_kgrid(kgrid)
+    kpts = zeros(Float64, prod(kgrid),3)
+    kweights = ones(Float64, prod(kgrid))/prod(kgrid) * 2.0
+    c=0
+    for k1 = 0:kgrid[1]-1
+        for k2 = 0:kgrid[2]-1
+            for k3 = 0:kgrid[3]-1
+                c+=1
+                kpts[c,1] = Float64(k1)/Float64(kgrid[1])
+                kpts[c,2] = Float64(k2)/Float64(kgrid[2])
+                kpts[c,3] = Float64(k3)/Float64(kgrid[3])
+            end
+        end
+    end
+    return kpts, kweights
+    
+end
 
- end
+function make_kgrid(tbc::tb_crys)
+
+    return make_krid(tbc.crys)
+end
+
+function  make_kgrid(c::crystal)
+
+    return make_kgrid( get_grid(c))
+    
+end
 
 
  #=
@@ -2284,15 +2253,20 @@ end
 
      c=0
      keep = []
-     for r = 1:h.nr
-         if sum(abs.(h.H[:,:,r]) .> tol) > 0 || h.ind_arr[r,:] == [0, 0, 0]
-             push!(keep, r)
-             c += 1
+     npin = h.nspin
+     for spin = 1:nspin
+         for r = 1:h.nr
+             if sum(abs.(h.H[spin,:,:,r]) .> tol) > 0 || h.ind_arr[r,:] == [0, 0, 0] 
+                 if  ! (r in keep)
+                     push!(keep, r)
+                     c += 1
+                 end
+             end
          end
      end
      println("trim, out of ", h.nr, " keep $c")
 
-     h.H = h.H[:,:,keep]
+     h.H = h.H[:,:,:,keep]
      if h.nonorth
          h.S = h.S[:,:,keep]
      end
@@ -2313,19 +2287,19 @@ end
      function renormalize_tb(d::dftout, h::tb) 
 
  Shift eigenvalues from DFT calculation so that the band energy matches
- the DFT total energy.
+ the DFT total energy. This doesn't do anything useful right now.
  """
  function renormalize_tb(d::dftout, h::tb)
  """
  Changes the tight binding matrix elements so that the total band energy 
- equals the total atomization energy 
+ equals the total atomization energy . 
 
 
  """
 
      ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
 
-     eigs = calc_bands(h, d.bandstruct.kpts)
+     #eigs = calc_bands(h, d.bandstruct.kpts)
 
      band_en = band_energy(eigs, d.bandstruct.kweights, nval)
 
@@ -2345,10 +2319,12 @@ end
 
      println("ind $ind ", h.ind_arr[ind,:])
 
-     for i = 1:h.nwan
-         h.H[i,i,ind] = h.H[i,i,ind] + shift
+     for spin = 1:h.nspin
+         for i = 1:h.nwan
+             h.H[spin, i,i,ind] = h.H[spin, i,i,ind] + shift
+         end
      end
-
+     
      eigs = calc_bands(h, d.bandstruct.kpts)
      band_en_new = band_energy(eigs, d.bandstruct.kweights, nval)
 
@@ -2383,16 +2359,16 @@ end
  - column 8,9,10 have the the direction cosines lmn for the atom pair.
 
  """
- function organizedata(tbc::tb_crys)
+ function organizedata(tbc::tb_crys; spin=1)
 
-     return organizedata(tbc.crys, tbc.tb)
+     return organizedata(tbc.crys, tbc.tb,spin=spin)
 
  end
 
  """
      function organizedata(crys::crystal, h::tb)
  """
- function organizedata(crys::crystal, h::tb)
+ function organizedata(crys::crystal, h::tb; spin=1)
 
      ind2orb, orb2ind, etotal, nval = orbital_index(crys)
 
@@ -2458,8 +2434,8 @@ end
                      data_arr[c2, 2] = symbol_dict[norb]              
                      data_arr[c2, 3] = ma
                      data_arr[c2, 4] = symbol_dict[morb]
-                     data_arr[c2, 5] = real(h.H[ n,m, i])
-                     data_arr[c2, 6] = imag(h.H[ n,m, i])
+                     data_arr[c2, 5] = real(h.H[spin,  n,m, i])
+                     data_arr[c2, 6] = imag(h.H[spin, n,m, i])
                      data_arr[c2, 7] = dist
                      data_arr[c2, 8] = lmn[1]
                      data_arr[c2, 9] = lmn[2]
@@ -2480,8 +2456,8 @@ end
          data_onsite[c2,2] = symbol_dict[norb]
          data_onsite[c2,4] = symbol_dict[morb]
 
-         data_onsite[c2, 5] = real(h.H[ n,m, c_zero])
-         data_onsite[c2, 6] = imag(h.H[ n,m, c_zero])
+         data_onsite[c2, 5] = real(h.H[spin, n,m, c_zero])
+         data_onsite[c2, 6] = imag(h.H[spin, n,m, c_zero])
 
          data_onsite[c2, 11] = real(h.S[ n,m, c_zero])
          data_onsite[c2, 12] = imag(h.S[ n,m, c_zero])
@@ -2559,7 +2535,7 @@ end
 
      end
 
-     hamK3 = fft(ham_R, [3,4,5])
+     hamK3 = fft(ham_R, [4,5,6])
      SK3 = fft(S_R, [3,4,5])
 
      return hamK3, SK3
@@ -2584,10 +2560,12 @@ end
 
      wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(crys)
 
-
+     nspin = size(ham_kS)[4]
      nwan = size(ham_kS)[1]
      nks  = size(ham_kS)[3]
 
+     println("myfft $nspin $nwan $nks")
+     
      if length(size(ham_kS)) == 5 #we don't have to calculate, already in fft form
          println("don't calc")
          ham_k_fftw = ham_kS
@@ -2595,7 +2573,7 @@ end
 
      else
 
-         ham_k_fftw = zeros(Complex{Float64}, nwan, nwan, grid[1], grid[2], grid[3])
+         ham_k_fftw = zeros(Complex{Float64}, nspin, nwan, nwan, grid[1], grid[2], grid[3])
          S_k_fftw = zeros(Complex{Float64}, nwan, nwan, grid[1], grid[2], grid[3])
 
          for k = 1:nks
@@ -2607,11 +2585,14 @@ end
                  end
              end
              if nonorth
-                 #            println("kn ", kn)
-                 ham_k_fftw[:,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k]
                  S_k_fftw[:,:,kn[1], kn[2], kn[3]] = Sk[:,:,k]            
-             else
-                 ham_k_fftw[:,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k]
+             end
+             for spin = 1:nspin
+                 if nonorth
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k,spin]
+                 else
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k,spin]
+                 end
              end
          end
 
@@ -2620,7 +2601,7 @@ end
 
 
      #does the actual ifft
-     hamR3 = ifft(ham_k_fftw, [3,4,5])
+     hamR3 = ifft(ham_k_fftw, [4,5,6])
      if nonorth
          SR3 = ifft(S_k_fftw, [3,4,5])    
      end
@@ -2643,7 +2624,7 @@ end
  #    println()
 
      ind_arr = R_grid
-     ham_r = zeros(Complex{Float64},  nwan, nwan,ngrid2)
+     ham_r = zeros(Complex{Float64},  nspin, nwan, nwan,ngrid2)
 
      if nonorth
          S_r = zeros(Complex{Float64},  nwan, nwan,ngrid2)
@@ -2669,8 +2650,11 @@ end
                  if nonorth
                      S_r[nw_1,nw_2,c] += SR3[nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
-                 ham_r[nw_1,nw_2,c] += hamR3[nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
- #                println("adding $a1 $a2 $c ", hamR3[a1,a2,rint[1], rint[2], rint[3]], " " , sym_R[a1,a2,c]
+                 for spin = 1:nspin
+                     ham_r[spin, nw_1,nw_2,c] += hamR3[spin, nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
+                 end
+                 
+                 #                println("adding $a1 $a2 $c ", hamR3[a1,a2,rint[1], rint[2], rint[3]], " " , sym_R[a1,a2,c]
  #                        )
              end
          end
@@ -3117,21 +3101,29 @@ end
  """
      function get_dq(crys::crystal, chargeden::Array{Float64,1})
  """
- function get_dq(crys::crystal, chargeden::Array{Float64,1})
+ function get_dq(crys::crystal, chargeden::Array{Float64,2})
 
+     nspin = size(chargeden)[1]
 
      e_den = zeros(Float64, crys.nat)
      z_ion = zeros(Float64, crys.nat)
 
-     counter = 0
-     for (i, t) in enumerate(crys.types)
-         at = atoms[t]
-         z_ion[i] = at.nval
-         for o = 1:Int64(at.nwan/2)
-             counter += 1
-             e_den[i] += chargeden[counter]  * 2.0
+     for spin = 1:nspin
+         counter = 0
+         for (i, t) in enumerate(crys.types)
+             at = atoms[t]
+             z_ion[i] = at.nval
+             for o = 1:Int64(at.nwan/2)
+                 counter += 1
+                 e_den[i] += chargeden[spin,counter] 
+             end
          end
      end
+     if nspin == 1
+         e_den = e_den * 2.0
+     end
+
+     
      dq = -z_ion + e_den
 
      dq = dq .- sum(dq)/crys.nat #charge sum rule
@@ -3245,6 +3237,13 @@ end
 
      bandenergy, eden, VECTS, VALS, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
 
+     if tbcK.nspin == 1
+         tbcK.eden[1,:] = eden[1,:]
+     elseif tbcK.nspin == 2
+         tbcK.eden[1,:] = eden[1,:]
+         tbcK.eden[2,:] = eden[2,:]
+     end
+     
      if tbcK.scf
  #        h1 = tbc.tb.h1
          echarge, pot = ewald_energy(tbcK)
@@ -3255,6 +3254,8 @@ end
 
      etypes = types_energy(tbcK.crys)
 
+     println("efermi $efermi")
+     
      energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
      println("CALC ENERGIES $etypes $echarge $bandenergy $energy_smear = ", bandenergy + etypes + echarge + energy_smear)
 
@@ -3271,47 +3272,86 @@ end
  function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
 
      temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
-     denmat = zeros(Float64, tb_k.nwan, tb_k.nwan)
+     denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
 
-     VALS = zeros(Float64, tb_k.nk, tb_k.nwan)
-     VALS0 = zeros(Float64, tb_k.nk, tb_k.nwan)
-     VECTS = zeros(Complex{Float64}, tb_k.nk, tb_k.nwan, tb_k.nwan)
-     SK = zeros(Complex{Float64}, tb_k.nk, tb_k.nwan, tb_k.nwan)
+     VALS = zeros(Float64, tb_k.nk,  tb_k.nwan,tb_k.nspin)
+     VALS0 = zeros(Float64, tb_k.nk,  tb_k.nwan,tb_k.nspin)
+     VECTS = zeros(Complex{Float64}, tb_k.nk, tb_k.nspin, tb_k.nwan, tb_k.nwan)
+     SK = zeros(Complex{Float64}, tb_k.nk,  tb_k.nwan, tb_k.nwan)
 
      error_flag = false
 
-     for k in 1:tb_k.nk
-         try
-             vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:])
-             VALS[k,:] = vals
-             VECTS[k,:,:] = vects
-             SK[k,:,:] = sk
-             VALS0[k,:] = vals0
-         catch e
-             if e isa InterruptException
-                 println("user interrupt")
-                 rethrow(InterruptException)
-             end
-             println("warning, get_energy_electron_density_kspace error")
-             error_flag = true
+     for spin = 1:tb_k.nspin
+         for k in 1:tb_k.nk
+#             try
+                 vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:], spin=spin)
+                 VALS[k, :, spin] = vals
+                 VECTS[k,spin, :,:] = vects
+                 SK[k,:,:] = sk
+                 VALS0[k, :,spin] = vals0
+#             catch e
+#                 if e isa InterruptException
+#                     println("user interrupt")
+#                     rethrow(InterruptException)
+#                 end
+#                 println("warning, get_energy_electron_density_kspace error")
+#                 error_flag = true
+#             end
          end
      end
+     
      energy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
-     energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights) * 2.0
 
-     for k in 1:tb_k.nk
-         for a = 1:tb_k.nwan
-             for i = 1:tb_k.nwan
-                 for j = 1:tb_k.nwan
-                     temp[i,j] = VECTS[k,i,a]' * SK[k,i,j] * VECTS[k,j,a]
+     energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights)
+     if tb_k.nspin == 1
+         energy0 = energy0 * 2
+     end
+         
+
+         
+     for spin = 1:tb_k.nspin
+         for k in 1:tb_k.nk
+             for a = 1:tb_k.nwan
+                 for i = 1:tb_k.nwan
+                     for j = 1:tb_k.nwan
+                         temp[i,j] = VECTS[k,spin, i,a]' * SK[k,i,j] * VECTS[k,spin, j,a]
+                     end
                  end
+                 temp = temp + conj(temp)
+                 denmat[spin,:,:] += 0.5 * occs[k,a, spin] * real.(temp) * tb_k.kweights[k]
+
              end
-             temp = temp + conj(temp)
-             denmat += 0.5 * occs[k,a] * real.(temp) * tb_k.kweights[k]
          end
      end
-     electron_den = sum(denmat, dims=1) / sum(tb_k.kweights)
-     return energy0, electron_den[:], VECTS, VALS, efermi, error_flag
+
+     
+#     println("denmat")
+#     println(denmat)
+     
+     
+     electron_den = sum(denmat, dims=2) / sum(tb_k.kweights)
+     electron_den = electron_den[:,1,:]
+     if tb_k.nspin == 2
+         electron_den = electron_den*2.0
+         energy0 = energy0
+     end
+
+
+     toobig = electron_den .> 1.0
+     normal = electron_den .< 1.0
+     electron_den[toobig] .= 1.0
+     
+     if tb_k.nspin == 2
+         tot = sum(electron_den)
+         correction = tot - nelec
+     elseif tb_k.nspin == 1
+         tot = sum(electron_den) * 2.0
+     end
+     correction = tot - nelec
+     electron_den[normal] .-= correction / sum(normal)
+
+     
+     return energy0, electron_den, VECTS, VALS, efermi, error_flag
 
  end
 

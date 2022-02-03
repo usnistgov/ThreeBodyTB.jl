@@ -550,11 +550,11 @@ Steps:
         ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf);
     end
 
-    println("done")
-    return 0
+#    println("done")
+#    return 0
 
     println()
-    println("Step #4 ham_r------------------------------------------------------------------------------")
+    println("Step #4 ham_k/ham_r------------------------------------------------------------------------------")
     println()
 
     println("after create P OVERLAPS ", size(p.overlaps))
@@ -563,6 +563,8 @@ Steps:
     #get tight binding
     tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening)
 
+#    return tbck
+    
     println("after prepare P OVERLAPS ", size(p.overlaps))
 
 
@@ -884,7 +886,7 @@ function shift_eigenvalues(d::dftout)
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
     #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
     band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
-    
+
     #        println("d.crys")
     #        println(d.crys)
     
@@ -996,7 +998,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
         band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
 
-#        println("band_energy $band_en")
+        println("band_energy $band_en")
+        println("EIGS  ", EIGS[1,:,1])
+        if p.nspin == 2
+            println("EIGS2 ", EIGS[1,:,2])
+        end            
         
 #        println("d.crys")
 #        println(d.crys)
@@ -1128,11 +1134,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 end
                 if real(Palt[i,i]) < 0.45
                     badk += 1
-                    println("bad k ", badk)
+                    println("kinda bad k $k spin $spin :", badk)
                 end
                 if real(Palt[i,i]) < 0.35
                     badk += 1
-                    println("very bad k ", badk)
+                    println("very  bad k $k spin $spin :", badk)
                 end
                 
             end
@@ -1174,6 +1180,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
     println("Min Palt: $Palt_min")
 
+    println("EIG TEST ", eigvals(ham_k[:,:,1,1]))
+    
 
     #here we shift the eigenvalues around to match DFT eigenvalues below a cutoff.
     #this requires identifying which bands are supposed to match which eigenvlues, which
@@ -1300,6 +1308,13 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     if shift_energy
         println("reshift")
 #        println("size VAL ", size(VAL), " size kweights ", size(d.bandstruct.kweights))
+
+        println("VAL  ", VAL[1,:,1])
+        if p.nspin == 2
+            println("VAL  ", VAL[1,:,2])
+        end
+            
+        
         band_en = band_energy(VAL, d.bandstruct.kweights, nval)
 
         println("band_en_old " , band_en)
@@ -1330,6 +1345,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
 
     end
+
+    println("SIZE ham_k ", size(ham_k))
     
     return ham_k, EIGS, Pmat, Nmat, VAL, warn_badk
 
@@ -1513,7 +1530,7 @@ K is already inside p. K must match ham_k
 end    
     
 """
-    function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 3}; nonorth=true, K=missing, localized_factor = 0.05, screening=1.0)
+    function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 4}; nonorth=true, K=missing, localized_factor = 0.05, screening=1.0)
 
 Constructs the actual k-space hamiltonain, which involves lots of putting matricies in the correct form and de-orthogonalizing if desired.
 
@@ -1527,7 +1544,7 @@ Constructs the actual k-space hamiltonain, which involves lots of putting matric
 - `localized_factor = 0.15` increase localization of overlaps.
 - `screening=1.0` mulitply U by this factor. usually not used.
 """
-function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 3}; nonorth=true, K=missing, localized_factor = 0.15, screening=1.0)
+function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 4}; nonorth=true, K=missing, localized_factor = 0.15, screening=1.0)
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
     
@@ -1557,8 +1574,8 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
         a1,t1,orb = ind2orb[n]
         if orb == :px || orb == :py
             println("fix mysterious sign issue K-space $n, $a1, $t1, $orb")
-            ham_k[n,:,:] = -1.0 * ham_k[n,:,:]
-            ham_k[:,n,:] = -1.0 * ham_k[:,n,:]
+            ham_k[n,:,:,:] = -1.0 * ham_k[n,:,:,:] #spin
+            ham_k[:,n,:,:] = -1.0 * ham_k[:,n,:,:]
 
             if nonorth
                 OVERLAPS[:,n,:] = -1.0*OVERLAPS[:,n,:]
@@ -1567,8 +1584,8 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
             end
         elseif orb == :dxz || orb == :dyz
             println("fix mysterious sign issue K-space D ORBITALS $n, $a1, $t1, $orb")
-            ham_k[n,:,:] = -1.0 * ham_k[n,:,:]
-            ham_k[:,n,:] = -1.0 * ham_k[:,n,:]
+            ham_k[n,:,:,:] = -1.0 * ham_k[n,:,:,:] #spin
+            ham_k[:,n,:,:] = -1.0 * ham_k[:,n,:,:]
 
             if nonorth
                 OVERLAPS[:,n,:] = -1.0*OVERLAPS[:,n,:]
@@ -1584,7 +1601,7 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
 
     if nonorth 
         #nonorthogonal!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ham_kS = zeros(Complex{Float64},  nwan, nwan,nks)
+        ham_kS = zeros(Complex{Float64},  nwan, nwan,nks, p.nspin)
         S = zeros(Complex{Float64}, nwan, nwan)
         Sk = zeros(Complex{Float64}, nwan, nwan,nks)    
         Sk2 = zeros(Complex{Float64},  nwan, nwan,nks)
@@ -1632,10 +1649,11 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
             S[:,:] = Sk[:,:,k]
             S = (S+S')/2.0
             Sk2[:,:,k] = sqrt(S)
-            
-            ham_kS[:,:,k] = Sk2[:,:,k]*ham_k[:,:,k]*Sk2[:,:,k]
-            ham_kS[:,:,k] = (ham_kS[:,:,k]  + ham_kS[:,:,k]')/2.0
-        
+
+            for spin = 1:p.nspin
+                ham_kS[:,:,k, spin] = Sk2[:,:,k]*ham_k[:,:,k, spin]*Sk2[:,:,k]
+                ham_kS[:,:,k, spin] = (ham_kS[:,:,k, spin]  + ham_kS[:,:,k, spin]')/2.0
+            end
         end
 
         tbk = make_tb_k(ham_kS, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=true)
@@ -1681,7 +1699,8 @@ Do Fourier transform k->R.
     K = tbck.tb.K
     grid = tbck.tb.grid
     nwan = tbck.tb.nwan
-
+    nspin = tbck.tb.nspin
+    
     if nonorth
         ham_r, S_r, r_dict, ind_arr = myfft(tbck.crys, nonorth, grid, K,ham_k, Sk)
     else
@@ -1712,6 +1731,8 @@ Do Fourier transform k->R.
     dftenergy=tbck.dftenergy
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbck.crys)
 
+
+    println("make_tb_crys tb nspin ", tb.nspin)
     model = make_tb_crys(tb, tbck.crys, nelec, dftenergy )
     
     return model
