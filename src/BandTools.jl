@@ -83,10 +83,14 @@ function calc_fermi_sp(eigs, weights, nelec, smearing = 0.01)
         nw = size(eigs)[3]
         nk = size(eigs)[1]
         eigs2 = zeros(nk, nw*nspin)
-        for spin = nspin
+        println("size eigs ", size(eigs))
+        for spin = 1:nspin
             eigs2[1:nk,1:nw] = eigs[:,1,:] 
             eigs2[1:nk,nw+1:2*nw] = eigs[:,2,:] 
         end
+        eigs2 = sort(eigs2, dims=2)
+        println("eigs2 ")
+        println(eigs2)
         return calc_fermi(eigs2, weights, 2*nelec, smearing )
     else
         return calc_fermi(eigs, weights, nelec, smearing )
@@ -101,19 +105,20 @@ Calculate band energy. Has options for additional return variables. Calculates f
 function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false)
 
     efermi = calc_fermi_sp(eigs, weights, nelec, smearing)
+    println("band_energy efermi $efermi")
     norm = sum(weights)
     
     occ = gaussian.(eigs.-efermi, smearing)
 
     nspin = 1
     if length(size(eigs)) == 3
-        nspin = size(eigs)[2]
+        nspin = size(eigs)[3]
     end
 
     if nspin == 1
         ek = sum(eigs.*occ, dims=2).*weights * 2.0 / norm  
     elseif nspin == 2
-        ek = sum(eigs.*occ, dims=[2,3]).*weights  / norm  
+        ek = sum(eigs.*occ, dims=[2,3]).*weights  / norm * 2.0
     end
 
     #    energy = sum(sum(eigs.*occ, dims=2).*weights) * 2.0 / norm
