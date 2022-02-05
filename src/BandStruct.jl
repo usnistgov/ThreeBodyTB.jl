@@ -4,7 +4,7 @@
 
 
 
-####################### Wannier90 specific 
+####################### 
 module BandStruct
 """
 BS plotting
@@ -24,6 +24,7 @@ using ..TB:summarize_orb
 
 using ..Atomdata:atoms
 using ..BandTools:calc_fermi
+using ..BandTools:calc_fermi_sp
 using ..BandTools:band_energy
 
 
@@ -61,11 +62,11 @@ end
 Plot a comparison between different tight binding objects `h1`, `h2`, and optionally `h3`. Options similar to `plot_bandstr` but more limited.
 
 """
-function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false,  align="vbm")
+function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false,  align="vbm", spin=1)
     if ismissing(h3)
-        plot_compare_tb(h1.tb, h2.tb, h3=missing, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align)
+        plot_compare_tb(h1.tb, h2.tb, h3=missing, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
     else
-        plot_compare_tb(h1.tb, h2.tb, h3=h3.tb, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align)
+        plot_compare_tb(h1.tb, h2.tb, h3=h3.tb, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
     end
 end
 
@@ -73,12 +74,12 @@ end
 """
     function plot_compare_tb(h1::tb, h2::tb; h3=missing)
 """
-function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm")
+function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
     println("plot_compare_tb ")
-    plot_bandstr(h1, kpath=kpath, names = names, npts=npts, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true)
-    plot_bandstr(h2, kpath=kpath, names = names, npts=npts, efermi = efermi, color="yellow", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false)    
+    plot_bandstr(h1, kpath=kpath, names = names, npts=npts, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
+    plot_bandstr(h2, kpath=kpath, names = names, npts=npts, efermi = efermi, color="yellow", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
     if !ismissing(h3)
-        plot_bandstr(h3, kpath=kpath, names = names, npts=npts, efermi = efermi, color="magenta", MarkerSize=1, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false)
+        plot_bandstr(h3, kpath=kpath, names = names, npts=npts, efermi = efermi, color="magenta", MarkerSize=1, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)
     end
 
 end
@@ -109,7 +110,7 @@ Must do scf calculation before plotting.
 - `clear_pervious=true` - clears the plot before adding new stuff.
 - `do_display=true` - display the plot. If `false`, can be used with display-less nodes. You can still use `savefig` from `Plots` to produce saved images.
 """
-function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true)
+function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both)
 
 
     proj_inds = setup_proj(h.crys, h.tb.nwan, proj_types, proj_orbs, proj_nums)
@@ -120,12 +121,12 @@ function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5
     if ismissing(efermi)
         efermi = h.efermi
     end
-    plot_bandstr(h.tb; kpath=kpath, names = names, npts=npts, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display)
+    plot_bandstr(h.tb; kpath=kpath, names = names, npts=npts, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
     
 end
 
 
-function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true)
+function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both)
 
     kpath=h.tb.K
 
@@ -136,7 +137,7 @@ function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerS
         energy, efermi, occs = band_energy(VALS, h.tb.kweights, h.nelec, 0.01, returnboth=true)
     end
 
-    plot_bandstr(h.tb; kpath=kpath, npts = 1, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display)
+    plot_bandstr(h.tb; kpath=kpath, npts = 1, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display, color_spin=color_spin, spin=spin)
     
 end
 
@@ -245,10 +246,22 @@ end
 
 Plots using `tb`
 """
-function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align="vbm", proj_inds=missing, clear_previous=true, do_display=true)
+function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue",color_spin = ["green", "orange"], MarkerSize=missing, yrange=missing, plot_hk=false, align="vbm", proj_inds=missing, clear_previous=true, do_display=true, spin=:both)
 #function plot_bandstr( kpath; names = missing, npts=30, efermi = missing)
 
-                
+
+    if h.nspin == 2
+        if spin == "both" || spin == :both
+            spin = 0
+        elseif spin == "up" || spin == :up
+            spin = 1
+        elseif spin == "dn" || spin == "down" || spin == :down || spin == :dn
+            spin = 2
+        end
+    elseif h.nspin == 1
+        spin = 1
+    end
+    
     println("plot_bandstr ")
     if clear_previous
         #println("clear")
@@ -283,7 +296,13 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
         end
             
         for i = 1:nk
-            vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:])
+
+            if spin == 0
+                vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:], spin=1)
+            else
+                vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:], spin=spin)
+            end                
+
             if plot_hk == :Hreal
                 vals[i,:] = real(hk[:])
             elseif plot_hk == :Himag
@@ -300,74 +319,68 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
                 vals[i,:] = real(F.values)
             else
                 vals = calc_bands(h, K)
+                if spin == 0
+                    vals = vals[:,:,1]
+                else
+                    vals = vals[:,:,spin]
+                end
             end
         end
 
     elseif !ismissing(proj_inds )
-        vals = zeros(nk, h.nwan)
-        temp = zeros(Complex{Float64}, h.nwan, h.nwan)
 #        println("proj inds $proj_inds")
-        for i = 1:nk
-            vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:])
 
-            for p in proj_inds
-                for a = 1:h.nwan
-                    for j = 1:h.nwan
-                        t = vect[p,a]*conj(vect[j,a])
-                        proj[i, a] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
+        if h.nspin == 1 || spin != 0
+            vals = zeros(nk, h.nwan)
+            temp = zeros(Complex{Float64}, h.nwan, h.nwan)
+            for i = 1:nk
+                vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:], spin=spin)
+                
+                for p in proj_inds
+                    for a = 1:h.nwan
+                        for j = 1:h.nwan
+                            t = vect[p,a]*conj(vect[j,a])
+                            proj[i, a] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
+                        end
                     end
                 end
+                
+                vals[i,:] = vals_t
             end
-            
-#            sk5 = ( 0.5*(sk+sk'))^0.5
-#            sv = sk5 * vect
-            
-            #if i == 1
-            #    println("K ", K[i,:])
-            #    println("vect")
-            #    println(vect)
-            #    println("vals_t")
-            #    println(vals_t)
-            #    println("sk")
-            #    println(sk)
-            #end
-
-#            for p in proj_inds
-#                proj[i,:] +=  real(conj(sv[p,:]) .* sv[p,:])
-#            end
-                
-                #                for a = 1:h.nwan
- #                   for b = 1:h.nwan
-#                        temp[a,b] = vect[a,p]'*sk[a, b]* vect[b,p]
-
-                        #temp[a,b] = vect[p,a]'*sk[a, b]* vect[p, b]
-#                    end
-#                end
-#                temp = temp + conj(temp)
-                
-#                proj[i,:] += 0.5*sum(real(temp), dims=1)[:]
-
-            #               proj[i,:] += real(vect[:,
-
-#sum(vect[:,2:4] .* ( sk * vect[:,2:4]), dims=2)
-#            proj[i,:] = real(sum( conj(vect[:,proj_inds]) .* (sk * vect[:,proj_inds]) , dims=2))
-#            end
-#            println("$i proj ", proj[i,:])
-#            println("check ", sum(vect'*sk*vect))
-            
-            #            println(vect[proj_inds,:] .* conj(vect[proj_inds,:]))
-#            println()
-#            proj[i,:] = sum(vect[proj_inds,:]*vect[proj_inds, :]', dims=1)
-            #            proj[i,:] = real(diag(vect[proj_inds,:]'*sk[proj_inds, proj_inds]*vect[proj_inds,:]))
-            vals[i,:] = vals_t
+        elseif h.nspin == 2 && spin == 0
+            vals = zeros(nk, h.nwan*2)
+            temp = zeros(Complex{Float64}, h.nwan, h.nwan)
+            proj = zeros(nk, h.nwan*2)
+            for s = 1:h.nspin
+                for i = 1:nk
+                    vect, vals_t, hk, sk, vals0 = Hk(h, K[i,:], spin=s)
+                    
+                    for p in proj_inds
+                        for a = 1:h.nwan
+                            for j = 1:h.nwan
+                                t = vect[p,a]*conj(vect[j,a])
+                                proj[i, a + nwan * (s-1)] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
+                            end
+                        end
+                    end
+                    vals[i, (1:h.nwan).+ nwan * (s-1) ] = vals_t
+                end
+            end
         end
-
-        
     else
         vals = calc_bands(h, K)
+        if h.nspin == 1 || spin != 0
+            vals = vals[:,:,spin]
+        elseif h.nspin == 2 && spin == 0
+            vals_up = vals[:,:,1]
+            vals_dn = vals[:,:,2]
+            vals = sort([vals_up vals_dn], dims=2)
+        end
     end
 
-
+#    println("vals")
+#    println(vals)
+    
     if global_energy_units == "eV"
         units = "eV"
     else
@@ -389,25 +402,58 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             alignstr = "Energy - E_F ($units)"
         elseif align == "vbm" || align == "valence"
 
+#            println("efermi ", efermi)
+#            println("test", sum(vals .< efermi))
+            
             vbm = maximum(vals[vals .< efermi])
             vals = vals .- vbm
             alignstr = "Energy - VBM ($units)"
+
+            if h.nspin == 2 && spin == 0
+                vals_up = vals_up .- vbm
+                vals_dn = vals_dn .- vbm
+            end
+            
         end            
     end
 
 
     #    println("yyyyyyyyyyyyyyyyy")
     if ismissing(proj_inds)
-        println("color = $color markersize = $MarkerSize")
-        plot!(convert_energy(vals), color=color, lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color, legend=false, grid=false)
-#        plot!(vals, color="red", marker=(:circle), markersize=MarkerSize, markeredgecolor=color, legend=false, grid=false)
+
+        if h.nspin == 1 || spin != 0
+            println("color = $color markersize = $MarkerSize")
+            plot!(convert_energy(vals), color=color, lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color, legend=false, grid=false)
+        elseif h.nspin == 2 && spin == 0
+
+            plot!(convert_energy(vals_dn[:,1]), color=color_spin[2], lw=3.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[2], label="dn", grid=false)
+
+            for i = 2:h.nwan
+                plot!(convert_energy(vals_dn[:,i]), color=color_spin[2], lw=3.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[2], label=false, grid=false)
+                
+            end
+
+            plot!(convert_energy(vals_up[:,1]), color=color_spin[1], lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[1], label="up", grid=false, legend=true)
+            for i = 2:h.nwan
+                plot!(convert_energy(vals_up[:,i]), color=color_spin[1], lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[1], label=false, grid=false, legend=:bottomright, legendfontsize=12)
+            end
+
+                
+#            println(vals_up[1,:])
+#            println(vals_dn[1,:])
+        end
+            
+
+            #        plot!(vals, color="red", marker=(:circle), markersize=MarkerSize, markeredgecolor=color, legend=false, grid=false)
 #        plot(vals, color=color, marker=(:circle), markersize=0.1)
     else
         X=repeat(1:(nk), 1,h.nwan)
-        
-        plot!(X, convert_energy(vals), color="grey", grid=false, legend=false)
-        scatter!(X, convert_energy(vals), marker_z = proj,markersize=MarkerSize, markerstrokewidth=0.0, alpha=0.6, legend=false)
 
+
+            plot!(X, convert_energy(vals), color="grey", grid=false, legend=false)
+            scatter!(X, convert_energy(vals), marker_z = proj,markersize=MarkerSize, markerstrokewidth=0.0, alpha=0.6, legend=false)
+            
+            
 #        @save "t.jld" vals proj
     end
 
@@ -431,6 +477,8 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
         r = maxV - minimum(vals) 
         yrange = [minimum(vals)-0.05*r,  maxV+0.05*r]
     end
+
+#    println("yrange ", yrange)
     
     ylims!(convert_energy(yrange[1]), convert_energy(yrange[2]))
     xlims!(1, nk)
@@ -443,20 +491,20 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             elseif lt == nk
                 lt = lt - 1e-5
             end
-            plot!([lt, lt], convert_energy(yrange), linestyle=:dash, color="black")
+            plot!([lt, lt], convert_energy(yrange), linestyle=:dash, color="black", label=false)
         end
     end
 
     if !ismissing(align) 
 #        println("nk ", nk)
         if align == "vbm" || align == "valence"
-            plot!([0, nk+1], convert_energy([efermi - vbm, efermi - vbm]), color="gray", linestyle=:dot)
+            plot!([0, nk+1], convert_energy([efermi - vbm, efermi - vbm]), color="gray", linestyle=:dot, label=false)
         end
         if align == "min" || align == "minimum"
-            plot!([0, nk+1], convert_energy([efermi - vmin, efermi - vmin]), color="gray", linestyle=:dot)
+            plot!([0, nk+1], convert_energy([efermi - vmin, efermi - vmin]), color="gray", linestyle=:dot, label=false)
         end
         if align == "fermi" || align == "ef"
-            plot!([0, nk+1], [0.0, 0.0], color="black", linestyle=:dot)
+            plot!([0, nk+1], [0.0, 0.0], color="black", linestyle=:dot, label=false)
         end
 
     end
@@ -488,7 +536,7 @@ The k-points are fixed by the `bs` object.
 
 `tbc2` is an optional second `tbc_crys`.
 """
-function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
+function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, spin=1)
 
     if typeof(bs) == dftout
         bs = bs.bandstruct
@@ -500,7 +548,6 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
     
     vals = calc_bands(tbc.tb, kpts)
     
-
     nelec = tbc.nelec
 
     nsemi = 0
@@ -510,20 +557,20 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
     end
     nsemi = Int64(nsemi / 2)
 
-    efermi_dft = calc_fermi(bs.eigs[:,1:end], kweights, nelec+nsemi*2)
-    efermi_tbc = calc_fermi(vals, kweights, nelec)
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
+    efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
 
     if !ismissing(tbc2)
         vals2 = calc_bands(tbc2.tb, kpts)
         efermi_tbc2 = calc_fermi(vals2, kweights, nelec)
 #        println("efermi_dft $efermi_dft efermi_tbc $efermi_tbc efermi_tbc2 $efermi_tbc2")
 
-        en_dft = band_energy(bs.eigs[:,1:end], kweights, nelec+nsemi)
+        en_dft = band_energy(bs.eigs, kweights, nelec+nsemi)
         en_1 = band_energy(vals, kweights, nelec)
         en_2 = band_energy(vals2, kweights, nelec)
 #        println("energy_dft $en_dft en_1 $en_1 en_2 $en_2")
 
-        e_smear_dft  = smearing_energy(bs.eigs[:,nsemi+1:end], kweights, efermi_dft)
+        e_smear_dft  = smearing_energy(bs.eigs, kweights, efermi_dft)
         e_smear_1  = smearing_energy(vals, kweights, efermi_tbc)
         e_smear_2  = smearing_energy(vals2, kweights, efermi_tbc2)
         
@@ -557,32 +604,38 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
 
 #    else
     
-    vbmD, cbmD = find_vbm_cbm(bs.eigs[:,1:end] , efermi_dft)
+    vbmD, cbmD = find_vbm_cbm(bs.eigs , efermi_dft)
     vbm, cbm = find_vbm_cbm(vals , efermi_tbc)
 
+    println("dft $efermi_dft   : ", vbmD," " ,  cbmD)
+    
 #    vbm = 0.0
 #    vbmD = 0.0
 
     plot(legend=true, grid=false, framestyle=:box, xtickfontsize=16, ytickfontsize=16)
 
     
-    plot!(convert_energy( bs.eigs[:,1] .- vbmD) , color="orange", lw=3, label="DFT", grid=false, legend=:topright)    
+    plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
     if bs.nbnd > 1
-        plot!(convert_energy(bs.eigs[:,2:end] .- vbmD) , color="orange", lw=3, label=missing)    
+        println("test ", vbmD)
+        println(bs.eigs[:,2, spin] )
+        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
+
+        plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)    
     end
 
-    plot!( convert_energy(vals[:,1] .- vbm), color="blue",  lw=2, label="TB")
+    plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")
     if tbc.tb.nwan > 1
-        plot!(convert_energy(vals[:,2:end] .- vbm), color="blue",  lw=2, label=missing)
+        plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
     end
 
 
 
     if !ismissing(tbc2)
         vbm2, cbm2 = find_vbm_cbm(vals2 , efermi_tbc2)
-        plot!(convert_energy(vals2[:,1] .- vbm2),  color="cyan", lw=0.5, label="TB2")
+        plot!(convert_energy(vals2[:,1, spin] .- vbm2),  color="cyan", lw=0.5, label="TB2")
         if tbc.tb.nwan > 1
-            plot!(convert_energy(vals2[:,2:end] .- vbm2), lw=0.5, color="cyan", label=missing)
+            plot!(convert_energy(vals2[:,2:end, spin] .- vbm2), lw=0.5, color="cyan", label=missing)
         end
     end
 
@@ -602,9 +655,9 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing)
     
 
     if ! no_display
-        display(ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
+        display(ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01),  convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
     else
-        ylims!(convert_energy(minimum(vals .- vbm)*1.05), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
+        ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
     end
 #    end
 

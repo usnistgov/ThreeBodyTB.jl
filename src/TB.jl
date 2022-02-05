@@ -16,8 +16,7 @@ using EzXML
 using XMLDict
 using GZip
 using Printf
-#using PyPlot
-#using Plots
+using Plots
 using FFTW
 #using JLD
 using Base.Threads
@@ -2007,7 +2006,7 @@ end
      end
      eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
      tbc.efermi = efermi
-
+     tbc.eden = chargeden
      #println("energy comps $eband $etypes $echarge")
      energy = eband + etypes + echarge
 
@@ -2365,6 +2364,26 @@ end
 
  end
 
+ function plot_organizedata_offsite(data_arr, at1,o1,at2,o2; data = :H, color="blue", marker=:x)
+
+     rows = size(data_arr)[1]
+     inds = []
+     for i = 1:rows
+         (AT1,O1,AT2,O2) = data_arr[i,1:4]
+         if at1 == AT1 && o1 == O1 && at2 == AT2 && o2 == O2 
+             push!(inds, i)
+         end
+     end
+
+     if data == :H
+         println("scatter")
+         display(scatter!(data_arr[inds,7], data_arr[inds,5], color=color, marker=marker))
+     end
+
+     return inds
+     
+ end
+
  """
      function organizedata(crys::crystal, h::tb)
  """
@@ -2428,7 +2447,7 @@ end
                      else
                          lmn .= 0.0
                      end
-                     push!(data, [na, norb, ma, morb, h.H[ n,m,i], dist, lmn])
+                     push!(data, [na, norb, ma, morb, h.H[spin, n,m,i], dist, lmn])
 
                      data_arr[c2, 1] = na
                      data_arr[c2, 2] = symbol_dict[norb]              

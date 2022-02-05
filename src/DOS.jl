@@ -99,99 +99,41 @@ Default is to choose `:atomic` except for elemental systems.
 """
 function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)    
 
+    nspin = tbc.nspin
+    
     names, PROJ, pwan = get_projtype(tbc, ptype)
 
     nk = size(vects)[1]
 
     temp = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
-    proj = zeros(nk, tbc.tb.nwan, length(PROJ))
+    proj = zeros(nk, tbc.tb.nwan, length(PROJ), nspin)
 
 #    sk5 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     sk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)    
-    c=0
-#=
-    for k1 = 1:grid[1]
-        for k2 = 1:grid[2]
-            for k3 = 1:grid[3]
-                c += 1
-                sk5[:,:] = ( 0.5 * (sk3[:, :, k1, k2, k3] + sk3[:, :, k1, k2, k3]'))^0.5
-                sv = sk5 * vects[c,:,:]
-                for (pind, proj_inds) in enumerate(PROJ)
-                    for p in proj_inds
-                        proj[c,:, pind] += real(conj(sv[p,:]) .* sv[p,:])
+    for spin = 1:nspin
+        c=0
+        for (pind, proj_inds) in enumerate(PROJ)
+            for p in proj_inds
+                for a = 1:tbc.tb.nwan
+                    for j = 1:tbc.tb.nwan
+                        t = vects[:,spin,p,a].*conj(vects[:,spin,j,a])
+                        @threads for c = 1:grid[1]*grid[2]*grid[3]
+                            
+                            k3 = mod(c-1 , grid[3])+1
+                            k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+                            k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+                            
+                            
+                            proj[c,a, pind, spin] += 0.5*real( (t[c]*sk3[j,p,k1,k2,k3]  + conj(t[c])* conj(sk3[j,p, k1,k2,k3])))
+                            
+                            
+                        end
                     end
-#                    if c == 1
-#                        println("pind ", pind, " $proj_inds ", proj[c,:,pind])
-#                        println("check ", 0.5*sum(vects[c,:,:]' * (sk3[:, :, k1, k2, k3] + sk3[:, :, k1, k2, k3]') * vects[c,:,:]))
-#                    end
                 end
             end
         end
     end
-=#
-#    for k1 = 1:grid[1]
-#        for k2 = 1:grid[2]
-#            for k3 = 1:grid[3]
-#                c += 1
-                for (pind, proj_inds) in enumerate(PROJ)
-                    for p in proj_inds
-                        for a = 1:tbc.tb.nwan
-                            for j = 1:tbc.tb.nwan
-#                                t = vects[c,p,a]*conj(vects[c,j,a])
-#                                proj[c,a, pind] += 0.5*real( (t*sk[j,p]  + conj(t)* conj(sk[j,p])))
 
-                                t = vects[:,p,a].*conj(vects[:,j,a])
-                                @threads for c = 1:grid[1]*grid[2]*grid[3]
-                                    
-                                    k3 = mod(c-1 , grid[3])+1
-                                    k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
-                                    k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
-
-                                    
-#                                    sk[:,:] = ( 0.5 * ( (@view sk3[:, :, k1, k2, k3]) + (@view sk3[:, :, k1, k2, k3])'))
-                                
-                                    proj[c,a, pind] += 0.5*real( (t[c]*sk3[j,p,k1,k2,k3]  + conj(t[c])* conj(sk3[j,p, k1,k2,k3])))
-
-                                
-                            end
-                        end
-                    end
-                end
-
-#                    if c == 1
-#                        println("pind ", pind, " $proj_inds ", proj[c,:,pind])
-#                        println("check ", 0.5*sum(vects[c,:,:]' * (sk3[:, :, k1, k2, k3] + sk3[:, :, k1, k2, k3]') * vects[c,:,:]))
-#                    end
-#                end
-#            end
-#        end
-    end
-
-
-    #    for (pind, proj_inds) in enumerate(PROJ)
-#        println("SUM $pind", sum(proj[:,:,pind], dims=1) / prod(grid))
-#    end
-    
-                    #                    for p in proj_inds
-#                        for a = 1:tbc.tb.nwan
-#                            for b = 1:tbc.tb.nwan
-#                                #                                temp[a,b] = vects[c, a,p]'*sk3[a, b, k1, k2, k3]* vects[c, b,p]
-#                                temp[a,b] = vects[c, p,a]'*sk3[a, b, k1, k2, k3]* vects[c, p,b]                                
-#                            end
-#                        end
-#                        temp = temp + conj(temp)
-#                        proj[c,:, pind] += 0.5*sum(real(temp), dims=1)[:]
-#                    end
-#                    if k1 == 1 && k2 == 1 && k3 == 1
-#                        println("inds, ",proj_inds)
-#                        println(proj[c,:, pind])
-#                    end
-#                    
-#                end
-#            end
-#        end
-                        
-#    end
 
     return proj, names, pwan
     
@@ -234,10 +176,14 @@ function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)
 end
             
     
+function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.005, npts=missing, proj_type=missing, do_display=true)
+
+    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display)
     
+end
 
 """
-    function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, proj_type=missing, do_display=true)
+    function dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, proj_type=missing, do_display=true)
 
 Simple Gaussian DOS, mostly for testing.
 
@@ -251,7 +197,7 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, proj_type=missing, do_display=true)
+function dos(tbc::tb_crys; grid=missing, smearing=0.005, npts=missing, proj_type=missing, do_display=true)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -273,19 +219,19 @@ function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, p
     r = vmax - vmin
 
     if ismissing(npts)
-        npts = Int64(round(r * 100 ))
+        npts = 500
     end
     
-    energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
+    energies = collect(vmin - r*0.2 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
     
     dos = zeros(length(energies))
 
-    if ismissing(proj_type) ||  proj_type != "none" 
+    if ismissing(proj_type) || !(  proj_type != "none"  ||  proj_type != :none)
         do_proj=true
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
         nproj = size(proj)[3]
 
-        pdos = zeros(length(energies),nproj)
+        pdos = zeros(length(energies),nproj, tbc.nspin)
 
     else
         do_proj=false
@@ -294,32 +240,33 @@ function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, p
         names=missing
     end
     
-
-
     
-    for (c,e) in enumerate(energies)
-        dos[c] = sum(exp.( -0.5 * (vals[:,:] .- e).^2 / smearing^2 ) )
-    end
-    dos = dos / smearing / (2.0*pi)^0.5 / nk
     
-    if do_proj
-        for i = 1:nproj
-            for (c,e) in enumerate(energies)
-                pdos[c, i] = sum(proj[:,:,i] .*  exp.( -0.5 * (vals[:,:] .- e).^2 / smearing^2 ) )
+    dos = zeros(length(energies), tbc.nspin)
+    for spin = 1:tbc.nspin
+        for (c,e) in enumerate(energies)
+            dos[c,spin] = sum(exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) )
+        end
+        
+        if do_proj
+            for i = 1:nproj
+                for (c,e) in enumerate(energies)
+                    pdos[c, i,spin] = sum(proj[:,:,i,spin] .*  exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) )
+                end
             end
         end
-        pdos = pdos / smearing / (2.0*pi)^0.5 / nk
     end
-
+    dos = dos / smearing / (2.0*pi)^0.5 / nk
+    pdos = pdos / smearing / (2.0*pi)^0.5 / nk
     
 
     println("Int DOS " , sum(dos) * (energies[2]-energies[1]) )
 
     ind = energies .< 0
 
-    println("Int DOS occ " , sum(dos[ind]) * (energies[2]-energies[1]) )
+    println("Int DOS occ " , sum(dos[ind,:]) * (energies[2]-energies[1]) )
     for p in 1:nproj
-        println("Int pDOS occ $p : " , sum(pdos[ind, p]) * (energies[2]-energies[1]) )
+        println("Int pDOS occ $p : " , sum(pdos[ind, p,:]) * (energies[2]-energies[1]) )
     end
     
     energies = convert_energy(energies)
@@ -367,7 +314,7 @@ function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_ty
     
     dos = zeros(length(energies))
 
-    if ismissing(proj_type) ||  proj_type != "none" 
+    if ismissing(proj_type) || !(  proj_type != "none"  || proj_type != :none)
         do_proj=true
         proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
         nproj = size(proj)[3]
@@ -517,7 +464,7 @@ end
 
 
 """
-    function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_display=true)
+    function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_display=true)
 
 DOS, using tetrahedral integration
 
@@ -528,7 +475,7 @@ DOS, using tetrahedral integration
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_display=true)
+function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_display=true)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -559,13 +506,16 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
     r = vmax - vmin
 
     if ismissing(npts)
-        npts = Int64(round(r * 100 ))
+        npts = 500
     end
+        
+    println("vmin $vmin $vmax $vmax r $r")
+        
+    energies = collect(vmin - r*0.05 : r*1.02 / npts    : vmax + r*0.05 + 1e-7)
 
-    
-    energies = collect(vmin - r*0.01 : r*1.02 / npts    : vmax + r*0.01 + 1e-7)
-    
-    dos = zeros(size(energies))
+    println("le ", length(energies))
+        
+    dos = zeros(size(energies)[1], tbc.nspin )
     dos_id = zeros( length(energies), nthreads())
 
     if ismissing(proj_type) ||  (proj_type != "none"   && proj_type != :none)
@@ -574,7 +524,7 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
         nproj = size(proj)[3]
 
-        pdos = zeros(length(energies),nproj)
+        pdos = zeros(length(energies),nproj, tbc.nspin)
         pdos_id = zeros(length(energies),nproj, nthreads())
 
     else
@@ -605,168 +555,173 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
     end
         
     range = 1:length(energies)
-    
-    @threads for nt = 1: ntetra
-        id = threadid()
-        #id = 1
-        ex=zeros(4)
-        px=zeros(4)    
-        e=zeros(4, tbc.tb.nwan)
-        p=zeros(4, tbc.tb.nwan, nproj)
-        ktet = zeros(Int64, 4)
-        wt = zeros(4)
 
-
-        ktet[:] .= tetra_map[:, nt]
+    for spin = 1:tbc.nspin
         
-        e[:,:] .= vals[ktet, :]        
+        @threads for nt = 1: ntetra
+            id = threadid()
+            #id = 1
+            ex=zeros(4)
+            px=zeros(4)    
+            e=zeros(4, tbc.tb.nwan)
+            p=zeros(4, tbc.tb.nwan, nproj)
+            ktet = zeros(Int64, 4)
+            wt = zeros(4)
 
-        if do_proj
-            p[:,:, :] .= proj[ktet,:, :]
-            f14 = 0.0
-            f24 = 0.0
-            f35 = 0.0
-            G = 0.0
-            f13 = 0.0
-            f31 = 0.0 
-            f14 = 0.0 
-            f41 =  0.0
-            f23 = 0.0
-            f32 = 0.0
-            f24 = 0.0
-            f42 = 0.0
+
+            ktet[:] .= tetra_map[:, nt]
             
-            f12 =  0.0
-            f21 = 0.0
+            e[:,:] .= vals[ktet, :, spin]        
+
+            if do_proj
+                p[:,:, :] .= proj[ktet,:, :, spin]
+                f14 = 0.0
+                f24 = 0.0
+                f35 = 0.0
+                G = 0.0
+                f13 = 0.0
+                f31 = 0.0 
+                f14 = 0.0 
+                f41 =  0.0
+                f23 = 0.0
+                f32 = 0.0
+                f24 = 0.0
+                f42 = 0.0
+                
+                f12 =  0.0
+                f21 = 0.0
+                
+
+            end
             
+            for nband = 1:tbc.tb.nwan
 
-        end
-        
-        for nband = 1:tbc.tb.nwan
-
-            ex[:] = e[:,nband]
+                ex[:] = e[:,nband]
 
 
-            if do_proj==false  ####
-                
-                sort!(ex)
-                
-
-
-                inds = (ex[1] .< energies .< ex[4] )
-                
-                for c in range[inds]
-
-                    en = energies[c]
+                if do_proj==false  ####
                     
-                    if en < ex[4] && en >= ex[3]
-                        
-                        dos_id[c, id] += 3.0 * (ex[4] - en)^2 / (ex[4] - ex[1] + eps) / (ex[4] - ex[2] + eps) / (ex[4] - ex[3] + eps)
-                        
-                    elseif en < ex[3] && en >= ex[2]
-                        
-                        dos_id[c, id] += 1.0 / (ex[3] - ex[1] + eps) / (ex[4] - ex[1] + eps) * (3.0 * (ex[2] - ex[1]) + 6.0 * (en - ex[2]) - 3.0 * (ex[3] - ex[1] + ex[4] - ex[2]) / (ex[3]-ex[2] + eps) / (ex[4] - ex[2] + eps) * (en -ex[2])^2)
-                        
-                    elseif en < ex[2] && en >= ex[1]
-                        
-                        dos_id[c, id] += 3.0 * (en-ex[1])^2 / (ex[2] - ex[1] + eps) / (ex[3] - ex[1] + eps) / (ex[4] - ex[1] + eps)
-                        
-                    end
+                    sort!(ex)
                     
-                end
 
-            elseif do_proj == true ####
 
-                
-                perm = sortperm(ex)
-                ex[:] = ex[perm]
-
-                inds = (ex[1] .< energies .< ex[4] )
-                
-                for c in range[inds]
-#                for c in 1:length(energies)
-                    en = energies[c]
-
+                    inds = (ex[1] .< energies .< ex[4] )
                     
-                    if en < ex[4] && en >= ex[1]
-                    
+                    for c in range[inds]
+
+                        en = energies[c]
+                        
                         if en < ex[4] && en >= ex[3]
                             
-                            f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
-                            f24 = (en-ex[4])/(ex[2]-ex[4] - eps)
-                            f34 = (en-ex[4])/(ex[3]-ex[4] - eps)
-                            
-                            G = 3.0 * f14 * f24 * f34 / (ex[4] - en + eps)
-                            
-                            @inbounds wt[1] = f14 / 3.0
-                            @inbounds wt[2] = f24 / 3.0
-                            @inbounds wt[3] = f34 / 3.0
-                            @inbounds wt[4] = (3.0 - f14 - f24 - f34) / 3.0
+                            dos_id[c, id] += 3.0 * (ex[4] - en)^2 / (ex[4] - ex[1] + eps) / (ex[4] - ex[2] + eps) / (ex[4] - ex[3] + eps)
                             
                         elseif en < ex[3] && en >= ex[2]
                             
-                            f13 = (en-ex[3])/(ex[1]-ex[3] - eps)
-                            f31 = 1.0 - f13
-                            f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
-                            f41 = 1.0 - f14
-                            f23 = (en-ex[3])/(ex[2]-ex[3] - eps)
-                            f32 = 1.0 - f23
-                            f24 = (en-ex[4])/(ex[2]-ex[4] - eps)
-                            f42 = 1.0 - f24
-                            
-                            G   =  3.0 * (f23*f31 + f32*f24)
-                            
-                            @inbounds wt[1]  =  f14 / 3.0 + f13*f31*f23 / (G + eps)
-                            @inbounds wt[2]  =  f23 / 3.0 + f24*f24*f32 / (G + eps)
-                            @inbounds wt[3]  =  f32 / 3.0 + f31*f31*f23 / (G + eps)
-                            @inbounds wt[4]  =  f41 / 3.0 + f42*f24*f32 / (G + eps)
-                            
-                            G   =  G / (ex[4]-ex[1] + eps)
-                            
+                            dos_id[c, id] += 1.0 / (ex[3] - ex[1] + eps) / (ex[4] - ex[1] + eps) * (3.0 * (ex[2] - ex[1]) + 6.0 * (en - ex[2]) - 3.0 * (ex[3] - ex[1] + ex[4] - ex[2]) / (ex[3]-ex[2] + eps) / (ex[4] - ex[2] + eps) * (en -ex[2])^2)
                             
                         elseif en < ex[2] && en >= ex[1]
                             
+                            dos_id[c, id] += 3.0 * (en-ex[1])^2 / (ex[2] - ex[1] + eps) / (ex[3] - ex[1] + eps) / (ex[4] - ex[1] + eps)
                             
-                            f12 = (en-ex[2])/(ex[1]-ex[2] - eps)
-                            f21 = 1.0 - f12
-                            f13 = (en-ex[3])/(ex[1]-ex[3] - eps)
-                            f31 = 1.0 - f13
-                            f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
-                            f41 = 1.0 - f14
-                            
-                            G  =  3.0 * f21 * f31 * f41 / (en-ex[1] + eps)
-                            
-                            @inbounds wt[1] =  (f12 + f13 + f14) / 3.0
-                            @inbounds wt[2] =  f21  / 3.0
-                            @inbounds wt[3] =  f31  / 3.0
-                            @inbounds wt[4] =  f41  / 3.0
-                            
-                            
-                        end
-                        
-                        
-                        
-                        @inbounds dos_id[c, id] += sum(wt) * G
-                        
-                        for projind = 1:nproj
-                            px[:] = @view p[perm,nband, projind]
-                            @inbounds pdos_id[c,projind, id] += ( px' * wt )  * G
                         end
                         
                     end
-                    
-                end
 
-            end #### if do_proj
+                elseif do_proj == true ####
+
+                    
+                    perm = sortperm(ex)
+                    ex[:] = ex[perm]
+
+                    inds = (ex[1] .< energies .< ex[4] )
+                    
+                    for c in range[inds]
+                        #                for c in 1:length(energies)
+                        en = energies[c]
+
+                        
+                        if en < ex[4] && en >= ex[1]
+                            
+                            if en < ex[4] && en >= ex[3]
+                                
+                                f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
+                                f24 = (en-ex[4])/(ex[2]-ex[4] - eps)
+                                f34 = (en-ex[4])/(ex[3]-ex[4] - eps)
+                                
+                                G = 3.0 * f14 * f24 * f34 / (ex[4] - en + eps)
+                                
+                                @inbounds wt[1] = f14 / 3.0
+                                @inbounds wt[2] = f24 / 3.0
+                                @inbounds wt[3] = f34 / 3.0
+                                @inbounds wt[4] = (3.0 - f14 - f24 - f34) / 3.0
+                                
+                            elseif en < ex[3] && en >= ex[2]
+                                
+                                f13 = (en-ex[3])/(ex[1]-ex[3] - eps)
+                                f31 = 1.0 - f13
+                                f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
+                                f41 = 1.0 - f14
+                                f23 = (en-ex[3])/(ex[2]-ex[3] - eps)
+                                f32 = 1.0 - f23
+                                f24 = (en-ex[4])/(ex[2]-ex[4] - eps)
+                                f42 = 1.0 - f24
+                                
+                                G   =  3.0 * (f23*f31 + f32*f24)
+                                
+                                @inbounds wt[1]  =  f14 / 3.0 + f13*f31*f23 / (G + eps)
+                                @inbounds wt[2]  =  f23 / 3.0 + f24*f24*f32 / (G + eps)
+                                @inbounds wt[3]  =  f32 / 3.0 + f31*f31*f23 / (G + eps)
+                                @inbounds wt[4]  =  f41 / 3.0 + f42*f24*f32 / (G + eps)
+                                
+                                G   =  G / (ex[4]-ex[1] + eps)
+                                
+                                
+                            elseif en < ex[2] && en >= ex[1]
+                                
+                                
+                                f12 = (en-ex[2])/(ex[1]-ex[2] - eps)
+                                f21 = 1.0 - f12
+                                f13 = (en-ex[3])/(ex[1]-ex[3] - eps)
+                                f31 = 1.0 - f13
+                                f14 = (en-ex[4])/(ex[1]-ex[4] - eps)
+                                f41 = 1.0 - f14
+                                
+                                G  =  3.0 * f21 * f31 * f41 / (en-ex[1] + eps)
+                                
+                                @inbounds wt[1] =  (f12 + f13 + f14) / 3.0
+                                @inbounds wt[2] =  f21  / 3.0
+                                @inbounds wt[3] =  f31  / 3.0
+                                @inbounds wt[4] =  f41  / 3.0
+                                
+                                
+                            end
+                            
+                            
+                            
+                            @inbounds dos_id[c, id] += sum(wt) * G
+                            
+                            for projind = 1:nproj
+                                px[:] = @view p[perm,nband, projind]
+                                @inbounds pdos_id[c,projind, id] += ( px' * wt )  * G
+                            end
+                            
+                        end
+                        
+                    end
+
+                end #### if do_proj
+
+            end
 
         end
 
+    
+        dos[:, spin] = sum(dos_id, dims=2) * norm
+        dos[:,spin] = max.(dos[:,spin], 0.0)
+        pdos[:,:,spin] = sum(pdos_id, dims=3) * norm
+        
     end
-
-    
-    dos[:] = sum(dos_id, dims=2) * norm
-    dos = max.(dos, 0.0)
-    
+        
     #println("Int DOS " , sum(dos) * (energies[2]-energies[1]) )
     correct =  tbc.tb.nwan / ( sum(dos) * (energies[2]-energies[1]) ) 
 
@@ -774,7 +729,9 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
         
     if nproj > 0
         pdos = max.(pdos, 0.0)
-        pdos[:,:] = sum(pdos_id, dims=3) * norm
+        
+#        pdos[:,:] = sum(pdos_id, dims=3) * norm
+
         pdos = pdos * correct
 
         #println("Int PDOS " , sum(dos, dims=1) * (energies[2]-energies[1]) )
@@ -782,7 +739,7 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
         t = sum(pdos, dims=1) * (energies[2]-energies[1])
         fix = pwan' ./ t
         pdos = pdos .* fix
-        pdos2 = zeros(size(pdos))
+        pdos2 = zeros(size(pdos)[1],size(pdos)[2], tbc.nspin)
         
     else
         pdos2=missing
@@ -790,17 +747,19 @@ function dos(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, do_dis
 
     
     #simple smoothing
-    dos2 = zeros(size(dos))
+    dos2 = zeros(size(dos)[1], tbc.nspin)
 
 
-    for i = 3:(length(dos)-2)
-        dos2[i] =  0.125*dos[i-2] + 0.25*dos[i-1] + 0.25*dos[i] + 0.25*dos[i+1] + 0.125*dos[i+2]
-        if nproj>0
-            #            pdos2[i,:] = 0.25*pdos[i-1,:] + 0.5*pdos[i,:] + 0.25*pdos[i+1,:]
-            pdos2[i,:] = 0.125*pdos[i-2,:] + 0.25*pdos[i-1,:] + 0.25*pdos[i,:] + 0.25*pdos[i+1,:] + 0.125*pdos[i+2,:]            
+    for spin = 1:tbc.nspin
+        for i = 3:(length(dos[:,1])-2)
+            dos2[i, spin] =  0.125*dos[i-2, spin] + 0.25*dos[i-1, spin] + 0.25*dos[i, spin] + 0.25*dos[i+1, spin] + 0.125*dos[i+2, spin]
+            if nproj>0
+                #            pdos2[i,:] = 0.25*pdos[i-1,:] + 0.5*pdos[i,:] + 0.25*pdos[i+1,:]
+                pdos2[i,:, spin] = 0.125*pdos[i-2,:, spin] + 0.25*pdos[i-1,:, spin] + 0.25*pdos[i,:, spin] + 0.25*pdos[i+1,:, spin] + 0.125*pdos[i+2,:, spin]            
+            end
         end
     end
-
+    
     if nproj > 0
         pdos2 = max.(pdos2, 0.0)
         pdos2 = convert_dos(pdos2)
@@ -829,17 +788,47 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
         plot(legend=true, grid=false, framestyle=:box)
     end
 
-    plot!(energies, dos, color="black", lw=4, label="Total", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=12)
+    nspin = size(dos)[2]
 
-    if !ismissing(names)
-        colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-        for i in 1:size(pdos)[2]
-            color = colors[i%7+1]
-#            println("i $i $color", names[i])
-            plot!(energies, pdos[:,i], color=color, lw=3, label=names[i])
-        end
-    end    
+    if nspin == 1
+    
+        plot!(energies, dos[:,1], color="black", lw=4, label="Total", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
 
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            end
+        end    
+
+    elseif nspin == 2
+
+        plot!(energies, dos[:,1], color="black", lw=4, label="Total", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            end
+        end    
+
+        plot!(energies, -dos[:,2], color="black", lw=4, label=false)
+
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!(energies, -pdos[:,i,2], color=color, lw=3, label=false)
+            end
+        end    
+    end
+
+        
     
     if global_energy_units == "eV"
         ylabel!("DOS  ( 1 / eV )", guidefontsize=16)
@@ -854,12 +843,18 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 #    xl2 = ( maximum(energies))
 
     xlims!(xl1, xl2)
+
+    if nspin == 1
+        ylims!(0.0, maximum(dos) * 1.1)
+    elseif nspin == 2
+        ylims!(-maximum(dos) * 1.1, maximum(dos) * 1.1)
+    end
     
     if do_display && ! no_display
-        display(plot!([0,0], [0, maximum(dos) * 1.1], color="black", linestyle=:dash, label=""))
+        display(plot!([0,0], [-maximum(dos) * 1.1, maximum(dos) * 1.1], color="black", linestyle=:dash, label=""))
     else
 
-        plot!([0,0], [0, maximum(dos) * 1.1], color="black", linestyle=:dash, label="")
+        plot!([0,0], [-maximum(dos) * 1.1, maximum(dos) * 1.1], color="black", linestyle=:dash, label="")
 
     end        
 
