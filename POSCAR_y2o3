@@ -1,0 +1,63 @@
+&control
+    calculation = 'vc-relax'
+    restart_mode='from_scratch',
+    prefix = 'qe'
+    tstress = .true.
+    tprnfor = .true.
+    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5_julia/',
+!    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
+!    pseudo_dir = '/home/kevin/psp/'
+    outdir = '/scratch/POSCAR_y2o3.939927'
+    disk_io = 'low'
+    wf_collect = .true.
+    verbosity = 'high'    
+    nstep = 100
+ /
+&system
+    ibrav = 0 
+    nat=  5 
+    ntyp= 2
+    ecutwfc= 45,
+    ecutrho= 250,
+    q2sigma= 1
+    ecfixed= 44.5,
+    qcutz= 800
+    occupations= "smearing",
+    degauss= 0.01
+    lda_plus_u= .false.
+    force_symmorphic = true
+    
+    nosym = false
+    noinv = false
+/
+&electrons
+    diagonalization='david'
+    mixing_mode = 'local-TF'
+    mixing_beta = 0.3
+    conv_thr = 1d-9
+ /
+&ions
+  ion_dynamics='bfgs',
+/
+&cell
+ cell_dynamics = 'bfgs'
+ cell_dofree = 'all'
+ cell_factor = 3.0
+/
+ATOMIC_SPECIES
+Y  47.867  ti.pbesol.UPF  
+O  15.999  o.pbesol.UPF  
+ATOMIC_POSITIONS crystal
+Y   0.3333333333  0.6666666667  0.238
+Y   0.6666666667  0.3333333333  0.762
+O   0.3333333333  0.6666666667  0.640
+O   0.6666666667  0.3333333333  0.360
+O  -0.0000000000 -0.0000000000  0.000
+CELL_PARAMETERS
+ 3.37226     -5.84092     0.0
+ 3.37226      5.84092     0.0
+ 0.0 0.0  11.1867
+K_POINTS automatic
+ 10 10  6 0 0 0
