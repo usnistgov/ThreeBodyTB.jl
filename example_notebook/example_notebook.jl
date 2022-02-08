@@ -16,16 +16,16 @@ md""" **Then, we define some crystal structures:** c1,c2,c3
 """
 
 # ╔═╡ 69fee95b-3948-4790-8b8f-59965c7e042e
-md"_fcc_ Ga"
+md"_fcc_ Al"
 
 # ╔═╡ 50ec18a2-64b9-49b3-b0d0-d52ab00446a0
-c1 = makecrys([2.1 2.1 0; 2.1 0 2.1; 0 2.1 2.1], [0.0 0.0 0.0], ["Ga"]) 
+c1 = makecrys([2.1 2.1 0; 2.1 0 2.1; 0 2.1 2.1], [0.0 0.0 0.0], ["Al"]) 
 
 # ╔═╡ f6b863ed-7394-4c10-b5dc-df0685b00966
 md"Y_2O_3"
 
 # ╔═╡ 0864078f-e7ee-4d25-9a62-f3bcbeb8c5d7
-c2 = makecrys("/home/kfg/notebooks/POSCAR_y2o3")
+c2 = makecrys("POSCAR_y2o3")
 
 # ╔═╡ f9b045c3-b703-455b-a6d8-71428a1d7544
 md"As_4Se_6"
