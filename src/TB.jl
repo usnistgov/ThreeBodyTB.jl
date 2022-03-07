@@ -1052,10 +1052,10 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing)
         scf = true
     end
 
-    println("size H ", size(H), " ", typeof(H), " npin $nspin ")
-    println("T ", T)
-    println("S ", size(S), " " , typeof(S))
-    println("size h1 ", size(h1), "  ", typeof(h1))
+#    println("size H ", size(H), " ", typeof(H), " npin $nspin ")
+#    println("T ", T)
+#    println("S ", size(S), " " , typeof(S))
+#    println("size h1 ", size(h1), "  ", typeof(h1))
     return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf, h1)
 end
 

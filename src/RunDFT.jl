@@ -577,8 +577,10 @@ function loadXML(savedir)
         
     out = d["espresso"]["output"]["total_energy"]
     energy = parse(Float64,out["etot"]) * convert_ha_ryd
-    energy_smear = parse(Float64,out["demet"]) * convert_ha_ryd
-
+    energy_smear =  0.0
+    if "demet" in keys(out)
+        energy_smear = parse(Float64,out["demet"]) * convert_ha_ryd
+    end
 
     nspin = 1
     mag_tot = 0.0
