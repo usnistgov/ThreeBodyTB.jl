@@ -28,7 +28,7 @@ function WX(tbc::tb_crys, spin::Array{Float64,1})
         nwan = Int64(atom.nwan/2)
         spin_at = spin[c .+ (1:nwan)]
 
-        println("size W ", size(mag.W), " spin_at ", size(spin_at))
+#        println("size W ", size(mag.W), " spin_at ", size(spin_at))
         Wm[c.+(1:nwan)] = mag.W * spin_at
         Xm[c.+(1:nwan)] = mag.X * abs.(spin_at)
         c += atom.nwan

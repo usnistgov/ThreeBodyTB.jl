@@ -66,7 +66,7 @@ function make_mag(str)
     XpD = mag_arr[15]    
     XdD = mag_arr[16]    
 
-    println("name $name ", atoms[name].orbitals)
+#    println("name $name ", atoms[name].orbitals)
     if atoms[name].orbitals == [:s]
         inds = [:s]
     elseif atoms[name].orbitals == [:s, :p]
