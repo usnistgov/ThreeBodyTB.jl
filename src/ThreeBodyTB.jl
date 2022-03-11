@@ -13,6 +13,7 @@ include("Utility.jl")
 include("BandTools.jl")
 include("Atomic.jl")
 include("Atomdata.jl")
+include("AtomicMag.jl")
 include("Crystal.jl")
 
 using Suppressor
@@ -34,6 +35,7 @@ export dftout
 export makedftout
 
 include("TB.jl")
+include("Magnetic.jl")
 
 using .TB:tb_crys
 using .TB:tb_crys_kspace

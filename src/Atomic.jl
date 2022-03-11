@@ -8,6 +8,116 @@ module AtomicMod
 using ..Utility:str_w_spaces
 using ..BandTools:band_energy
 using ..BandTools:smearing_energy
+using ..Utility:parse_str_ARR_float
+
+struct mag
+    
+    name::String
+    Z::Int64
+    Wss::Float64
+    Wsp::Float64
+    Wsd::Float64
+    Wpp::Float64
+    Wpd::Float64
+    Wdd::Float64
+    WpD::Float64
+    WdD::Float64
+    Xss::Float64
+    Xsp::Float64
+    Xsd::Float64
+    Xpp::Float64
+    Xpd::Float64
+    Xdd::Float64
+    XpD::Float64
+    XdD::Float64
+    W::Array{Float64,2}
+    X::Array{Float64,2}
+    
+end
+
+function make_mag(str)
+    
+    sp = split(str)
+    num = parse(Int64, sp[1])
+    name = sp[2]
+
+    mag_arr = parse_str_ARR_float(sp[3:end])
+
+    W = zeros(9,9)
+    X = zeros(9,9)
+
+    Wss = mag_arr[1]
+    Wsp = mag_arr[2]
+    Wsd = mag_arr[3]
+    Wpp = mag_arr[4]
+    Wpd = mag_arr[5]
+    Wdd = mag_arr[6]
+    WpD = mag_arr[7]
+    WdD = mag_arr[8]
+    Xss = mag_arr[9]
+    Xsp = mag_arr[10]
+    Xsd = mag_arr[11]    
+    Xpp = mag_arr[12]    
+    Xpd = mag_arr[13]    
+    Xdd = mag_arr[14]    
+    XpD = mag_arr[15]    
+    XdD = mag_arr[16]    
+
+    inds = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
+    for i = 1:9
+        ind1 = inds[i]
+        for j = 1:9
+            ind2 = inds[j]            
+            
+            if ind1 == :s && ind2 == :s
+                w = Wss
+                x = Xss
+            elseif ind1 == :s && ind2 == :p
+                w = Wsp
+                x = Xsp
+            elseif ind1 == :s && ind2 == :d
+                w = Wsd
+                x = Xsd
+            elseif ind1 == :p && ind2 == :s
+                w = Wsp
+                x = Xsp
+            elseif ind1 == :d && ind2 == :s
+                w = Wsd
+                x = Xsd
+            elseif ind1 == :p && ind2 == :d
+                w = Wpd
+                x = Xpd
+            elseif ind1 == :d && ind2 == :p
+                w = Wpd
+                x = Xpd
+            elseif ind1 == :d && ind2 == :d
+                if ind1 == ind2
+                    w = WdD
+                    x = XdD
+                else
+                    w = Wdd
+                    x = Xdd
+                end
+            elseif ind1 == :p && ind2 == :p
+                if ind1 == ind2
+                    w = WpD
+                    x = XpD
+                else
+                    w = Wpp
+                    x = Xpp
+                end
+            end
+            W[i,j] = w
+            X[i,j] = x
+
+        end
+    end
+
+
+    return mag(name, num, mag_arr[1], mag_arr[2], mag_arr[3], mag_arr[4], mag_arr[5], mag_arr[6], mag_arr[7], mag_arr[8], mag_arr[9], mag_arr[10], mag_arr[11], mag_arr[12], mag_arr[13], mag_arr[14], mag_arr[15], mag_arr[16], W, X)
+
+end
+
 
 """
     struct atom
