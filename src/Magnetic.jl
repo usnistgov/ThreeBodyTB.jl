@@ -52,7 +52,7 @@ function WX(tbc::tb_crys, spin)
 
 #        println("Size Wm ", size(Wm), " size Wm2 ", size(Wm[c.+(1:nwan)]), " spin_at ", size(spin_at)
 
-        energy += sum(spin_at .* Wm[c.+(1:nwan)]) + sum(abs.(spin_at) .* Xm[c.+(1:nwan)])
+        energy += 0.5*(sum(spin_at .* Wm[c.+(1:nwan)]) + sum(abs.(spin_at) .* Xm[c.+(1:nwan)]))
         c += nwan
     end
     
@@ -93,8 +93,29 @@ function get_spin_h1(tbc::tb_crys, chargeden::Array{Float64,2})
 
 end
 
+function get_magmom(tbc::tb_crys)
+    if size(tbc.eden)[1] == 1
+        return zeros(tbc.crys.nat)
+    else
+        return get_magmom(tbc.crys, tbc.eden)
+    end
+end
 
+function get_magmom(c::crystal, eden)
 
+    spin = eden[1,:] - eden[2,:]
+    ind = 0
+    mm = zeros(c.nat)
+    for (counter, t) in enumerate(c.types)
+        atom = atoms[t]
+        mag = magnetic[t]
+        nwan = Int64(atom.nwan/2)
+        mm[counter] = sum(spin[ind .+ (1:nwan)])
+        ind += nwan
+    end
+    return mm
+
+end
 
 
 

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <crystal>
+    <A>  40.0000000000000000e+00  0.0000000000000000e+00  0.0000000000000000e+00
+  0.0000000000000000e+00  40.000000000000000e+00  0.0000000000000000e+00
+  0.0000000000000000e+00  0.0000000000000000e+00  40.000000000000000e+00
+</A>
+    <nat>1</nat>
+    <coords>  0.0000000000000000e+00  0.0000000000000000e+00  0.0000000000000000e+00
+</coords>
+    <types>H</types>
+  </crystal>
+  <nelec>1.0</nelec>
+  <nspin>1</nspin>
+  <dftenergy>0.0</dftenergy>
+  <scf>false</scf>
+  <gamma>  5.7332412566003388e-01
+</gamma>
+  <eden>  0.0000000000000000e+00
+</eden>
+  <efermi>-999.0</efermi>
+  <energy>0.0</energy>
+  <tightbinding>
+    <nr>1</nr>
+    <nwan>1</nwan>
+    <nspin>1</nspin>
+    <nonorth>true</nonorth>
+    <ind_arr>  0 0 0
+    </ind_arr>
+    <r_dict>Dict{Any,Any}([0, 0, 0] =&gt; 1)</r_dict>
+    <scf>false</scf>
+    <h1>  0.0000000000000000e+00
+</h1>
+    <H>  1   1   1 -0.4647537429165717  0.0000000000  1.0000000000  0.0000000000 
+</H>
+  </tightbinding>
+</root>

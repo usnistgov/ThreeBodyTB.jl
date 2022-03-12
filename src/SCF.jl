@@ -167,7 +167,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         end
         if verbose
             if magnetic 
-                println("Initial ΔQ: ", (round.(dq; digits=3)), "; Initial SPIN: ", round.(sum(e_den0, dims=2); digits=3))
+                println("Initial ΔQ: ", (round.(dq; digits=3)), "; Initial spin: ", round.(sum(e_den0, dims=2); digits=3))
             else
                 println("Initial ΔQ: ", (round.(dq; digits=3)))
             end
@@ -263,7 +263,7 @@ e_den = deepcopy(e_den0)
 
             dq_old = deepcopy(dq)
 
-            println("e_denA", e_denA)
+#            println("e_denA", e_denA)
             h1, dq = get_h1(tbc, e_denA)
 
 #            println("sum e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
@@ -319,7 +319,9 @@ e_den = deepcopy(e_den0)
             
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
-            if (delta_eden >= delta_eden_old*0.99999 && iter > 2) || iter == 25 #|| delta_energy_old < abs(energy_old - energy_tot)
+#            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
+
+            if iter > 10 && (delta_eden >= delta_eden_old*0.99999 && iter > 2) || iter == 25 #|| delta_energy_old < abs(energy_old - energy_tot)
                 mixA = max(mixA * 0.5, 0.0001)
                 nreduce += 1
                 if nreduce > 10
@@ -334,6 +336,7 @@ e_den = deepcopy(e_den0)
 
 
             if mixing_mode == :pulay
+
                 n1in[:] = n2in[:]
                 n1out[:] = n2out[:]
 
@@ -483,7 +486,7 @@ e_den = deepcopy(e_den0)
 #        println("time pulay")
         conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
 
-        if conv == false 
+        if false && conv == false 
             println("pulay mix no convergence, switch to simple mixing")
             mixing_mode = :simple
             e_denS = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
@@ -496,25 +499,25 @@ e_den = deepcopy(e_den0)
     if mixing_mode == :simple
         e_den_OLD = deepcopy(e_den)
 
-        println("SCF STEP 1/2 - get rough charge density")
+#        println("SCF STEP 1/2 - get rough charge density")
 #        conv, e_den = innnerloop(0.70, 0.01, e_den, 1e-2, 1)  #first step
 
-        println("EDEN ")
-        println(e_den)
-        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-2, 1)  #first step
-        energy0 = deepcopy(energy_tot)
+#        println("EDEN ")
+#        println(e_den)
+#        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-2, 1)  #first step
+#        energy0 = deepcopy(energy_tot)
 
-        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-3, 5)
-        energy1 = deepcopy(energy_tot)
+#        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-3, 5)
+#        energy1 = deepcopy(energy_tot)
         
-        println("SCF STEP 2/2 - converge final")
-        e_den_OLD = deepcopy(e_den)
+#        println("SCF STEP 2/2 - converge final")
+#        e_den_OLD = deepcopy(e_den)
         mix = min(mix, 0.1)
         conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*2)
         
-        if energy_tot > 0.1  || abs(energy1 - energy_tot)/tbc.crys.nat > 0.05
+        if energy_tot > 0.1  #|| abs(energy1 - energy_tot)/tbc.crys.nat > 0.05
             
-            println("WARNING, energy too far from initial, restarting with more conservative settings")
+            println("Restarting with more conservative settings")
             e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
             conv, e_den = innnerloop(0.1, 0.02, e_den, 1e-3, 1)  #first step, low mix
             conv, e_den = innnerloop(0.03, 0.02, e_den, 5e-4, 8)

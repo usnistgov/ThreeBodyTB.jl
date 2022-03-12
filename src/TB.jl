@@ -161,9 +161,13 @@ Base.show(io::IO, x::tb_crys) = begin
     println(io, "nelec: ", x.nelec, "; nspin: ", x.nspin)
     println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf)
     println("calculated energy: ", round(x.energy*1000)/1000)
-    println("efermi: ", round(x.efermi*1000)/1000)
+    println("efermi  : ", round(x.efermi*1000)/1000)
     dq = get_dq(x)
-    println(io, "charges: ", round.(dq * 100)/100)
+    println(io, "charges : ", round.(dq * 100)/100)
+    if size(x.eden)[1] == 2
+        mm = get_magmom(x)
+        println(io, "mag mom.: ", round.(mm * 100)/100)
+    end
     println(io)
     println(io, x.tb)    
     println(io)
@@ -1947,9 +1951,9 @@ end
 #         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
          
-         #    println("ENERGY 0 : $energy0")
+#         println("ENERGY 0 : $energy0")
          
-         energy0 += energy_smear
+         energy0 += energy_smear * nspin
          
          #    println("sum occ ", sum(occ), "  ", sum(occ) / (grid[1]*grid[2]*grid[3]))#
 
@@ -2041,7 +2045,7 @@ end
      eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
      tbc.efermi = efermi
      tbc.eden = chargeden
-#     println("energy comps $eband $etypes $echarge $emag")
+     #println("energy comps $eband $etypes $echarge $emag")
      energy = eband + etypes + echarge + emag
 
      return energy, efermi, chargeden, VECTS, VALS, error_flag
@@ -3085,11 +3089,11 @@ end
              else
                  if magnetic
                      if z_ion == 1 || nwan - z_ion == 1.0  #FM high spin magnetic heuristic
-                         still_needA = [z_ion + 0.99, z_ion-0.99]
+                         still_needA = [z_ion + 0.5, z_ion-0.5]
                      elseif z_ion == 2 || nwan - z_ion == 2.0  #FM high spin magnetic heuristic
-                         still_needA = [z_ion + 1.8, z_ion-1.8]
+                         still_needA = [z_ion + 1.01, z_ion-1.01]
                      else
-                         still_needA = [z_ion + 2.5, z_ion-2.5]
+                         still_needA = [z_ion + 1.8, z_ion-1.8]
                      end
                  else
                      still_needA = [z_ion , z_ion] #two spins but non-magnetic for some reason
