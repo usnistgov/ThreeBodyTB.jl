@@ -159,7 +159,7 @@ function smearing_energy(eigs, weights, efermi, smearing = 0.01)
 
     nspin = 1
     if length(size(eigs)) == 3
-        nspin = size(eigs)[2]
+        nspin = size(eigs)[3]
     end
 
     if nspin == 1

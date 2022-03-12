@@ -926,15 +926,15 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         if scf == false
             eden = zeros(nspin,ham.nwan)
         else
-            eden = get_neutral_eden(crys, ham.nwan)
-            t = get_neutral_eden(crys, hamk.nwan)
-            eden = zeros(nspin, hamk.nwan)
-            if nspin == 1
-                eden[1,:] = t
-            elseif nspin == 2
-                eden[1,:] = t
-                eden[2,:] = t
-            end
+            eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
+#            t = get_neutral_eden(crys, hamk.nwan)
+#            eden = zeros(nspin, hamk.nwan)
+#            if nspin == 1
+#                eden[1,:] = t
+#            elseif nspin == 2
+#                eden[1,:] = t
+#                eden[2,:] = t
+#            end
             
         end
     end
@@ -969,14 +969,14 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
         if scf == false
             eden = zeros(nspin, hamk.nwan)
         else
-            t = get_neutral_eden(crys, hamk.nwan)
-            eden = zeros(nspin, hamk.nwan)
-            if nspin == 1
-                eden[1,:] = t
-            elseif nspin == 2
-                eden[1,:] = t
-                eden[2,:] = t
-            end
+            t = get_neutral_eden(crys, hamk.nwan, nspin=nspin)
+#            eden = zeros(nspin, hamk.nwan)
+#            if nspin == 1
+#                eden[1,:] = t
+#            elseif nspin == 2
+#                eden[1,:] = t
+#                eden[2,:] = t
+#            end
 
         end
     end
@@ -1822,9 +1822,12 @@ end
 
  `return energy0, efermi, chargeden[:], VECTS, VALS, error_flag`
  """
- function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing)
+ function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing)
 
-#     println("memory")
+#     println("ismissing h1spin ", ismissing(h1spin))
+
+#     println("in calc_energy_charge_fft_band")
+#     return 0.0, 0.0,0.0,0.0,0.0,0.0
      if true
 
          
@@ -1832,7 +1835,16 @@ end
          #    print("calc_energy_charge_fft_band grid $grid")
          nk = prod(grid)
          nwan = size(hk3)[1]
-         nspin = size(hk3)[3]
+
+         if !ismissing(h1spin)
+             nspin = 2
+         else
+             nspin = size(hk3)[3]
+         end
+
+         nspin_ham = size(hk3)[3]
+
+
          VALS = zeros(Float64, nk, nwan, nspin)
          VALS0 = zeros(Float64, nk,nwan, nspin)
 #         c=0
@@ -1850,12 +1862,19 @@ end
 
          if ismissing(h1)
              h1 = zeros(nwan,nwan)
+         else
+             h1 = 0.5*(h1 + h1')
+         end
+         if ismissing(h1spin)
+             h1spin = [zeros(nwan,nwan), zeros(nwan,nwan)]
+         else
+             h1spin[1] = 0.5*(h1spin[1] + h1spin[1]')
+             h1spin[2] = 0.5*(h1spin[2] + h1spin[2]')
          end
 
          
      end
 #
-#     println("grid", grid)
 
      @threads for c = 1:grid[1]*grid[2]*grid[3]
 
@@ -1872,37 +1891,40 @@ end
 #                 c = k3 + (k2-1) * grid[3] + (k1-1) * grid[2]*grid[3] 
 #                 c += 1
 #                 println("c $c cx $cx")
-                 try
-                     sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
-                     SK[c,:,:] = sk
-                     for spin = 1:nspin
-                         hk0 = 0.5*( (@view hk3[:,:,spin, k1,k2,k3]) + (@view hk3[:,:,spin, k1,k2,k3])')
-                         hk = hk0 + sk .* h1
-                         vals, vects = eigen(hk, sk)
-                         
-                         VALS[c,:, spin] = vals
-                         VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
-                         VECTS[c,spin, :,:] = vects
-                     end
-                 catch e
-                     if e isa InterruptException
-                         println("user interrupt")
-                         rethrow(InterruptException)
-                     end
 
-                     if error_flag == false
-                         println("error calc_energy_fft $k1 $k2 $k3 usually negative overlap eig")
-                         sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                         valsS, vectsS = eigen(sk)
-                         println(valsS)
-                         error_flag=true
-                         rethrow(error("BadOverlap"))
-                     end
-                     error_flag=true
 
-#                 end
-#             end
-         end
+#         try
+             sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+             SK[c,:,:] = sk
+             for spin = 1:nspin
+                 spin_ind = min(spin, nspin_ham)
+                 hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
+                 hk = hk0 + sk .* (h1 + h1spin[spin])
+                 vals, vects = eigen(hk, sk)
+                 
+                 if maximum(abs.(imag.(vals))) > 1e-10
+                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                 end
+                 VALS[c,:, spin] = real.(vals)
+                 VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
+                 VECTS[c,spin, :,:] = vects
+             end
+#=         catch e
+             if e isa InterruptException
+                 println("user interrupt")
+                 rethrow(InterruptException)
+             end
+
+             if error_flag == false
+                 println("error calc_energy_fft $k1 $k2 $k3 usually negative overlap eig")
+                 sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                 valsS, vectsS = eigen(sk)
+                 println(valsS)
+                 error_flag=true
+                 rethrow(error("BadOverlap"))
+             end
+             error_flag=true
+         end  =#
      end
 
      #println("stuff")
@@ -1920,8 +1942,9 @@ end
 #         println(occ)
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-         #    println("energy smear $energy_smear")
-         
+#         println("energy band $energy")
+#         println("energy smear $energy_smear")
+#         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
          
          #    println("ENERGY 0 : $energy0")
@@ -2004,11 +2027,22 @@ end
          h1 = missing
          echarge = 0.0
      end
-     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
+
+     if tbc.nspin == 2 && tbc.scf
+         h1up, h1dn = get_spin_h1(tbc)
+         h1spin = [h1up, h1dn]
+         emag = magnetic_energy(tbc)
+     else
+         h1spin = missing
+         emag = 0.0
+     end
+
+
+     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
      tbc.efermi = efermi
      tbc.eden = chargeden
-     #println("energy comps $eband $etypes $echarge")
-     energy = eband + etypes + echarge
+#     println("energy comps $eband $etypes $echarge $emag")
+     energy = eband + etypes + echarge + emag
 
      return energy, efermi, chargeden, VECTS, VALS, error_flag
 
@@ -3021,82 +3055,106 @@ end
 
  Gets a neutral charge density (no charge transfer) to start SCF calculation.
  """
- function get_neutral_eden(tbc::tb_crys)
+ function get_neutral_eden(tbc::tb_crys; nspin=1, magnetic=true)
 
-     return get_neutral_eden(tbc.crys, tbc.tb.nwan)
+     return get_neutral_eden(tbc.crys, tbc.tb.nwan, nspin=nspin, magnetic=magnetic)
 
  end
 
  """
      function get_neutral_eden(crys::crystal, nwan=missing)
  """
- function get_neutral_eden(crys::crystal, nwan=missing)
+ function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
 
      if ismissing(nwan)
          ind2orb, orb2ind, etotal, nval = orbital_index(crys)
          nwan = length(keys(ind2orb))
      end
 
-     eden = zeros(nwan)
-     counter = 0
-     for (i, t) in enumerate(crys.types)
-         at = atoms[t]
-         z_ion = at.nval
-         still_need = z_ion
-         for o in at.orbitals
-             if o == :s
-                 counter += 1
-                 if still_need <= 2.0 && still_need > 1e-5
-                     eden[counter] = still_need/2.0
-                     still_need = 0.0
-                 elseif still_need >= 2.0 && still_need > 1e-5
-                     eden[counter] = 1.0
-                     still_need = still_need - 2.0
-                 else
-                     counter += 1
-                 end
-             elseif o == :p
- #                println("p")
-                 if still_need <= 6.0 && still_need > 1e-5
-                     eden[counter+1] = (still_need/2.0)/3.0
-                     eden[counter+2] = (still_need/2.0)/3.0
-                     eden[counter+3] = (still_need/2.0)/3.0
-                     still_need = 0.0
-                     counter += 3
-                 elseif still_need >= 6.0 && still_need > 1e-5
-                     eden[counter+1] = 1.0
-                     eden[counter+2] = 1.0
-                     eden[counter+3] = 1.0
-                     still_need = still_need - 6.0
-                     counter += 3
-                 else
-                     counter += 3
-                 end
-             elseif  o == :d
-                 if still_need <= 10.0 && still_need > 1e-5
-                     eden[counter+1] = (still_need/2.0)/5.0
-                     eden[counter+2] = (still_need/2.0)/5.0
-                     eden[counter+3] = (still_need/2.0)/5.0
-                     eden[counter+4] = (still_need/2.0)/5.0
-                     eden[counter+5] = (still_need/2.0)/5.0
-                     still_need = 0.0
-                     counter += 5
-                 elseif still_need >= 10.0 && still_need > 1e-5
-                     eden[counter+1] = 1.0
-                     eden[counter+2] = 1.0
-                     eden[counter+3] = 1.0
-                     eden[counter+4] = 1.0
-                     eden[counter+5] = 1.0
-                     still_need = still_need - 10.0
-                     counter += 5
-                 else
-                     counter += 5
-                 end
+     eden = zeros(nspin, nwan)
+     for sp in 1:nspin
+
+         counter = 0
+         for (i, t) in enumerate(crys.types)
+             
+             at = atoms[t]
+             z_ion = at.nval
+             nwan = at.nwan
+             if nspin == 1
+                 still_needA = [z_ion]
              else
-                 println("bad orbital get_neutral_eden $o")
+                 if magnetic
+                     if z_ion == 1 || nwan - z_ion == 1.0  #FM high spin magnetic heuristic
+                         still_needA = [z_ion + 0.99, z_ion-0.99]
+                     elseif z_ion == 2 || nwan - z_ion == 2.0  #FM high spin magnetic heuristic
+                         still_needA = [z_ion + 1.8, z_ion-1.8]
+                     else
+                         still_needA = [z_ion + 2.5, z_ion-2.5]
+                     end
+                 else
+                     still_needA = [z_ion , z_ion] #two spins but non-magnetic for some reason
+                 end
+
+             end
+
+             still_need = still_needA[sp]
+             for o in at.orbitals
+                 if o == :s
+                     counter += 1
+                     if still_need <= 2.0 && still_need > 1e-5
+                         eden[sp, counter] = still_need/2.0
+                         still_need = 0.0
+                     elseif still_need >= 2.0 && still_need > 1e-5
+                         eden[sp, counter] = 1.0
+                         still_need = still_need - 2.0
+                     else
+                         counter += 1
+                     end
+                 elseif o == :p
+                     #                println("p")
+                     if still_need <= 6.0 && still_need > 1e-5
+                         eden[sp, counter+1] = (still_need/2.0)/3.0
+                         eden[sp, counter+2] = (still_need/2.0)/3.0
+                         eden[sp, counter+3] = (still_need/2.0)/3.0
+                         still_need = 0.0
+                         counter += 3
+                     elseif still_need >= 6.0 && still_need > 1e-5
+                         eden[sp, counter+1] = 1.0
+                         eden[sp, counter+2] = 1.0
+                         eden[sp, counter+3] = 1.0
+                         still_need = still_need - 6.0
+                         counter += 3
+                     else
+                         counter += 3
+                     end
+                 elseif  o == :d
+                     if still_need <= 10.0 && still_need > 1e-5
+                         eden[sp, counter+1] = (still_need/2.0)/5.0
+                         eden[sp, counter+2] = (still_need/2.0)/5.0
+                         eden[sp, counter+3] = (still_need/2.0)/5.0
+                         eden[sp, counter+4] = (still_need/2.0)/5.0
+                         eden[sp, counter+5] = (still_need/2.0)/5.0
+                         still_need = 0.0
+                         counter += 5
+                     elseif still_need >= 10.0 && still_need > 1e-5
+                         eden[sp, counter+1] = 1.0
+                         eden[sp, counter+2] = 1.0
+                         eden[sp, counter+3] = 1.0
+                         eden[sp, counter+4] = 1.0
+                         eden[sp, counter+5] = 1.0
+                         still_need = still_need - 10.0
+                         counter += 5
+                     else
+                         counter += 5
+                     end
+                 else
+                     println("bad orbital get_neutral_eden $o")
+                 end
              end
          end
      end
+
+
      return eden
 
  end
@@ -3169,12 +3227,12 @@ end
  """
      function get_h1(tbc::tb_crys, chargeden::Array{Float64,1})
  """
- function get_h1(tbc::tb_crys, chargeden::Array{Float64,1})
+ function get_h1(tbc::tb_crys, chargeden::Array{Float64,2})
 
      dq = get_dq(tbc.crys, chargeden)
 
      gamma = tbc.gamma
-
+     
      epsilon = gamma * dq
 
      h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
@@ -3375,7 +3433,7 @@ end
  end
 
 
-
+include("Magnetic.jl")
 
 
 
