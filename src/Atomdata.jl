@@ -139,8 +139,10 @@ atoms["Pb"] = makeatom("Pb", 82, 6, 4.0,  207.2,   4.0,   10,   [:s, :p], -163.6
 atoms["Bi"] = makeatom("Bi", 83, 6, 5.0,  209.0,   5.0,   10,   [:s, :p], -184.68674216, [-14.4080, -4.4700], 0.0, 0.4996092);
 
 
+zatoms = Dict()
 for key in keys(atoms)
     atoms[Symbol(key)] = atoms[key]
+    zatoms[atoms[key].Z] = key
 end
 
 

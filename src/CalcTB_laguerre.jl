@@ -2558,7 +2558,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     #    println("nkeep, $nkeep, nkeep2, $nkeep2")
     
 
-    H = zeros(var_type, nwan, nwan, nkeep)
+    H = zeros(var_type, 1, nwan, nwan, nkeep)
     S = zeros(var_type, nwan, nwan, nkeep)    
 
 
@@ -2695,7 +2695,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
                     (hw,sw) = calc_twobody_faster(t1,t2,s1,s2,sum1, sum2, dist_a,LMN[:,id], coef, indH[sum1,sum2,:], indS[sum1,sum2,:],lag)
 
-                    H[o1, o2, cham] += hw  *cut
+                    H[1, o1, o2, cham] += hw  *cut
                     S[o1, o2, cham] += sw  *cut
 
 
@@ -2873,7 +2873,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         #        println(size(H_thread))
 
         
-        H += sum(H_thread, dims=4)[:,:,:]
+        H[1,:,:,:] .+= sum(H_thread, dims=4)[:,:,:]
         #        H += sum(H_thread, dims=4)[:, :,:]
 
 
@@ -2938,7 +2938,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
             end
         end
-        H[:,:,c_zero] += sum(Hon, dims=3)[:,:]
+        H[1, :,:,c_zero] += sum(Hon, dims=3)[:,:]
         S[:,:,c_zero] += sum(Son, dims=3)[:,:]
 
     end
@@ -2947,6 +2947,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if verbose println("make") end
     if true
+        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
         tb = make_tb(H, ind_arr, S)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]
@@ -3150,7 +3151,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
                         cut = cutoff_fn(dist, cutoff2Xa - cutoff_length, cutoff2Xa)
                     end
 
-                    H[o1, o2, cham] += h  *cut
+                    H[1, o1, o2, cham] += h  *cut
                     S[o1, o2, cham] += s  *cut
 
 
@@ -3359,7 +3360,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
                     if dist < 1e-5 #true onsite
                         (h,s) = calc_onsite(t1,s1,s2, database)
                         S[o1, o2, c_zero] += s 
-                        H[o1, o2, c_zero] += h 
+                        H[1, o1, o2, c_zero] += h 
                     else
 
                         if dist < cutoff_onX - cutoff_length
@@ -3368,7 +3369,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
                             cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
                         end
                         o = calc_twobody_onsite(t1,t2, s1,s2,dist,lmn, database)
-                        H[o1, o2, c_zero] += o  * cut
+                        H[1, o1, o2, c_zero] += o  * cut
                     end
                     
 

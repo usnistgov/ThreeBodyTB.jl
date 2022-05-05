@@ -121,7 +121,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 
         end
     end
-
+    println("mix $mix")
 
     if global_energy_units == "eV"  #for display only, keep units Rydberg internally
         energy_units = eV
@@ -271,8 +271,9 @@ e_den = deepcopy(e_den0)
 
 
             if magnetic 
-                h1up, h1dn = get_spin_h1(tbc, e_denA)
-                h1spin = [h1up, h1dn]
+#                h1up, h1dn = get_spin_h1(tbc, e_denA)
+#                h1spin = [h1up, h1dn]
+                h1spin = get_spin_h1(tbc, e_denA)
             else
                 h1spin = missing
             end
@@ -308,15 +309,25 @@ e_den = deepcopy(e_den0)
 
 #            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
             delta_eden = sum(abs.(e_den_NEW - e_denA))
+            
 
-
-#            println("eden_NEW ", round.(e_den_NEW[1:12] , digits=2))
-#            println("edenA ", round.(e_denA[1:12] , digits=2))
+#            println("eden_NEW ", round.(e_den_NEW , digits=4))
+#            println("edenA    ", round.(e_denA , digits=4))
 
             
             energy_charge, pot = ewald_energy(tbc, dq)
-            energy_magnetic = magnetic_energy(tbc, e_denA)
-            
+            if magnetic
+                energy_magnetic = magnetic_energy(tbc, e_denA)
+            else
+                energy_magnetic = 0.0
+            end
+
+
+#            println("energy_magnetic $energy_magnetic")
+#            println("energy_charge $energy_charge")
+#            println("etypes $etypes")
+#            println("energy_band $energy_band")
+
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
 #            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
@@ -398,8 +409,9 @@ e_den = deepcopy(e_den0)
                 if nspin == 1
                     e_denA[1,:] = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[:]
                 elseif nspin == 2
-                    e_denA[1,:]  = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[1:tbc.tb.nwan]
-                    e_denA[2,:]  = (1 - mixA) * e_denA[2,:] + mixA * n_pulay[(tbc.tb.nwan+1):end]
+                    e_denA[:,:]  = (1 - mixA) * e_denA[:,:] + mixA * reshape(n_pulay, 2, tbc.tb.nwan)
+#                    e_denA[1,:]  = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[1:tbc.tb.nwan]
+#                    e_denA[2,:]  = (1 - mixA) * e_denA[2,:] + mixA * n_pulay[(tbc.tb.nwan+1):end]
                 end                    
 
 #               e_denA = (1 - mixA) * 
@@ -512,7 +524,7 @@ e_den = deepcopy(e_den0)
         
 #        println("SCF STEP 2/2 - converge final")
 #        e_den_OLD = deepcopy(e_den)
-        mix = min(mix, 0.1)
+#        mix = min(mix, 0.1)
         conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*2)
         
         if energy_tot > 0.1  #|| abs(energy1 - energy_tot)/tbc.crys.nat > 0.05
@@ -545,6 +557,12 @@ e_den = deepcopy(e_den0)
     h1, dq = get_h1(tbc, e_den)
     tbc.tb.h1 = h1     #moar side effect
     tbc.tb.scf = true  #just double checking
+    
+    if magnetic
+        h1spin = get_spin_h1(tbc, e_den)
+        tbc.tb.h1spin = h1spin
+        tbc.tb.scfspin = true
+    end
 
     tbc.efermi=efermi
     tbc.energy=energy_tot

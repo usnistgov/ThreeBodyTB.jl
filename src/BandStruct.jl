@@ -250,7 +250,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 #function plot_bandstr( kpath; names = missing, npts=30, efermi = missing)
 
 
-    if h.nspin == 2
+    if h.nspin == 2 || h.scfspin == true
         if spin == "both" || spin == :both
             spin = 0
         elseif spin == "up" || spin == :up
@@ -262,7 +262,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
         spin = 1
     end
     
-    println("plot_bandstr ")
+    #println("plot_bandstr ")
     if clear_previous
         #println("clear")
         #        display(plot(legend=false, grid=false, framestyle=:box))
@@ -277,8 +277,6 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
         end
     end
 
-
-                
 
     NK = size(kpath)[1]
 
@@ -369,9 +367,9 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
         end
     else
         vals = calc_bands(h, K)
-        if h.nspin == 1 || spin != 0
+        if (h.nspin == 1 && h.scfspin == false) 
             vals = vals[:,:,spin]
-        elseif h.nspin == 2 && spin == 0
+        elseif (h.nspin == 2 || h.scfspin) && spin == 0
             vals_up = vals[:,:,1]
             vals_dn = vals[:,:,2]
             vals = sort([vals_up vals_dn], dims=2)
@@ -391,7 +389,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
 
     if !ismissing(align)
-        println("align ", align)
+     #   println("align ", align)
         align = lowercase(align)
         if align == "min" || align == "minimum"
             vmin = minimum(vals)
@@ -409,7 +407,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             vals = vals .- vbm
             alignstr = "Energy - VBM ($units)"
 
-            if h.nspin == 2 && spin == 0
+            if (h.nspin == 2  || h.scfspin) && spin == 0
                 vals_up = vals_up .- vbm
                 vals_dn = vals_dn .- vbm
             end
@@ -421,10 +419,10 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
     #    println("yyyyyyyyyyyyyyyyy")
     if ismissing(proj_inds)
 
-        if h.nspin == 1 || spin != 0
-            println("color = $color markersize = $MarkerSize")
+        if (h.nspin == 1 && h.scfspin == false) || spin != 0
+#            println("color = $color markersize = $MarkerSize")
             plot!(convert_energy(vals), color=color, lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color, legend=false, grid=false)
-        elseif h.nspin == 2 && spin == 0
+        elseif (h.nspin == 2 || h.scfspin ) && spin == 0
 
             plot!(convert_energy(vals_dn[:,1]), color=color_spin[2], lw=3.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[2], label="dn", grid=false)
 

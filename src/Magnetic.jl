@@ -50,7 +50,15 @@ function WX(tbc::tb_crys, spin)
         Wm[c.+(1:nwan)] = mag.W * spin_at
         Xm[c.+(1:nwan)] = mag.X * abs.(spin_at)
 
+#        println("spin_at ", spin_at)
+
+#        println("magW ")
+#        println(mag.W)
+
 #        println("Size Wm ", size(Wm), " size Wm2 ", size(Wm[c.+(1:nwan)]), " spin_at ", size(spin_at)
+
+#        println("W ", 0.5*sum(spin_at .* Wm[c.+(1:nwan)]))
+#        println("X ", 0.5*sum(spin_at .* Xm[c.+(1:nwan)]))
 
         energy += 0.5*(sum(spin_at .* Wm[c.+(1:nwan)]) + sum(abs.(spin_at) .* Xm[c.+(1:nwan)]))
         c += nwan
@@ -67,8 +75,11 @@ function get_spin_h1(tbc::tb_crys, chargeden::Array{Float64,2})
 
     spin = chargeden[1,:] - chargeden[2,:]
 
-    h1up = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
-    h1dn = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+#    h1up = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+#    h1dn = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+
+    h1spin = zeros(Complex{Float64}, 2, tbc.tb.nwan, tbc.tb.nwan)
+
 
     Wm, Xm, energy = WX(tbc, spin)
     
@@ -83,13 +94,17 @@ function get_spin_h1(tbc::tb_crys, chargeden::Array{Float64,2})
             a2,t2,orb2 = ind2orb[i2]
             sorb2 = summarize_orb(orb2)
             
-            h1up[i1,i2] = 0.5*Wm[i1] + 0.5*Xm[i1] + 0.5*Wm[i2] + 0.5*Xm[i2]
-            h1dn[i1,i2] = -0.5*Wm[i1] + 0.5*Xm[i1] + -0.5*Wm[i2] + 0.5*Xm[i2]
+#            h1up[i1,i2] = 0.5*Wm[i1] + 0.5*Xm[i1] + 0.5*Wm[i2] + 0.5*Xm[i2]
+#            h1dn[i1,i2] = -0.5*Wm[i1] + 0.5*Xm[i1] + -0.5*Wm[i2] + 0.5*Xm[i2]
+
+            h1spin[1,i1,i2] = 0.5*Wm[i1] + 0.5*Xm[i1] + 0.5*Wm[i2] + 0.5*Xm[i2]
+            h1spin[2,i1,i2] = -0.5*Wm[i1] + 0.5*Xm[i1] + -0.5*Wm[i2] + 0.5*Xm[i2]
 
         end
     end
 
-    return h1up, h1dn
+#    return h1up, h1dn
+    return h1spin
 
 end
 

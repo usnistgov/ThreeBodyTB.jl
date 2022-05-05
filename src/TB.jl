@@ -101,7 +101,9 @@ mutable struct tb{T}
     #    S::Array{Complex{Float64},3}
     S::Array{Complex{T},3}    
     scf::Bool
+    scfspin::Bool
     h1::Array{T,2} #scf term
+    h1spin::Array{T,3} #scf term
 
 end
 
@@ -111,8 +113,9 @@ Base.show(io::IO, h::tb) = begin
     nr=h.nr
     nonorth = h.nonorth
     scf = h.scf
+    scfspin = h.scfspin
     nspin=h.nspin
-    println(io, "tight binding real space object; nwan = $nwan, nr = $nr, nonorth = $nonorth, scf = $scf, nspin = $nspin" )
+    println(io, "tight binding real space object; nwan = $nwan, nr = $nr, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, nspin = $nspin" )
     println(io)
     
 end   
@@ -158,8 +161,8 @@ Base.show(io::IO, x::tb_crys) = begin
     println(io)    
     println(io, x.crys)
     println(io)
-    println(io, "nelec: ", x.nelec, "; nspin: ", x.nspin)
-    println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf)
+    println(io, "nelec: ", x.nelec, "; nspin (hoppings): ", x.nspin)
+    println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin)
     println("calculated energy: ", round(x.energy*1000)/1000)
     println("efermi  : ", round(x.efermi*1000)/1000)
     dq = get_dq(x)
@@ -210,6 +213,7 @@ mutable struct tb_k{T}
     nonorth::Bool
     Sk::Array{Complex{T},3}    
     scf::Bool
+    scfspin::Bool
     h1::Array{T,2} #scf term
     grid::Array{Int64,1}
 
@@ -603,9 +607,10 @@ get tbc object from xml file, written by write_tb_crys (see below)
         gamma = reshape(gamma, s, s)
         
     end
-    if "eden" in keys(d)
-        eden  = parse_str_ARR_float(d["eden"])
-    end
+
+#    if "eden" in keys(d)
+#        eden  = parse_str_ARR_float(d["eden"])
+#    end
     
 
     ##tb
@@ -988,7 +993,17 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     if ismissing(gamma) 
         gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
-
+    
+    println(hamk)
+    println(crys)
+    println(nelec)
+    println(nspin)
+    println(dftenergy)
+    println(scf)
+    println(gamma)
+    println(eden)
+    println(size(gamma))
+    println(size(eden))
     return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma, eden, -999.0)
 end
 
@@ -998,7 +1013,7 @@ end
 
 Constructor function for `tb`
 """
-function make_tb(H, ind_arr, r_dict::Dict; h1=missing)
+function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
     nw=size(H,2)
     if nw != size(H)[3]
         s=size(H)
@@ -1022,8 +1037,16 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing)
     else
         scf = true
     end
+    
+    if ismissing(h1spin)
+        h1spin = zeros(T, 2,nw,nw)
+        scfspin = false
+    else
+        scfspin = true
+    end
 
-    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, h1)
+
+    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, scfspin, h1, h1spin)
 end
 
 """
@@ -1031,7 +1054,7 @@ end
 
 Constructor function for `tb` with overlaps
 """
-function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing)
+function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
     nw=size(H,2)
     if nw != size(H,3) 
         exit("error in make_tb ", size(H))
@@ -1056,11 +1079,20 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing)
         scf = true
     end
 
+    if ismissing(h1spin)
+        h1spin = zeros(T, 2,nw,nw)
+        scfspin = false
+    else
+        scfspin = true
+    end
+
+
+
 #    println("size H ", size(H), " ", typeof(H), " npin $nspin ")
 #    println("T ", T)
 #    println("S ", size(S), " " , typeof(S))
 #    println("size h1 ", size(h1), "  ", typeof(h1))
-    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf, h1)
+    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,scfspin, h1, h1spin)
 end
 
 
@@ -1105,6 +1137,8 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
     else
         scf = true
     end
+    scfspin = false
+
 #=
     println("make_tb_k")
     println(typeof(Hk))
@@ -1119,7 +1153,7 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
     println(typeof(h1))
     println(typeof(grid))
 =#
-    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, h1, grid)
+    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, grid)
 end
 
 
@@ -1139,7 +1173,7 @@ end
 
 Constructor function for `tb`, better programming.
 """
-function make_tb(H, ind_arr, S; h1=missing)
+function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
 
     r_dict = make_rdict(ind_arr)
     
@@ -1167,8 +1201,15 @@ function make_tb(H, ind_arr, S; h1=missing)
         scf = true
     end
 
+    if ismissing(h1spin)
+        h1spin =zeros(Float64, 2, nw, nw)
+        scfspin = false
+    else
+        scfspin = true
+    end
+
     
-    return tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, h1)
+    return tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin)
 end
 
 
@@ -1323,7 +1364,7 @@ end
          scf = h.scf
      end
 
-     if spin == 2 && h.nspin == 1
+     if spin == 2 && h.nspin == 1 && h.tb.scfspin == false
          println("ERROR, asking for spin 2 from nsp ham")
      end
 
@@ -1440,7 +1481,11 @@ end
 
      for m in 1:h.nwan
          for n in 1:h.nwan        
-             hk0[m,n] = h.H[spin,m,n,:]'*exp_ikr[:]
+             if h.nspin == 2
+                 hk0[m,n] = h.H[spin,m,n,:]'*exp_ikr[:]
+             else
+                 hk0[m,n] = h.H[1,m,n,:]'*exp_ikr[:]
+             end
              if h.nonorth
                  sk[m,n] = h.S[m,n,:]'*exp_ikr[:]
              end
@@ -1448,12 +1493,14 @@ end
      end
      hk0 = 0.5*(hk0 + hk0')
 
+     hk .= hk0
      if h.scf
- #        println("add SCF")
-         hk = hk0 + sk .* h.h1
-     else
-         hk[:,:] = hk0[:,:]
+         hk .+= sk .* h.h1
      end
+     if h.scfspin
+         hk .+= sk .* h.h1spin[spin,:,:]
+     end
+
      hk = 0.5*(hk[:,:] + hk[:,:]')
 
  #    ex = 0.0 + im*0.0
@@ -1561,12 +1608,20 @@ end
 
  #    println("vals time")
 
-     Vals = zeros(Float64,  nk,h.nwan,h.nspin )
+     if h.scfspin == true
+         nspin = 2
+     else
+         nspin = h.nspin
+     end
 
-     for spin = 1:h.nspin
+
+     Vals = zeros(Float64,  nk,h.nwan,nspin )
+
+     for spin = 1:nspin
          for i = 1:nk
              
              vect, vals, hk, sk, vals0 = Hk(h, kpoints[i,:], spin=spin)
+#             println("size Vals ", size(Vals), " " , size(vals))
              Vals[i,:, spin] = vals
              #        if sum(abs.(kpoints[i,:])) == 0
              #            println("k0")
@@ -1870,10 +1925,10 @@ end
              h1 = 0.5*(h1 + h1')
          end
          if ismissing(h1spin)
-             h1spin = [zeros(nwan,nwan), zeros(nwan,nwan)]
-         else
-             h1spin[1] = 0.5*(h1spin[1] + h1spin[1]')
-             h1spin[2] = 0.5*(h1spin[2] + h1spin[2]')
+             h1spin = zeros(2,nwan,nwan)# , zeros(nwan,nwan)]
+#         else
+#             h1spin[1] = 0.5*(h1spin[1] + h1spin[1]')
+#             h1spin[2] = 0.5*(h1spin[2] + h1spin[2]')
          end
 
          
@@ -1903,7 +1958,7 @@ end
              for spin = 1:nspin
                  spin_ind = min(spin, nspin_ham)
                  hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
-                 hk = hk0 + sk .* (h1 + h1spin[spin])
+                 hk = hk0 + sk .* (h1 + h1spin[spin,:,:])
                  vals, vects = eigen(hk, sk)
                  
                  if maximum(abs.(imag.(vals))) > 1e-10
@@ -1950,7 +2005,11 @@ end
 #         println("energy smear $energy_smear")
 #         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
-         
+
+#         println("VALS0")
+#         println(VALS0)
+#         println("energy0 $energy0")
+#         println("energy smear $energy_smear")
 #         println("ENERGY 0 : $energy0")
          
          energy0 += energy_smear * nspin
