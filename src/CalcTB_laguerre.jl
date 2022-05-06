@@ -3928,7 +3928,7 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1)
 
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
@@ -4130,7 +4130,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 
                 ind = ind_conversion[(o1,o2,cham)]
 
-                hvec[ind] = real(reference_tbc.tb.H[o1,o2,c_ref])
+                hvec[ind] = real(reference_tbc.tb.H[spin, o1,o2,c_ref])
                 svec[ind] = real(reference_tbc.tb.S[o1,o2,c_ref])
                 dist2[ind] = dist
 #                if abs(svec[ind]) > 0.001

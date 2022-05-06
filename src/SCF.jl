@@ -81,6 +81,10 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
+    if tbc.nspin == 2
+        nspin = 2
+    end
+
     if nspin == 2
         magnetic = true
     else
@@ -307,7 +311,7 @@ e_den = deepcopy(e_den0)
 
             delta_eden_old = delta_eden
 
-#            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
+            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
 
@@ -491,7 +495,7 @@ e_den = deepcopy(e_den0)
 
 #    println("STEP1")
 #    conv, e_den = innnerloop(0.2, 0.1, e_den, 1e-4)
-#    println("e_den  $e_den")
+    println("e_den  $e_den")
 
 
     if mixing_mode == :pulay
@@ -763,27 +767,42 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     end
 
     h1, dq = get_h1(tbcK, e_den)
+    if tbcK.tb.nspin == 2
+        h1spin = get_spin_h1(tbcK, e_den)
+    else
+        h1spin = zeros(2,tbcK.tb.nwan,tbcK.tb.nwan)
+    end
+    
     energy_charge, pot = ewald_energy(tbcK, dq)
+    if tbcK.tb.nspin ==2
+        energy_magnetic = magnetic_energy(tbcK)
+    else
+        energy_magnetic = 0.0
+    end
 
     println("energy_charge ", energy_charge)
-    
+    println("energy_magnetic ", energy_magnetic)
+
+
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbcK.crys)
     
     #we need to shift eigenvalues this much
-    new_target_energy = energy_orig - energy_charge
+    new_target_energy = energy_orig - energy_charge - energy_magnetic
     
     Hk_new = zeros(Complex{Float64}, size(tbcK.tb.Hk))
 
     sk = zeros(Complex{Float64}, tbcK.tb.nwan, tbcK.tb.nwan)
-    hk = zeros(Complex{Float64}, tbcK.tb.nwan, tbcK.tb.nwan)
+                               hk = zeros(Complex{Float64}, tbcK.tb.nwan, tbcK.tb.nwan)
 
-    for k = 1:tbcK.tb.nk
-        sk = tbcK.tb.Sk[:,:,k]
-#        println(size(sk), " " , size(h1))
-        t = sk .* h1
-#        println(size(t), " t  " , size(Hk_new))
-        
-        Hk_new[:,:,k] = tbcK.tb.Hk[:,:,k] - 0.5 * (t + t')
+    for spin = 1:tbcK.nspin
+        for k = 1:tbcK.tb.nk
+            sk = tbcK.tb.Sk[:,:,k]
+            #        println(size(sk), " " , size(h1))
+            t = sk .* (h1 + h1spin[spin,:,:])
+                       #        println(size(t), " t  " , size(Hk_new))
+                       
+            Hk_new[:,:,k, spin] = tbcK.tb.Hk[:,:,k,spin] - 0.5 * (t + t')
+        end
     end
 
     tbcK_new = deepcopy(tbcK)
@@ -802,28 +821,34 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 #    energy_smear = smearing_energy(VALS_new, tbcK.tb.kweights, efermi_new, smearing)
 #    println("energy smear " , energy_smear)
 
-    shift = (energy_orig - energy_charge - energy_new)/nval
+    shift = (energy_orig - energy_charge - energy_magnetic - energy_new)/nval
     println("shift $shift   $energy_orig $energy_charge $energy_new $nval")
  #    println("shift $shift")
 
-
-    for k = 1:tbcK.tb.nk
-        hk[:,:] = Hk_new[:,:,k]
-        sk[:,:] = tbcK_new.tb.Sk[:,:,k]
-
-        vals, vects = eigen(0.5*(hk+hk'), 0.5*(sk+sk'))
-        hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
-                
-        Hk_new[:,:,k] = 0.5*(hk[:,:]  + hk[:,:]')
-
+    for spin = 1:tbcK.nspin
+        for k = 1:tbcK.tb.nk
+            hk[:,:] = Hk_new[:,:,k, spin]
+            sk[:,:] = tbcK_new.tb.Sk[:,:,k]
+            
+            vals, vects = eigen(0.5*(hk+hk'), 0.5*(sk+sk'))
+            hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
+            
+            Hk_new[:,:,k,spin] = 0.5*(hk[:,:]  + hk[:,:]')
+            
+        end
     end
 
     tbcK_new.tb.Hk = Hk_new
     tbcK_new.tb.h1 = h1
+    tbcK_new.tb.h1spin = h1spin
     tbcK_new.eden = e_den
     tbcK_new.scf = true
     tbcK_new.tb.scf = true
-
+    if tbcK.nspin == 2
+        tbcK_new.tb.scfspin = true
+    else
+        tbcK_new.tb.scfspin = false
+    end
 #    println("tbcK_new")
 #    println(tbcK_new)
     return tbcK_new
@@ -841,28 +866,40 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
         println("do not need to adjust, already scf")
         return tbc
     end
-    hk3, sk3 = myfft_R_to_K(tbc, grid)
+ 
 
-    hk3, sk3, e_den_NEW, h1 = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
+
+    hk3, sk3 = myfft_R_to_K(tbc, grid)
+    println("size hk3 ", size(hk3))
+
+    hk3, sk3, e_den_NEW, h1, h1spin = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
+    println("size hk3 v2 ", size(hk3))
 
     grid = size(hk3)[3:5]
 
     ctemp = tbc.crys
 
+    println("before myfft")
     ham_r, S_r, r_dict, ind_arr = myfft(ctemp, true, grid, [],hk3, sk3)
+    println("after myff")
+
+    if tbc.nspin == 1
+        h1spin=missing
+    end
         
-    tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=h1 )
+    println("size(ham_r) ", size(ham_r))
+    tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=h1, h1spin=h1spin )
 
     #with charge density
     tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=e_den_NEW, gamma = tbc.gamma)
 
-    if false
-        println("test")
-        hk3_A, sk3_A = myfft_R_to_K(tbc_new, grid)
-
-        println("hk3 diff ", sum(abs.(hk3_A - hk3)))
-        println("sk3 diff ", sum(abs.(sk3_A - sk3)))
-    end
+#    if false
+#        println("test")
+#        hk3_A, sk3_A = myfft_R_to_K(tbc_new, grid)#
+#
+#        println("hk3 diff ", sum(abs.(hk3_A - hk3)))
+#        println("sk3 diff ", sum(abs.(sk3_A - sk3)))
+#    end
 
     return tbc_new
 
@@ -891,20 +928,32 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     end
 
     h1, dq = get_h1(tbc, e_den)
+    if tbc.nspin == 2
+        h1spin = get_spin_h1(tbc, e_den)
+    else
+        h1spin = zeros(2,tbc.nwan, tbc.nwan)
+    end
+    println("typeof(h1spin) ", typeof(h1spin))
+
     println("dq $dq")
 #test
 #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
     
     energy_charge, pot = ewald_energy(tbc, dq)
-
+    if tbc.nspin == 2
+        energy_magnetic = magnetic_energy(tbc, e_den)
+    else
+        energy_magnetic = 0.0
+    end
     println("energy_charge ", energy_charge)
+    println("energy_magnetic ", energy_magnetic)
     
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbc.crys)
 
 
     #we need to shift eigenvalues this much
-    new_target_energy = energy_band_orig - energy_charge
+    new_target_energy = energy_band_orig - energy_charge - energy_magnetic
 
     
     grid = size(hk3)[3:5]
@@ -912,45 +961,47 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     sk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     hk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
 
+    for spin = 1:tbc.nspin
+        for k1 = 1:grid[1]
+            for k2 = 1:grid[2]
+                for k3 = 1:grid[3]
+                    
+                    hk[:,:] = 0.5*(hk3[:,:,spin, k1,k2,k3] + hk3[:,:,spin, k1,k2,k3]')
+                    sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                    t=sk .* (h1  + h1spin[spin,:,:])
+                    hk -= 0.5*(t + t')      #removing scf term
+                    
+                    hk3[:,:,spin, k1,k2,k3] = hk[:,:]
 
-    for k1 = 1:grid[1]
-        for k2 = 1:grid[2]
-            for k3 = 1:grid[3]
-
-                hk[:,:] = 0.5*(hk3[:,:,k1,k2,k3] + hk3[:,:,k1,k2,k3]')
-                sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                t=sk .* h1
-                hk -= 0.5*(t + t')      #removing scf term
-                
-                hk3[:,:,k1,k2,k3] = hk[:,:]
-
+                end
             end
         end
     end
-    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1)
+    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
 
     
-    shift = (energy_band_orig - energy_charge - energy_band_new)/nval
+    shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
     println("shift $shift   $energy_band_orig $energy_charge $energy_band_new $nval")
-    for k1 = 1:grid[1]
-        for k2 = 1:grid[2]
-            for k3 = 1:grid[3]
-
-                hk[:,:] = 0.5*(hk3[:,:,k1,k2,k3] + hk3[:,:,k1,k2,k3]')
-                sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-
-                vals, vects = eigen(hk, sk)
-                hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
-                
-                hk3[:,:,k1,k2,k3] = hk[:,:] 
-
-
+    for spin = 1:tbc.nspin
+        for k1 = 1:grid[1]
+            for k2 = 1:grid[2]
+                for k3 = 1:grid[3]
+                    
+                    hk[:,:] = 0.5*(hk3[:,:,spin, k1,k2,k3] + hk3[:,:,spin, k1,k2,k3]')
+                    sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                    
+                    vals, vects = eigen(hk, sk)
+                    hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
+                    
+                    hk3[:,:,spin, k1,k2,k3] = hk[:,:] 
+                    
+                    
+                end
             end
         end
     end
 
-
-    return hk3, sk3, e_den_NEW, h1
+    return hk3, sk3, e_den_NEW, h1, h1spin
 
 
 end

@@ -83,11 +83,11 @@ Used for simple linear fitting of coefficients. Interface for more complicated f
 - `dft_list` - for kspace fitting, use 
 - `fit_threebody=true` - Fit threebody coefficients. Sometimes `false` for testing, but `true` for production.
 - `fit_threebody_onsite=true` - Fit threebody onsite coefficients. See above.
-- `do_plot=true` - show simple plot comparing coefficients to tbc reference.
+- `do_plot=false` - show simple plot comparing coefficients to tbc reference.
 """
-function do_fitting(list_of_tbcs; fit_threebody=true, fit_threebody_onsite=true, do_plot = true)
+function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false)
 
-    ret = do_fitting_linear(list_of_tbcs; fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot)
+    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot)
     return ret[1]
 
 end
@@ -106,7 +106,15 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         println(typeof(tbc))
         if ismissing(tbc) || typeof(tbc) == tb_crys_kspace{Float64}
             println("calc fake tbc")
-            tbc_fake = calc_tb_fast(dft_list[c].crys) #we calculate the fake tbc in order to take the fourier transform.
+            tbc_fake = calc_tb_fast(tbc.crys) #we calculate the fake tbc in order to take the fourier transform.
+            if tbc.nspin == 2
+                s = size(tbc_fake.tb.H)
+                H2 = zeros(2,s[2], s[3], s[4])
+                H2[1,:,:,:] = tbc_fake.tb.H
+                H2[2,:,:,:] = tbc_fake.tb.H
+                tb2 = make_tb(H2, tbc_fake.tb.ind_arr, tbc_fake.tb.r_dict, tbc_fake.tb.S)
+                tbc_fake = make_tb_crys(tb2, tbc.crys, tbc.nelec, tbc.dftenergy)
+            end
             push!(tbc_list, tbc_fake)
             push!(tbc_list_real, false)
         else
@@ -145,126 +153,132 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     real_tbc = []
 
-    for (counter, tbc) in enumerate(tbc_list)
-        
-        #rearrange info for fitting.
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite)
+    SPIN = []
 
-        #take into account prefit information
-        if !ismissing(starting_database)
-            goodmin=true
-            for key in keys(dmin_types)
-                for key2 in keys(starting_database)
-                    if Set(key2) == key
-                        if dmin_types[key] < starting_database[key2].min_dist * 0.995 && length(key2) == 2
-                            goodmin = false
-                            println("WARNING, skipping fit structure due to distance shorter than starting_database $counter , two-body")
-                            println(key, " " , key2, " ", dmin_types[key] , " < " , starting_database[key2].min_dist)
-                            println(tbc.crys)
-                            println()
-                            break
+    for (counter, tbc) in enumerate(tbc_list)
+
+        for spin = 1:tbc.nspin
+            println("FIT COUNTER $counter SPIN $spin")
+            #rearrange info for fitting.
+            @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = spin)
+
+            #take into account prefit information
+            if !ismissing(starting_database)
+                goodmin=true
+                for key in keys(dmin_types)
+                    for key2 in keys(starting_database)
+                        if Set(key2) == key
+                            if dmin_types[key] < starting_database[key2].min_dist * 0.995 && length(key2) == 2
+                                goodmin = false
+                                println("WARNING, skipping fit structure due to distance shorter than starting_database $counter , two-body")
+                                println(key, " " , key2, " ", dmin_types[key] , " < " , starting_database[key2].min_dist)
+                                println(tbc.crys)
+                                println()
+                                break
+                            end
                         end
                     end
                 end
+
+
+                if goodmin == true
+                    violation_list, vio_bool = calc_frontier(tbc.crys, starting_database, test_frontier=true, verbose=false) #figure out of there are atoms that are too close together, exclude from fitting.
+                    if vio_bool == false
+                        println("calc_frontier failed, skip $counter") 
+                        println(tbc.crys)
+                        goodmin = false
+                    end
+                end
+
+
+                if goodmin == false
+                    println("goodmin == false")
+                    continue
+                end
+                println("goodmin == true")
+                keepind = [keepind;counter]
+                println(keepind)
+            else
+                keepind = [keepind;counter]
             end
 
 
-            if goodmin == true
-                violation_list, vio_bool = calc_frontier(tbc.crys, starting_database, test_frontier=true, verbose=false) #figure out of there are atoms that are too close together, exclude from fitting.
-                if vio_bool == false
-                    println("calc_frontier failed, skip $counter") 
-                    println(tbc.crys)
-                    goodmin = false
+
+            for key in keys(dmin_types)
+                if !(key in keys(DMIN_TYPES))
+                    DMIN_TYPES[key] = dmin_types[key]
+                else
+                    DMIN_TYPES[key] = min(DMIN_TYPES[key], dmin_types[key])
+                end
+            end
+
+            for key in keys(dmin_types3)
+                if !(key in keys(DMIN_TYPES3))
+                    DMIN_TYPES3[key] = dmin_types3[key]
+                else
+                    DMIN_TYPES3[key] = min(DMIN_TYPES3[key], dmin_types3[key])
                 end
             end
 
 
-            if goodmin == false
-                println("goodmin == false")
-                continue
-            end
-            println("goodmin == true")
-            keepind = [keepind;counter]
-            println(keepind)
-        else
-            keepind = [keepind;counter]
-        end
-
-
-
-        for key in keys(dmin_types)
-            if !(key in keys(DMIN_TYPES))
-                DMIN_TYPES[key] = dmin_types[key]
+            push!(ARR2, twobody_arrays)
+            if fit_threebody || fit_threebody_onsite
+                push!(ARR3, threebody_arrays)
             else
-                DMIN_TYPES[key] = min(DMIN_TYPES[key], dmin_types[key])
+                push!(ARR3, Dict())
             end
-        end
-
-        for key in keys(dmin_types3)
-            if !(key in keys(DMIN_TYPES3))
-                DMIN_TYPES3[key] = dmin_types3[key]
-            else
-                DMIN_TYPES3[key] = min(DMIN_TYPES3[key], dmin_types3[key])
-            end
-        end
-
-
-        push!(ARR2, twobody_arrays)
-        if fit_threebody || fit_threebody_onsite
-            push!(ARR3, threebody_arrays)
-        else
-            push!(ARR3, Dict())
-        end
             
 
-        push!(HVEC, hvec)
-        push!(SVEC, svec)
-        
-        push!(RIND, rows+1:rows+size(hvec)[1])
+            push!(HVEC, hvec)
+            push!(SVEC, svec)
+            
+            push!(RIND, rows+1:rows+size(hvec)[1])
 
-        push!(RVEC, Rvec)
-        push!(INDVEC, INDvec)
+            push!(RVEC, Rvec)
+            push!(INDVEC, INDvec)
 
-        push!(HON, h_onsite)
+            push!(HON, h_onsite)
 
-        push!(IND_convert, ind_convert)
+            push!(IND_convert, ind_convert)
+            push!(SPIN, spin)
 
-        rows += size(hvec)[1]
+            rows += size(hvec)[1]
 
-        for key in keys(twobody_arrays)
-            if !( (key,2) in KEYS)
-                push!(KEYS, (key,2))
-                
-                HIND[(key,2)] = 1+hnum:hnum+twobody_arrays[key][3].sizeH
-#                println("HIND ", (key,2), " ", 1+hnum:hnum+twobody_arrays[key][3].sizeH)
-                SIND[(key,2)] = 1+snum:snum+twobody_arrays[key][3].sizeS
-
-                hnum += twobody_arrays[key][3].sizeH
-                snum += twobody_arrays[key][3].sizeS
-            end
-        end
-
-#        println("KEYS 3 " , keys(threebody_arrays))
-        
-        if fit_threebody || fit_threebody_onsite
-            for key in keys(threebody_arrays)
-                if !((key,3) in KEYS)
-                    push!(KEYS, (key,3))
+            for key in keys(twobody_arrays)
+                if !( (key,2) in KEYS)
+                    push!(KEYS, (key,2))
                     
-                    HIND[(key,3)] = 1+hnum:hnum+threebody_arrays[key][2].sizeH
-                    println("HIND ", (key,3), " ", 1+hnum:hnum+threebody_arrays[key][2].sizeH)
+                    HIND[(key,2)] = 1+hnum:hnum+twobody_arrays[key][3].sizeH
+                    #                println("HIND ", (key,2), " ", 1+hnum:hnum+twobody_arrays[key][3].sizeH)
+                    SIND[(key,2)] = 1+snum:snum+twobody_arrays[key][3].sizeS
 
-                    SIND[(key,3)] = []
+                    hnum += twobody_arrays[key][3].sizeH
+                    snum += twobody_arrays[key][3].sizeS
+                end
+            end
 
-                    for iii in 1+hnum:hnum+threebody_arrays[key][2].sizeH
-                        threebody_inds = [threebody_inds;iii]
+            #        println("KEYS 3 " , keys(threebody_arrays))
+            
+            if fit_threebody || fit_threebody_onsite
+                for key in keys(threebody_arrays)
+                    if !((key,3) in KEYS)
+                        push!(KEYS, (key,3))
+                        
+                        HIND[(key,3)] = 1+hnum:hnum+threebody_arrays[key][2].sizeH
+                        println("HIND ", (key,3), " ", 1+hnum:hnum+threebody_arrays[key][2].sizeH)
+
+                        SIND[(key,3)] = []
+
+                        for iii in 1+hnum:hnum+threebody_arrays[key][2].sizeH
+                            threebody_inds = [threebody_inds;iii]
+                        end
+
+
+                        hnum += threebody_arrays[key][2].sizeH
+                        snum += 0
+
+
                     end
-
-
-                    hnum += threebody_arrays[key][2].sizeH
-                    snum += 0
-
-
                 end
             end
         end
@@ -416,7 +430,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     #reformat the data into matrices, fourier transform the real-space fitting data to k-space if using kspace
     c=0
-    for (arr2, arr3, hvec, svec, rind, Rvec, INDvec, h_on, ind_convert, tbc_real, tbc) in zip(ARR2,ARR3, HVEC, SVEC, RIND, RVEC, INDVEC, HON, IND_convert, tbc_list_real, list_of_tbcs[keepind])
+    for (arr2, arr3, hvec, svec, rind, Rvec, INDvec, h_on, ind_convert, tbc_real, tbc, spin) in zip(ARR2,ARR3, HVEC, SVEC, RIND, RVEC, INDVEC, HON, IND_convert, tbc_list_real, list_of_tbcs[keepind], SPIN)
         c+=1
         println("first part")
 
@@ -494,9 +508,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
         if !ismissing(kpoints)
 
-            println("fourier space")
+            println("fourier space $spin")
 
-            @time X_Hnew, X_Snew, Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec, svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert)  #get kspace
+            @time X_Hnew, X_Snew, Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec, svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=spin)  #get kspace
 
             ind_BIG[c, 1] = size(Xc_Hnew_BIG)[1] + 1
 
@@ -567,12 +581,12 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     
 
-    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Hnew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit
+    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Hnew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN
     
 end
 
 """
-    function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = true, starting_database=missing, mode=:kspace, return_database=true, NLIM=100, refit_database=missing)
+    function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=100, refit_database=missing)
 
 Linear fitting (not recursive). Used as starting point of recursive fitting.
 
@@ -583,14 +597,16 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `dft_list = missing` List of `dftout` objects. Normally, we get symmetry reduced k-grids from these objects.
 - `fit_threebody=true` Fit three body coefficients. Yes for production runs.
 - `fit_threebody_onsite=true` Fit 3body onsite coefficients. Yes for production runs.
-- `do_plot = true` Make a plot to assess fitting. 
+- `do_plot = false` Make a plot to assess fitting. 
 - `starting_database=missing` Use a database dict with some of the coefficents already fit and fixed.
 - `mode=:kspace` Fit in either `:kspace` or `:rspace`. Can only use r-space if using only `tbc_crys` real-space objects to fit to. `:kspace` is normal.
 - `return_database=true` Return the final database. For use when called by other functions.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = true, starting_database=missing, mode=:kspace, return_database=true, NLIM=100, refit_database=missing)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=100, refit_database=missing)
+
+    println("MODE $mode")
 
     if ismissing(kpoints) && !ismissing(dft_list)
         kpoints, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
@@ -608,7 +624,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     end
 
 
-    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Hnew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database)
+    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Hnew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -645,7 +661,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
 
         @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG - Xc_Hnew_BIG)[rind]
-#        @time cs = X_Snew_BIG \ (Y_Snew_BIG  - Xc_Snew_BIG)
+#        @time cs = X_Snew_BIG[rind,:] \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
@@ -704,18 +720,21 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
 
     
-#    if do_plot == true
-    if false
+    if do_plot == true
+
+        println("DO PLOT")
+    #if false
 
         
         if mode == :rspace
             rows = size(X_H)[1]
             scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8)
-            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
+#            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
         else
             rows1 = size(X_Hnew_BIG)[1]
             scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4)
-            scatter!(Ys_new + Xc_Snew_BIG, Y_Snew_BIG  , MarkerSize=6, color="orange")
+#            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
+#            scatter!(X_S[1:rows1, :]*cs , Y_S  , MarkerSize=6, color="orange")
 #            plot(Xc_Snew_BIG, Y_Snew_BIG , "k.")
         end
 
@@ -732,7 +751,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
-    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit
+    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN
            
 
 end
@@ -951,7 +970,7 @@ end
 
 Do analytic fourier transform of real space fitting matrices into kspace.
 """
-function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, INDVec, h_on, ind_convert)
+function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, INDVec, h_on, ind_convert; spin=1)
 
 #    for i = 1:length(Y_S)
 #        if abs(Y_S[i]) > 0.001
@@ -1075,8 +1094,8 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
         end
 
         if typeof(tbc) == tb_crys_kspace{Float64}
-#            println("typeof(tbc) == tb_crys_kspace !!!!!!!!!!!!!!!!!!!!")
-            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=false)
+            println("typeof(tbc) == tb_crys_kspace !!!!!!!!!!!!!!!!!!!! $spin")
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=false, spin=spin)
 
             for o1 = 1:nw
                 for o2 = 1:nw
@@ -1228,6 +1247,22 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
 
 end
 
+
+function get_k_simple(kpoints, list_of_tbcs)
+
+    KPOINTS = []
+    KWEIGHTS = []
+    nk_max = size(kpoints)[1]
+    for t in list_of_tbcs
+        for spin = 1:t.nspin
+            push!(KPOINTS, kpoints)
+            push!(KWEIGHTS, 1.0)
+        end
+    end
+    return KPOINTS, KWEIGHTS, nk_max
+end
+
+
 """
     function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, X_cv = missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false)
 
@@ -1258,10 +1293,11 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 """
 function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
 
-    
-    
-    KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
-
+    if !ismissing(dft_list)
+        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
+    else
+        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+    end
     
     if ismissing(prepare_data)
         println("DO LINEAR FITTING")
@@ -1288,7 +1324,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit  = prepare_data
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = prepare_data
 
     println("keepind " , length(keepind), " " , sum(keepind))
     println(keepind)
@@ -1345,25 +1381,26 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     NWAN_MAX = maximum(ind_BIG[:,3])
     NAT_MAX = 0
-    for dft in dft_list
-        NAT_MAX = max(NAT_MAX, dft.crys.nat)
+    for tbc in list_of_tbcs
+        NAT_MAX = max(NAT_MAX, tbc.crys.nat)
     end
 
 #    nk = size(kpoints)[1]
     NCALC = length(list_of_tbcs)
 
-    VALS     = zeros(NCALC, nk_max, NWAN_MAX)
+    VALS     = zeros(NCALC, 2, nk_max, NWAN_MAX)
 #    VECTS_MIX     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
-    VALS0     = zeros(NCALC, nk_max, NWAN_MAX)
+    VALS0     = zeros(NCALC,2, nk_max, NWAN_MAX)
 
-    E_DEN     = zeros(NCALC, NWAN_MAX)
-    H1     = zeros(NCALC, NWAN_MAX, NWAN_MAX)
+    E_DEN     = zeros(NCALC, 2, NWAN_MAX)
+    H1     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
+    H1spin     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
     DQ     = zeros(NCALC, NAT_MAX)
 
     ENERGY_SMEAR = zeros(NCALC)
 
-    OCCS     = zeros(NCALC, nk_max, NWAN_MAX)
-    WEIGHTS     = zeros(NCALC, nk_max, NWAN_MAX)
+    OCCS     = zeros(NCALC,2, nk_max, NWAN_MAX)
+    WEIGHTS     = zeros(NCALC, 2, nk_max, NWAN_MAX)
     ENERGIES = zeros(NCALC)
 
     Ys = Ys_new + Xc_Snew_BIG
@@ -1406,21 +1443,23 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         nw = size(S)[3]
         TEMP = zeros(Complex{Float64}, nw, nw)
         denmat = zeros(Float64, nw, nw)
-        for k in 1:nk
-            for a = 1:nw
-                for i = 1:nw
-                    for j = 1:nw
-                        TEMP[i,j] = vects[k,i,a]' * S[k,i,j] * vects[k,j,a]
+        electron_den = zeros(Float64, tbc.nspin, nw)
+        for spin = 1:tbc.nspin
+            for k in 1:nk
+                for a = 1:nw
+                    for i = 1:nw
+                        for j = 1:nw
+                            TEMP[i,j] = vects[spin, k,i,a]' * S[k,i,j] * vects[spin, k,j,a]
+                        end
                     end
+                    TEMP = TEMP + conj(TEMP)
+                    denmat += 0.5 * occ[spin, k,a] * real.(TEMP) * kweights[k]
                 end
-                TEMP = TEMP + conj(TEMP)
-                denmat += 0.5 * occ[k,a] * real.(TEMP) * kweights[k]
             end
+            electron_den[spin,:] = sum(denmat, dims=1) / sum(kweights)
         end
-        electron_den = sum(denmat, dims=1) / sum(kweights)
-
 #        println("size ", size(electron_den))
-        h1, dq = get_h1(tbc, electron_den[:])
+        h1, dq = get_h1(tbc, electron_den)
 #        println("electron_den $electron_den")
 #        println("dq ", dq)
 #        h1a, dqa = get_h1(tbc, tbc.eden)
@@ -1435,22 +1474,22 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     c=0
     NVAL = zeros(Float64, length(list_of_tbcs))
     NAT = zeros(Int64, length(list_of_tbcs))
-    @time for (tbc, kpoints, kweights, d ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list)
+    @time for (tbc, kpoints, kweights, d, spin ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
         c+=1
 
         NAT[c] = tbc.crys.nat
 
         nw = ind_BIG[c, 3]
         nk = size(kpoints)[1]
-
+        nspin = tbc.nspin
         row1, rowN, nw = ind_BIG[c, 1:3]
 
-        vmat     = zeros(Complex{Float64}, nk, nw, nw)
-        smat     = zeros(Complex{Float64}, nk, nw, nw)
+        vmat     = zeros(Complex{Float64}, nspin, nk, nw, nw)
+        smat     = zeros(Complex{Float64}, nspin, nk, nw, nw)
 
 
-        wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
-        ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
+        wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(tbc.crys)
+        ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbc.crys)
 
         NVAL[c] = nval
 
@@ -1467,85 +1506,96 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        println(kpoints)
 #        print("xx")
 
-        for k in 1:nk
+        for spin in 1:tbc.nspin
+            for k in 1:nk
 
-            if !ismissing(tbc) 
-                vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[k,:])  #reference
-                VALS[c,k,1:nw] = vals                           #reference
-                VALS0[c,k,1:nw] = vals0                          #reference
-                vmat[k, :,:] = vects
-                smat[k, :,:] = sk
-                if fit_to_dft_eigs
-                    n = min(d.bandstruct.nbnd - nsemi, nw)    
-                    nval_int = Int64(round(nval))
-#                    println("mix fit_to_dft_eigs $fit_to_dft_eigs old $c $k ", VALS[c,k,1:n])
-                    for k2 in 1:d.bandstruct.nks
-                        if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
-                            n = min(d.bandstruct.nbnd - nsemi, nw)    
-                            VALS[c,k,1+nval_int:n] = 0.5 * VALS[c,k,1+nval_int:n] + 0.5*(d.bandstruct.eigs[k2,nsemi+1+nval_int:nsemi+n] .+ shift)
-#                            println("change")
-                            break
+                if !ismissing(tbc) 
+                    vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[k,:], spin=spin)  #reference
+                    VALS[c,spin, k,1:nw] = vals                           #reference
+                    VALS0[c,spin, k,1:nw] = vals0                          #reference
+                    vmat[spin, k, :,:] = vects
+                    smat[k, :,:] = sk
+                    if fit_to_dft_eigs
+                        n = min(d.bandstruct.nbnd - nsemi, nw)    
+                        nval_int = Int64(round(nval))
+                        #                    println("mix fit_to_dft_eigs $fit_to_dft_eigs old $c $k ", VALS[c,k,1:n])
+                        for k2 in 1:d.bandstruct.nks
+                            if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
+                                n = min(d.bandstruct.nbnd - nsemi, nw)    
+                                VALS[c,spin, k,1+nval_int:n] = 0.5 * VALS[c,spin, k,1+nval_int:n] + 0.5*(d.bandstruct.eigs[k2,nsemi+1+nval_int:nsemi+n, spin] .+ shift)
+                                #                            println("change")
+                                break
+                            end
+                        end
+                        #                    println("mix fit_to_dft_eigs $fit_to_dft_eigs new $c $k ", VALS[c,k,1:n])
+                    end
+                else
+                    
+                    #               println("missing tbc $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!!!!!!x" )
+                    for spin = 1:d.nspin
+                        for k2 in 1:d.bandstruct.nks
+                            if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
+                                VALS[c,spin, k,:] .= 100.0
+                                VALS0[c,spin, k,:] .= 100.0
+                                
+                                n = min(d.bandstruct.nbnd - nsemi, nw)
+                                VALS[c,spin, k,1:n] = d.bandstruct.eigs[k2,nsemi+1:nsemi+n, spin] .+ shift
+                                VALS0[c,spin, k,1:n] = d.bandstruct.eigs[k2,nsemi+1:nsemi+n, spin] .+ shift
+                                
+                                
+                                #                        println("$c DFT_val ",  d.bandstruct.eigs[k2,nsemi+1:end] .+ shift)
+                            end
                         end
                     end
-#                    println("mix fit_to_dft_eigs $fit_to_dft_eigs new $c $k ", VALS[c,k,1:n])
                 end
-            else
+                #            VECTS_MIX[c,k, 1:nw, 1:nw] = vects
+
                 
- #               println("missing tbc $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!!!!!!x" )
-                for k2 in 1:d.bandstruct.nks
-                    if sum(abs.(d.bandstruct.kpts[k2,:] - kpoints[k,:]) ) < 1e-5
-                        VALS[c,k,:] .= 100.0
-                        VALS0[c,k,:] .= 100.0
-
-                        n = min(d.bandstruct.nbnd - nsemi, nw)
-                        VALS[c,k,1:n] = d.bandstruct.eigs[k2,nsemi+1:nsemi+n] .+ shift
-                        VALS0[c,k,1:n] = d.bandstruct.eigs[k2,nsemi+1:nsemi+n] .+ shift
-                        
-
-#                        println("$c DFT_val ",  d.bandstruct.eigs[k2,nsemi+1:end] .+ shift)
-                    end
-                end
             end
 
-#            VECTS_MIX[c,k, 1:nw, 1:nw] = vects
+        end        
 
-            
-        end
+        energy_tmp,  efermi = band_energy(VALS[c,1:dft.nspin, 1:nk,1:nw], kweights, nval, 0.01, returnef=true) 
 
-        
+        occs = gaussian.(VALS[c,1:dft.nspin,1:nk,1:nw].-efermi, 0.01)
 
-        energy_tmp,  efermi = band_energy(VALS[c,1:nk,1:nw], kweights, nval, 0.01, returnef=true) 
-
-        occs = gaussian.(VALS[c,1:nk,1:nw].-efermi, 0.01)
-
-        energy_smear = smearing_energy(VALS[c,1:nk,1:nw], kweights, efermi, 0.01)
+        energy_smear = smearing_energy(VALS[c,1:dft.nspin, 1:nk,1:nw], kweights, efermi, 0.01)
 
 
         if !ismissing(tbc) && typeof(tbc) == tb_crys{Float64}
             eden, h1, dq = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
-            E_DEN[c,1:nw] = eden
+            E_DEN[c,1:tbc.nspin, 1:nw] = eden
             H1[c,1:nw, 1:nw] = tbc.tb.h1
             DQ[c,1:tbc.crys.nat] = get_dq(tbc)
+            H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
+
         end
         if !ismissing(tbc) && typeof(tbc) == tb_crys_kspace{Float64}
             eden, h1, dq = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
-            E_DEN[c,1:nw] = eden
+            E_DEN[c,1:tbc.nspin, 1:nw] = eden
             H1[c,1:nw, 1:nw] = tbc.tb.h1
             DQ[c,1:tbc.crys.nat] = get_dq(tbc)
+            H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
         end
 
 
         if !ismissing(tbc)
-            s1 = sum(occs .* VALS0[c,1:nk,1:nw], dims=2)
+            s1 = sum(occs .* VALS0[c,1:tbc.nspin, 1:nk,1:nw], dims=[1,3])[:]
             energy_band = sum(s1 .* kweights)
             if scf
                 energy_charge, pot = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
+            if tbc.nspin == 2
+                energy_magnetic = magnetic_energy(tbc, eden)
+            else
+                energy_magnetic = 0.0
+            end
+
             etypes = types_energy(tbc)
-            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear = ", etypes + energy_charge + energy_band + energy_smear)
-            ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear
+            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
+            ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
         else
             ENERGIES[c] = etot_dft - etotal_atoms
         end
@@ -1553,53 +1603,55 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         #ENERGIES[c] = tbc.dftenergy
 
-        OCCS[c,1:nk,1:nw] = occs
+        OCCS[c,1:nspin, 1:nk,1:nw] = occs
 
         if true
 
             nweight = min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)
             occs2 = zeros(size(occs))
-            occs2[:,1:nweight] .= 0.5
-            occs2[:,nweight] .= 0.5
-            occs2[:,1] .= 0.5
+            occs2[1:nspin, :,1:nweight] .= 0.5
+            occs2[1:nspin, :,nweight] .= 0.5
+            occs2[1:nspin, :,1] .= 0.5
 #            occs2[1,1] = 5.0
 
             if !ismissing(tbc)
-                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
+                etmp, occs3 = band_energy(VALS[c,1:nspin, 1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
             else
-                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
+                etmp, occs3 = band_energy(VALS[c,1:nspin, 1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
             end
            
-            WEIGHTS[c,1:nk,1:nw] = (occs + occs2 + occs3)/3.0
+            WEIGHTS[c,1:nspin, 1:nk,1:nw] = (occs + occs2 + occs3)/3.0
 
 
-        else
-
-            nweight = min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)
-            occs2 = zeros(size(occs))
-            occs2[:,1:nweight] .= 0.3
-            occs2[:,nweight] .= 0.1
-            occs2[:,1] .= 0.5
-            if !ismissing(tbc)
-                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.95, 0.1, returnocc=true)
-            else
-                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
-            end
-           
-            WEIGHTS[c,1:nk,1:nw] = (occs + occs2 + occs3)/3.0
+#        else
+#
+#            nweight = min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)
+#            occs2 = zeros(size(occs))
+#            occs2[:,1:nweight] .= 0.3
+#            occs2[:,nweight] .= 0.1
+#            occs2[:,1] .= 0.5
+#            if !ismissing(tbc)
+#                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.95, 0.1, returnocc=true)
+#            else
+#                etmp, occs3 = band_energy(VALS[c,1:nk,1:nw], kweights, nval+0.25, 0.1, returnocc=true)
+#            end
+#           
+#            WEIGHTS[c,1:nk,1:nw] = (occs + occs2 + occs3)/3.0
 
         end
 
 
         if !ismissing(tbc)
-            WEIGHTS[c,:,:] .+= RW_PARAM
+            WEIGHTS[c,:,:,:] .+= RW_PARAM
         end
 
 #double check
-        for k = 1:nk
-            for i = 1:nw
-                if VALS[c,k,i] > 99.0 
-                    WEIGHTS[c,k,i] = 0.0
+        for s = 1:nspin
+            for k = 1:nk
+                for i = 1:nw
+                    if VALS[c,s,k,i] > 99.0 
+                        WEIGHTS[c,s,k,i] = 0.0
+                    end
                 end
             end
         end

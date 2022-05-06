@@ -100,7 +100,10 @@ Default is to choose `:atomic` except for elemental systems.
 function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)    
 
     nspin = tbc.nspin
-    
+    if tbc.tb.scfspin == true
+        nspin = 2
+    end
+
     names, PROJ, pwan = get_projtype(tbc, ptype)
 
     nk = size(vects)[1]
@@ -231,7 +234,7 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.005, npts=missing, proj_type
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
         nproj = size(proj)[3]
 
-        pdos = zeros(length(energies),nproj, tbc.nspin)
+        pdos = zeros(length(energies),nproj, nspin)
 
     else
         do_proj=false
@@ -242,8 +245,8 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.005, npts=missing, proj_type
     
     
     
-    dos = zeros(length(energies), tbc.nspin)
-    for spin = 1:tbc.nspin
+    dos = zeros(length(energies), nspin)
+    for spin = 1:nspin
         for (c,e) in enumerate(energies)
             dos[c,spin] = sum(exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) )
         end
@@ -493,6 +496,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
 #    println("sk ", size(sk3))
 #    println(sk3[:,:,1,1,1])
 
+    nspin = size(vects)[2]
     
     begin
     
@@ -515,7 +519,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
 
     println("le ", length(energies))
         
-    dos = zeros(size(energies)[1], tbc.nspin )
+    dos = zeros(size(energies)[1], nspin )
     dos_id = zeros( length(energies), nthreads())
 
     if ismissing(proj_type) ||  (proj_type != "none"   && proj_type != :none)
@@ -524,7 +528,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
         nproj = size(proj)[3]
 
-        pdos = zeros(length(energies),nproj, tbc.nspin)
+        pdos = zeros(length(energies),nproj, nspin)
         pdos_id = zeros(length(energies),nproj, nthreads())
 
     else
@@ -556,7 +560,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
         
     range = 1:length(energies)
 
-    for spin = 1:tbc.nspin
+    for spin = 1:nspin
         
         @threads for nt = 1: ntetra
             id = threadid()
@@ -739,7 +743,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
         t = sum(pdos, dims=1) * (energies[2]-energies[1])
         fix = pwan' ./ t
         pdos = pdos .* fix
-        pdos2 = zeros(size(pdos)[1],size(pdos)[2], tbc.nspin)
+        pdos2 = zeros(size(pdos)[1],size(pdos)[2], nspin)
         
     else
         pdos2=missing
@@ -747,7 +751,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
 
     
     #simple smoothing
-    dos2 = zeros(size(dos)[1], tbc.nspin)
+    dos2 = zeros(size(dos)[1], nspin)
 
 
     for spin = 1:tbc.nspin

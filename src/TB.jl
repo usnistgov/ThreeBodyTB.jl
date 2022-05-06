@@ -215,6 +215,7 @@ mutable struct tb_k{T}
     scf::Bool
     scfspin::Bool
     h1::Array{T,2} #scf term
+    h1spin::Array{T,3} #scf term
     grid::Array{Int64,1}
 
 end
@@ -443,6 +444,18 @@ function read_tb_crys(filename; directory=missing)
         h1 =  missing
     end
 
+    if "scfspin" in keys(d["tightbinding"])
+        tb_scfspin = parse(Bool,d["tightbinding"]["scfspin"])
+    else
+        tb_scfspin = false
+    end
+    if "h1spin" in keys(d["tightbinding"])
+        h1spin = parse_str_ARR_float(d["tightbinding"]["h1spin"])
+        h1spin = reshape(h1spin, 2,nwan, nwan)
+    else
+        h1spin = missing
+    end
+
 
     if "eden" in keys(d)
         eden  = parse_str_ARR_float(d["eden"])
@@ -481,9 +494,9 @@ function read_tb_crys(filename; directory=missing)
         #    println(h1)
 
     if nonorth
-        tb = make_tb(H, ind_arr, r_dict, S, h1=h1)
+        tb = make_tb(H, ind_arr, r_dict, S, h1=h1, h1spin=h1spin)
     else
-        tb = make_tb(H, ind_arr, r_dict, h1=h1)
+        tb = make_tb(H, ind_arr, r_dict, h1=h1, h1spin=h1spin)
     end    
     
     tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, tb_energy=energy, fermi_energy=efermi)
@@ -655,6 +668,21 @@ get tbc object from xml file, written by write_tb_crys (see below)
         h1 =  missing
     end
 
+    if "scfspin" in keys(d["tightbinding"])
+        tb_scfspin = parse(Bool,d["tightbinding"]["scfspin"])
+    else
+        tb_scfspin = false
+    end
+    if "h1spin" in keys(d["tightbinding"])
+        h1spin = parse_str_ARR_float(d["tightbinding"]["h1spin"])
+        h1spin = reshape(h1,2, nwan, nwan)
+    else
+        h1spin = missing
+    end
+    if tb_scfspin == false
+        h1spin =  missing
+    end
+
     
     function readstr(st)
 
@@ -690,7 +718,7 @@ get tbc object from xml file, written by write_tb_crys (see below)
 #    println("h1")
 #    println(h1)
 
-    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, grid=grid, nonorth=nonorth)
+    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
     tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma)
 
@@ -750,6 +778,8 @@ function write_tb_crys(filename, tbc::tb_crys)
 
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
+    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
+    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
     
     function makestr(H,S, nonorth, ind_arr)
 
@@ -854,7 +884,9 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(tightbinding, "k_dict",string(tbc.tb.k_dict))
 
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
+    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
+    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
 
     addelement!(tightbinding, "grid",arr2str(tbc.tb.grid))
     
@@ -994,16 +1026,16 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
         gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
     
-    println(hamk)
-    println(crys)
-    println(nelec)
-    println(nspin)
-    println(dftenergy)
-    println(scf)
-    println(gamma)
-    println(eden)
-    println(size(gamma))
-    println(size(eden))
+#    println(hamk)
+#    println(crys)
+#    println(nelec)
+#    println(nspin)
+#    println(dftenergy)
+#    println(scf)
+#    println(gamma)
+#    println(eden)
+#    println(size(gamma))
+#    println(size(eden))
     return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma, eden, -999.0)
 end
 
@@ -1104,7 +1136,7 @@ end
 
 Constructor for `tb_kspace`
 """
-function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
+function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,0], nonorth=true)
     nw=size(Hk,1)
     nk=size(Hk,3)
     nspin=size(Hk,4)
@@ -1137,7 +1169,14 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
     else
         scf = true
     end
-    scfspin = false
+    if ismissing(h1spin)
+        h1spin = zeros(T, 2,nw,nw)
+        scfspin = false
+    else
+        scfspin = true
+    end
+        
+
 
 #=
     println("make_tb_k")
@@ -1153,7 +1192,7 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, grid=[0,0,0], nonorth=true)
     println(typeof(h1))
     println(typeof(grid))
 =#
-    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, grid)
+    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, h1spin, grid)
 end
 
 
@@ -1400,7 +1439,11 @@ end
          end
      end
 
-     hk0[:,:] = h.Hk[:,:,ind, spin]
+     if h.nspin == 2
+         hk0[:,:] = h.Hk[:,:,ind, spin]
+     else
+         hk0[:,:] = h.Hk[:,:,ind, 1]
+     end
      hk0 = 0.5*(hk0 + hk0')
 
      sk[:,:] = h.Sk[:,:,ind]
@@ -1412,6 +1455,11 @@ end
      else
          hk[:,:] = hk0[:,:]
      end
+
+     if h.scfspin
+         hk += 0.5 * sk .* (h.h1spin[spin,:,:] + h.h1spin[spin,:,:]')
+     end
+
      hk = 0.5*(hk[:,:] + hk[:,:]')
 
      nw=size(hk)[1]
@@ -1777,7 +1825,13 @@ end
 
      hk3, sk3 = myfft_R_to_K(tbc, grid)
 
-     ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1)
+     if tbc.tb.scfspin 
+         h1 = tbc.tb.h1spin
+     else
+         h1 = missing
+     end
+
+     ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin)
 
 
      if return_more_info
@@ -1799,13 +1853,18 @@ end
  Return energy from hamiltonian `hk3`, overlap `sk3`, `nelec`, etc.
  Primarly for internal calling after fft.
  """
- function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing)
+ function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing)
  #h1 is the scf contribution
 
      grid = size(sk3)[3:5]
      nk = prod(grid)
      nwan = size(hk3)[1]
      nspin = size(hk3)[3]
+     if !ismissing(h1spin )
+         nspin = 2
+     end
+
+     spin_size = size(hk3)[3]
 
      VALS = zeros(Float64, nk,nwan,nspin)
 
@@ -1828,10 +1887,14 @@ end
 
                      sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
                      for spin = 1:nspin
-                         hk[:,:] = 0.5*(hk3[:,:,spin, k1,k2,k3] + hk3[:,:,spin, k1,k2,k3]')
+                         spins = min(spin, spin_size)
+                         hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
                          
                          if !ismissing(h1)
                              hk += sk .* h1
+                         end
+                         if !ismissing(h1)
+                             hk += sk .* h1spin[spin,:,:]
                          end
                          
                          vals, vects = eigen(hk, sk)
@@ -2092,8 +2155,9 @@ end
      end
 
      if tbc.nspin == 2 && tbc.scf
-         h1up, h1dn = get_spin_h1(tbc)
-         h1spin = [h1up, h1dn]
+#         h1up, h1dn = get_spin_h1(tbc)
+#         h1spin = [h1up, h1dn]
+         h1spin = get_spin_h1(tbc)
          emag = magnetic_energy(tbc)
      else
          h1spin = missing
@@ -2124,9 +2188,19 @@ I don't remember what this function is for. It seems to have something to do wit
 
      hk3, sk3 = myfft_R_to_K(tbc, grid)
 
-     h1 = tbc.tb.h1
+     if tbc.tb.scf == true
+         h1 = tbc.tb.h1
+     else
+         h1 = missing
+     end
+     if tbc.tb.scfspin == true
+         h1spin = tbc.tb.h1spin
+     else
+         h1spin = missing
+     end
 
-     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
+
+     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
 
 
      K1 = size(sk3)[3]
@@ -2135,7 +2209,8 @@ I don't remember what this function is for. It seems to have something to do wit
 
      nw = size(sk3)[1]
 
-     nspin = tbc.nspin
+     nspin = size(VECTS)[2]
+
      
      charge = zeros(nspin, nw, nw)
      chargeX = zeros(nspin, nw)
@@ -2254,6 +2329,12 @@ I don't remember what this function is for. It seems to have something to do wit
          energy_charge = 0.0
      end
 
+     if h.tb.scfmag
+         energy_mag = magnetic_energy(h)
+     else
+         energy_mag = 0.0
+     end
+
      ret = calc_energy_band(h.tb, h.nelec, kgrid, smearing=smearing,returnk=returnk)
  #    if returnk
  #        eband = ret[1]
@@ -2261,7 +2342,7 @@ I don't remember what this function is for. It seems to have something to do wit
  #        return eband+etypes, ek
  #    end
 
-     return ret + etypes + energy_charge
+     return ret + etypes + energy_charge + energy_mag
 
  end 
 
@@ -2682,7 +2763,7 @@ end
 
      println("myfft $nspin $nwan $nks")
      
-     if length(size(ham_kS)) == 5 #we don't have to calculate, already in fft form
+     if length(size(ham_kS)) == 6 #we don't have to calculate, already in fft form
          println("don't calc")
          ham_k_fftw = ham_kS
          S_k_fftw = Sk
@@ -2693,7 +2774,7 @@ end
          S_k_fftw = zeros(Complex{Float64}, nwan, nwan, grid[1], grid[2], grid[3])
 
          for k = 1:nks
-             #        println("k $k ", p.bs.kpts[k,:], " " , grid)
+             println("k $k ", kpts[k,:], " " , grid)
              kn = Int.(round.(kpts[k,:] .* grid)).+1
              for i in 1:3
                  if kn[i] <= 0
@@ -2767,7 +2848,7 @@ end
                      S_r[nw_1,nw_2,c] += SR3[nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  for spin = 1:nspin
-                     ham_r[spin, nw_1,nw_2,c] += hamR3[spin, nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
+                     ham_r[spin, nw_1,nw_2,c] += hamR3[ nw_1,nw_2,spin,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  
                  #                println("adding $a1 $a2 $c ", hamR3[a1,a2,rint[1], rint[2], rint[3]], " " , sym_R[a1,a2,c]
@@ -3333,7 +3414,7 @@ end
  """
      function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,1})
  """
- function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,1})
+ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
 
      dq = get_dq(tbc.crys, chargeden)
 
@@ -3391,6 +3472,12 @@ end
  #        h1 = missing
          echarge = 0.0
      end
+     if tbcK.tb.scfspin
+         emag = magnetic_energy(tbcK)
+     else
+         emag = 0.0
+     end
+
 
      etypes = types_energy(tbcK.crys)
 
@@ -3399,7 +3486,7 @@ end
      energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
      println("CALC ENERGIES $etypes $echarge $bandenergy $energy_smear = ", bandenergy + etypes + echarge + energy_smear)
 
-     return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag
+     return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 
 
  end
