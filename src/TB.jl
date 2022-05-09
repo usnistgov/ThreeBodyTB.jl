@@ -1827,7 +1827,9 @@ end
 #         println(occ)
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-         #    println("energy smear $energy_smear")
+         println("energy band $energy")
+         println("energy smear $energy_smear")
+         println("efermi $efermi")
          
          energy0 = sum(occ .* VALS0) / nk * 2.0
          
@@ -2001,7 +2003,7 @@ end
      eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1)
      tbc.efermi = efermi
 
- #    println("energy comps $eband $etypes $echarge")
+     println("energy comps $eband $etypes $echarge")
      energy = eband + etypes + echarge
 
      return energy, efermi, chargeden, VECTS, VALS, error_flag
