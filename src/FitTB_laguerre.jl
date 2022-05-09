@@ -1388,9 +1388,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #    nk = size(kpoints)[1]
     NCALC = length(list_of_tbcs)
 
-    VALS     = zeros(NCALC, 2, nk_max, NWAN_MAX)
+    VALS     = zeros(NCALC, nk_max, NWAN_MAX, 2)
 #    VECTS_MIX     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
-    VALS0     = zeros(NCALC,2, nk_max, NWAN_MAX)
+    VALS0     = zeros(NCALC,2, nk_max, NWAN_MAX, 2)
 
     E_DEN     = zeros(NCALC, 2, NWAN_MAX)
     H1     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
@@ -1470,7 +1470,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     end
 
     #PREPARE REFERENCE ENERGIES / EIGENVALUES
-#    println("prepare reference eigs")
+    println("prepare reference eigs")
     c=0
     NVAL = zeros(Float64, length(list_of_tbcs))
     NAT = zeros(Int64, length(list_of_tbcs))
@@ -1485,7 +1485,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         row1, rowN, nw = ind_BIG[c, 1:3]
 
         vmat     = zeros(Complex{Float64}, nspin, nk, nw, nw)
-        smat     = zeros(Complex{Float64}, nspin, nk, nw, nw)
+        smat     = zeros(Complex{Float64}, nk, nw, nw)
 
 
         wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(tbc.crys)
@@ -1493,7 +1493,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         NVAL[c] = nval
 
-        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
+        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end, spin], d.bandstruct.kweights, nval)
         etypes = types_energy(d.crys)
         etot_dft = d.energy
         e_smear = d.energy_smear
@@ -1555,7 +1555,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         end        
 
-        energy_tmp,  efermi = band_energy(VALS[c,1:dft.nspin, 1:nk,1:nw], kweights, nval, 0.01, returnef=true) 
+        println("size ", size(VALS[c,1:d.nspin, 1:nk,1:nw]), " " , size(kweights))
+        energy_tmp,  efermi = band_energy(VALS[c,1:d.nspin, 1:nk,1:nw], kweights, nval, 0.01, returnef=true) 
 
         occs = gaussian.(VALS[c,1:dft.nspin,1:nk,1:nw].-efermi, 0.01)
 
