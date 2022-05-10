@@ -25,7 +25,7 @@ calculate fermi energy using bisection
 function calc_fermi(eigs, weights, nelec, smearing = 0.01)
 
 
-#    println("calc_fermi eigs ", eigs)
+#    println("calc_fermi eigs ", size(eigs))
 
     efermi_max = maximum(eigs[:])+0.1
     efermi_min = minimum(eigs[:])-0.1    

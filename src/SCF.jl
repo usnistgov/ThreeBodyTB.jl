@@ -221,7 +221,7 @@ e_den = deepcopy(e_den0)
     efermi = 0.0
 
 
-    println("dq start", round.(dq; digits=2))
+#    println("dq start", round.(dq; digits=2))
 
     
     function innnerloop(mixA, smearingA, e_denA, conv_thrA, ITERS)
@@ -311,7 +311,7 @@ e_den = deepcopy(e_den0)
 
             delta_eden_old = delta_eden
 
-            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
+#            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
 
@@ -495,7 +495,7 @@ e_den = deepcopy(e_den0)
 
 #    println("STEP1")
 #    conv, e_den = innnerloop(0.2, 0.1, e_den, 1e-4)
-    println("e_den  $e_den")
+#    println("e_den  $e_den")
 
 
     if mixing_mode == :pulay

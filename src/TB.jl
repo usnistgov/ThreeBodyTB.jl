@@ -229,7 +229,8 @@ Base.show(io::IO, h::tb_k) = begin
     scf = h.scf
     grid = h.grid
     nspin = h.nspin
-    println(io, "tight binding k-space object; nwan = $nwan, nk = $nk, nonorth = $nonorth, scf = $scf, grid = $grid, nspin = $nspin" )
+    scfspin = h.scfspin
+    println(io, "tight binding k-space object; nwan = $nwan, nk = $nk, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, grid = $grid, nspin = $nspin" )
     println(io)
     
 end   
@@ -2065,7 +2066,6 @@ end
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
 #         println("energy band $energy")
-#         println("energy smear $energy_smear")
 #         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
 
@@ -2074,8 +2074,12 @@ end
 #         println("energy0 $energy0")
 #         println("energy smear $energy_smear")
 #         println("ENERGY 0 : $energy0")
+
+#         println("energy0 $energy0")
          
-         energy0 += energy_smear * nspin
+         energy0 += energy_smear * nspin#
+
+#         println("energy smear ", energy_smear*nspin)
          
          #    println("sum occ ", sum(occ), "  ", sum(occ) / (grid[1]*grid[2]*grid[3]))#
 
@@ -3162,9 +3166,9 @@ end
      crys = tbc.crys
 
      if ismissing(delta_q)
-         delta_q =  get_dq(crys , tbc.eden)
+         delta_q =  get_dq(crys , sum(tbc.eden, dims=1))
      end
-
+#     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
      return ewald_energy(crys, gamma, delta_q)
 
  end
@@ -3484,7 +3488,7 @@ end
      println("efermi $efermi")
      
      energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-     println("CALC ENERGIES $etypes $echarge $bandenergy $energy_smear = ", bandenergy + etypes + echarge + energy_smear)
+     println("CALC ENERGIES $etypes $echarge $bandenergy $energy_smear $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
      return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 
@@ -3555,14 +3559,15 @@ end
 #     println("denmat")
 #     println(denmat)
      
-     
-     electron_den = sum(denmat, dims=2) / sum(tb_k.kweights)
-     electron_den = electron_den[:,1,:]
+     electron_den = zeros(tb_k.nspin, tb_k.nwan)
+     electron_den[1,:] = sum(denmat[1,:,:], dims=2) / sum(tb_k.kweights)
+#     electron_den = electron_den[:,1,:]
      if tb_k.nspin == 2
-         electron_den = electron_den*2.0
-         energy0 = energy0
+         electron_den[2,:] = sum(denmat[2,:,:], dims=2) / sum(tb_k.kweights)
+         #         energy0 = energy0
      end
-
+     println("electron_den")
+     println(electron_den)
 
      toobig = electron_den .> 1.0
      normal = electron_den .< 1.0
