@@ -1874,10 +1874,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                             H[:,:] = H0[:,:]
                         end
                         if tbc.tb.scfspin
-                            H += h1spin_in[spin,:,:]
+                            H += S .* h1spin_in[spin,:,:]
                         end
                         try
-                            vals, vects = eigen(H, S)
+                            vals, vects = eigen(0.5*(H+H'), S)
                         catch
                             
                             ERROR[c] = 1
@@ -2045,7 +2045,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             
             ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
-#            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=5))
+            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=5))
             println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq " )
 
 

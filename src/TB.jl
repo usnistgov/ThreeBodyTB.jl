@@ -1990,15 +1990,14 @@ end
          end
          if ismissing(h1spin)
              h1spin = zeros(2,nwan,nwan)# , zeros(nwan,nwan)]
-#         else
-#             h1spin[1] = 0.5*(h1spin[1] + h1spin[1]')
-#             h1spin[2] = 0.5*(h1spin[2] + h1spin[2]')
+         else
+             h1spin[1,:,:] = 0.5*(h1spin[1,:,:] + h1spin[1,:,:]')
+             h1spin[2,:,:] = 0.5*(h1spin[2,:,:] + h1spin[2,:,:]')
          end
-
          
      end
 #
-
+#     temp = 0.0
      @threads for c = 1:grid[1]*grid[2]*grid[3]
 
          k3 = mod(c-1 , grid[3])+1
@@ -2022,7 +2021,7 @@ end
              for spin = 1:nspin
                  spin_ind = min(spin, nspin_ham)
                  hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
-                 hk = hk0 + sk .* (h1 + h1spin[spin,:,:])
+                 hk = hk0  + sk .* (h1 + h1spin[spin,:,:])
                  vals, vects = eigen(hk, sk)
                  
                  if maximum(abs.(imag.(vals))) > 1e-10
@@ -2031,6 +2030,7 @@ end
                  VALS[c,:, spin] = real.(vals)
                  VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
                  VECTS[c,spin, :,:] = vects
+ #                temp +=  sum( vects'*sk*vects)
              end
 #=         catch e
              if e isa InterruptException
@@ -2049,17 +2049,27 @@ end
              error_flag=true
          end  =#
      end
-
+#     println("TEMP $temp")
+#     if abs(real(temp) - round(real(temp))) > 1e-10
+#         println("h1spin   yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
+#         print(real.(h1spin[1,:,:]))
+#         println()
+#         print(real.(h1spin[2,:,:]))
+#         println()
+#     end
      #println("stuff")
      begin
          maxSK = maximum(abs.(SK), dims=1)[1,:,:]
 
          
          energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
-         
+#         println("EFERMI $efermi")
          occ = gaussian.(VALS.-efermi, smearing)
 
-         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-10)[2]
+#         println("sum occ ", sum(occ))
+
+#         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-10)[2]
+         max_occ = nwan
          
 #         println("occ ", size(occ))
 #         println(occ)
@@ -2093,7 +2103,7 @@ end
 
          for spin = 1:nspin
              TEMP[:,:] .= 0.0
-             pVECTS = permutedims(VECTS[:,spin,:,:][:,:,:], [1,3,2])
+             pVECTS = permutedims(VECTS[:,spin,:,:], [1,3,2])
              pVECTS_C = conj(pVECTS)
              
              #        cVECTS = conj(VECTS)
@@ -2104,18 +2114,22 @@ end
                      
                      if maxSK[i,j] > 1e-7
                          
+
                          TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
+#                         TEMP[i,j] += sum( sum(  (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
                          
                      end
                      
                  end
              end
              TEMP =   (TEMP + conj(TEMP))
-             denmat[spin,:,:] += 0.5* real.( TEMP)
-             denmat[spin,:,:] = denmat[spin,:,:] / (grid[1]*grid[2]*grid[3])
+             denmat[spin,:,:] += 0.5* real.( TEMP) / (grid[1]*grid[2]*grid[3])
+#             denmat[spin,:,:] = denmat[spin,:,:] / (grid[1]*grid[2]*grid[3])
          end
          chargeden = zeros(nspin, nwan)
          for spin = 1:nspin
+#             println("denmat $spin ")
+#             println(denmat[spin,:,:][:,:])
              chargeden[spin,:] = sum(denmat[spin,:,:][:,:], dims=1)
          end
          
@@ -2125,6 +2139,7 @@ end
          energy0 = energy0 / 2.0
      end
          
+     println("sum chargeden ", sum(chargeden))
      
      return energy0, efermi, chargeden, VECTS, VALS, error_flag
 
@@ -3566,8 +3581,8 @@ end
          electron_den[2,:] = sum(denmat[2,:,:], dims=2) / sum(tb_k.kweights)
          #         energy0 = energy0
      end
-     println("electron_den")
-     println(electron_den)
+#     println("electron_den")
+#     println(electron_den)
 
      toobig = electron_den .> 1.0
      normal = electron_den .< 1.0
