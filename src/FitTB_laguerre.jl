@@ -172,8 +172,6 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1)
         if tbc.nspin == 2
             @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2)
-
-            
         end
         #            println("INDVEC ", INDvec)
         
@@ -440,7 +438,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
 #    X_HnewOrth_BIG = zeros(0, hnum)
 
-    Y_Hnew_BIG = zeros(Float64, 0,2)
+    Y_Hnew_BIG = zeros(Float64, 0,1)
     Y_Snew_BIG = Float64[]
 
     Xc_Hnew_BIG = Float64[]
@@ -536,12 +534,25 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 #            println("fourier space $spin")
 
             if tbc.nspin == 1
-            @time X_Hnew, X_Snew, Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=spin)  #get kspace
-                Y_Hnew_BIG = vcat(Y_Hnew_BIG, [Y_Hnew zeros(size(Y_Hnew))])
+            @time X_Hnew, X_Snew, Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=1)  #get kspace
+#                Y_Hnew_BIG = vcat(Y_Hnew_BIG, [Y_Hnew zeros(size(Y_Hnew))])
+                Y_Hnew_BIG = vcat(Y_Hnew_BIG, Y_Hnew)
             elseif tbc.nspin == 2
-                @time X_Hnew, X_Snew, Y_Hnew1, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=spin)  #get kspace
-                @time X_Hnew, X_Snew, Y_Hnew2, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[2], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=spin)  #get kspace
-                Y_Hnew_BIG = vcat(Y_Hnew_BIG, [Y_Hnew1 Y_Hnew2])
+                println("tbc.nspin == 2")
+                @time X_Hnew, X_Snew, Y_Hnew1, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=1)  #get kspace
+#                @time X_Hnew2, X_Snew2, Y_Hnew2, Y_Snew2, Xhc_Hnew2, Xsc_Snew2 =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=2)  #get kspace
+#
+#                println("X_Hnew ", sum(abs.(X_Hnew2 - X_Hnew)))
+#                println("X_Snew ", sum(abs.(X_Snew2 - X_Snew)))
+#                println("Y_Hnew ", sum(abs.(Y_Hnew1 - Y_Hnew2)))
+#                println("Y_Snew ", sum(abs.(Y_Snew - Y_Snew2)))
+#                println("Xhc_Hnew ", sum(abs.(Xhc_Hnew - Xhc_Hnew2)))
+#                println("Xsc_Snew ", sum(abs.(Xsc_Snew - Xsc_Snew2)))
+#                println()
+
+                @time X_Hnew, X_Snew, Y_Hnew2, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[2], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=2)  #get kspace
+
+                Y_Hnew_BIG = vcat(Y_Hnew_BIG, 0.5*(Y_Hnew1+Y_Hnew2))
             end
 
                 
@@ -687,7 +698,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     elseif mode == :kspace
         
-
+        println("kspace")
         l = length(Y_Hnew_BIG[:,1]) #randomly sample Hk to keep size reasonable
         
         if l > 3e6
@@ -921,20 +932,20 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
             
     end
     if !(ismissing(tbc_list))
-        println("setting maxmin")
-        for tbc in tbc_list
-            tbc_temp = calc_tb_fast(tbc.crys, database, set_maxmin=true)
-        end
-        for key1 in keys(database)
-            if typeof(database[key1]) == coefs
-                for key2 in keys(database[key1].maxmin_val_train)
-                    (maxval, minval) = database[key1].maxmin_val_train[key2]
-                    maxval = max(1e-4, maxval)
-                    minval = min(-1e-4, minval)
-                    database[key1].maxmin_val_train[key2] = (maxval, minval)
-                end
-            end
-        end
+#        println("setting maxmin")
+#        for tbc in tbc_list
+#            tbc_temp = calc_tb_fast(tbc.crys, database, set_maxmin=true)
+#        end
+    #    for key1 in keys(database)
+    #        if typeof(database[key1]) == coefs
+    #            for key2 in keys(database[key1].maxmin_val_train)
+    #                (maxval, minval) = database[key1].maxmin_val_train[key2]
+    #                maxval = max(1e-4, maxval)
+    #                minval = min(-1e-4, minval)
+    #                database[key1].maxmin_val_train[key2] = (maxval, minval)
+    #            end
+    #        end
+    #    end
 
 
          if !ismissing(starting_database)
@@ -1134,7 +1145,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
 
         if typeof(tbc) == tb_crys_kspace{Float64}
 #            println("typeof(tbc) == tb_crys_kspace !!!!!!!!!!!!!!!!!!!! $spin")
-            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=false, spin=spin)
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=true, spin=spin)
 
             for o1 = 1:nw
                 for o2 = 1:nw
@@ -1642,11 +1653,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             H1[c,1:nw, 1:nw] = tbc.tb.h1
             DQ[c,1:tbc.crys.nat] = get_dq(tbc)
-            println("SIZE tbc.tb.h1spin ", size(tbc.tb.h1spin))
+#            println("SIZE tbc.tb.h1spin ", size(tbc.tb.h1spin))
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
         end
 
-        println("dq $dq")
+#        println("dq $dq")
         
         if !ismissing(tbc)
 #            println("tbc")
@@ -1654,21 +1665,21 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             s1 = sum(occs .* VALS0[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
             energy_band = sum(s1 .* kweights)
 
-            println("before ", typeof(tbc), " " , typeof(dq))
+#            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
                 energy_charge, pot = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
 
-            println("energy magnetic ", tbc.tb.scfspin)
+#            println("energy magnetic ", tbc.tb.scfspin)
             if tbc.tb.scfspin
                 energy_magnetic = magnetic_energy(tbc, eden)
-                println("eden ", eden)
+#                println("eden ", eden)
             else
                 energy_magnetic = 0.0
             end
-            println("energy_magnetic $energy_magnetic")
+#            println("energy_magnetic $energy_magnetic")
             etypes = types_energy(tbc)
             println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
 #            println("VALS ", VALS[c,1:nk,1:nw,1:tbc.nspin])
@@ -1874,7 +1885,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                             H[:,:] = H0[:,:]
                         end
                         if tbc.tb.scfspin
-                            H += S .* h1spin_in[spin,:,:]
+                            H += h1spin_in[spin,:,:] .* S
                         end
                         try
                             vals, vects = eigen(0.5*(H+H'), S)
@@ -2036,7 +2047,19 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 energy_charge = 0.0
             end
             if tbc.tb.scfspin
-                energy_magnetic = magnetic_energy(tbc, EDEN_FITTED[c, 1:tbc.nspin,1:nw])
+                energy_magnetic = magnetic_energy(tbc.crys, EDEN_FITTED[c, 1:tbc.nspin,1:nw])
+#                if c == 4
+#                    println("magnetic_energy $energy_magnetic")
+#                    println(tbc.crys)
+#                    println(EDEN_FITTED[c, 1:tbc.nspin,1:nw])
+#                    println()
+#                    println("VALS  1", VALS_FITTED[c,1,1:nw, 1])
+#                    println("VALS  2", VALS_FITTED[c,1,1:nw, 2])
+#                    println()
+#                    println("VALS0 1", VALS0_FITTED[c,1,1:nw,1])
+#                    println("VALS0 2", VALS0_FITTED[c,1,1:nw,2])
+#                    println()
+#                end
             else
                 energy_magnetic = 0.0
             end
@@ -2045,9 +2068,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             
             ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
-            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=5))
+#            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=5))
+#            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
+#            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
             println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq " )
-
+            
 
         end
 
@@ -2299,6 +2324,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #        println("construct_fitted")
             ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, solve_scf_mode)
 
+#            println("vals0 1 ", VALS0_FITTED[4,1,:,1])
+#            println("vals0 2 ", VALS0_FITTED[4,1,:,2])
+
+#            println("energies_working")
+#            println(ENERGIES_working)
+#            println("done")
+#            return
             
             #, VALS0_FITTED #, solve_scf_mode
 #            println("energies_working")

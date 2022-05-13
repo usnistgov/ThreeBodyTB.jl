@@ -130,10 +130,36 @@ struct coefs
     cutoff::Float64
     min_dist::Float64
 
-    maxmin_val_train::Dict
+#    maxmin_val_train::Dict
     dist_frontier::Dict
     version::Int64
     
+end
+
+function construct_coef_string(co)
+    inds = co.inds
+    st = String[]
+    for sym = [:H, :O, :S]
+        if sym == :H
+            push!(st, "# Hopping Hamiltonian index\n")
+        elseif sym == :O
+            push!(st, "# Onsite Hamiltonian index\n")
+        elseif sym == :S
+            push!(st, "# Overlap (S) index\n")
+        end
+        for k in keys(inds)
+            if k[end] == sym
+                push!(st, "$k  ;  "*arr2str(inds[k])*" ; " *arr2str(co.datH[inds[k]])*"\n")
+            end
+        end
+    end
+    str = ""
+    for line in st
+        str *= line
+    end
+
+    return str
+
 end
 
 
@@ -162,7 +188,9 @@ function write_coefs(filename, co::coefs; compress=true)
     addelement!(c, "sizeH", string(co.sizeH))
     addelement!(c, "sizeS", string(co.sizeS))
 
-    addelement!(c, "inds", string(co.inds))
+    indsstr = construct_coef_string(co)
+
+    addelement!(c, "inds", indsstr)        #string(co.inds))
     addelement!(c, "names", str_w_spaces(co.names))
 #    addelement!(c, "orbs", str_w_spaces(co.orbs))
     addelement!(c, "cutoff", string(co.cutoff))
@@ -173,7 +201,7 @@ function write_coefs(filename, co::coefs; compress=true)
 #    println(dict2str(co.maxmin_val_train))
 #    println("type ", typeof(co.maxmin_val_train))
     
-    addelement!(c, "maxmin_val_train", dict2str(co.maxmin_val_train))
+#    addelement!(c, "maxmin_val_train", dict2str(co.maxmin_val_train))
     addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
     
 
@@ -252,7 +280,7 @@ function read_coefs(filename, directory = missing)
 
 #    println(d["coefs"]["maxmin_val_train"])
     
-    maxmin_val_train = str2tuplesdict(d["coefs"]["maxmin_val_train"])
+#    maxmin_val_train = str2tuplesdict(d["coefs"]["maxmin_val_train"])
     dist_frontier = str2tuplesdict(eval(d["coefs"]["dist_frontier"]))
 
     version = 1
@@ -261,7 +289,7 @@ function read_coefs(filename, directory = missing)
     end
     println("version $version")
     
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist,maxmin_val_train = maxmin_val_train, dist_frontier = dist_frontier, version=version)
+    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version)
 
     return co
     
@@ -276,12 +304,12 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, maxmin_val_train=missing, dist_frontier=missing, version=2)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3)
 
     println("make coefs")
 #    sort!(at_list)
 
-    if version == 2
+    if version == 2 || version == 3
         totH,totS, data_info, orbs = get_data_info_v2(at_list, dim)
     elseif version == 1
         totH,totS, data_info, orbs = get_data_info_v1(at_list, dim)
@@ -298,12 +326,12 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
 
 #    println("make coeffs $totH $totS")
 
-    if ismissing(maxmin_val_train)
-        maxmin_val_train = Dict()
-        for d in keys(data_info)
-            maxmin_val_train[d] = (1e7, -1e7)
-        end
-    end
+#    if ismissing(maxmin_val_train)
+#        maxmin_val_train = Dict()
+#        for d in keys(data_info)
+#            maxmin_val_train[d] = (1e7, -1e7)
+#        end
+#    end
 
     if ismissing(datH)
         if fillzeros
@@ -397,7 +425,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
 
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, maxmin_val_train, dist_frontier2, version)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version)
 
 end
     
@@ -431,10 +459,10 @@ function plot_database(database, entry, t=missing)#::coefs)
     cut3 = cutoff_fn.(dist, cutoff3bX-cutoff_length, cutoff3bX)
     cut_on = cutoff_fn.(dist, cutoff_onX-cutoff_length, cutoff_onX)
 
-    plot([dist[1]-5, dist[end]+5], zeros(2,1), "--", color="0.5", LineWidth=0.5)
-    xlim(dist[1]-0.5, dist[end]+0.5)
-    styles = ["-b", "-g", "-r", "-c", "-m", "-k", "-y","--b", "--g", "--r", "--c", "--m", "--k", "--y", ":b", ":g", ":r", ":c", ":m", ":k", ":y"]
-    ns = length(styles)
+#    plot([dist[1]-5, dist[end]+5], zeros(2,1), "--", color="0.5", LineWidth=0.5)
+    xlims!(dist[1]-0.5, dist[end]+0.5)
+#    styles = ["-b", "-g", "-r", "-c", "-m", "-k", "-y","--b", "--g", "--r", "--c", "--m", "--k", "--y", ":b", ":g", ":r", ":c", ":m", ":k", ":y"]
+#    ns = length(styles)
     linew = [2.5, 2.5,  2.5,  2.5, 2.0, 2.0,	2.0,  2.0, 1.5, 1.5,	1.5,  1.5, 1.0, 1.0,	1.0,  1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     
     cs=1
@@ -442,6 +470,8 @@ function plot_database(database, entry, t=missing)#::coefs)
     plts = []
 
     println(dat.names)
+
+    plot()
 
     if length(entry) == 2 #twobody
         for key in keys(dat.inds)
@@ -459,17 +489,17 @@ function plot_database(database, entry, t=missing)#::coefs)
                 d = dat.datH
                 a = two_body_H(dist, d[ind[1:n_2body]])
 
-                s = styles[cs%ns + 1]
+ #               s = styles[cs%ns + 1]
                 cs += 1
 
-                plot(dist, (a.*cut2), s, label=legendS, LineWidth=linew[cs])
+                plot!(dist, (a.*cut2),  label=legendS, LineWidth=linew[cs])
 
 
                 if key[2] == :p && key[4] == :p
                     b = two_body_H(dist, d[ind[1+n_2body:n_2body*2]])
-                    s = styles[cs%ns + 1]
+#                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot(dist, b.*cut2, s, label=legendS*"_π", LineWidth=linew[cs])
+                    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs])
 
                 end
             end
@@ -479,15 +509,15 @@ function plot_database(database, entry, t=missing)#::coefs)
                 d = dat.datS
                 a = two_body_H(dist, d[ind[1:n_2body_S]])
 
-                s = styles[cs%ns + 1]
+#                s = styles[cs%ns + 1]
                 cs += 1
-                plot(dist, a.*cut2, s, label=legendS, LineWidth=linew[cs])
+                plot!(dist, a.*cut2,  label=legendS, LineWidth=linew[cs])
 
                 if key[2] == :p && key[4] == :p
                     b = two_body_H(dist, d[ind[1+n_2body_S:n_2body_S*2]])
-                    s = styles[cs%ns + 1]
+#                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot(dist, b.*cut2, s, label=legendS*"_π", LineWidth=linew[cs])
+                    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs])
 
                 end
             end
@@ -499,21 +529,21 @@ function plot_database(database, entry, t=missing)#::coefs)
                 if key[1] == key[2]
 
                     a = two_body_O(dist, d[ind[1:n_2body_onsite]])
-                    s = styles[cs%ns + 1]
+#                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot(dist, a.*cut_on, s, label=legendS, LineWidth=linew[cs])
+                    plot!(dist, a.*cut_on,  label=legendS, LineWidth=linew[cs])
                 end
                 if (key[1] == :s && key[2] == :p) ||    (key[2] == :s && key[1] == :p)
                     b = two_body_O(dist, d[1:n_2body_onsite])
-                    s = styles[cs%ns + 1]
+#                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot(dist, b.*cut_on, s, label=legendS*"_π", LineWidth=linew[cs])
+                    plot!(dist, b.*cut_on,  label=legendS*"_π", LineWidth=linew[cs])
                     
                 elseif (key[1] == :p && key[2] == :p) 
                     b = two_body_O(dist, d[ind[1+n_2body_onsite:n_2body_onsite*2]])
-                    s = styles[cs%ns + 1]
+#                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot(dist, b.*cut_on, s, label=legendS*"_π", LineWidth=linew[cs])
+                    plot!(dist, b.*cut_on,  label=legendS*"_π", LineWidth=linew[cs])
                 end
 
             end
@@ -536,21 +566,21 @@ function plot_database(database, entry, t=missing)#::coefs)
 
                 sameat = (key[1] == key[3])
 
-                a = three_body_H(5.0*o, dist, dist,sameat,  d[ind]) .*cut3
-                b = three_body_H(5.0*o, dist, 5.0*o, sameat, d[ind]) .*cut3
+                a = three_body_H(6.0*o, dist, dist,sameat,  d[ind]) .*cut3
+                b = three_body_H(6.0*o, dist, 6.0*o, sameat, d[ind]) .*cut3
                 c = three_body_H( dist, dist, dist, sameat,d[ind]) .*cut3 #.*cut3 .*cut3
 
 #                print([size(a), size(b), size(c)])
 
 #                s = styles[cs%ns + 1]
 #                cs += 1
-#                plot(dist, a, s, label=legendS*"_1")
+                plot!(dist, a,  label=legendS*"_1")
 #                s = styles[cs%ns + 1]
 #                cs += 1
-#                plot(dist, b, s, label=legendS*"_2")
-                s = styles[cs%ns + 1]
-                cs += 1
-                plot(dist, c, s, label=legendS*"_3")
+#                plot!(dist, b,  label=legendS*"_2")
+#                s = styles[cs%ns + 1]
+#                cs += 1
+#                plot!(dist, c,  label=legendS*"_3")
 
             end
             if key[end] == :O
@@ -563,9 +593,9 @@ function plot_database(database, entry, t=missing)#::coefs)
                 sameat = (key[3] == key[4])
 
 
-                a = three_body_O(dist, 5.0*o,5.0*o,sameat, d[ind]) .*cut3
-                b = three_body_O(5.0*o, dist,5.0*o,sameat, d[ind]) .*cut3
-                c = three_body_O(dist, dist, dist,sameat, d[ind]) .*cut3 .*cut3 .*cut3
+#                a = three_body_O(dist, 5.0*o,5.0*o,sameat, d[ind]) .*cut3
+#                b = three_body_O(5.0*o, dist,5.0*o,sameat, d[ind]) .*cut3
+#                c = three_body_O(dist, dist, dist,sameat, d[ind]) .*cut3 .*cut3 .*cut3
 
 #                print([size(a), size(b), size(c)])
 
@@ -575,9 +605,9 @@ function plot_database(database, entry, t=missing)#::coefs)
 #                s = styles[cs%ns + 1]
 #                cs += 1
 #                plot(dist, b, s, label=legendS*"_2")
-                s = styles[cs%ns + 1]
-                cs += 1
-                plot(dist, c, s, label=legendS*"_3")
+#                s = styles[cs%ns + 1]
+#                cs += 1
+#                plot!(dist, c, label=legendS*"_3")
 
             end
 
@@ -586,7 +616,7 @@ function plot_database(database, entry, t=missing)#::coefs)
 #    println(handels)
 #    legend(plts, handels)
 
-    legend(fontsize=8, loc=1)
+    plot!(legend=true, box=true)
 end
 
 """

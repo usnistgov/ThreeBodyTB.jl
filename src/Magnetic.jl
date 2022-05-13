@@ -81,7 +81,16 @@ function WX(crys::crystal, spin)
         Xm[c.+(1:nwan)] = mag.X * abs.(spin_at)
         energy += 0.5*(sum(spin_at .* Wm[c.+(1:nwan)]) + sum(abs.(spin_at) .* Xm[c.+(1:nwan)]))
         c += nwan
+
+#        println("W")
+#        println(mag.W)
+#        println("X")
+#        println(mag.X)
+
     end
+
+#    println(Wm)
+#    println(Xm)
     
     return Wm, Xm, energy
 

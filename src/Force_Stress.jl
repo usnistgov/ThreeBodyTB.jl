@@ -45,6 +45,8 @@ using ..SCF:scf_energy
 
 using ..BandTools:gaussian
 using ..CrystalMod:get_grid
+using ..TB:get_spin_h1
+using ..TB:magnetic_energy
 
 export get_energy_force_stress
 #export relax_structure
@@ -61,12 +63,12 @@ Returns Ryd units. Generally users should use the `scf_energy_force_stress` func
 
 Uses automatic differentation for gradient.
 """
-function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing)
+function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing, nspin=1)
 
     println("crys")
 #    tbc = []
     tbc = calc_tb_fast(crys, database)
-    return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing)
+    return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing, nspin=nspin)
 end
 
 """
@@ -74,7 +76,7 @@ end
 
 Get force and stress, non-fft algorithm
 """
-function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, cs = 4)
+function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, cs = 4, nspin=1)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -94,7 +96,7 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
             #prepare eigenvectors / values
             error_flag = false
             if do_scf
-                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-9)
+                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-9, nspin=nspin)
             else
                 energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
             end
@@ -105,7 +107,12 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
         end
 
         h1, dq = get_h1(tbc)
-        
+        if tbc.nspin == 2 || tbc.tb.scfspin
+            h1spin = get_spin_h1(tbc)
+        else
+            h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
+        end
+
 #        println("energy_tot $energy_tot")
 
         OCCS = gaussian.(VALS.-efermi, smearing)
@@ -208,44 +215,48 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
 
         twopi_i = -1.0im*2.0*pi
 
-        VALS0 = zeros(T, nk, nwan)
+        VALS0 = zeros(T, nk, nwan, tbc.tb.nspin)
 
 
-        #analytic fourier transform
-        for k = 1:nk
+        for spin = 1:tbc.tb.nspin
+            #analytic fourier transform
+            for k = 1:nk
             #vect, vals, hk, sk, vals0 = Hk(hktemp, sktemp, tbc.tb, grid[k,:])
 
 
-            hk0[:,:] .= 0.0
-            sk[:,:] .= 0.0
+                hk0[:,:] .= 0.0
+                sk[:,:] .= 0.0
             
-            kmat = repeat(kgrid[k,:]', tbc.tb.nr,1)
-            exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
-
-            for m in 1:tbc.tb.nwan
-                 for n in 1:tbc.tb.nwan
-                     hk0[m,n] = tbc_dual.tb.H[m,n,:]'*exp_ikr[:]
-                     sk[m,n]  = tbc_dual.tb.S[m,n,:]'*exp_ikr[:]
-                 end
-            end
-            hk0 = 0.5*(hk0 + hk0')
-            sk = 0.5*(sk + sk')
-
-
-            
-            if scf
-                hk0 = hk0 + h1 .* sk
-            end
-
-            for a = 1:nwan
+                kmat = repeat(kgrid[k,:]', tbc.tb.nr,1)
+                exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
                 
-                hka[:,:] = hk0 - ( VALS[k,a] )  * sk
-                #hka[:,:] = hk0 - ( VALS[k,a] )  * sk                
+                for m in 1:tbc.tb.nwan
+                    for n in 1:tbc.tb.nwan
+                        hk0[m,n] = tbc_dual.tb.H[m,n,:]'*exp_ikr[:]
+                        sk[m,n]  = tbc_dual.tb.S[m,n,:]'*exp_ikr[:]
+                    end
+                end
+                hk0 = 0.5*(hk0 + hk0')
+                sk = 0.5*(sk + sk')
+                
 
-                VALS0[k,a] += real.(VECTS[k,:,a]'*hka*VECTS[k,:,a])
-            end
-        end            
+            
+                if scf
+                    hk0 = hk0 + h1 .* sk
+                end
+                if tbc.tb.scfspin || tbc.tb.nspin == 2
+                    hk0 += h1 + sk .* h1spin[spin, :,:]
+                end
 
+                for a = 1:nwan
+                    
+                    hka[:,:] = hk0 - ( VALS[k,a] )  * sk
+                    #hka[:,:] = hk0 - ( VALS[k,a] )  * sk                
+                    
+                    VALS0[k,a,spin] += real.(VECTS[k,:,a]'*hka*VECTS[k,:,a])
+                end
+            end            
+        end
 
         energy0 = sum(OCCS .* VALS0) / nk * 2.0
 
@@ -254,12 +265,16 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
         else
             eewald = 0.0
         end
-
-
+        if tbc.tb.scfspin
+            energy_magnetic = magnetic_energy(tbc)
+        else
+            energy_magnetic = 0.0
+        end
         etypes = types_energy(tbc.crys)
         
+        #this needs smearing energy?
 
-        return energy0 + etypes + eewald
+        return energy0 + etypes + eewald + energy_magnetic
 
 
     end
@@ -938,7 +953,7 @@ end
 
 Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_force_stress`, which calls this. Uses automatic differentation for jacobian.
 """
-function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing)
+function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1)
 
     println("get_energy_force_stress_fft")
 
@@ -986,7 +1001,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 error_flag = false
                 if do_scf
                     println("doing scf aaaaaaaaaaa")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8)
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin)
                 else
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
                 end
@@ -995,6 +1010,11 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 end
             end
             h1, dq = get_h1(tbc)
+            if nspin == 2
+                h1spin = get_spin_h1(tbc)
+            else
+                h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
+            end
             OCCS = gaussian.(VALS.-efermi, smearing)
         end
 
@@ -1127,7 +1147,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             hk_g = fft(hr_g, [3,4,5])
             sk_g = fft(sr_g, [3,4,5])
             
-            VALS0 = zeros(Float64,  prod(grid), tbc.tb.nwan,3*ct.nat+6)
+            VALS0 = zeros(Float64,  prod(grid), tbc.tb.nwan,3*ct.nat+6, nspin)
 
             #        hka = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
             #        hka = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan, 3*ct.nat+6)

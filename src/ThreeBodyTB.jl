@@ -383,7 +383,7 @@ returns energy, tight-binding-crystal-object, error-flag
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge.
 - `mixing_mode =:pulay`: default is Pulay mixing (DIIS). Other option is :simple, for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
 """
-function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1)
+function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1, eden=missing)
     println()
     println("Begin scf_energy-------------")
     println()
@@ -394,7 +394,7 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         println()
     end
 
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden)
 
     conv_flag = !error_flag
     if tbc.within_fit == false

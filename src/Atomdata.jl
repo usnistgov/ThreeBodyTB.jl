@@ -369,11 +369,17 @@ function get_cutoff(at1, at2)
         rad1 = atom_radius[at1] / 0.529 / 100.0
         rad2 = atom_radius[at2] / 0.529 / 100.0
         
-        cutoff2X    = (rad1 + rad2) / 2.0 * 7.0
-        cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0
+#        cutoff2X    = (rad1 + rad2) / 2.0 * 7.0
+ #       cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0
 
-        cutoff2X   = max(min(cutoff2X,   19.01), 15.01) #2body
-        cutoff_onX = max(min(cutoff_onX, 18.01), 14.51) #onsite
+ #       cutoff2X   = max(min(cutoff2X,   19.01), 15.01) #2body
+ #       cutoff_onX = max(min(cutoff_onX, 18.01), 14.51) #onsite
+
+        cutoff2X    = (rad1 + rad2) / 2.0 * 6.5
+        cutoff_onX  = (rad1 + rad2) / 2.0 * 5.5
+
+        cutoff2X   = max(min(cutoff2X,   18.51), 14.01) #2body
+        cutoff_onX = max(min(cutoff_onX, 17.51), 13.01) #onsite
 
         cutoff_dist[(at1,at2)] = [cutoff2X, cutoff_onX]
         cutoff_dist[(at2,at1)] = [cutoff2X, cutoff_onX]
@@ -390,9 +396,11 @@ function get_cutoff(at1, at2, at3)
         rad2 = atom_radius[at2] / 0.529 / 100.0
         rad3 = atom_radius[at3] / 0.529 / 100.0
 
-        cutoff3bX = minimum([rad1, rad2, rad3])*5.0
-#        cutoff3bX    = (rad1 + rad2 + rad3) / 3.0 * 5.0
-        cutoff3bX  = max(min(cutoff3bX,  13.51),  10.01) #3body
+#        cutoff3bX = minimum([rad1, rad2, rad3])*5.0
+#        cutoff3bX  = max(min(cutoff3bX,  13.51),  10.01) #3body
+
+        cutoff3bX = minimum([rad1, rad2, rad3])*4.5
+        cutoff3bX  = max(min(cutoff3bX,  12.01),  9.01) #3body
 
         cutoff_dist[(at1,at2,at3)] = cutoff3bX
         cutoff_dist[(at1,at3,at2)] = cutoff3bX

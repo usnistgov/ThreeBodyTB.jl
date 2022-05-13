@@ -47,7 +47,7 @@ function make_mag(str)
 
     name = String(zatoms[num])
 
-    mag_arr = parse_str_ARR_float(sp[2:end]) * 0.95 #atomic magnetism from small m tends to overmagnetize large m due to 2nd order terms.
+    mag_arr = parse_str_ARR_float(sp[2:end])  #atomic magnetism from small m tends to overmagnetize large m due to 2nd order terms.
 
     nwan = Int64(atoms[name].nwan/2)
 

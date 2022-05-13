@@ -674,12 +674,14 @@ get tbc object from xml file, written by write_tb_crys (see below)
     else
         tb_scfspin = false
     end
-    if "h1spin" in keys(d["tightbinding"])
-        h1spin = parse_str_ARR_float(d["tightbinding"]["h1spin"])
-        h1spin = reshape(h1,2, nwan, nwan)
-    else
-        h1spin = missing
-    end
+#    if "h1spin" in keys(d["tightbinding"])
+#        h1spin = parse_str_ARR_float(d["tightbinding"]["h1spin"])
+#        h1spin = reshape(h1,2, nwan, nwan)
+#    else
+#        h1spin = missing
+#    end
+    h1spin = missing
+
     if tb_scfspin == false
         h1spin =  missing
     end
@@ -780,7 +782,7 @@ function write_tb_crys(filename, tbc::tb_crys)
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
     addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
-    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
+#    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
     
     function makestr(H,S, nonorth, ind_arr)
 
@@ -887,7 +889,7 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
-    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
+#    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
 
     addelement!(tightbinding, "grid",arr2str(tbc.tb.grid))
     
@@ -2003,8 +2005,8 @@ end
          k3 = mod(c-1 , grid[3])+1
          k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
          k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
-
-#         k3 = mod(kind-1 , grid[1]*grid[2])+1
+         
+         #         k3 = mod(kind-1 , grid[1]*grid[2])+1
 #         k1 = 1 + (kind-1) ÷ grid[2]*grid[[3]
 #                                          
 #     @time for k1 = 1:grid[1]
@@ -2015,23 +2017,27 @@ end
 #                 println("c $c cx $cx")
 
 
-#         try
-             sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
-             SK[c,:,:] = sk
-             for spin = 1:nspin
-                 spin_ind = min(spin, nspin_ham)
-                 hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
-                 hk = hk0  + sk .* (h1 + h1spin[spin,:,:])
-                 vals, vects = eigen(hk, sk)
-                 
-                 if maximum(abs.(imag.(vals))) > 1e-10
-                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
-                 end
-                 VALS[c,:, spin] = real.(vals)
-                 VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
-                 VECTS[c,spin, :,:] = vects
- #                temp +=  sum( vects'*sk*vects)
+         #         try
+         sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+         SK[c,:,:] = sk
+         for spin = 1:nspin
+             spin_ind = min(spin, nspin_ham)
+             hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
+             hk = hk0  + sk .* (h1 + h1spin[spin,:,:])
+             vals, vects = eigen(hk, sk)
+             
+             if maximum(abs.(imag.(vals))) > 1e-10
+                 println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
              end
+             VALS[c,:, spin] = real.(vals)
+             VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
+             VECTS[c,spin, :,:] = vects
+ #                temp +=  sum( vects'*sk*vects)
+         end
+#         if c == 1
+#             println("VALS0 1", VALS0[c,:, 1])
+#             println("VALS0 2", VALS0[c,:, 2])
+#         end
 #=         catch e
              if e isa InterruptException
                  println("user interrupt")
@@ -2139,7 +2145,7 @@ end
          energy0 = energy0 / 2.0
      end
          
-     println("sum chargeden ", sum(chargeden))
+#     println("sum chargeden ", sum(chargeden))
      
      return energy0, efermi, chargeden, VECTS, VALS, error_flag
 
