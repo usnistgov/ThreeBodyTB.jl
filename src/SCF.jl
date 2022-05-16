@@ -43,6 +43,7 @@ using ..TB:get_dq
 using ..TB:get_energy_electron_density_kspace
 using ..TB:smearing_energy
 using ..CalcTB:calc_tb_fast
+using ..TB:get_magmom
 
 using SpecialFunctions
 using ..ThreeBodyTB:global_energy_units
@@ -64,11 +65,11 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true, nspin=1, e_den0=missing)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=true)
 
 
-    @time tbc = calc_tb_fast(c, database);
-    @time t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, verbose=verbose, nspin=nspin, e_den0=e_den0)
+    tbc = calc_tb_fast(c, database, verbose=verbose);
+    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
     return t
     
 end
@@ -125,7 +126,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 
         end
     end
-    println("mix $mix")
+
 
     if global_energy_units == "eV"  #for display only, keep units Rydberg internally
         energy_units = eV
@@ -146,9 +147,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
 
     if verbose
-        println("------")
         println("Do SCF")
-        println("Mixing mode: $mixing_mode")
     end
 
     tot_charge = 0.0
@@ -188,7 +187,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     if verbose
         println()
         println("Parameters:")
-        println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix, grid = $grid, nspin=$nspin")
+        println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix $mixing_mode , grid = $grid, nspin=$nspin")
         println()
     end
 
@@ -288,7 +287,9 @@ e_den = deepcopy(e_den0)
 #            end
 
 #            try
+
             energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin)
+
 #            println("e_den_NEW")
 #            println(round.(e_den_NEW[1,:], digits=3))
 #            if magnetic
@@ -471,10 +472,10 @@ e_den = deepcopy(e_den0)
 
 #                println("dq ", round.(dq; digits=2))
 
-                println(round.(e_denA[1,:], digits=3))
-                if magnetic
-                    println(round.(e_denA[2,:], digits=3))
-                end
+#                println(round.(e_denA[1,:], digits=3))
+#                if magnetic
+#                    println(round.(e_denA[2,:], digits=3))
+#                end
             end
             
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 3
@@ -582,6 +583,11 @@ e_den = deepcopy(e_den0)
         h1spin = get_spin_h1(tbc, e_den)
         tbc.tb.h1spin = h1spin
         tbc.tb.scfspin = true
+    end
+
+    println("ΔQ = ", round.(dq, digits=2))
+    if nspin == 2
+        println("μB = ", round.(get_magmom(tbc), digits=2))
     end
 
     tbc.efermi=efermi

@@ -31,7 +31,7 @@ export relax_structure
 
 Relax structure. Primary user function is relax_structure in ThreeBodyTB.jl, which calls this one.
 """
-function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf")
+function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1)
 
     println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 
@@ -43,7 +43,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 
     #do this ahead of first iteration, to get memory in correct place
     tbc = calc_tb_fast(deepcopy(crys), database, verbose=false)
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false)
 
     if error_flag
         println("warning error computing scf in relax_structure, zeroth iteration")
@@ -121,7 +121,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
                 
         end
 #            println(crys_working)
-        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7)
+        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7,nspin=nspin)
         eden = deepcopy(tbcx.eden)
 
 #        println("fn $energy_tot fnffnfnfnffnfnfnfnfnfnfnfnfnfnfffffff")
@@ -177,7 +177,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #            println("yes calc forces -----------------------------------------------------------------------------------------")
 #            println(crys_working)
 
-            energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6)
+            energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6,nspin=nspin)
 
             eden = deepcopy(tbcx.eden)
 
@@ -192,7 +192,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         
         energy_global=energy_tot
 
-        energy_tmp,  f_cart, stress =  get_energy_force_stress_fft(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] )
+        energy_tmp,  f_cart, stress =  get_energy_force_stress_fft(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin)
 
         
 

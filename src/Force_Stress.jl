@@ -18,6 +18,7 @@ Scripts to calculate force and stress
 #using Calculus
 
 using Base.Threads
+import Base.Threads.@spawn
 using FFTW
 using LinearAlgebra
 using ForwardDiff
@@ -65,7 +66,7 @@ Uses automatic differentation for gradient.
 """
 function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing, nspin=1)
 
-    println("crys")
+#    println("crys")
 #    tbc = []
     tbc = calc_tb_fast(crys, database)
     return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing, nspin=nspin)
@@ -76,8 +77,16 @@ end
 
 Get force and stress, non-fft algorithm
 """
-function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, cs = 4, nspin=1)
+function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, cs = 4)
 
+    if tbc.nspin == 2
+        nspin = 2
+    elseif size(tbc.eden)[1] == 2
+        nspin = 2
+    else
+        nspin = 1
+    end
+    println("nspin $nspin")
     if ismissing(grid)
         grid = get_grid(tbc.crys)
     end
@@ -96,7 +105,7 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
             #prepare eigenvectors / values
             error_flag = false
             if do_scf
-                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-9, nspin=nspin)
+                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-9, nspin=nspin, verbose=false)
             else
                 energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
             end
@@ -108,6 +117,7 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
 
         h1, dq = get_h1(tbc)
         if tbc.nspin == 2 || tbc.tb.scfspin
+            println("get_spin_h1")
             h1spin = get_spin_h1(tbc)
         else
             h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
@@ -116,7 +126,7 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
 #        println("energy_tot $energy_tot")
 
         OCCS = gaussian.(VALS.-efermi, smearing)
-    
+#        println("sum occs NOFFT ", sum(OCCS))
     end
 
 
@@ -215,45 +225,51 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
 
         twopi_i = -1.0im*2.0*pi
 
-        VALS0 = zeros(T, nk, nwan, tbc.tb.nspin)
+        VALS0 = zeros(T, nk, nwan, nspin)
 
 
-        for spin = 1:tbc.tb.nspin
-            #analytic fourier transform
-            for k = 1:nk
+        #analytic fourier transform
+        for k = 1:nk
             #vect, vals, hk, sk, vals0 = Hk(hktemp, sktemp, tbc.tb, grid[k,:])
-
-
-                hk0[:,:] .= 0.0
-                sk[:,:] .= 0.0
             
-                kmat = repeat(kgrid[k,:]', tbc.tb.nr,1)
-                exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
-                
-                for m in 1:tbc.tb.nwan
-                    for n in 1:tbc.tb.nwan
-                        hk0[m,n] = tbc_dual.tb.H[m,n,:]'*exp_ikr[:]
-                        sk[m,n]  = tbc_dual.tb.S[m,n,:]'*exp_ikr[:]
+
+            hk0[:,:] .= 0.0
+            sk[:,:] .= 0.0
+            
+            kmat = repeat(kgrid[k,:]', tbc.tb.nr,1)
+            exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
+            
+            for m in 1:tbc.tb.nwan
+                for n in 1:tbc.tb.nwan
+                    if tbc.tb.nspin == 2
+                        hk0[m,n] = tbc_dual.tb.H[spin,m,n,:]'*exp_ikr[:]
+                    else
+                        hk0[m,n] = tbc_dual.tb.H[1,m,n,:]'*exp_ikr[:]
                     end
+                    sk[m,n]  = tbc_dual.tb.S[m,n,:]'*exp_ikr[:]
                 end
-                hk0 = 0.5*(hk0 + hk0')
-                sk = 0.5*(sk + sk')
-                
-
+            end
+            hk0 = 0.5*(hk0 + hk0')
+            sk = 0.5*(sk + sk')
             
+
+
+            for spin = 1:nspin
+                
+                hk0t = deepcopy(hk0)                
                 if scf
-                    hk0 = hk0 + h1 .* sk
+                    hk0t = hk0t + h1 .* sk
                 end
                 if tbc.tb.scfspin || tbc.tb.nspin == 2
-                    hk0 += h1 + sk .* h1spin[spin, :,:]
+                    hk0t +=  sk .* h1spin[spin, :,:]
                 end
 
                 for a = 1:nwan
                     
-                    hka[:,:] = hk0 - ( VALS[k,a] )  * sk
+                    hka[:,:] = hk0t - ( VALS[k,a, spin] )  * sk
                     #hka[:,:] = hk0 - ( VALS[k,a] )  * sk                
                     
-                    VALS0[k,a,spin] += real.(VECTS[k,:,a]'*hka*VECTS[k,:,a])
+                    VALS0[k,a,spin] += real.(VECTS[k,spin, :,a]'*hka*VECTS[k,spin, :,a])
                 end
             end            
         end
@@ -285,12 +301,12 @@ function get_energy_force_stress(tbc::tb_crys, database; do_scf=false, smearing 
     cfg = ForwardDiff.GradientConfig(f, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
     g = ForwardDiff.gradient(f, zeros(3*ct.nat + 6)  )
 
-    x, stress = reshape_vec(g, ct.nat)
+   x, stress = reshape_vec(g, ct.nat)
 
-    f_cart = -1.0 * x
-    f_cart = f_cart * inv(ct.A)'
+    f_cart = -1.0 * x 
+    f_cart = f_cart * inv(ct.A)' / nspin
 
-    stress = -stress / abs(det(ct.A))
+    stress = -stress / abs(det(ct.A)) / nspin
 
     for i = 1:3
         for j = 1:3
@@ -321,7 +337,7 @@ Finite differences force/stress, for testing.
 - `smearing = 0.01` smearing energy
 - `grid = missing` kpoint grid
 """
-function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing)
+function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1)
     if ismissing(grid)
         grid = get_grid(crys)
     end
@@ -329,7 +345,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
     tbc0 = calc_tb_fast(crys, database, verbose=false, check_frontier=false)
 
-    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-9)
+    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
 
 
     if stress_mode == false
@@ -344,7 +360,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-9)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
 
 
         crys2 = deepcopy(crys)
@@ -355,7 +371,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-9)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
         
         force = - (energy_tot1 - energy_tot2) / (2 * step)
 
@@ -375,7 +391,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
 
 
         crys2 = deepcopy(crys)
@@ -387,7 +403,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
 
         stress = -1.0* (energy_tot1 - energy_tot2) / (2 * step) / abs(det(crys.A))
 
@@ -955,7 +971,7 @@ Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_
 """
 function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1)
 
-    println("get_energy_force_stress_fft")
+#    println("get_energy_force_stress_fft")
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -966,7 +982,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 
     ct = deepcopy(tbc.crys)
     
-#    println("test safe get_energy_force_stress_fft")
+    #    println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database)
     
     if tooshort ##########################
@@ -988,7 +1004,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             
         
         
-
+#        println("not too ")
         
         scf = database["scf"]
         #    println("scf ", scf)
@@ -996,12 +1012,17 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             if !ismissing(vv)
                 VECTS, VALS, efermi = vv
                 energy_tot = 0.0
+                if !ismissing(e_den0)
+                    e_den = e_den0
+                else
+                    e_den = tbc.eden
+                end
             else
                 #prepare eigenvectors / values
                 error_flag = false
                 if do_scf
-                    println("doing scf aaaaaaaaaaa")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin)
+#                    println("do_scf")
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false)
                 else
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
                 end
@@ -1009,15 +1030,15 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                     println("warning, trouble with eigenvectors/vals in initial step get_energy_force_stress")
                 end
             end
-            h1, dq = get_h1(tbc)
+            h1, dq = get_h1(tbc, e_den)
             if nspin == 2
-                h1spin = get_spin_h1(tbc)
+                h1spin = get_spin_h1(tbc, e_den)
             else
                 h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
             end
             OCCS = gaussian.(VALS.-efermi, smearing)
         end
-
+#        println("sum OCCS get_energy_force_stress_fft ", sum(OCCS))
 
 
 
@@ -1065,7 +1086,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         end
 
 #        println("jac")
-        @time begin
+        begin
 
             ret = ham(zeros(3*ct.nat + 6))
 
@@ -1075,9 +1096,12 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             chunksize=min(9, 3*ct.nat + 6)
             #chunksize=min(6, 3*ct.nat + 6)
             
-            cfg = ForwardDiff.JacobianConfig(ham, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
+            cfg = ForwardDiff.JacobianConfig(ham, zeros(Float64, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
             #cfg = ForwardDiff.JacobianConfig(ham, zeros( 6), ForwardDiff.Chunk{chunksize}())
-            g = ForwardDiff.jacobian(ham, zeros(3*ct.nat + 6) , cfg ) ::  Array{Float64,2}
+
+#            println("jac")
+            g = ForwardDiff.jacobian(ham, zeros(Float64, 3*ct.nat + 6) , cfg ) ::  Array{Float64,2}
+
 #            g = ForwardDiff.jacobian(ham, zeros( 6) , cfg ) ::  Array{Float64,2}
 
         end
@@ -1122,6 +1146,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         ind = zeros(Int64, 3)
         new_ind = zeros(Int64, 3)
 
+#        println("hr_g")
         for c in 1:size(tbc.tb.ind_arr)[1]
 
             ind[:] = tbc.tb.ind_arr[c,:]
@@ -1143,12 +1168,28 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             end
         end
 
+#        println("fft")
         begin 
-            hk_g = fft(hr_g, [3,4,5])
-            sk_g = fft(sr_g, [3,4,5])
-            
-            VALS0 = zeros(Float64,  prod(grid), tbc.tb.nwan,3*ct.nat+6, nspin)
 
+            hk_g = similar(hr_g)
+            h = @spawn begin
+                hk_g .= fft(hr_g, [3,4,5])
+            end
+            sk_g = similar(sr_g)
+            s = @spawn begin 
+                sk_g .= fft(sr_g, [3,4,5])
+            end
+#            println(typeof(hk_g), " xxxxxxxx ", size(hk_g))
+#            println(typeof(sk_g), " xxxxxxxx ", size(sk_g))
+
+
+            begin
+                VALS0 = zeros(Float64,  prod(grid), tbc.tb.nwan,3*ct.nat+6, nspin)
+            end
+            wait(h)
+            wait(s)
+
+            
             #        hka = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
             #        hka = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan, 3*ct.nat+6)
 
@@ -1196,7 +1237,8 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         #    end
 
 #        println("old vals")
-        if false
+
+#=        if false
             pVECTS = permutedims(VECTS, [2,3,1])
 
             if scf
@@ -1223,10 +1265,11 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 end
             end
         end
+=#
 
 #        println("new vals")
-
-        psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, tbc.tb.nwan, ct.nat, grid, OCCS)
+#        println("psi")
+        psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, h1spin, VALS, scf, tbc.tb.nwan, ct.nat, grid, OCCS)
 
         #        @time psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, tbc.tb.nwan, ct.nat, grid)        
         
@@ -1251,7 +1294,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 
         garr =zeros(Float64, 3*ct.nat+6)
         for gc = 1:3*ct.nat+6
-            garr[gc] = sum(OCCS .* VALS0[:,:,gc]) / nk * 2.0
+            garr[gc] = sum(OCCS .* VALS0[:,:,gc,:]) / nk * 2.0
         end
 
         if scf
@@ -1262,9 +1305,10 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         
     x, stress = reshape_vec(garr, ct.nat)
     f_cart = -1.0 * x
-    f_cart = f_cart * inv(ct.A)'
-    stress = -stress / abs(det(ct.A))
+    f_cart = f_cart * inv(ct.A)' / nspin
+    stress = -stress / abs(det(ct.A)) /nspin
 
+    #neaten
     for i = 1:3
         for j = 1:3
             if abs(stress[i,j]) < 1e-12
@@ -1296,48 +1340,50 @@ end
 
 Helper function for <psi | grad_Ham | psi >
 """
-function psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, nwan, nat, grid, OCCS)
+function psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, h1spin, VALS, scf, nwan, nat, grid, OCCS)
 
-    pVECTS = permutedims(VECTS, [2,3,1])
+    nspin = size(VALS0)[end]
+    for spin = 1:nspin
+        hk_g_temp = deepcopy(hk_g)
+        pVECTS = permutedims(VECTS[:,spin,:,:][:,:,:], [2,3,1])
 
-    if scf
-        @threads for a1 = 1:nwan
-            for a2 = 1:nwan
-                @inbounds hk_g[a2,a1,:,:,:,:] +=  h1[a2,a1]*(@view sk_g[a2,a1,:,:,:,:])
+        if scf
+            @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    @inbounds hk_g_temp[a2,a1,:,:,:,:] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) .* (@view sk_g[a2,a1,:,:,:,:])
+                end
             end
         end
-    end
-    occs_max = ones(Int64, prod(grid))*nwan
-
-    @threads for c = 1:prod(grid)
-        for a = 1:nwan
-            if OCCS[c,a] < 1e-4
-                occs_max[c] = max(a-1, 1)
-                break
-            end
-        end
-    end
+        occs_max = ones(Int64, prod(grid))*nwan
         
-    @threads for gc = 1:3*nat+6
-        c=0
-        for k1 = 1:grid[1]
-            for k2 = 1:grid[2]
-                for k3 = 1:grid[3]
-                    c += 1
-                    for a =1:occs_max[c]
-                        #                        hka[:,:] =  hk_g[:,:,k1,k2,k3,gc] - ( VALS[c,a] )  *   sk_g[:,:,k1,k2,k3, gc]
-                        
-                        
-                        #VALS0[c, a,gc] = real(pVECTS[:,a,c]' * ( hk_g[:,:,k1,k2,k3,gc] - ( VALS[c,a] )  *   sk_g[:,:,k1,k2,k3, gc]   )  * pVECTS[:,a,c])                  #+ h1 .*  sk_g[:,:,k1,k2,k3, gc]
-                        @inbounds VALS0[c, a,gc] = real( (@view pVECTS[:,a,c])' * ( (@view hk_g[:,:,k1,k2,k3,gc]) - ( VALS[c,a] )  *   (@view sk_g[:,:,k1,k2,k3, gc])   )  * (@view pVECTS[:,a,c]))                  #+ h1 .*  sk_g[:,:,k1,k2,k3, gc]
+        @threads for c = 1:prod(grid)
+            for a = 1:nwan
+                if OCCS[c,a,spin] < 1e-5
+                    occs_max[c] = max(a-1, 1)
+                    break
+                end
+            end
+        end
+        
+        @threads for gc = 1:3*nat+6
+            c=0
+            for k1 = 1:grid[1]
+                for k2 = 1:grid[2]
+                    for k3 = 1:grid[3]
+                        c += 1
+                        for a =1:occs_max[c]
+                            #                        hka[:,:] =  hk_g[:,:,k1,k2,k3,gc] - ( VALS[c,a] )  *   sk_g[:,:,k1,k2,k3, gc]
+                            
+                            
+                            #VALS0[c, a,gc] = real(pVECTS[:,a,c]' * ( hk_g[:,:,k1,k2,k3,gc] - ( VALS[c,a] )  *   sk_g[:,:,k1,k2,k3, gc]   )  * pVECTS[:,a,c])                  #+ h1 .*  sk_g[:,:,k1,k2,k3, gc]
+                            @inbounds VALS0[c, a,gc, spin] = real( (@view pVECTS[:,a,c])' * ( (@view hk_g_temp[:,:,k1,k2,k3,gc]) - ( VALS[c,a, spin] )  *   (@view sk_g[:,:,k1,k2,k3, gc])   )  * (@view pVECTS[:,a,c]))                  #+ h1 .*  sk_g[:,:,k1,k2,k3, gc]
+                        end
                     end
                 end
             end
         end
     end
-
 end
-
 
 """
     function psi_gradH_psi(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, nwan, nat, grid, OCCS)
@@ -1346,6 +1392,7 @@ Helper function for <psi | grad_Ham | psi >
 
 This version isn't used.
 """
+#=
 function psi_gradH_psi2(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, nwan, nat, grid, OCCS)
 
     pVECTS = permutedims(VECTS, [2,3,1])
@@ -1389,7 +1436,7 @@ function psi_gradH_psi2(VALS0, VECTS, hk_g, sk_g, h1, VALS, scf, nwan, nat, grid
     end
 
 end
-
+=#
 
 
 end #end module

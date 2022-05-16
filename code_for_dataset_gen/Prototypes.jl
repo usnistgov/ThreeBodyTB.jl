@@ -32,6 +32,7 @@ struct proto_data
     short_bonds::Array{String}
     core_ternary::Array{String}
     core_mono_mag::Array{String}
+    core_mono_mag2::Array{String}
 
 end
 
@@ -123,7 +124,10 @@ function setup_proto_data()
     CalcD["line_mag"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol-mag", "nscf", true]
     CalcD["dimer_mag"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", true]
 
-    CalcD["hcp_mag"] = ["$STRUCTDIR/hcp.in.up", "vc-relax", "all", "vol-mag", "nscf", true]
+    CalcD["sc_mag2"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-mag-more", "nscf", true]
+    CalcD["bcc_mag2"] = ["$STRUCTDIR/bcc.in.up", "vc-relax", "all", "vol-mag-more", "nscf", true]
+    CalcD["fcc_mag2"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "vol-mag-more", "nscf", true]
+
 
     CalcD["rsO_mag"] = ["$STRUCTDIR/binary/rocksaltO.in", "vc-relax", "all", "vol-mag", "nscf", true]
     CalcD["rsF_mag"] = ["$STRUCTDIR/binary/rocksaltF.in", "vc-relax", "all", "vol-mag", "nscf", true]
@@ -475,7 +479,8 @@ function setup_proto_data()
 
 
 
-    core_mono_mag = [   "atom_mag", "atom2_mag", "sc_mag" ,"bcc_mag","fcc_mag","line_mag" ,"dimer_mag", "rsO_mag", "rsF_mag", "dimer_fe_mag", "dimer_mn_mag", "dimer_f_mag", "dimer_h_mag" ]
+    core_mono_mag = [   "atom_mag", "atom2_mag", "sc_mag" ,"bcc_mag","fcc_mag","line_mag" ,"dimer_mag"]
+    core_mono_mag2 = [   "bcc_mag2","fcc_mag2", "sc_mag2"]
 
 
 
@@ -508,7 +513,7 @@ function setup_proto_data()
    # all_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3","stuffhex_z_1", "stuffhex_z_2", "stuffhex_z_3", "rocksalt_2lay_abo2", "caf2_abc", "perov", "perov2", "perov3",  "perov4",  "perov5",  "perov6"  ]
     core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3", "trimer_tern","trimer_tern_right","trimer_tern_line", "trimer_tern_angle", "p4mmm" ]
 
-    pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag)
+    pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag, core_mono_mag2)
 
     return pd
 
@@ -550,6 +555,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             TORUN = [TORUN;pd.core_ternary]
         elseif t == :core_mono_mag
             TORUN = [TORUN;pd.core_mono_mag]
+        elseif t == :core_mono_mag2
+            TORUN = [TORUN;pd.core_mono_mag2]
         else
             TORUN = [TORUN; t]
         end
@@ -591,6 +598,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
         elseif newst == "vol-mag"
             ncalc = length( [ 1.0 ])
+        elseif newst == "vol-mag-more"
+            ncalc = length( [0.9 0.95  1.05 1.1])
         elseif newst == "vol-oxygen"
             ncalc = 4
         elseif newst == "2D-oxygen"
@@ -668,8 +677,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         for n in 1:ncalc
             if magnetic
                 d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-                d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-                if (isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")) && ( isfile(d2*"/projham_K.xml") ||  isfile(d2*"/projham_K.xml.gz"))
+#                d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
+                if (isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")) # && ( isfile(d2*"/projham_K.xml") ||  isfile(d2*"/projham_K.xml.gz"))
                     push!(already_done, d)
                 else
                     push!(not_done, d)
@@ -690,7 +699,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         if magnetic
             d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-            d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
+#            d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
         else
             d="$dir/$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
         end
@@ -804,6 +813,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
             elseif newst == "vol-mag"
                 for x in [ 1.0  ]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "vol-mag-more"
+                for x in [0.9 0.95 1.05 1.1  ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1319,7 +1334,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                     if magnetic
                         d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
-                        d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
+#                        d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
                     else
                         d="$dir/$name"*"_vnscf_"*"$newst"*"_"*"$i"        
                     end
@@ -1342,7 +1357,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         end
                     end
 
-                    if magnetic
+                    if magnetic && false
                         dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d2", tmpdir="$d2", wannier=false, code="QE", skip=true, cleanup=true, magnetic=false)
                         if calc_mode == "nscf"
                             try

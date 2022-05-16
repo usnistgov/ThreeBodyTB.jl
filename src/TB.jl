@@ -1871,62 +1871,64 @@ end
 
      VALS = zeros(Float64, nk,nwan,nspin)
 
-     if return_more_info == true
-         VECTS = zeros(Complex{Float64}, nk,nspin, nwan, nwan)
-     end
+     VECTS = zeros(Complex{Float64}, nk,nspin, nwan, nwan)
 
-     c=0
+
 
      thetype=typeof(real(sk3[1,1,1,1,1]))
      sk = zeros(Complex{thetype}, nwan, nwan)
      hk = zeros(Complex{thetype}, nwan, nwan)
+     
+     function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS)
+         c=0
+         for k1 = 1:grid[1]
+             for k2 = 1:grid[2]
+                 for k3 = 1:grid[3]
+                     c += 1
+                     try
 
+                         sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                         for spin = 1:nspin
+                             spins = min(spin, spin_size)
+                             hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
+                             
+                             if !ismissing(h1)
+                                 hk += sk .* h1
+                             end
+                             if !ismissing(h1spin)
+                                 hk += sk .* h1spin[spin,:,:]
+                             end
+                             
+                             vals, vects = eigen(hk, sk)
+                             VALS[c, :,spin] = real(vals)
 
-     for k1 = 1:grid[1]
-         for k2 = 1:grid[2]
-             for k3 = 1:grid[3]
-                 c += 1
-                 try
-
-                     sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                     for spin = 1:nspin
-                         spins = min(spin, spin_size)
-                         hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
-                         
-                         if !ismissing(h1)
-                             hk += sk .* h1
+                             if return_more_info
+                                 VECTS[c,spin, :,:] = vects
+                             end
                          end
-                         if !ismissing(h1)
-                             hk += sk .* h1spin[spin,:,:]
-                         end
-                         
-                         vals, vects = eigen(hk, sk)
-                         VALS[c, :,spin] = real(vals)
+                         #                    println("tb check ", sum(vects' * sk * vects))
+                         #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
 
-                         if return_more_info
-                             VECTS[c,spin, :,:] = vects
+                     catch e
+                         if e isa InterruptException
+                             println("user interrupt")
+                             rethrow(InterruptException)
                          end
+
+                         println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
+                         sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                         valsS, vectsS = eigen(sk)
+                         println(valsS)
+
+                         rethrow(error("BadOverlap"))
+
                      end
- #                    println("tb check ", sum(vects' * sk * vects))
- #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
-
-                 catch e
-                     if e isa InterruptException
-                         println("user interrupt")
-                         rethrow(InterruptException)
-                     end
-
-                     println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
-                     sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                     valsS, vectsS = eigen(sk)
-                     println(valsS)
-
-                     rethrow(error("BadOverlap"))
-
                  end
              end
          end
      end
+     
+     go(grid, sk3, hk3, h1, h1spin, VALS, VECTS)
 
      band_en, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
      energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
@@ -1953,6 +1955,8 @@ end
 
 #     println("in calc_energy_charge_fft_band")
 #     return 0.0, 0.0,0.0,0.0,0.0,0.0
+
+     
      if true
 
          
@@ -1993,68 +1997,43 @@ end
          if ismissing(h1spin)
              h1spin = zeros(2,nwan,nwan)# , zeros(nwan,nwan)]
          else
-             h1spin[1,:,:] = 0.5*(h1spin[1,:,:] + h1spin[1,:,:]')
-             h1spin[2,:,:] = 0.5*(h1spin[2,:,:] + h1spin[2,:,:]')
+             h1spin[1,:,:] .= 0.5*(h1spin[1,:,:] + h1spin[1,:,:]')
+             h1spin[2,:,:] .= 0.5*(h1spin[2,:,:] + h1spin[2,:,:]')
          end
          
      end
 #
 #     temp = 0.0
-     @threads for c = 1:grid[1]*grid[2]*grid[3]
-
-         k3 = mod(c-1 , grid[3])+1
-         k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
-         k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
-         
-         #         k3 = mod(kind-1 , grid[1]*grid[2])+1
-#         k1 = 1 + (kind-1) ÷ grid[2]*grid[[3]
-#                                          
-#     @time for k1 = 1:grid[1]
-#         @threads for k2 = 1:grid[2]
-#             for k3 = 1:grid[3]
-#                 c = k3 + (k2-1) * grid[3] + (k1-1) * grid[2]*grid[3] 
-#                 c += 1
-#                 println("c $c cx $cx")
-
-
-         #         try
-         sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
-         SK[c,:,:] = sk
-         for spin = 1:nspin
-             spin_ind = min(spin, nspin_ham)
-             hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
-             hk = hk0  + sk .* (h1 + h1spin[spin,:,:])
-             vals, vects = eigen(hk, sk)
+#     hk = zeros(tbc.tb.nwan, tbc.tb.nwan, nthreads())
+     #sk = zeros(Complex{Float64}, nwan, nwan, nthreads())
+     function go(grid, VALS, VALS0, VECTS)
+         @threads for c = 1:grid[1]*grid[2]*grid[3]
+             #         id = threadid()
+             k3 = mod(c-1 , grid[3])+1
+             k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+             k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
              
-             if maximum(abs.(imag.(vals))) > 1e-10
-                 println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+             sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+             SK[c,:,:] .= sk
+             for spin = 1:nspin
+                 spin_ind = min(spin, nspin_ham)
+                 hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
+                 hk = hk0  .+ sk .* (h1 + h1spin[spin,:,:])
+                 vals, vects = eigen(hk, sk)
+                 
+                 if maximum(abs.(imag.(vals))) > 1e-10
+                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                 end
+                 VALS[c,:, spin] .= real.(vals)
+                 VALS0[c,:, spin] .= real.(diag(vects'*hk0*vects))
+                 VECTS[c,spin, :,:] .= vects
+                 #                temp +=  sum( vects'*sk*vects)
              end
-             VALS[c,:, spin] = real.(vals)
-             VALS0[c,:, spin] = real.(diag(vects'*hk0*vects))
-             VECTS[c,spin, :,:] = vects
- #                temp +=  sum( vects'*sk*vects)
          end
-#         if c == 1
-#             println("VALS0 1", VALS0[c,:, 1])
-#             println("VALS0 2", VALS0[c,:, 2])
-#         end
-#=         catch e
-             if e isa InterruptException
-                 println("user interrupt")
-                 rethrow(InterruptException)
-             end
 
-             if error_flag == false
-                 println("error calc_energy_fft $k1 $k2 $k3 usually negative overlap eig")
-                 sk = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                 valsS, vectsS = eigen(sk)
-                 println(valsS)
-                 error_flag=true
-                 rethrow(error("BadOverlap"))
-             end
-             error_flag=true
-         end  =#
      end
+     go(grid, VALS, VALS0, VECTS)
+
 #     println("TEMP $temp")
 #     if abs(real(temp) - round(real(temp))) > 1e-10
 #         println("h1spin   yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
@@ -2159,6 +2138,7 @@ end
  """
  function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
 
+#     println("asdf")
      etypes = types_energy(tbc.crys)
 
      if ismissing(grid)
@@ -2169,6 +2149,7 @@ end
          end
      end
  #    println("calc_energy_charge_fft grid $grid")
+
      hk3, sk3 = myfft_R_to_K(tbc, grid)
 
      if tbc.scf
@@ -2179,7 +2160,7 @@ end
          echarge = 0.0
      end
 
-     if tbc.nspin == 2 && tbc.scf
+     if tbc.nspin == 2 || tbc.tb.scfspin
 #         h1up, h1dn = get_spin_h1(tbc)
 #         h1spin = [h1up, h1dn]
          h1spin = get_spin_h1(tbc)
@@ -2195,6 +2176,8 @@ end
      tbc.eden = chargeden
      #println("energy comps $eband $etypes $echarge $emag")
      energy = eband + etypes + echarge + emag
+
+#     println("end asdf")
 
      return energy, efermi, chargeden, VECTS, VALS, error_flag
 

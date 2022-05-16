@@ -18,7 +18,7 @@ include("../FitTB.jl")
 #include("../includes_laguerre.jl")
 
 function test1()
-
+    tbc_list = []
     @testset "testing laguerre fitting fake example" begin
         
         c1 = makecrys([7.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0], ["Li"], units="Bohr");
@@ -32,8 +32,8 @@ function test1()
         c8 = makecrys([14.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0; 0.46 0 0 ], ["Li", "Li"], units="Bohr");
         c9 = makecrys([14.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0; 0.45 0 0 ], ["Li", "Li"], units="Bohr");
 
-        @suppress begin
-#        if true
+        begin
+            #        if true
 
             database = Dict()
             database[(:Li, :Li)] = ThreeBodyTB.CalcTB.make_coefs(Set(["Li", "Li"]), 2)
@@ -48,15 +48,20 @@ function test1()
             tbc8 = ThreeBodyTB.CalcTB.calc_tb_fast(c8, database, use_threebody=false);
             tbc9 = ThreeBodyTB.CalcTB.calc_tb_fast(c9, database, use_threebody=false);
             
-            tbc_list = [tbc1 tbc2 tbc3 tbc4 tbc5 tbc6 tbc7 tbc8 tbc9]
+            tbc_list = [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9]
+
             newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, do_plot=false)
+#            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false)
+
+
             #        println("newdartabase")
             #        println(newdatabase[("Li", "Li")])
             @test sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1e-5
         end
-
+        
     end
+    return tbc_list
 end
 
 
-test1()
+tbc_list = test1()
