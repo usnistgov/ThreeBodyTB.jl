@@ -90,7 +90,7 @@ function test1()
             for c in [c1,c2,c3,c4,c5,c6,c7,c8,c9,c10, c11]
                 en1, tbc1, flag1 = scf_energy(c, database=database, nspin=2, conv_thr=1e-7)
                 en2, tbc2, flag2 = scf_energy(c, database=newdatabase, nspin=2, conv_thr=1e-7)
-#                @test abs(en1 - en2 ) < 1e-4
+                @test abs(en1 - en2 ) < 0.01
                 push!(EDIFF, abs(en1 - en2 ))
             end
             println("EDIFF ", EDIFF)
