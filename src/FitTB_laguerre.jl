@@ -1309,9 +1309,13 @@ function get_k_simple(kpoints, list_of_tbcs)
     for t in list_of_tbcs
         for spin = 1:t.nspin
             push!(KPOINTS, kpoints)
-            push!(KWEIGHTS, 1.0)
+            wghts = ones(size(kpoints)[1])
+            sw = sum(wghts)
+            wghts = wghts * (2.0/sw)
+            push!(KWEIGHTS, wghts )
         end
     end
+    
     return KPOINTS, KWEIGHTS, nk_max
 end
 
@@ -1394,10 +1398,19 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
 
     list_of_tbcs = list_of_tbcs[keepind]
-    dft_list = dft_list[keepind]
+    if !ismissing(dft_list)
+        dft_list = dft_list[keepind]
+    end
     KPOINTS = KPOINTS[keepind]
     KWEIGHTS = KWEIGHTS[keepind]
 
+    if ismissing(dft_list)
+        dft_list = []
+        for i = 1:length(KPOINTS)
+            push!(dft_list, missing)
+        end
+    end
+    
     println("niters $niters")
     
     #SCF MODE
@@ -1515,6 +1528,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         end
                     end
                     TEMP = TEMP + conj(TEMP)
+#                    println("$k $a $spin size occ $(size(occ)), size(TEMP), $(size(TEMP))  denmat $(size(denmat)) $(size(kweights))")
                     denmat += 0.5 * occ[ k,a,spin] * real.(TEMP) * kweights[k]
                 end
             end
@@ -1538,7 +1552,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
     #PREPARE REFERENCE ENERGIES / EIGENVALUES
     println("prepare reference eigs")
-    println([length(list_of_tbcs), length(KPOINTS), length(KWEIGHTS), length(dft_list), length(SPIN)])
+    #println([length(list_of_tbcs), length(KPOINTS), length(KWEIGHTS), length(dft_list), length(SPIN)])
     c=0
     NVAL = zeros(Float64, length(list_of_tbcs))
     NAT = zeros(Int64, length(list_of_tbcs))
@@ -1566,13 +1580,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         NVAL[c] = nval
 
-        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end, :], d.bandstruct.kweights, nval)
-        etypes = types_energy(d.crys)
-        etot_dft = d.energy
-        e_smear = d.energy_smear
-        atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
-        band_en = band_en 
-        shift = (atomization_energy - band_en  )/nval
+#        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end, :], d.bandstruct.kweights, nval)
+#        etypes = types_energy(d.crys)
+#        etot_dft = d.energy
+#        e_smear = d.energy_smear
+#        atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
+#        band_en = band_en 
+#        shift = (atomization_energy - band_en  )/nval
 
 #        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
 #        println("nk $nk")
@@ -1635,19 +1649,19 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        println("VALS ", VALS[c, 1, :,:])
 #        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights), " d.nspin ", d.nspin, " tbc.nspin ", tbc.nspin, " nw $nw nk $nk sum kweights ", sum(kweights))
 #        println("kweights[1:6] of ", size(kweights), "  " , kweights[1:6])
-        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:d.nspin], kweights, nval, 0.01, returnef=true) 
+        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, 0.01, returnef=true) 
 
 #        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
 
-        occs = gaussian.(VALS[c,1:nk,1:nw,1:d.nspin].-efermi, 0.01)
+        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, 0.01)
         
 #        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
 
 #        println("occs early $efermi $nval ",occs)
 #        println("VALS ", VALS)
         
-        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:d.nspin], kweights, efermi, 0.01)
+        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
         
 
         if !ismissing(tbc) && typeof(tbc) == tb_crys{Float64}
@@ -1675,7 +1689,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("tbc")
 #            println(tbc)
             s1 = sum(occs .* VALS0[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
-            energy_band = sum(s1 .* kweights) / tbc.nspin
+            energy_band = sum(s1 .* kweights) #/ tbc.nspin
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
@@ -1813,7 +1827,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             nval = NVAL[c]
 
-            etypes = types_energy(dft.crys)
+            etypes = types_energy(tbc.crys)
 
             nw = ind_BIG[c, 3]
             nk = size(kpoints)[1]
@@ -1867,10 +1881,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
-                dq = deepcopy(DQ[c,1:dft.crys.nat])
+                dq = deepcopy(DQ[c,1:tbc.crys.nat])
             else
                 h1 = zeros(Float64, nw, nw)
-                dq = zeros(dft.crys.nat)
+                dq = zeros(tbc.crys.nat)
             end
             if tbc.tb.scfspin
                 h1spin = deepcopy(H1spin[c,:,1:nw,1:nw])
@@ -1969,7 +1983,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
                     
                     s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], dims=[2,3])
-                    energy_band = sum(s1 .* kweights) / tbc.tb.nspin
+                    energy_band = sum(s1 .* kweights) #/ tbc.tb.nspin
                     #                    println("energy_band ", occs[1] , " " ,  VALS0_FITTED[1], " ", kweights[1])
                     
                     if maximum(abs.(dq - dq_new)) > 0.1
@@ -2178,7 +2192,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             Y_TOTEN = ENERGIES[calc]
             
             if scf
-                nat = dft_list[calc].crys.nat
+                nat = list_of_tbcs[calc].crys.nat
                 energy_charge, pot = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
             else
                 energy_charge = 0.0
@@ -2189,7 +2203,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 energy_magnetic = 0.0
             end
             
-            etypes = types_energy(dft_list[calc].crys)
+            etypes = types_energy(list_of_tbcs[calc].crys)
             
             energy_smear = ENERGY_SMEAR[calc]
 
