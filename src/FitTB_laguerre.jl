@@ -1353,7 +1353,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
     end
 
-    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
+#    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
     
     if ismissing(prepare_data)
         println("DO LINEAR FITTING")
@@ -1675,7 +1675,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("tbc")
 #            println(tbc)
             s1 = sum(occs .* VALS0[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
-            energy_band = sum(s1 .* kweights) #/ tbc.nspin
+            energy_band = sum(s1 .* kweights) / tbc.nspin
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
@@ -1693,10 +1693,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             end
 #            println("energy_magnetic $energy_magnetic")
             etypes = types_energy(tbc)
-#            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
+            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
 #            println("VALS ", VALS[c,1:nk,1:nw,1:tbc.nspin])
             
             ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
+
         else
             ENERGIES[c] = etot_dft - etotal_atoms
         end
@@ -1968,7 +1969,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
                     
                     s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], dims=[2,3])
-                    energy_band = sum(s1 .* kweights) #/ tbc.tb.nspin
+                    energy_band = sum(s1 .* kweights) / tbc.tb.nspin
                     #                    println("energy_band ", occs[1] , " " ,  VALS0_FITTED[1], " ", kweights[1])
                     
                     if maximum(abs.(dq - dq_new)) > 0.1
