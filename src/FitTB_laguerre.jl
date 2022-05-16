@@ -1252,6 +1252,9 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
                 end
                 kpts = kpts[goodk,:]
                 wghts = wghts[goodk]
+                sw = sum(wghts)
+                wghts = wghts * (2.0/sw)
+                
             end
 
 #                println("modk qqqqqqqqqqqqqqqqqqqqqqqqqqqqwq")
@@ -1344,10 +1347,13 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
 
     if !ismissing(dft_list)
+        println("top")
         KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
     else
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
     end
+
+    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
     
     if ismissing(prepare_data)
         println("DO LINEAR FITTING")
@@ -1568,7 +1574,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         band_en = band_en 
         shift = (atomization_energy - band_en  )/nval
 
-        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
+#        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
 #        println("nk $nk")
 #        println(kpoints)
 #        print("xx")
@@ -1626,16 +1632,17 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             end
 
         end        
-
-#        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights))
+#        println("VALS ", VALS[c, 1, :,:])
+#        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights), " d.nspin ", d.nspin, " tbc.nspin ", tbc.nspin, " nw $nw nk $nk sum kweights ", sum(kweights))
+#        println("kweights[1:6] of ", size(kweights), "  " , kweights[1:6])
         energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:d.nspin], kweights, nval, 0.01, returnef=true) 
 
-        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
+#        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
 
         occs = gaussian.(VALS[c,1:nk,1:nw,1:d.nspin].-efermi, 0.01)
         
-        println("sum occs ", sum(occs))
+#        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
 
 #        println("occs early $efermi $nval ",occs)
 #        println("VALS ", VALS)
@@ -1669,7 +1676,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println(tbc)
             s1 = sum(occs .* VALS0[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
             energy_band = sum(s1 .* kweights) #/ tbc.nspin
-            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
+#            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
                 energy_charge, pot = ewald_energy(tbc, dq)
@@ -1686,7 +1693,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             end
 #            println("energy_magnetic $energy_magnetic")
             etypes = types_energy(tbc)
-            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
+#            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
 #            println("VALS ", VALS[c,1:nk,1:nw,1:tbc.nspin])
             
             ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
