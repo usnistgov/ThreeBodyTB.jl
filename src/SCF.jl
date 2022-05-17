@@ -230,21 +230,36 @@ e_den = deepcopy(e_den0)
         if mixing_mode == :pulay
             n1in = copy(e_denA[:])
             n2in = copy(e_denA[:])
+            n3in = copy(e_denA[:])
             n1out = copy(e_denA[:])
             n2out = copy(e_denA[:])
+            n3out = copy(e_denA[:])
 
             n1 = copy(e_denA[:])
             n2 = copy(e_denA[:])
+            n3 = copy(e_denA[:])
 
-            B = zeros(3,3)
-            B[1,3] = 1
-            B[2,3] = 1
-            B[3,3] = 0.0
-            B[3,1] = 1
-            B[3,2] = 1
+            #B = zeros(3,3)
+            #B[1,3] = 1
+            #B[2,3] = 1
+            #B[3,3] = 0.0
+            #B[3,1] = 1
+            #B[3,2] = 1
+
+            B = zeros(4,4)
+            B[1,4] = 1
+            B[2,4] = 1
+            B[3,4] = 1
+            B[4,4] = 0.0
+            B[4,1] = 1
+            B[4,2] = 1            
+            B[4,3] = 1
             
-            R = zeros(3,1)
-            R[3,1] = 1.0
+#            R = zeros(3,1)
+#            R[3,1] = 1.0
+
+            R = zeros(4,1)
+            R[4,1] = 1.0
 
             R1 = zeros(size(e_denA[:]))
             R2  = zeros(size(e_denA[:]))
@@ -361,11 +376,19 @@ e_den = deepcopy(e_den0)
                 n1in[:] = n2in[:]
                 n1out[:] = n2out[:]
 
-                n2in[:] = e_denA[:]
-                n2out[:] = e_den_NEW[:]
+                n2in[:] = n3in[:]
+                n2out[:] = n3out[:]
+
+                n3in[:] = e_denA[:]
+                n3out[:] = e_den_NEW[:]
+
+#                n2in[:] = e_denA[:]
+#                n2out[:] = e_den_NEW[:]
 
                 n1[:] = n2[:]
-                n2[:] = e_denA[:]
+#                n2[:] = e_denA[:]
+                n2[:] = n3[:]
+                n3[:] = e_denA[:]
 
             end
             
@@ -386,24 +409,40 @@ e_den = deepcopy(e_den0)
 
             elseif mixing_mode == :pulay
 
-                R1 = n1out - n1in
-                R2 = n2out - n2in
+#                R1 = n1out - n1in
+#                R2 = n2out - n2in
 
 #                R1[:] = n2 - n1
  #               R2[:] = e_den_NEW - n2
 
 #                println("dR1 ", sum(abs.(R1t - R1)) , " dR2 ", sum(abs.(R2t - R2)), "n2-n1out ", sum(abs.(n2 - n1out)) , " n1 n1in ", sum(abs.(n1 - n1in)))
 
+#                B[1,1] = R1' * R1
+#                B[2,2] = R2' * R2
+#                B[1,2] = R1' * R2
+#                B[2,1] = R2' * R1
+
+
+                R1 = n1out - n1in
+                R2 = n2out - n2in
+                R3 = n3out - n3in
+
                 B[1,1] = R1' * R1
                 B[2,2] = R2' * R2
+                B[3,3] = R3' * R3
                 B[1,2] = R1' * R2
                 B[2,1] = R2' * R1
+                B[1,3] = R1' * R3
+                B[3,1] = R3' * R1
+                B[2,3] = R2' * R3
+                B[3,2] = R3' * R2
 
-                c = zeros(2)
+#                c = zeros(2)
+                c = zeros(3)
                 try
                     c = B \ R
                 catch
-                    c = [0.5,0.5]
+                    c = [0.5,0.5,0.5]
                 end
 
                 #n_pulay[:] = B \ R
@@ -414,7 +453,8 @@ e_den = deepcopy(e_den0)
 #                n_pulay = n1in * c[1,1] + n2in * c[2,1]
 #                n_pulay = n1out * c[1,1] + n2out * c[2,1]
 
-                n_pulay = n1out * c[1,1] + n2out * c[2,1]
+#                n_pulay = n1out * c[1,1] + n2out * c[2,1]
+                n_pulay = n1out * c[1,1] + n2out * c[2,1] + n3out * c[3,1]
 
                 if nspin == 1
                     e_denA[1,:] = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[:]
