@@ -1597,14 +1597,15 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         NVAL[c] = nval
 
-#        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end, :], d.bandstruct.kweights, nval)
-#        etypes = types_energy(d.crys)
-#        etot_dft = d.energy
-#        e_smear = d.energy_smear
-#        atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
-#        band_en = band_en 
-#        shift = (atomization_energy - band_en  )/nval
-
+        if !ismissing(d)
+            band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end, :], d.bandstruct.kweights, nval)
+            etypes = types_energy(d.crys)
+            etot_dft = d.energy
+            e_smear = d.energy_smear
+            atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
+            band_en = band_en 
+            shift = (atomization_energy - band_en  )/nval
+        end
 #        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
 #        println("nk $nk")
 #        println(kpoints)
