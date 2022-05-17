@@ -151,6 +151,10 @@ function get_magmom(tbc::tb_crys)
     end
 end
 
+function get_magmom(tbc::tb_crys, eden)
+    return get_magmom(tbc.crys, eden)    
+end
+
 function get_magmom(c::crystal, eden)
 
     spin = eden[1,:] - eden[2,:]
