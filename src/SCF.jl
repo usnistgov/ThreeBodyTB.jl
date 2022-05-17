@@ -532,9 +532,9 @@ e_den = deepcopy(e_den0)
 #                end
             end
             
-            if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 3
+            if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
                 #                if delta_eden < 0.05 * tbc.crys.nat
-                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 10
+                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 10 && delta_eden < conv_thrA * tbc.crys.nat * 100
                     convA = true
                     println()
                     eu = energy_tot*energy_units
