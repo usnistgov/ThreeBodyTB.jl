@@ -18,6 +18,10 @@ include("../FitTB.jl")
 #include("../includes_laguerre.jl")
 
 function test1()
+
+    units_old = ThreeBodyTB.set_units()
+    ThreeBodyTB.set_units(both="atomic")
+
     tbc_list = []
     @testset "testing laguerre fitting fake example" begin
         
@@ -77,7 +81,7 @@ function test1()
             
             tbc_list = [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc10, tbc11]
 
-            kpts, kweights = ThreeBodyTB.TB.make_kgrid([8,8,8])
+            kpts, kweights = ThreeBodyTB.TB.make_kgrid([3,3,3])
             
 #            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, do_plot=false)
             newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false, niters=20, kpoints=kpts)
@@ -97,8 +101,10 @@ function test1()
         end
         
     end
+    ThreeBodyTB.set_units(energy = units_old[1], length=units_old[2])
+
     return tbc_list
 end
 
 
-tbc_list = test1()
+tbc_list = test1();
