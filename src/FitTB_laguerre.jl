@@ -1219,8 +1219,13 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
         KWEIGHTS = []
         nk_max = size(kpoints)[1]
         nk = size(kpoints)[1]
-        kweights = ones(Float64, nk)/nk * 2.0
+
         for n = 1:length(list_of_tbcs)
+            if list_of_tbcs[n].nspin == 2 || list_of_tbcs[n].tb.scfspin == true
+                kweights = ones(Float64, nk)/nk * 1.0
+            else
+                kweights = ones(Float64, nk)/nk * 2.0
+            end                
             push!(KPOINTS, kpoints)
             push!(KWEIGHTS, kweights)
 
@@ -1253,8 +1258,11 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
                 kpts = kpts[goodk,:]
                 wghts = wghts[goodk]
                 sw = sum(wghts)
-                wghts = wghts * (2.0/sw)
-                
+                if list_of_tbcs[n].nspin ==	2 || list_of_tbcs[n].tb.scfspin	== true
+                    wghts = wghts * (1.0/sw)
+                else
+                    wghts = wghts * (2.0/sw)
+                end                    
             end
 
 #                println("modk qqqqqqqqqqqqqqqqqqqqqqqqqqqqwq")
@@ -1281,7 +1289,12 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
                 kpts = kpts[ind2[1:NLIM],:]
                 wghts = wghts[ind2[1:NLIM]]
                 sw = sum(wghts)
-                wghts = wghts * (2.0/sw)
+                if list_of_tbcs[n].nspin ==	2 || list_of_tbcs[n].tb.scfspin	== true
+                    wghts = wghts * (1.0/sw)
+                else
+                    wghts = wghts * (2.0/sw)
+                end                    
+
             end
 
             push!(KPOINTS, kpts)
@@ -1311,7 +1324,11 @@ function get_k_simple(kpoints, list_of_tbcs)
             push!(KPOINTS, kpoints)
             wghts = ones(size(kpoints)[1])
             sw = sum(wghts)
-            wghts = wghts * (2.0/sw)
+            if t.nspin ==	2 || t.tb.scfspin	== true
+                wghts = wghts * (1.0/sw)
+            else
+                wghts = wghts * (2.0/sw)
+            end                    
             push!(KWEIGHTS, wghts )
         end
     end
@@ -2161,7 +2178,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         NEWY = zeros(counter + nlam)
         
         counter = 0
-
+        energy_counter = []
         for calc = 1:ncalc
 
             if calc == leave_out #skip this one
@@ -2300,7 +2317,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             NEWX[counter, :] = X_TOTEN[:] * energy_weight * weights_list[calc]
             NEWY[counter] = Y_TOTEN * energy_weight * weights_list[calc] 
             push!(nonzero_ind, counter)
-
+            push!(energy_counter, counter)
         end
 
         if lambda > 1e-10
@@ -2319,7 +2336,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        println("size NEWX new ", size(NEWX))
 #        println("size NEWY new ", size(NEWY))
 
-        return NEWX, NEWY
+        return NEWX, NEWY, energy_counter
 
     end
 
@@ -2374,7 +2391,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
   #          println(typeof(NLAM))
   #          println(typeof(leave_out))
                     
-            NEWX, NEWY = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+            NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
 
             VECTS_FITTED = Dict()
 #            VECTS_FITTED = []
@@ -2432,6 +2449,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if true
 #                error_old_rs  = sum((X_H * chX .- Y_H).^2)
                 error_old_energy  = sum((NEWX * chX .- NEWY).^2)
+
+
+                
 #                error_old = error_old_rs + error_old_energy
             end
             
@@ -2455,6 +2475,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                println("errors rs     new $error_new_rs old $error_old_rs")
                 println("errors energy new $error_new_energy old $error_old_energy")
 #                println("errors tot    new $error_new old $error_old")
+                println()
+                println("energy_counter")
+                println([NEWX[energy_counter,:] * chX NEWY[energy_counter,1] NEWX[energy_counter,:] * chX -  NEWY[energy_counter,1]])
                 println()
             end
 
