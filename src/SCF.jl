@@ -111,9 +111,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         mixing_mode = :pulay
         if mix < 0
             if tbc.crys.nat <= 10 
-                mix = 0.5
+                mix = 0.9
             else
-                mix = 0.2
+                mix = 0.3
             end
         end
     else
@@ -282,6 +282,9 @@ e_den = deepcopy(e_den0)
 
         error_flag = false
 
+        magmom = 0.0
+        magmom_old = 0.0
+        
         for iter = 1:ITERS
 
             dq_old = deepcopy(dq)
@@ -351,6 +354,8 @@ e_den = deepcopy(e_den0)
             energy_charge, pot = ewald_energy(tbc, dq)
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
+                magmom_old = magmom
+                magmom = sum(get_magmom(tbc, e_denA))
             else
                 energy_magnetic = 0.0
             end
@@ -535,7 +540,7 @@ e_den = deepcopy(e_den0)
             
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
                 #                if delta_eden < 0.05 * tbc.crys.nat
-                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 10 && delta_eden < conv_thrA * tbc.crys.nat * 100
+                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 50 && abs(magmom-magmom_old) < conv_thrA * tbc.crys.nat * 50
                     convA = true
                     println()
                     eu = energy_tot*energy_units
