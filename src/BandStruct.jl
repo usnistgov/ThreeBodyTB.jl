@@ -84,6 +84,18 @@ function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5
 
 end
 
+
+function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+    println("plot_compare_tb ")
+
+    kpath=h2.tb.K
+
+    
+    plot_bandstr(h1, kpath=kpath, npts = 1, names = names, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
+    plot_bandstr(h2, efermi = efermi, color="orange", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
+
+end
+
 """
     function plot_bandstr(h::tb_crys; kpath, names = missing, proj_types=missing, proj_orbs = missing, proj_nums=missing)
 
