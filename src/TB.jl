@@ -1825,16 +1825,29 @@ end
 
      etypes = types_energy(tbc.crys)
 
+     if tbc.nspin == 2 || tbc.tb.scfspin == true
+         nspin = 2
+     else
+         nspin = 1
+     end
 
      hk3, sk3 = myfft_R_to_K(tbc, grid)
 
-     if tbc.tb.scfspin 
-         h1 = tbc.tb.h1spin
-     else
-         h1 = missing
-     end
+#     println("size(hk3) ", size(hk3))
+     
+#     if tbc.tb.scfspin 
+#         h1 = tbc.tb.h1spin
+#     else
+#         h1 = missing
+#     end
 
-     ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin)
+#     if tbc.nspin == 2 || tbc.tb.scfspin == true
+#         nspin = 2
+#     else
+#         nspin = 1
+#     end
+     
+     ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin)
 
 
      if return_more_info
@@ -1856,16 +1869,19 @@ end
  Return energy from hamiltonian `hk3`, overlap `sk3`, `nelec`, etc.
  Primarly for internal calling after fft.
  """
- function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing)
+ function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1)
  #h1 is the scf contribution
 
      grid = size(sk3)[3:5]
      nk = prod(grid)
      nwan = size(hk3)[1]
-     nspin = size(hk3)[3]
-     if !ismissing(h1spin )
-         nspin = 2
-     end
+
+
+
+
+#     if !ismissing(h1spin )
+#         nspin = 2
+#     end
 
      spin_size = size(hk3)[3]
 
@@ -1876,11 +1892,11 @@ end
 
 
      thetype=typeof(real(sk3[1,1,1,1,1]))
-     sk = zeros(Complex{thetype}, nwan, nwan)
-     hk = zeros(Complex{thetype}, nwan, nwan)
      
      function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS)
          c=0
+         sk = zeros(Complex{thetype}, nwan, nwan)
+         hk = zeros(Complex{thetype}, nwan, nwan)
          for k1 = 1:grid[1]
              for k2 = 1:grid[2]
                  for k3 = 1:grid[3]
@@ -1893,10 +1909,10 @@ end
                              hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
                              
                              if !ismissing(h1)
-                                 hk += sk .* h1
+                                 hk += 0.5*sk .* (h1+h1')
                              end
-                             if !ismissing(h1spin)
-                                 hk += sk .* h1spin[spin,:,:]
+                             if nspin == 2
+                                 hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
                              end
                              
                              vals, vects = eigen(hk, sk)
@@ -2018,7 +2034,7 @@ end
              for spin = 1:nspin
                  spin_ind = min(spin, nspin_ham)
                  hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
-                 hk = hk0  .+ sk .* (h1 + h1spin[spin,:,:])
+                 hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
                  vals, vects = eigen(hk, sk)
                  
                  if maximum(abs.(imag.(vals))) > 1e-10
