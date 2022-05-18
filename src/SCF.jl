@@ -455,6 +455,7 @@ e_den = deepcopy(e_den0)
                     c = B \ R
                 catch
                     c = [0.333333333,0.3333333333,0.3333333333]
+                    c[3] = 1.0 - sum(c[1:2])
                 end
 
                 #n_pulay[:] = B \ R
@@ -571,7 +572,7 @@ e_den = deepcopy(e_den0)
             mixing_mode = :simple
             e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
 #            e_den = 0.5*(e_den + e_denS)
-            mix = 0.001
+            mix = 0.01
 
         end
     end
