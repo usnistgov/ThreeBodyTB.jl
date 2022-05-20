@@ -143,6 +143,7 @@ function setup_proto_data()
 #    CalcD["dimer_h_nomag"] =       ["$STRUCTDIR/dimer.in.h", "relax", "2Dxy", "coords-small2", "nscf", false]
 
 
+    CalcD["b6"] = ["$STRUCTDIR/POSCAR_b6", "vc-relax", "all", "vol-mid", "nscf", false]
 
     CalcD["atom"] = ["$STRUCTDIR/atom.in", "scf", "all", "scf", "nscf", false]
     CalcD["sc"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-big", "nscf", false]
@@ -484,7 +485,7 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "sc_inv",     "bcc",     "bcc_inv",     "fcc",     "hcp", "hcp_shape",      "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "dimer_min", "trimer", "trimer2", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense"]
+    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "dimer_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense"]
 
 
 

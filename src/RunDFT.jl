@@ -406,6 +406,10 @@ Make inputfile for SCF calculation
             nbandval += atoms[t].nwan
         end
         nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.0 / 2.0))   #no spin yet
+        if "La" in crys.types
+            nbandtot += 7*crys.nat
+        end
+
         other *="nbnd = "*string(nbandtot)*"\n"
     elseif wannier == 1 #fewer bands can be more stable
         nbandsemi = 0
