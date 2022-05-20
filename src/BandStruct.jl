@@ -627,9 +627,9 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
     
     plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
     if bs.nbnd > 1
-        println("test ", vbmD)
-        println(bs.eigs[:,2, spin] )
-        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
+#        println("test ", vbmD)
+#        println(bs.eigs[:,2, spin] )
+#        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
 
         plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)    
     end
