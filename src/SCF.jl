@@ -370,11 +370,11 @@ e_den = deepcopy(e_den0)
 
 #            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
-            if iter > 5 && (delta_eden >= delta_eden_old*0.99999 && iter > 2)  #|| delta_energy_old < abs(energy_old - energy_tot)
-                mixA = max(mixA * 0.5, 0.00001)
+            if iter > 5 && (delta_eden >= delta_eden_old*0.99999 && iter%3 == 0)  #|| delta_energy_old < abs(energy_old - energy_tot)
+                mixA = max(mixA * 0.5, 0.001)
                 nreduce += 1
                 if nreduce > 10 && mixing_mode == :pulay
-                    mixA = 1.0
+                    mixA = 0.2
                     nreduce = -5
                 end
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
@@ -382,7 +382,7 @@ e_den = deepcopy(e_den0)
 
             end
             if iter == 100
-                mixA = max(mixA * 0.5, 0.00001)
+                mixA = max(mixA * 0.5, 0.001)
                 nreduce += 1
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
             end                
