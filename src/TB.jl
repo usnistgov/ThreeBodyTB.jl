@@ -2048,6 +2048,7 @@ end
          end
 
      end
+#     println("go")
      go(grid, VALS, VALS0, VECTS)
 
 #     println("TEMP $temp")
@@ -2069,8 +2070,9 @@ end
 
 #         println("sum occ ", sum(occ))
 
-#         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-10)[2]
-         max_occ = nwan
+         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
+         min_occ = findfirst(sum(occ, dims=[1,3]) .< 1.0 - 1e-8)[2]         
+#         max_occ = nwan
          
 #         println("occ ", size(occ))
 #         println(occ)
@@ -2099,7 +2101,8 @@ end
 
      end
          
-     if true
+#     println("charge")
+     if false
          TEMP = zeros(Complex{Float64}, nwan, nwan) 
 
          for spin = 1:nspin
@@ -2110,14 +2113,17 @@ end
              #        cVECTS = conj(VECTS)
              grid3 = prod(grid)
              t_temp = zeros(Complex{Float64},grid3 )
-             @threads for i = 1:nwan
+             for i = 1:nwan
                  for j = 1:nwan
                      
                      if maxSK[i,j] > 1e-7
                          
 
+                         #                         TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
                          TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
-#                         TEMP[i,j] += sum( sum(  (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
+
+
+                         #                         TEMP[i,j] += sum( sum(  (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
                          
                      end
                      
@@ -2136,6 +2142,16 @@ end
          
      end
 
+         
+     #println("charge")
+     chargeden = go_charge(occ, VECTS, SK, nspin, nwan, maxSK, max_occ, grid)
+
+     #println("charge10")
+     #@time V = permutedims(VECTS[:,1,:,:], [2,3,1])
+     #@time S = permutedims(SK, [2,3,1])
+     #@time chargeden10 = go_charge10(V, S, occ, nspin, max_occ)
+     #println("CHARGE DIFF ", sum(abs.(chargeden - chargeden10)))
+     
      if nspin == 2
          energy0 = energy0 / 2.0
      end
@@ -2146,6 +2162,62 @@ end
 
 
  end 
+
+     function go_charge(occ::Array{Float64,3} , VECTS::Array{Complex{Float64},4}, SK::Array{Complex{Float64},3}, nspin::Int64, nwan::Int64, maxSK::Array{Float64,2}, max_occ::Int64, grid)
+         TEMP = zeros(Complex{Float64}, nwan, nwan) 
+         denmat = zeros(Float64, nspin, nwan, nwan)
+
+         for spin = 1:nspin
+             TEMP[:,:] .= 0.0
+             pVECTS = permutedims(VECTS[:,spin,:,1:max_occ], [1,3,2])
+             pVECTS_C = conj(pVECTS)
+             grid3 = prod(grid)
+             @simd for i = 1:nwan
+                 @simd for j = 1:nwan
+                     if maxSK[i,j] > 1e-7
+                         #                         TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,1:max_occ,i])  .* (@view pVECTS[:,1:max_occ,j]), dims=2) .* (@view SK[:,i,j]))
+                         @inbounds TEMP[i,j] += sum( sum(  (@view occ[:,1:max_occ,spin]).* (@view pVECTS_C[:,:,i])  .* (@view pVECTS[:,:,j]), dims=2) .* (@view SK[:,i,j]))
+                     end
+                     
+                 end
+             end
+             TEMP =   (TEMP + conj(TEMP))
+             denmat[spin,:,:] += 0.5* real.( TEMP) / (grid[1]*grid[2]*grid[3])
+         end
+         chargeden = zeros(nspin, nwan)
+         for spin = 1:nspin
+             chargeden[spin,:] = sum(denmat[spin,:,:][:,:], dims=1)
+         end
+         return chargeden
+     end
+
+
+
+     function go_charge10(VECTS, S, occ, nspin, max_occ)
+
+         nw = size(S)[1]
+         nk = size(S)[3]
+
+#         println("nw $nw nk $nk")
+         d = zeros(Complex{Float64}, nw,nw)
+         charge = zeros(nspin, nw)
+
+
+         for spin = 1:nspin
+             for k = 1:nk
+                 for n = 1:max_occ
+                     for b = 1:nw
+                         for a = 1:nw
+                             d[a,b] += occ[k,n,spin] * conj(VECTS[a,n,k])*VECTS[b,n,k]*S[a,b,k] #+ (VECTS[a,n,k])*conj(VECTS[b,n,k]) * conj( S[a,b,k]))
+                         end
+                     end
+                 end
+             end
+             charge[spin,:] = sum(real(0.5*(d + d')), dims=1) / nk
+         end
+         return charge
+     end
+
 
  """
      function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)

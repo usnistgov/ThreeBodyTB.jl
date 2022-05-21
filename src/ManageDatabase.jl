@@ -60,9 +60,9 @@ end
 """
     function prepare_database(at_list)
 """
-function prepare_database(at_list; directory = missing)
+function prepare_database(at_list; directory = missing, verbose=true)
     
-    println("prepare atoms ", at_list)
+    if verbose; println("prepare atoms ", at_list); end
     at_list = Symbol.(at_list)
     #    println("database_list ", database_list)
     s = Set(at_list)
@@ -70,7 +70,7 @@ function prepare_database(at_list; directory = missing)
         for s2 in s
             for s3 in s
                 if ! ( Set([s1,s2,s3]) in database_list)
-                    add_to_database(Set([s1,s2,s3]), directory = directory)
+                    add_to_database(Set([s1,s2,s3]), directory = directory, verbose=verbose)
                 end
             end
         end
@@ -82,9 +82,9 @@ end
 
 Load elements or twobody terms from precalcuated `coefs` from files.
 """
-function add_to_database(s::Set; directory = missing)#
+function add_to_database(s::Set; directory = missing, verbose=true)#
 
-    println("add_to_database $s")
+    if verbose; println("add_to_database $s"); end
 
     dirlist = []
     if !ismissing(directory)

@@ -44,6 +44,7 @@ using ..TB:get_energy_electron_density_kspace
 using ..TB:smearing_energy
 using ..CalcTB:calc_tb_fast
 using ..TB:get_magmom
+using ..CrystalMod:get_grid
 
 using SpecialFunctions
 using ..ThreeBodyTB:global_energy_units
@@ -65,9 +66,9 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false)
 
-
+#    println("calc tb")
     tbc = calc_tb_fast(c, database, verbose=verbose);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
     return t
@@ -183,7 +184,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         end
     end
     
-
+    if ismissing(grid)
+        grid = get_grid(tbc.crys)
+    end
+    
     if verbose
         println()
         println("Parameters:")
@@ -310,7 +314,7 @@ e_den = deepcopy(e_den0)
 #            end
 
 #            try
-
+            #            println("calc_energy_charge_fft_band")
             energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin)
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
 #            println("dqN  ", round.(dqNEW; digits=3))
@@ -545,9 +549,9 @@ e_den = deepcopy(e_den0)
                     println()
                     eu = energy_tot*energy_units
                     if abs( energy_units - 1)< 1e-5
-                        println("YES convergence in $iter iters, energy $eu Ryd.   dq = ",  (round.(dq; digits=3)))
+                        println("YES convergence in $iter iters, energy $eu Ryd. ")
                     else
-                        println("YES convergence in $iter iters, energy $eu eV   dq = ",  (round.(dq; digits=3)))
+                        println("YES convergence in $iter iters, energy $eu eV  ")
                     end
                     
                     println("END SCF ------------------")
