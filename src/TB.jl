@@ -1958,7 +1958,128 @@ end
  end 
 
 
- """
+ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing )
+
+#     println("ismissing h1spin ", ismissing(h1spin))
+
+#     println("in calc_energy_charge_fft_band")
+#     return 0.0, 0.0,0.0,0.0,0.0,0.0
+
+     thetype=typeof(real(sk3[1,1,1,1,1]))
+
+     if ismissing(VECTS)
+         VECTS = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
+     end
+     if ismissing(SK)
+         SK = zeros(Complex{thetype}, nwan, nwan, nk)
+     end
+     if ismissing(DEN)
+         DEN = zeros(Complex{thetype}, nwan, nwan, nk)
+     end
+     
+     if true
+
+         
+         grid = size(sk3)[3:5]
+         #    print("calc_energy_charge_fft_band grid $grid")
+         nk = prod(grid)
+         nwan = size(hk3)[1]
+
+         if !ismissing(h1spin)
+             nspin = 2
+         else
+             nspin = size(hk3)[3]
+         end
+
+         nspin_ham = size(hk3)[3]
+
+
+         VALS = zeros(Float64, nk, nwan, nspin)
+         VALS0 = zeros(Float64, nk,nwan, nspin)
+#         c=0
+
+         thetype=typeof(real(sk3[1,1,1,1,1]))
+#         sk = zeros(Complex{thetype}, nwan, nwan)
+#         hk = zeros(Complex{thetype}, nwan, nwan)
+#         hk0 = zeros(Complex{thetype}, nwan, nwan)
+
+
+#         VECTS = zeros(Complex{thetype}, nk, nspin, nwan, nwan)
+#         SK = zeros(Complex{thetype}, nk, nwan, nwan)
+
+         error_flag = false
+
+         if ismissing(h1)
+             h1 = zeros(nwan,nwan)
+         else
+             h1 = 0.5*(h1 + h1')
+         end
+         if ismissing(h1spin)
+             h1spin = zeros(2,nwan,nwan)# , zeros(nwan,nwan)]
+         else
+             h1spin[1,:,:] .= 0.5*(h1spin[1,:,:] + h1spin[1,:,:]')
+             h1spin[2,:,:] .= 0.5*(h1spin[2,:,:] + h1spin[2,:,:]')
+         end
+         
+     end
+
+     function go(grid, VALS, VALS0, VECTS)
+         @threads for c = 1:grid[1]*grid[2]*grid[3]
+             #         id = threadid()
+             k3 = mod(c-1 , grid[3])+1
+             k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+             k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+             
+             sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+             SK[:,:,c] .= sk
+             for spin = 1:nspin
+                 spin_ind = min(spin, nspin_ham)
+                 hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
+                 hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
+                 vals, vects = eigen(hk, sk)
+                 
+                 if maximum(abs.(imag.(vals))) > 1e-10
+                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                 end
+                 VALS[c,:, spin] .= real.(vals)
+                 VALS0[c,:, spin] .= real.(diag(vects'*hk0*vects))
+                 VECTS[:,:, c, spin] .= vects
+                 #                temp +=  sum( vects'*sk*vects)
+             end
+         end
+
+     end
+
+#     println("go")
+     go(grid, VALS, VALS0, VECTS)
+
+     begin
+
+         energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
+         occ = gaussian.(VALS.-efermi, smearing)
+
+         max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
+         energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
+         energy0 = sum(occ .* VALS0) / nk * 2.0
+
+         energy0 += energy_smear * nspin#
+
+     end
+
+     #println("charge14")
+     chargeden = go_charge14(VECTS, SK, occ, nspin, max_occ, DEN)
+
+     if nspin == 2
+         energy0 = energy0 / 2.0
+     end
+         
+     return energy0, efermi, chargeden, VECTS, VALS, error_flag
+
+
+ end 
+
+
+"""
      function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing)
 
  Calculate energy and charge density. For internal use.
@@ -2048,8 +2169,8 @@ end
          end
 
      end
-     #println("go")
-     go(grid, VALS, VALS0, VECTS)
+     println("go")
+     @time go(grid, VALS, VALS0, VECTS)
 
 #     println("TEMP $temp")
 #     if abs(real(temp) - round(real(temp))) > 1e-10
@@ -2149,11 +2270,12 @@ end
      #println("charge10")
      V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
      S = permutedims(SK, [2,3,1])
+     DEN = zeros(Complex{thetype}, nwan, nwan, nk);
 
-     #println("charge 13/14")
+     println("charge 13/14")
      #@time chargeden13 = go_charge13(VECTS, SK, occ, nspin, max_occ)
 
-     chargeden = go_charge14(V, S, occ, nspin, max_occ)
+     @time chargeden = go_charge14(V, S, occ, nspin, max_occ, DEN)
 
 #     println("CHARGE DIFF ", sum(abs.(chargeden - chargeden13)))
      
@@ -2223,12 +2345,10 @@ end
          return charge
      end
 
-     function go_charge14(VECTS, S, occ, nspin, max_occ)
+     function go_charge14(VECTS, S, occ, nspin, max_occ, DEN)
 
          nw = size(S)[1]
          nk = size(S)[3]
-
-         DEN = zeros(Complex{Float64}, nw, nw, nk);
 
          d = zeros(Complex{Float64}, nw,nw)
          charge = zeros(nspin, nw)

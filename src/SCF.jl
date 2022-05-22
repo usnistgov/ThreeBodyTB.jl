@@ -29,6 +29,7 @@ using ..TB:types_energy
 
 using ..TB:myfft
 using ..TB:calc_energy_charge_fft_band
+using ..TB:calc_energy_charge_fft_band2
 using ..TB:calc_energy_charge_fft
 using ..TB:myfft_R_to_K
 using ..TB:ewald_energy
@@ -206,9 +207,14 @@ e_den = deepcopy(e_den0)
     etypes = types_energy(tbc.crys)
 #    println("fft time")
     hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
-    
-    nk = prod(size(hk3)[3:5])
 
+    thetype=typeof(real(sk3[1,1,1,1,1]))
+
+    
+    nk = prod(grid)
+
+    println("nk $nk")
+    
     VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
     VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
                   
@@ -289,6 +295,15 @@ e_den = deepcopy(e_den0)
         magmom = 0.0
         magmom_old = 0.0
         
+        nwan = tbc.tb.nwan
+        
+
+        VECTS_w = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
+        SK_w = zeros(Complex{thetype}, nwan, nwan, nk)
+        DEN_w = zeros(Complex{thetype}, nwan, nwan, nk)
+
+
+        
         for iter = 1:ITERS
 
             dq_old = deepcopy(dq)
@@ -315,7 +330,14 @@ e_den = deepcopy(e_den0)
 
 #            try
             #            println("calc_energy_charge_fft_band")
-            energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin)
+
+#            println("en1")
+            #@time energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin)
+#            println("en2")
+            energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
+
+#            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))
+            
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
 #            println("dqN  ", round.(dqNEW; digits=3))
 
@@ -658,8 +680,11 @@ e_den = deepcopy(e_den0)
 
     tbc.efermi=efermi
     tbc.energy=energy_tot
+
+    V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
+
     
-    return energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc
+    return energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc
 
 end
 
