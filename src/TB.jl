@@ -1999,8 +1999,8 @@ end
 #         hk = zeros(Complex{thetype}, nwan, nwan)
 #         hk0 = zeros(Complex{thetype}, nwan, nwan)
 
+
          VECTS = zeros(Complex{thetype}, nk, nspin, nwan, nwan)
-         cVECTS = zeros(Complex{thetype}, nk, nspin,  nwan, nwan)
          SK = zeros(Complex{thetype}, nk, nwan, nwan)
 
          error_flag = false
@@ -2048,7 +2048,7 @@ end
          end
 
      end
-#     println("go")
+     #println("go")
      go(grid, VALS, VALS0, VECTS)
 
 #     println("TEMP $temp")
@@ -2144,13 +2144,18 @@ end
 
          
      #println("charge")
-     chargeden = go_charge(occ, VECTS, SK, nspin, nwan, maxSK, max_occ, grid)
+     #@time chargeden = go_charge(occ, VECTS, SK, nspin, nwan, maxSK, max_occ, grid)
 
      #println("charge10")
-     #@time V = permutedims(VECTS[:,1,:,:], [2,3,1])
-     #@time S = permutedims(SK, [2,3,1])
-     #@time chargeden10 = go_charge10(V, S, occ, nspin, max_occ)
-     #println("CHARGE DIFF ", sum(abs.(chargeden - chargeden10)))
+     V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
+     S = permutedims(SK, [2,3,1])
+
+     #println("charge 13/14")
+     #@time chargeden13 = go_charge13(VECTS, SK, occ, nspin, max_occ)
+
+     chargeden = go_charge14(V, S, occ, nspin, max_occ)
+
+#     println("CHARGE DIFF ", sum(abs.(chargeden - chargeden13)))
      
      if nspin == 2
          energy0 = energy0 / 2.0
@@ -2213,6 +2218,70 @@ end
                      end
                  end
              end
+             charge[spin,:] = sum(real(0.5*(d + d')), dims=1) / nk
+         end
+         return charge
+     end
+
+     function go_charge14(VECTS, S, occ, nspin, max_occ)
+
+         nw = size(S)[1]
+         nk = size(S)[3]
+
+         DEN = zeros(Complex{Float64}, nw, nw, nk);
+
+         d = zeros(Complex{Float64}, nw,nw)
+         charge = zeros(nspin, nw)
+
+#         println("nw $nw nk $nk")
+#         println(size(VECTS))
+#         println(size(S))
+#         println(size(occ))
+         for spin = 1:nspin
+             DEN .= 0.0
+             for n = 1:max_occ
+                 @threads for k = 1:nk
+                     for b = 1:nw
+                         for a = 1:nw
+                             @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[b,n,k,spin])
+                             #DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[in, b,n])
+                         end
+                     end
+                 end
+             end
+             d .= sum(DEN .* S, dims=3)[:,:]
+             charge[spin,:] = sum(real(0.5*(d + d')), dims=1) / nk
+         end
+         return charge
+     end
+
+     function go_charge13(VECTS, S, occ, nspin, max_occ)
+
+         nw = size(S)[3]
+         nk = size(S)[1]
+
+         DEN = zeros(Complex{Float64}, nk, nw, nw);
+
+         d = zeros(Complex{Float64}, nw,nw)
+         charge = zeros(nspin, nw)
+
+#         println("nw $nw nk $nk")
+#         println(size(VECTS))
+#         println(size(S))
+#         println(size(occ))
+         for spin = 1:nspin
+             DEN .= 0.0
+             for n = 1:max_occ
+                 @threads for k = 1:nk
+                     for b = 1:nw
+                         for a = 1:nw
+                             #                             @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,spin,n,k]).*(VECTS[b,spin, n,k])
+                             DEN[k,a,b] += occ[k,n,spin].*conj(VECTS[k,spin,a,n]).*(VECTS[k,spin, b,n])
+                         end
+                     end
+                 end
+             end
+             d .= sum(DEN .* S, dims=1)[1,:,:]
              charge[spin,:] = sum(real(0.5*(d + d')), dims=1) / nk
          end
          return charge
