@@ -9,7 +9,7 @@ STRUCTDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "reference_structures")
 PSEUDODIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "pseudo", "gbrv_pbesol")
 
 
-DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.2")
+DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.3")
 
 #DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v0.9")
 

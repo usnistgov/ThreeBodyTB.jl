@@ -324,8 +324,8 @@ function setup_proto_data()
 
     CalcD["bcc_13"] = ["$STRUCTDIR/binary/POSCAR_bcc_13", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["bcc_31"] = ["$STRUCTDIR/binary/POSCAR_bcc_31", "vc-relax", "all", "vol-mid", "nscf", false]
-    CalcD["mg2si"] = ["$STRUCTDIR/binary/POSCAR_mg2si", "vc-relax", "all", "vol-mid", "nscf", false]
-    CalcD["simg2"] = ["$STRUCTDIR/binary/POSCAR_simg2", "vc-relax", "all", "vol-mid", "nscf", false]
+    CalcD["mg2si"] = ["$STRUCTDIR/binary/POSCAR_mg2si", "vc-relax", "all", "vol", "nscf", false]
+    CalcD["simg2"] = ["$STRUCTDIR/binary/POSCAR_simg2", "vc-relax", "all", "vol", "nscf", false]
 
     CalcD["fcc_12"] = ["$STRUCTDIR/binary/fcc_12.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["fcc_21"] = ["$STRUCTDIR/binary/fcc_21.in", "vc-relax", "all", "vol", "nscf", false]
@@ -333,14 +333,14 @@ function setup_proto_data()
     CalcD["fcc_conv_ABBB"] = ["$STRUCTDIR/binary/fcc_conv_ABBB.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["fcc_conv_BAAA"] = ["$STRUCTDIR/binary/fcc_conv_BAAA.in", "vc-relax", "all", "vol", "nscf", false]
 
-    CalcD["mgb2_12"] = ["$STRUCTDIR/binary/POSCAR_mgb2", "vc-relax", "all", "vol", "nscf", false]
-    CalcD["mgb2_21"] = ["$STRUCTDIR/binary/POSCAR_mgb2_21", "vc-relax", "all", "vol", "nscf", false]
+    CalcD["mgb2_12"] = ["$STRUCTDIR/binary/POSCAR_mgb2", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["mgb2_21"] = ["$STRUCTDIR/binary/POSCAR_mgb2_21", "vc-relax", "all", "scf", "nscf", false]
 
     CalcD["mgb2_AB"] = ["$STRUCTDIR/binary/POSCAR_mgb2_AB", "vc-relax", "all", "vol", "nscf", false]
     CalcD["mgb2_BA"] = ["$STRUCTDIR/binary/POSCAR_mgb2_BA", "vc-relax", "all", "vol", "nscf", false]
 
-    CalcD["ab2_71"] = ["$STRUCTDIR/binary/POSCAR_ab2_71", "vc-relax", "all", "vol", "nscf", false]
-    CalcD["ba2_71"] = ["$STRUCTDIR/binary/POSCAR_ba2_71", "vc-relax", "all", "vol", "nscf", false]
+    CalcD["ab2_71"] = ["$STRUCTDIR/binary/POSCAR_ab2_71", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["ba2_71"] = ["$STRUCTDIR/binary/POSCAR_ba2_71", "vc-relax", "all", "scf", "nscf", false]
 
     CalcD["irn2_38"] = ["$STRUCTDIR/binary/POSCAR_irn2_38", "vc-relax", "all", "vol", "nscf", false]
     CalcD["cao2_12"] = ["$STRUCTDIR/binary/POSCAR_cao2_12", "vc-relax", "all", "vol", "nscf", false]
@@ -490,17 +490,17 @@ function setup_proto_data()
 
 
 
-    core_binary = [    "cscl",          "hbn",     "rocksalt",  "rocksalt_inv",   "znse",     "dimer2", "dimer2_min", "tri2_min", "square2", "hcp_v2", "rocksalt_shape", "rocksalt_2lay", "cscl_layers", "fcc_12", "fcc_21", "bcc_13", "bcc_31", "rocksalt_dense", "hcp_v2_dense", "znse_dense",  "distort", "227", "znseAABB"]
+    core_binary = [    "cscl",          "hbn",     "rocksalt",  "znse",     "dimer2", "dimer2_min", "tri2_min", "square2", "hcp_v2", "rocksalt_2lay", "cscl_layers", "fcc_12", "fcc_21", "bcc_13", "bcc_31", "rocksalt_dense", "znse_dense", "znseAABB"]
 
     A0 = [   "as_orth",    "ga_tet",    "ge_wurtz",    "pb_r3m",    "beta_sn",   "ga",    "bi",    "te",    "in",    "i2",    "li_p6mmm",    "hcp_shape",   "n" ] #"bcc_tet.in",  same as POSCAR_ga_tet   #"as_221",  is simple cubic
     
-    A1B1 = ["hbn_real", "sis_2d", "ges", "sns", "wurtz"] #nias #
-    A1B2 = ["mgcl2", "mgcl2_tet", "caf2", "sis2", "tio2_rutile", "co2",  "mgf2",  "ticl2", "gei2", "anatase"]   # "sns2" duplictes ticl2 #"mgf2_v2" is rutile
+    A1B1 = ["hbn_real", "sis_2d", "ges", "sns"] #nias #
+    A1B2 = ["mgcl2", "mgcl2_tet", "caf2", "sis2", "tio2_rutile", "co2",  "mgf2", "anatase"]   # "sns2" duplictes ticl2 #"mgf2_v2" is rutile
     A1B3 = ["alf3", "asna3_2d", "ab3_mol", "gain3", "li3n_hex"]
     A1B4 = ["sif4", "snf4", "gei4_mol"]
     A1B5 = ["ascl5", "bi1f5"]
     A1B6 = ["mof6", "a1f6"]
-    A2B3 = ["y2o3", "p2ca3", "al2o3", "bi2se3", "ga2s3", "gas"]
+    A2B3 = ["y2o3", "p2ca3", "al2o3", "bi2se3", "ga2s3"]
     A2B5 = ["nb2o5", "p2o5"]
     A3B5 = [] #"p3n5"
 

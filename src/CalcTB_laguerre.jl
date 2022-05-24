@@ -77,7 +77,7 @@ const n_2body_onsite = 5
 
 const n_2body_S = 6
 
-const n_3body = 6
+const n_3body = 8
 const n_3body_same = 6
 
 const n_3body_onsite = 4
@@ -1205,7 +1205,7 @@ function get_data_info_v1(at_set, dim)
 #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 5 7 6]' #switch 2 4 and 3 6
 #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2  4 6 5]' #switch 2 4 and 3 6
 #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 6 5  7 9 8 ]' #switch 2 4 and 3 6
-                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4, 5, 7, 6  ] #switch 2 4 and 3 6
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4, 5, 6, 8, 7  ] #switch 2 4 and 3 6
                     end
                     
 #                    println([at1, o1, at2, o2, at3,  symb], tot, " ",  n, " " , data_info[[at1, o1, at2, o2, at3,  symb]] )
@@ -5662,7 +5662,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
             V = Vt
 #            println("V ", V)
         else 
-           try
+#           try
 #                Vt = [a[1].*b[1]  (a[1].*b[2]+a[2].*b[1])  a[2].*b[2] (a[1].*b[3]+ a[3].*b[1])  zero[1].*a[1].*b[1] zero[1].*(a[1].*b[2]+a[2].*b[1]) ]
 #                V = Vt
 #               println("case ")
@@ -5685,21 +5685,22 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 #                memoryV[7] = zero[2].*(a[1].*b[1])
 
 
-            catch
-                println("asdf ",size(a), " " , size(b))
-            end
+#            catch
+#                println("asdf ",size(a), " " , size(b))
+#            end
+
         end
     else
         if  isa(dist1, Array)
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]     ]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
             V = Vt
         else
-            try
+#            try
 #                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
 #                V = Vt
                 if ismissing(memoryV)
@@ -5712,7 +5713,11 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 
                 memoryV[5] =  zero[2].*a[1].*b[1]
                 memoryV[6] =  a[2].*b[2]
+
+                memoryV[7] =  zero[1].*a[1].*b[2]
+                memoryV[8] =  zero[1].*a[2].*b[1]
                 
+
 #                memoryV[6] =  
 
 #                memoryV[6] =  a[3].*b[1]
@@ -5721,9 +5726,10 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 #                memoryV[7] =  zero[1].*a[1].*b[1]
 #                memoryV[8] =  zero[1].*a[1].*b[2]
 #                memoryV[9] =  zero[1].*a[2].*b[1]
-            catch
-                println("asdf ",size(a), " " , size(b))
-            end
+
+#            catch
+#                println("asdf ",size(a), " " , size(b))
+#            end
         end
     end
 
