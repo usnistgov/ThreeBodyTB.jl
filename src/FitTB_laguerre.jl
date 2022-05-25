@@ -2356,8 +2356,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         
         for iters = 1:NITERS #inner loop
 
-            if iters > 5
-                mix = 0.1
+            if iters > 2
+                mix = 0.05
+            end
+            if iters > 4
+                mix = 0.15
             end
 
             if scf

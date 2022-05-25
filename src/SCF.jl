@@ -394,7 +394,7 @@ e_den = deepcopy(e_den0)
 
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
-#            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
+            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
             if iter > 5 && (delta_eden >= delta_eden_old*0.99999 && iter%3 == 0)  #|| delta_energy_old < abs(energy_old - energy_tot)
                 mixA = max(mixA * 0.5, 0.001)
@@ -1068,7 +1068,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     if tbc.nspin == 2
         h1spin = get_spin_h1(tbc, e_den)
     else
-        h1spin = zeros(2,tbc.nwan, tbc.nwan)
+        h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
     end
     println("typeof(h1spin) ", typeof(h1spin))
 

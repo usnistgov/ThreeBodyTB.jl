@@ -1453,7 +1453,7 @@ end
      sk = 0.5*(sk + sk')
 
      if scf
- #        println("add SCF")
+#         println("add SCF  kxkx")
          hk = hk0 + 0.5 * sk .* (h.h1 + h.h1')
      else
          hk[:,:] = hk0[:,:]
@@ -3042,11 +3042,13 @@ end
  """
  function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing)
 
+     println("size ham_kS ", size(ham_kS))
+     
      wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(crys)
 
-     nspin = size(ham_kS)[4]
+     nspin = size(ham_kS)[3]
      nwan = size(ham_kS)[1]
-     nks  = size(ham_kS)[3]
+     nks  = size(ham_kS)[4]
 
      println("myfft $nspin $nwan $nks")
      
@@ -3073,9 +3075,9 @@ end
              end
              for spin = 1:nspin
                  if nonorth
-                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k,spin]
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,spin, k]
                  else
-                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,k,spin]
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,spin, k]
                  end
              end
          end
@@ -3090,7 +3092,9 @@ end
          SR3 = ifft(S_k_fftw, [3,4,5])    
      end
 
-
+     println("size ham_k_fftw ", size(ham_k_fftw))
+     println("size hamR3 ", size(hamR3))
+     
  #    println("myfft SR3 0 0 0 ")
  #    println(SR3[:,:,1,1,1])
  #    println()
@@ -3135,7 +3139,7 @@ end
                      S_r[nw_1,nw_2,c] += SR3[nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  for spin = 1:nspin
-                     ham_r[spin, nw_1,nw_2,c] += hamR3[ nw_1,nw_2,spin,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
+                     ham_r[spin, nw_1,nw_2,c] += hamR3[nw_1,nw_2,spin,  rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  
                  #                println("adding $a1 $a2 $c ", hamR3[a1,a2,rint[1], rint[2], rint[3]], " " , sym_R[a1,a2,c]
@@ -3771,7 +3775,7 @@ end
      println("efermi $efermi")
      
      energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-     println("CALC ENERGIES $etypes $echarge $bandenergy $energy_smear $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
+     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
      return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 
