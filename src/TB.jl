@@ -2064,6 +2064,8 @@ end
 
          energy0 += energy_smear * nspin#
 
+#         println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
+         
      end
 
      #println("charge14")
