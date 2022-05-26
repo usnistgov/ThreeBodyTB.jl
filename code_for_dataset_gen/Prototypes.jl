@@ -232,7 +232,8 @@ function setup_proto_data()
     CalcD["hh_mono"] = ["$STRUCTDIR/POSCAR_hh_mono", "vc-relax", "all", "vol-mid", "nscf", false]
 
 
-    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
+#    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
+    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["rocksalt"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -1668,7 +1669,7 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
         d="$dir/$name"*"_vnscf_"*"$i"        
         try
             dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true, magnetic=magnetic)
-            tbc, tbck = ThreeBodyTB.AtomicProj.projwfx_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
+            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
         catch
             println("err dft $d")
         end

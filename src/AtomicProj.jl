@@ -1705,6 +1705,8 @@ Do Fourier transform k->R.
     nwan = tbck.tb.nwan
     nspin = tbck.tb.nspin
     
+    println("get_ham_r size ham_k ", size(ham_k))
+
     if nonorth
         ham_r, S_r, r_dict, ind_arr = myfft(tbck.crys, nonorth, grid, K,ham_k, Sk)
     else
