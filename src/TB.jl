@@ -382,7 +382,8 @@ function read_tb_crys(filename; directory=missing)
     if "nspin" in keys(d)
         nspin = parse(Int64,d["nspin"])
     end
-
+    println("nspin $nspin")
+    
     dftenergy = parse(Float64,d["dftenergy"])        
 
     if "energy" in keys(d)
@@ -494,6 +495,8 @@ function read_tb_crys(filename; directory=missing)
         #    println("h1")
         #    println(h1)
 
+    println("$nspin $nwan size H ", size(H))
+    
     if nonorth
         tb = make_tb(H, ind_arr, r_dict, S, h1=h1, h1spin=h1spin)
     else
@@ -1967,6 +1970,10 @@ end
 
      thetype=typeof(real(sk3[1,1,1,1,1]))
 
+     println("size ", size(hk3))
+     nwan = size(sk3)[1]
+     nspin = size(hk3)[3]
+     nk = prod(size(hk3)[end-2:end])
      if ismissing(VECTS)
          VECTS = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
      end
@@ -2104,6 +2111,8 @@ end
          nk = prod(grid)
          nwan = size(hk3)[1]
 
+
+         
          if !ismissing(h1spin)
              nspin = 2
          else
@@ -2112,7 +2121,8 @@ end
 
          nspin_ham = size(hk3)[3]
 
-
+#         println("grid $grid nk $nk nwan $nwan nspin_ham $nspin_ham nspin $nspin")
+         
          VALS = zeros(Float64, nk, nwan, nspin)
          VALS0 = zeros(Float64, nk,nwan, nspin)
 #         c=0
@@ -2145,12 +2155,17 @@ end
 #     temp = 0.0
 #     hk = zeros(tbc.tb.nwan, tbc.tb.nwan, nthreads())
      #sk = zeros(Complex{Float64}, nwan, nwan, nthreads())
+
+
      function go(grid, VALS, VALS0, VECTS)
-         @threads for c = 1:grid[1]*grid[2]*grid[3]
+ #        hc = zeros(Complex{Float64}, prod(grid))
+         for c = 1:grid[1]*grid[2]*grid[3]
              #         id = threadid()
              k3 = mod(c-1 , grid[3])+1
              k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
              k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+
+         #    println([k1,k2,k3])
              
              sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
              SK[c,:,:] .= sk
@@ -2158,6 +2173,20 @@ end
                  spin_ind = min(spin, nspin_ham)
                  hk0 = 0.5*( (@view hk3[:,:,spin_ind, k1,k2,k3]) + (@view hk3[:,:,spin_ind, k1,k2,k3])')
                  hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
+
+#                 if c == 1
+#                     println("bbb ", hk[1,1], " " , hk0[1,1,1,1,1,1,1], " " , sk[1,1,1,1,1], " ", h1[1,1])
+#                 end
+
+                 #                 hc[c] += sum(hk)
+ #                   if k1 == 5 && k2 == 2 && k3 == 3
+ #                       println("hk TB")
+#                        println(hk[1:4, 1:4])
+  #                      println(sk[1:4, 1:4])
+  #                      println(h1[1:4, 1:4])
+  #                  end
+
+
                  vals, vects = eigen(hk, sk)
                  
                  if maximum(abs.(imag.(vals))) > 1e-10
@@ -2169,11 +2198,15 @@ end
                  #                temp +=  sum( vects'*sk*vects)
              end
          end
+#         println("sum hc ", hc[1:10:end])
+#         println("sum hc ", sum(hc))
 
      end
-     println("go")
+#     println("go")
      @time go(grid, VALS, VALS0, VECTS)
 
+#     println("VALS ", sum(VALS))
+     
 #     println("TEMP $temp")
 #     if abs(real(temp) - round(real(temp))) > 1e-10
 #         println("h1spin   yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
@@ -2194,7 +2227,7 @@ end
 #         println("sum occ ", sum(occ))
 
          max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
-         min_occ = findfirst(sum(occ, dims=[1,3]) .< 1.0 - 1e-8)[2]         
+#         min_occ = findfirst(sum(occ, dims=[1,3]) .< 1.0 - 1e-8)[2]         
 #         max_occ = nwan
          
 #         println("occ ", size(occ))
@@ -2202,7 +2235,7 @@ end
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
 #         println("energy band $energy")
-#         println("efermi $efermi")
+         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
 
 #         println("VALS0")
@@ -2274,10 +2307,10 @@ end
      S = permutedims(SK, [2,3,1])
      DEN = zeros(Complex{thetype}, nwan, nwan, nk);
 
-     println("charge 13/14")
+     #println("charge 13/14")
      #@time chargeden13 = go_charge13(VECTS, SK, occ, nspin, max_occ)
 
-     @time chargeden = go_charge14(V, S, occ, nspin, max_occ, DEN)
+     chargeden = go_charge14(V, S, occ, nspin, max_occ, DEN)
 
 #     println("CHARGE DIFF ", sum(abs.(chargeden - chargeden13)))
      
@@ -2616,7 +2649,7 @@ I don't remember what this function is for. It seems to have something to do wit
          energy_charge = 0.0
      end
 
-     if h.tb.scfmag
+     if h.tb.scfspin
          energy_mag = magnetic_energy(h)
      else
          energy_mag = 0.0
@@ -2629,6 +2662,8 @@ I don't remember what this function is for. It seems to have something to do wit
  #        return eband+etypes, ek
  #    end
 
+     println("band $ret types $etypes charge $energy_charge mag $energy_mag")
+     
      return ret + etypes + energy_charge + energy_mag
 
  end 
@@ -3046,14 +3081,22 @@ end
      
      wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(crys)
 
-     nspin = size(ham_kS)[3]
+     nspin = size(ham_kS)[4]
      nwan = size(ham_kS)[1]
-     nks  = size(ham_kS)[4]
+     nks  = size(ham_kS)[3]
 
+#     nspin = size(ham_kS)[4]
+#     nwan = size(ham_kS)[2]
+#     nks  = size(ham_kS)[4]
+     
      println("myfft $nspin $nwan $nks")
      
      if length(size(ham_kS)) == 6 #we don't have to calculate, already in fft form
          println("don't calc")
+         nspin = size(ham_kS)[1]
+         nwan = size(ham_kS)[2]
+         nks  = prod(size(ham_kS)[4:6])
+
          ham_k_fftw = ham_kS
          S_k_fftw = Sk
 
@@ -3063,7 +3106,7 @@ end
          S_k_fftw = zeros(Complex{Float64}, nwan, nwan, grid[1], grid[2], grid[3])
 
          for k = 1:nks
-             println("k $k ", kpts[k,:], " " , grid)
+#             println("k $k ", kpts[k,:], " " , grid)
              kn = Int.(round.(kpts[k,:] .* grid)).+1
              for i in 1:3
                  if kn[i] <= 0
@@ -3075,9 +3118,9 @@ end
              end
              for spin = 1:nspin
                  if nonorth
-                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,spin, k]
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:, k, spin]
                  else
-                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:,spin, k]
+                     ham_k_fftw[spin, :,:,kn[1], kn[2], kn[3]] = ham_kS[:,:, k, spin]
                  end
              end
          end
@@ -3139,7 +3182,7 @@ end
                      S_r[nw_1,nw_2,c] += SR3[nw_1,nw_2,rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  for spin = 1:nspin
-                     ham_r[spin, nw_1,nw_2,c] += hamR3[nw_1,nw_2,spin,  rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
+                     ham_r[spin, nw_1,nw_2,c] += hamR3[spin, nw_1,nw_2,  rint[1], rint[2], rint[3]] * sym_R[a1,a2,c]
                  end
                  
                  #                println("adding $a1 $a2 $c ", hamR3[a1,a2,rint[1], rint[2], rint[3]], " " , sym_R[a1,a2,c]

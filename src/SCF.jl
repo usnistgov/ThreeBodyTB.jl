@@ -1009,15 +1009,19 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
     hk3, sk3 = myfft_R_to_K(tbc, grid)
     println("size hk3 ", size(hk3))
 
-    hk3, sk3, e_den_NEW, h1, h1spin = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
+    hk3, sk3, e_den_NEW, h1, h1spin, efermi = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = tbc.eden)
     println("size hk3 v2 ", size(hk3))
 
-    grid = size(hk3)[3:5]
+    grid = size(hk3)[4:6]
 
     ctemp = tbc.crys
 
+    hk3a = permutedims(hk3, [3,1,2,4,5,6])
+    println("size hk3a ", size(hk3a))
     println("before myfft")
-    ham_r, S_r, r_dict, ind_arr = myfft(ctemp, true, grid, [],hk3, sk3)
+    ham_r, S_r, r_dict, ind_arr = myfft(ctemp, true, grid, [],hk3a, sk3)
+
+
     println("after myff")
 
     if tbc.nspin == 1
@@ -1028,8 +1032,9 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
     tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=h1, h1spin=h1spin )
 
     #with charge density
-    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=e_den_NEW, gamma = tbc.gamma)
-
+    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=tbc.eden, gamma = tbc.gamma)
+    tbc_new.efermi = efermi
+    
 #    if false
 #        println("test")
 #        hk3_A, sk3_A = myfft_R_to_K(tbc_new, grid)#
@@ -1055,11 +1060,20 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
         if you then do an scf solution to the new tbc, you should get the old tbc back.
     """
 
-
+    println("1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq size hk3 ", size(hk3))
 
 #    hk3a = deepcopy(hk3)
+
+    println("aaa ", hk3[1,1,1,1,1,1])
     
     energy_band_orig , efermi, e_den2, VECTS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing)
+
+
+    println("energy_band_orig $energy_band_orig")
+    
+    println("e_den in ", e_den)
+    println("e_den2   ", e_den2)
+    
     if ismissing(e_den)
         e_den = e_den2
     end
@@ -1095,31 +1109,73 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     new_target_energy = energy_band_orig - energy_charge - energy_magnetic
 
     
-    grid = size(hk3)[3:5]
+    grid = size(hk3)[4:6]
 
     sk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     hk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
 
+#    println("aaa ", hk3[1,1,1,1,1,1])
+#    println("tbc.nspin ", tbc.nspin)
+#    println("2qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq size hk3 ", size(hk3))
+    
     for spin = 1:tbc.nspin
         for k1 = 1:grid[1]
             for k2 = 1:grid[2]
                 for k3 = 1:grid[3]
+#                    if k1 == 1 && k2 == 1 && k3 == 1
+#                        println("aaa1 ", hk3[1,1,1,k1,k2,k3], " - " , h1[1,1].*sk3[1,1,k1,k2,k3] , " " , h1[1,1], " " , sk3[1,1,k1,k2,k3])
+#                    end
+
+
                     
                     hk[:,:] = 0.5*(hk3[:,:,spin, k1,k2,k3] + hk3[:,:,spin, k1,k2,k3]')
+
+#                    if k1 == 5 && k2 == 2 && k3 == 3
+#                        println("hk SCF xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx#xxxxxxxxxx")
+#                        println(hk[1:4, 1:4])
+ #                       println(sk[1:4, 1:4])
+#                        println(h1[1:4, 1:4])
+#
+ #                   end
+
                     sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
                     t=sk .* (h1  + h1spin[spin,:,:])
                     hk -= 0.5*(t + t')      #removing scf term
                     
                     hk3[:,:,spin, k1,k2,k3] = hk[:,:]
 
+
+                    #if k1 == 1 && k2 == 1 && k3 == 1
+                    #    println("aaa2 ", hk3[1,1,1,k1,k2,k3])
+                    #end
+                    
+                    
                 end
             end
         end
     end
+
+#    println("aaa ", hk3[1,1,1,1,1,1] + h1[1,1] * sk3[1,1,1,1,1], " x ", hk3[1,1,1,1,1,1], " " ,  h1[1,1] * sk3[1,1,1,1,1], " h1 ", h1[1,1], " " , sk3[1,1,1,1,1])
+#    println("h1 ", sum(abs.(h1 - h1')))
+#    println("sk ", sum(abs.(sk3[:,:,1,1,1] - sk3[:,:,1,1,1]')))
+    
+    if tbc.nspin == 1
+        h1spin = missing
+    end
+    
     energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
 
+    println("e_den_NEW ", e_den_NEW)
+    println("energy_band_new $energy_band_new")
+
     
+    #    shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
+    sk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+    hk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+
+#    shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
     shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
+
     println("shift $shift   $energy_band_orig $energy_charge $energy_band_new $nval")
     for spin = 1:tbc.nspin
         for k1 = 1:grid[1]
@@ -1128,9 +1184,19 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
                     
                     hk[:,:] = 0.5*(hk3[:,:,spin, k1,k2,k3] + hk3[:,:,spin, k1,k2,k3]')
                     sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+
+#                    if k1 == 1 && k2 == 1 && k3 == 1
+#                        println("aaa3 ", hk3[1,1,1,k1,k2,k3])
+#                    end
+
                     
-                    vals, vects = eigen(hk, sk)
+#                    t=sk .* (h1  + h1spin[spin,:,:])
+#                    vals, vects = eigen(hk+t  , sk)
+
+                    
+                    vals, vects = eigen(hk  , sk)
                     hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
+#                    hk =  sk*vects*diagm(vals .+ shift)*vects'
                     
                     hk3[:,:,spin, k1,k2,k3] = hk[:,:] 
                     
@@ -1140,7 +1206,15 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
         end
     end
 
-    return hk3, sk3, e_den_NEW, h1, h1spin
+    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
+    println("energy check ", energy_band_new + energy_charge)
+
+    println("e_den_NEW ", e_den_NEW)
+    
+#    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
+#    println("energy check ", energy_band_new)
+    
+    return hk3, sk3, e_den_NEW, h1, h1spin, efermi
 
 
 end

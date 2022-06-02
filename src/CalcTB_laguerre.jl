@@ -2879,8 +2879,9 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if ismissing(database)
         println("missing database, creating empty tbc")
+#    else
+#        println(keys(database))
     end
-
     
     if ismissing(reference_tbc)
         prepare_for_fitting = false

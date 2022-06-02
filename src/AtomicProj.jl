@@ -565,7 +565,7 @@ Steps:
 
 #    return tbck
     
-    println("after prepare P OVERLAPS ", size(p.overlaps))
+    println(tbck.nspin, " after prepare P OVERLAPS ", size(p.overlaps))
 
 
     if !ismissing(writefilek)
@@ -1663,6 +1663,8 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
         tbk = make_tb_k(ham_kS, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=true)
         tbck = make_tb_crys_kspace(tbk, d.crys, nval, d.energy - etotal_atoms, scf=false, screening=screening)
 
+#        println("nspin k ", tbck.nspin)
+        
         return tbck
 
         #end nonorthogonal!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1705,7 +1707,7 @@ Do Fourier transform k->R.
     nwan = tbck.tb.nwan
     nspin = tbck.tb.nspin
     
-    println("get_ham_r size ham_k ", size(ham_k))
+    println("$nspin get_ham_r size ham_k ", size(ham_k))
 
     if nonorth
         ham_r, S_r, r_dict, ind_arr = myfft(tbck.crys, nonorth, grid, K,ham_k, Sk)
@@ -1713,6 +1715,8 @@ Do Fourier transform k->R.
         ham_r, r_dict, ind_arr =      myfft(tbck.crys, nonorth, grid, K,ham_k, missing)
     end             
 
+#    println("size ham_r ", size(ham_r))
+    
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbck.crys)
 
     #turn ham_r into tight-binding object

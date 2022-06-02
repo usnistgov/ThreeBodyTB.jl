@@ -709,9 +709,12 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
             rind = 1:l
         end
 
+    #   rind = 1:l
 
         @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)[rind]
-#        @time cs = X_Snew_BIG[rind,:] \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
+
+
+        #        @time cs = X_Snew_BIG[rind,:] \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
@@ -781,6 +784,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
             scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8)
 #            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
         else
+            println("do plot k")
             rows1 = size(X_Hnew_BIG)[1]
             scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4)
 #            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
@@ -1145,7 +1149,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
 
         if typeof(tbc) == tb_crys_kspace{Float64}
 #            println("typeof(tbc) == tb_crys_kspace !!!!!!!!!!!!!!!!!!!! $spin")
-            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=true, spin=spin)
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=false, spin=spin)
 
             for o1 = 1:nw
                 for o2 = 1:nw
@@ -1837,7 +1841,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("SCF SOLUTIONS")
             niter_scf = 150
         else
-            niter_scf = 0
+            niter_scf = 1
         end
         
         for (tbc, kpoints, kweights, dft) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list)
@@ -1976,7 +1980,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                    println("$c VALS0_FITTED k0 ", VALS0_FITTED[c,1,1:nw])
 #                end
 
-                if solve_self_consistently == true
+                #if solve_self_consistently == true
+                if true
                     
                     mix = 0.7 * 0.92^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
 
@@ -2011,14 +2016,25 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     h1 = h1*(1-mix) + h1_new * mix
                     dq = dq*(1-mix) + dq_new * mix
                     h1spin = h1spin*(1-mix) + h1spin_new * mix
-                    
-                    
-                    energy_charge, pot = ewald_energy(tbc, dq)
-                    if tbc.tb.scfspin
-                        energy_magnetic = magnetic_energy(tbc, eden)
+
+                    if solve_self_consistently == true
+                        h1 = h1*(1-mix) + h1_new * mix
+                        h1spin = h1spin*(1-mix) + h1spin_new * mix
+
+                        energy_charge, pot = ewald_energy(tbc, dq)
+                        if tbc.tb.scfspin
+                            energy_magnetic = magnetic_energy(tbc, eden)
+                        else
+                            energy_magnetic = 0.0
+                        end
+
                     else
+                        h1 .= 0.0
+                        h1spin .= 0.0
+                        energy_charge = 0.0
                         energy_magnetic = 0.0
                     end
+                        
                     
                     energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
                         
@@ -2469,6 +2485,16 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             ch_new = TOTX \ TOTY
 #            println("new errors")
             if true
+
+#                println("mix $mix ch diff ", sum(abs.(ch_old - ch_new)))
+#                println("len ", length(ch_old), " " , length(ch_new))
+#                for i in 1:length(ch_old)
+#                    if abs(ch_old[i] - ch_new[i]) < 1.0
+#                        println([ ch_old[i] , ch_new[i], ch_old[i] - ch_new[i]])
+#                    else
+#                        println([ ch_old[i] , ch_new[i], ch_old[i] - ch_new[i]], " !!!! ")
+#                    end
+ #               end
                 chX = (ch_old * (1-mix) + ch_new * (mix) )
                 
 #                error_new_rs  = sum((X_H * chX .- Y_H).^2)
@@ -2479,10 +2505,23 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                println("errors rs     new $error_new_rs old $error_old_rs")
                 println("errors energy new $error_new_energy old $error_old_energy")
 #                println("errors tot    new $error_new old $error_old")
-                println()
-                println("energy_counter")
-                println([NEWX[energy_counter,:] * chX NEWY[energy_counter,1] NEWX[energy_counter,:] * chX -  NEWY[energy_counter,1]])
-                println()
+                #                println()
+#                println("energy counter")
+#                nnn = NEWX[:,:]*chX
+
+                #                println("size nnn ", size(nnn))
+#                for e in energy_counter
+#                    println(["a", nnn[e], NEWY[e,1],  nnn[e] - NEWY[e,1]])
+#                end
+
+                #                println("other")
+#                for e in 1:50
+#                    println(["b", nnn[e], NEWY[e,1],  nnn[e] - NEWY[e,1]])
+#                end
+
+                #                println("energy_counter")
+#                println([NEWX[energy_counter,:] * chX NEWY[energy_counter,1] NEWX[energy_counter,:] * chX -  NEWY[energy_counter,1]])
+#                println()
             end
 
             if abs(error_new_energy - err_old_en) < 5e-3 && iters >= 6
