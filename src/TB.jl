@@ -1488,6 +1488,9 @@ end
 
      catch
          println("warning eigen failed, ", kpoint)
+         println("sk")
+         println(sk)
+         println(eigvals(sk))
          vects = collect(I(nw))
          vals = 1000.0 * ones(nw)
          vals0 = 1000.0 * ones(nw)

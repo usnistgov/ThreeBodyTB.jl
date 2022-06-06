@@ -49,11 +49,12 @@ end
 
 function get_twobody_dist(A,B)
 
-    prepare_database([A,B])
-    database = ThreeBodyTB.ManageDatabase.database_cached
+    ab = 4.2
+    #prepare_database([A,B])
+    #database = ThreeBodyTB.ManageDatabase.database_cached
     
-    ab = database[(A,B)].min_dist * 1.0001
-    println("min dist $A $B $ab")
+    #ab = database[(A,B)].min_dist * 1.0001
+    #println("min dist $A $B $ab")
     return ab
 end
 #=    println("get_twobody_dist $A $B")
