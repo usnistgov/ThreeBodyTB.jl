@@ -665,7 +665,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length([1.05, 1.1,  1.2,  1.3])
         elseif newst == "coords_trimer_ab_new"  
             #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
-            ncalc = length([1.01, 1.05, 1.1,  1.2,  1.3]) * 2
+            ncalc = 4*4
         elseif newst == "coords_trimer3"
             ncalc = 5*4*2
         elseif (newst == "coords_trimer_dense" || newst == "coords_trimer_ab_dense" )
@@ -934,29 +934,61 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 coords[1,1] = aa / A[1,1] / 2.0
                 coords[2,1] = 1.0 - aa / A[1,1] / 2.0
                 coords[3,3] = sqrt(ab^2 -  (aa/2 )^2) / A[3,3]
-                
+                coords[3,1] = 0.00005
+
                 cnew = makecrys(A, coords, t)
                 
-                for x in [1.01, 1.05, 1.15,  1.3, 1.4]
+                for x in [1.02, 1.07, 1.15 ,  1.3]
                     c = deepcopy(cnew) * x
                     push!(torun, deepcopy(c))
                 end
 
-                A = diagm([18,18,10.0])
+                A = diagm([16,8,16.0])
                 coords = zeros(3,3)
                 t = [T2, T2, T1]
-                coords[1,1] = aa / A[1,1] / 2.0
+                coords[1,1] = bb / A[1,1] / 2.0
                 coords[2,1] = 1.0 - bb / A[1,1] / 2.0
                 coords[3,3] = sqrt(ab^2 -  (bb/2 )^2) / A[3,3]
+                coords[3,1] = 0.00005
                 
                 cnew = makecrys(A, coords, t)
                 
-                for x in [1.01, 1.05, 1.15 ,  1.3, 1.4]
+                for x in [1.02, 1.07, 1.15 ,  1.3]
                     c = deepcopy(cnew) * x
                     push!(torun, deepcopy(c))
                 end
                 
                 
+                A = diagm([16,8,16.0])
+                coords = zeros(3,3)
+                t = [T1, T1, T2]
+                coords[1,1] = aa / A[1,1] / 2.0
+                coords[2,1] = 1.0 - aa / A[1,1] / 2.0
+                coords[3,3] = ab / A[3,3]
+                coords[3,1] = aa / A[1,1] / 2.0
+
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.02, 1.07, 1.15, 1.3]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+
+                A = diagm([16,8,16.0])
+                coords = zeros(3,3)
+                t = [T2, T2, T1]
+                coords[1,1] = bb / A[1,1] / 2.0
+                coords[2,1] = 1.0 - bb / A[1,1] / 2.0
+                coords[3,3] = ab / A[3,3]
+                coords[3,1] = bb / A[1,1] / 2.0
+
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.02, 1.07, 1.15, 1.3]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+
 
                 
             elseif newst == "coords_trimer_ab"
