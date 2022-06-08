@@ -5,6 +5,7 @@ Holds the data for isolated atoms.
 """
 module Atomdata
 using ..AtomicMod:makeatom
+using ..ThreeBodyTB:SRCDIR
 #using ..Atomic:AtomicMod
 
 
@@ -426,74 +427,12 @@ end
 Approximate minimum distance in current fitting data.
 """
 min_dimer_dist_dict = Dict()
+fil = open("$SRCDIR/mindist.csv")
 
-min_dimer_dist_dict["Pd"] =  3.73246
-min_dimer_dist_dict["Si"] =  3.33537
-min_dimer_dist_dict["C"] =  1.92837
-min_dimer_dist_dict["P"] =  2.86897
-min_dimer_dist_dict["Nb"] =  3.10416
-min_dimer_dist_dict["Ag"] =  3.8093
-min_dimer_dist_dict["Ru"] =  2.95446
-min_dimer_dist_dict["Sb"] =  3.75256
-min_dimer_dist_dict["Cs"] =  4.49968
-min_dimer_dist_dict["Be"] =  3.2197
-min_dimer_dist_dict["Sr"] =  3.95284
-min_dimer_dist_dict["Ta"] =  3.2543
-min_dimer_dist_dict["Ga"] =  3.94627
-min_dimer_dist_dict["Te"] =  3.89208
-min_dimer_dist_dict["Y"] =  4.13392
-min_dimer_dist_dict["Ca"] =  5.03584
-min_dimer_dist_dict["K"] =  4.29261
-min_dimer_dist_dict["Au"] =  3.74318
-min_dimer_dist_dict["V"] =  2.59038
-min_dimer_dist_dict["Mo"] =  2.88349
-min_dimer_dist_dict["Br"] =  3.46016
-min_dimer_dist_dict["Zn"] =  3.88444
-min_dimer_dist_dict["Sc"] =  3.49735
-min_dimer_dist_dict["H"] =  1.16274
-min_dimer_dist_dict["Al"] =  3.9947
-min_dimer_dist_dict["S"] =  2.87718
-min_dimer_dist_dict["Ge"] =  3.53994
-min_dimer_dist_dict["Fe"] =  2.68548
-min_dimer_dist_dict["Mg"] =  4.609
-min_dimer_dist_dict["F"] =  2.12195
-min_dimer_dist_dict["La"] =  3.92813
-min_dimer_dist_dict["W"] =  3.03842
-min_dimer_dist_dict["Li"] =  2.88861
-min_dimer_dist_dict["O"] =  1.84197
-min_dimer_dist_dict["B"] =  2.47166
-min_dimer_dist_dict["Mn"] =  2.47598
-min_dimer_dist_dict["Bi"] =  3.96946
-min_dimer_dist_dict["Re"] =  3.06043
-min_dimer_dist_dict["Hf"] =  3.71755
-min_dimer_dist_dict["Cl"] =  3.00634
-min_dimer_dist_dict["In"] =  4.58286
-min_dimer_dist_dict["Rb"] =  4.50733
-min_dimer_dist_dict["Se"] =  3.29481
-min_dimer_dist_dict["Ba"] =  4.10738
-min_dimer_dist_dict["Rh"] =  3.20676
-min_dimer_dist_dict["Ti"] =  2.86562
-min_dimer_dist_dict["Zr"] =  3.39044
-min_dimer_dist_dict["Cr"] =  2.39985
-min_dimer_dist_dict["Cu"] =  3.29852
-min_dimer_dist_dict["Tc"] =  2.90788
-min_dimer_dist_dict["Tl"] =  4.8252
-min_dimer_dist_dict["Hg"] =  4.27212
-min_dimer_dist_dict["N"] =  1.67319
-min_dimer_dist_dict["Na"] =  3.50215
-min_dimer_dist_dict["Os"] =  3.09582
-min_dimer_dist_dict["Ni"] =  3.11813
-min_dimer_dist_dict["Co"] =  2.91763
-min_dimer_dist_dict["Pt"] =  3.47029
-min_dimer_dist_dict["Ir"] =  3.25225
-min_dimer_dist_dict["As"] =  3.18345
-min_dimer_dist_dict["Sn"] =  4.14125
-min_dimer_dist_dict["I"] =  4.02336
-min_dimer_dist_dict["Cd"] =  4.29162
-min_dimer_dist_dict["Pb"] =  4.35765
-
-for key in keys(min_dimer_dist_dict)
-    min_dimer_dist_dict[Symbol(key)] = min_dimer_dist_dict[key]
+for line in readlines(fil)
+    sp = split(line)
+    min_dimer_dist_dict[(Symbol(sp[1]), Symbol(sp[2]))] = parse(Float64, sp[3])
+    min_dimer_dist_dict[(sp[1], sp[2])] = parse(Float64, sp[3])
 end
 
 

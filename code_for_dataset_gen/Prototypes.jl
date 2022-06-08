@@ -59,37 +59,37 @@ function get_twobody_dist(A,B)
 end
 #=    println("get_twobody_dist $A $B")
 
-    dir1 = "/wrk/kfg/julia_data/$A"*"_$B"*"_kspace"
-    dir2 = "/wrk/kfg/julia_data/$B"*"_$A"*"_kspace"
+dir1 = "/wrk/kfg/julia_data/$A"*"_$B"*"_kspace"
+dir2 = "/wrk/kfg/julia_data/$B"*"_$A"*"_kspace"
 
-    if isdir(dir1)
-        dir = dir1
-    else
-        dir = dir2
-    end
+if isdir(dir1)
+dir = dir1
+else
+dir = dir2
+end
 
-    println(dir)
-    ab = 1.0
-    try
-        name_t="dimer.in"
-        ncalc_t = 1
-        newst_t = "coords"
-        ab_dir="$dir/$name_t"*"_vnscf_"*"$newst_t"*"_"*"1"        
-        println("try $ab_dir")
-        println("dft ",ab_dir*"/qe.save")
+println(dir)
+ab = 1.0
+try
+name_t="dimer.in"
+ncalc_t = 1
+newst_t = "coords"
+ab_dir="$dir/$name_t"*"_vnscf_"*"$newst_t"*"_"*"1"        
+println("try $ab_dir")
+println("dft ",ab_dir*"/qe.save")
 
-        dft = loadXML(ab_dir*"/qe.save")
-        ab = -dft.crys.coords[1,3] * dft.crys.A[3,3] * 2.0
-        ab2 = (min_dimer_dist_dict[A] + min_dimer_dist_dict[B]) / 2.0 
-        ab = min(ab,ab2)
-        println("try $ab")
-    catch
-        ab = (min_dimer_dist_dict[A] + min_dimer_dist_dict[B]) / 2.0 
-        println("catch $ab")
-    end
-    println("ab $ab")
+dft = loadXML(ab_dir*"/qe.save")
+ab = -dft.crys.coords[1,3] * dft.crys.A[3,3] * 2.0
+ab2 = (min_dimer_dist_dict[A] + min_dimer_dist_dict[B]) / 2.0 
+ab = min(ab,ab2)
+println("try $ab")
+catch
+ab = (min_dimer_dist_dict[A] + min_dimer_dist_dict[B]) / 2.0 
+println("catch $ab")
+end
+println("ab $ab")
 
-    return ab
+return ab
 end
 =#
 
@@ -138,10 +138,10 @@ function setup_proto_data()
     CalcD["dimer_f_mag"] =       ["$STRUCTDIR/dimer.in.f", "relax", "2Dxy", "coords-small2", "nscf", true]
     CalcD["dimer_h_mag"] =       ["$STRUCTDIR/dimer.in.h", "relax", "2Dxy", "coords-small2", "nscf", true]
 
-#    CalcD["dimer_fe_nomag"] =       ["$STRUCTDIR/dimer.in.fe", "relax", "2Dxy", "coords-small2", "nscf", false]
-#    CalcD["dimer_mn_nomag"] =       ["$STRUCTDIR/dimer.in.mn", "relax", "2Dxy", "coords-small2", "nscf", false]
-#    CalcD["dimer_f_nomag"] =       ["$STRUCTDIR/dimer.in.f", "relax", "2Dxy", "coords-small2", "nscf", false]
-#    CalcD["dimer_h_nomag"] =       ["$STRUCTDIR/dimer.in.h", "relax", "2Dxy", "coords-small2", "nscf", false]
+    #    CalcD["dimer_fe_nomag"] =       ["$STRUCTDIR/dimer.in.fe", "relax", "2Dxy", "coords-small2", "nscf", false]
+    #    CalcD["dimer_mn_nomag"] =       ["$STRUCTDIR/dimer.in.mn", "relax", "2Dxy", "coords-small2", "nscf", false]
+    #    CalcD["dimer_f_nomag"] =       ["$STRUCTDIR/dimer.in.f", "relax", "2Dxy", "coords-small2", "nscf", false]
+    #    CalcD["dimer_h_nomag"] =       ["$STRUCTDIR/dimer.in.h", "relax", "2Dxy", "coords-small2", "nscf", false]
 
 
     CalcD["b6"] = ["$STRUCTDIR/POSCAR_b6", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -202,6 +202,9 @@ function setup_proto_data()
     CalcD["trimer2_ba2"] =       ["$STRUCTDIR/binary/trimer.in2.ba2", "none", "2Dxy", "coords_trimer_ab", "nscf", false]
 
 
+    CalcD["trimer_ab_new"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_ab_new", "nscf", false]
+    
+
     CalcD["trimer_ab2_dense"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_ab_dense", "nscf", false]
     CalcD["trimer2_ab2_dense"] =       ["$STRUCTDIR/binary/trimer.in2.ab2", "none", "2Dxy", "coords_trimer_ab_dense", "nscf", false]
 
@@ -233,7 +236,7 @@ function setup_proto_data()
     CalcD["hh_mono"] = ["$STRUCTDIR/POSCAR_hh_mono", "vc-relax", "all", "vol-mid", "nscf", false]
 
 
-#    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
+    #    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
     CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
@@ -255,7 +258,7 @@ function setup_proto_data()
     CalcD["h2_atom"] = ["$STRUCTDIR/binary/h2_atom.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["h1_atom"] = ["$STRUCTDIR/binary/h1_atom.in", "vc-relax", "all", "vol", "nscf", false]
 
-##    CalcD["227_BA"] = ["$STRUCTDIR/binary/POSCAR_227_BA", "vc-relax", "all", "vol-mid", "nscf", false]
+    ##    CalcD["227_BA"] = ["$STRUCTDIR/binary/POSCAR_227_BA", "vc-relax", "all", "vol-mid", "nscf", false]
 
 
     CalcD["znse_shear"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "shear", "nscf", false]
@@ -363,8 +366,8 @@ function setup_proto_data()
     CalcD["mgb2_21-mid"] = ["$STRUCTDIR/binary/POSCAR_mgb2_21", "vc-relax", "all", "vol-mid", "nscf", false]
 
 
-#    CalcD["i4mmm_tet_AB"] = ["$STRUCTDIR/binary/POSCAR_i4mmm_4atom_AB", "vc-relax", "all", "vol", "nscf", false]
-#    CalcD["i4mmm_tet_BA"] = ["$STRUCTDIR/binary/POSCAR_i4mmm_4atom_BA", "vc-relax", "all", "vol", "nscf", false]
+    #    CalcD["i4mmm_tet_AB"] = ["$STRUCTDIR/binary/POSCAR_i4mmm_4atom_AB", "vc-relax", "all", "vol", "nscf", false]
+    #    CalcD["i4mmm_tet_BA"] = ["$STRUCTDIR/binary/POSCAR_i4mmm_4atom_BA", "vc-relax", "all", "vol", "nscf", false]
 
 
 
@@ -392,7 +395,7 @@ function setup_proto_data()
     CalcD["hex12a"] = ["$STRUCTDIR/binary/hex_trim_12.in", "vc-relax",  "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex21a"] = ["$STRUCTDIR/binary/hex_trim_21.in", "vc-relax",  "2Dxy", "2D-mid", "nscf", false]
 
-#
+    #
     CalcD["sn2o2"] = ["$STRUCTDIR/binary/POSCAR_sn2o2", "vc-relax", "all", "vol", "nscf", false]
     CalcD["te2o6"] = ["$STRUCTDIR/binary/POSCAR_te2o6", "vc-relax", "all", "vol", "nscf", false]
     CalcD["a1f6"] = ["$STRUCTDIR/binary/POSCAR_a1f6", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -509,11 +512,11 @@ function setup_proto_data()
     short_bonds = ["dimer_pair", "cao2_12", "irn2_38"]
     
 
-#    metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21", "fcc_conv_ABBB","fcc_conv_BAAA", "ab2_71", "ba2_71"]
-#    metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21",  "fcc_conv_ABBB","fcc_conv_BAAA",  "ab2_71", "ba2_71"]
+    #    metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21", "fcc_conv_ABBB","fcc_conv_BAAA", "ab2_71", "ba2_71"]
+    #    metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21",  "fcc_conv_ABBB","fcc_conv_BAAA",  "ab2_71", "ba2_71"]
     metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21",    "ab2_71", "ba2_71"]
 
-   # all_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3","stuffhex_z_1", "stuffhex_z_2", "stuffhex_z_3", "rocksalt_2lay_abo2", "caf2_abc", "perov", "perov2", "perov3",  "perov4",  "perov5",  "perov6"  ]
+    # all_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3","stuffhex_z_1", "stuffhex_z_2", "stuffhex_z_3", "rocksalt_2lay_abo2", "caf2_abc", "perov", "perov2", "perov3",  "perov4",  "perov5",  "perov6"  ]
     core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3", "trimer_tern","trimer_tern_right","trimer_tern_line", "trimer_tern_angle", "p4mmm" ]
 
     pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag, core_mono_mag2)
@@ -570,7 +573,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         println(t)
     end
     println("--")
-#    sleep(1)
+    #    sleep(1)
 
     already_done = []
     not_done = []
@@ -590,9 +593,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         arr = split(file, '/')
         name = arr[end]
-#        println("st $st $scf")
+        #        println("st $st $scf")
 
-#############
+        #############
         #check if already done
 
         if newst == "vol"
@@ -658,8 +661,11 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "scf_small"
             ncalc = 1
         elseif (newst == "coords_trimer"  ||  newst == "coords_trimer2" || newst == "coords_trimer_ab" || newst == "coords_trimer_ab_big" )
-#            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
+            #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
             ncalc = length([1.05, 1.1,  1.2,  1.3])
+        elseif newst == "coords_trimer_ab_new"  
+            #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
+            ncalc = length([1.01, 1.05, 1.1,  1.2,  1.3]) * 2
         elseif newst == "coords_trimer3"
             ncalc = 5*4*2
         elseif (newst == "coords_trimer_dense" || newst == "coords_trimer_ab_dense" )
@@ -680,7 +686,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         for n in 1:ncalc
             if magnetic
                 d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-#                d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
+                #                d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
                 if (isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")) # && ( isfile(d2*"/projham_K.xml") ||  isfile(d2*"/projham_K.xml.gz"))
                     push!(already_done, d)
                 else
@@ -702,7 +708,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         if magnetic
             d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-#            d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
+            #            d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
         else
             d="$dir/$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
         end
@@ -715,7 +721,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         else
             println("not done yet")
         end
-#######################
+        #######################
 
 
         randi = Int64(round(rand()*1000000))
@@ -761,7 +767,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             println("did read crys, run dft")
 
             if scf != "none"
-            
+                
 
                 #preadjust vol
                 avg_rad = 0.0
@@ -915,6 +921,44 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A[3,:] = c.A[3,:] * (1- 2.0 * x)
                     push!(torun, deepcopy(c))
                 end 
+            elseif newst == "coords_trimer_ab_new"
+
+                aa = min_dimer_dist_dict[ (T1,T1)]
+                ab = min_dimer_dist_dict[ (T1,T2)]
+                bb = min_dimer_dist_dict[ (T2,T2)]
+
+                
+                A = diagm([18,18,10.0])
+                coords = zeros(3,3)
+                t = [T1, T1, T2]
+                coords[1,1] = aa / A[1,1] / 2.0
+                coords[2,1] = 1.0 - aa / A[1,1] / 2.0
+                coords[3,3] = sqrt(ab^2 -  (aa/2 )^2) / A[3,3]
+                
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.01, 1.05, 1.15,  1.3, 1.4]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+
+                A = diagm([18,18,10.0])
+                coords = zeros(3,3)
+                t = [T2, T2, T1]
+                coords[1,1] = aa / A[1,1] / 2.0
+                coords[2,1] = 1.0 - bb / A[1,1] / 2.0
+                coords[3,3] = sqrt(ab^2 -  (bb/2 )^2) / A[3,3]
+                
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.01, 1.05, 1.15 ,  1.3, 1.4]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+                
+                
+
+                
             elseif newst == "coords_trimer_ab"
 
                 a = min_dimer_dist_dict[ cnew.types[1]]
@@ -937,8 +981,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                 end
                 
-#                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
-                for x in [1.05, 1.1,  1.2,  1.3]
+                #                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+                for x in [1.01, 1.05, 1.1,  1.2,  1.3]
 
                     c = deepcopy(cnew)
                     if c.coords[1,3] == 0.8
@@ -975,7 +1019,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                 end
                 
-#                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+                #                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
                 for x in [1.0, 0.95]
 
                     c = deepcopy(cnew)
@@ -1014,7 +1058,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
                 
                 for x in [1.05, 1.15, 1.25, 1.35, 1.45, 1.55]
-#                for x in [1.05, 1.1,  1.2,  1.3]
+                    #                for x in [1.05, 1.1,  1.2,  1.3]
 
                     c = deepcopy(cnew)
                     c.A[1,1] = ab / (0.4) * x
@@ -1337,7 +1381,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                     if magnetic
                         d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
-#                        d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
+                        #                        d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$i"        
                     else
                         d="$dir/$name"*"_vnscf_"*"$newst"*"_"*"$i"        
                     end
@@ -1378,7 +1422,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     println("err2")
                     println(err2)
                     println("skip $i dft $i ")##
-                   
+                    
                 end
             end
         catch err
@@ -1467,7 +1511,7 @@ function structure_substitute(atom1, atom2, atom3)
                     for i in 1:size(summ)[1]
                         at = summ[i,5:7]
                         if to == at
-#                            println(at, " ", orig[o])
+                            #                            println(at, " ", orig[o])
                             c = makecrys(String(summ[i,1]))
                             for (ind,t) in enumerate(c.types)
                                 for ii = 1:3
@@ -1504,7 +1548,7 @@ function structure_substitute(atom1, atom2, atom3)
                             end
 
                             push!(CRTRANS, c)
-#                            println(at, " t ", orig[o])
+                            #                            println(at, " t ", orig[o])
                             push!(SUBTRANS, [String(summ[i,2]), orig[o[1]], orig[o[2]], orig[o[3]]])
                         end
                     end
@@ -1530,7 +1574,7 @@ function structure_substitute(atom1, atom2, atom3)
         for s1 in sl[others[1]]
             for s2 in sl[others[2]]
                 temp = [s1,s2,satom[i]]
-#            temp = [s, satom[others[1]], satom[others[2]]]
+                #            temp = [s, satom[others[1]], satom[others[2]]]
                 orig = [satom[others[1]], satom[others[2]], satom[i]]
                 if arediff(temp)
                     for o in orders
@@ -1549,7 +1593,7 @@ function structure_substitute(atom1, atom2, atom3)
 
                                 push!(CR2, c)
 
-#                                println(at, " d ", orig[o])
+                                #                                println(at, " d ", orig[o])
                                 push!(SUB2, [String(summ[i,2]), orig[o[1]], orig[o[2]], orig[o[3]]])
                             end
                         end
@@ -1587,7 +1631,7 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
     SBIG = [SUB1 ; SUB2 ; SUBTRANS]
     
     satom = sort([at1,at2, at3])
-        
+    
     DONE = []
     DONE_TYPES = []
 
@@ -1682,7 +1726,7 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
     return torun
 
 end
-        
+
 
 
 
@@ -1748,10 +1792,10 @@ function oxidation_guess(atom1, atom2)
 
     possible_configs = possible_configs[sortperm(possible_configs[:, 3]), :]
 
-#    println("possible configs $atom1 $atom2 score score1 score2")
-#    for p in 1:min(size(possible_configs,1), 6)
-#        println(possible_configs[p,:])
-#    end
+    #    println("possible configs $atom1 $atom2 score score1 score2")
+    #    for p in 1:min(size(possible_configs,1), 6)
+    #        println(possible_configs[p,:])
+    #    end
 
     n_config = 0
     keep = []
@@ -1761,15 +1805,15 @@ function oxidation_guess(atom1, atom2)
     for p in 1:size(possible_configs,1)
         use = false
         if possible_configs[p,3] == 2 || possible_configs[p,3] == 3
-#            println("a ",  possible_configs[p,:])
+            #            println("a ",  possible_configs[p,:])
             use = true
             n_config += 1
         elseif possible_configs[p,3] == 4 && n_config <= 2
             use = true
-#            println("b ",  possible_configs[p,:])
+            #            println("b ",  possible_configs[p,:])
             n_config += 1
-#        else
-#            println("R ",  possible_configs[p,:])
+            #        else
+            #            println("R ",  possible_configs[p,:])
 
         end
         if use
@@ -2022,11 +2066,11 @@ function oxidation_guess(atom1, atom2)
     if atom2 in metals && atom1 in ["H", "N", "O"]
         push!(keep, [atom1, atom2, "h2_atom"])
     end
-        
+    
 
-#    for k in keep
-#        println(k)
-#    end
+    #    for k in keep
+    #        println(k)
+    #    end
     return keep 
 end
 
@@ -2043,69 +2087,69 @@ end
 
 #=
 
-                end
-            end
+end
+end
 
 #            println(i, " s1 " , SUB1[end])
-        end
-    end
-    #generate all double subs
-    SUB2 = []
-    println("generate2")
-    for i in 1:3
-        if i == 1
-            others = [2,3]
-        elseif i == 2
-            others = [1,3]
-        elseif i == 3
-            others = [1,2]
-        end
+end
+end
+#generate all double subs
+SUB2 = []
+println("generate2")
+for i in 1:3
+if i == 1
+others = [2,3]
+elseif i == 2
+others = [1,3]
+elseif i == 3
+others = [1,2]
+end
 
 
-        for s1 in sl[others[1]]
-            for s2 in sl[others[2]]
-                temp = [s1,s2,satom[i]]
-                if arediff(temp)
-                    for o in orders
-                        push!(SUB2,deepcopy(temp[o]))
-                    end
-                end
+for s1 in sl[others[1]]
+for s2 in sl[others[2]]
+temp = [s1,s2,satom[i]]
+if arediff(temp)
+for o in orders
+push!(SUB2,deepcopy(temp[o]))
+end
+end
 #                println(i, " s2 " , SUB2[end])
-            end
-        end
-    end
+end
+end
+end
 
-    TRANSMETAL = []
-    println("generate all trans metal subs")
-    for i in 1:3
-        if satom[i] in transmetals
-            sl[i] = transmetals
-        end
-    end
-    for i in 1:3
-        if i == 1
-            others = [2,3]
-        elseif i == 2
-            others = [1,3]
-        elseif i == 3
-            others = [1,2]
-        end
+TRANSMETAL = []
+println("generate all trans metal subs")
+for i in 1:3
+if satom[i] in transmetals
+sl[i] = transmetals
+end
+end
+for i in 1:3
+if i == 1
+others = [2,3]
+elseif i == 2
+others = [1,3]
+elseif i == 3
+others = [1,2]
+end
 
-        for s in sl[i]
-            temp = [s, satom[others[1]], satom[others[2]]]
-            if arediff(temp)
-                for o in orders
-                    push!(TRANSMETAL,deepcopy(temp[o]))
-                end
-            end
-        end
+for s in sl[i]
+temp = [s, satom[others[1]], satom[others[2]]]
+if arediff(temp)
+for o in orders
+push!(TRANSMETAL,deepcopy(temp[o]))
+end
+end
+end
 
-        for s in sl[i]
-            if arediff([s, satom[others[1]], satom[others[2]]])
-                push!(TRANSMETAL, sort([s, satom[others[1]], satom[others[2]]]))
-            end
+for s in sl[i]
+if arediff([s, satom[others[1]], satom[others[2]]])
+push!(TRANSMETAL, sort([s, satom[others[1]], satom[others[2]]]))
+end
 #            println(i, " st " , TRANSMETAL[end])
-        end
+end
 
 
 #        for s1 in sl[others[1]]
@@ -2113,75 +2157,75 @@ end
 #                push!(TRANSMETAL, sort([s1,s2,satom[i]]))
 #            end
 #        end
-    end
+end
 
 
 
-    exact = []
-    sub1 = []
-    sub2 = []
-    subtrans = []
-    for i in 1:size(summ)[1]
-        at1 = summ[i,5]
-        at2 = summ[i,6]
-        at3 = summ[i,7]
-        at = summ[i,5:7]
+exact = []
+sub1 = []
+sub2 = []
+subtrans = []
+for i in 1:size(summ)[1]
+at1 = summ[i,5]
+at2 = summ[i,6]
+at3 = summ[i,7]
+at = summ[i,5:7]
 
-        sat = sort([at1, at2, at3])
-        ex = 0
-        if at1 in satom
-            ex += 1
-        end
-        if at2 in satom
-            ex += 1
-        end
-        if at3 in satom
-            ex += 1
-        end
+sat = sort([at1, at2, at3])
+ex = 0
+if at1 in satom
+ex += 1
+end
+if at2 in satom
+ex += 1
+end
+if at3 in satom
+ex += 1
+end
 
-        if ex == 3
-            exact = [exact; i]
-        elseif ex == 2
-            if sat in SUB1
-                sub1 = [sub1; i]
-                bestorder(summ[i,5:7], satom)
+if ex == 3
+exact = [exact; i]
+elseif ex == 2
+if sat in SUB1
+sub1 = [sub1; i]
+bestorder(summ[i,5:7], satom)
 
-            end
-            if sat in TRANSMETAL
-                subtrans = [subtrans; i]
-            end
+end
+if sat in TRANSMETAL
+subtrans = [subtrans; i]
+end
 
-        elseif ex == 1
-            if sat in SUB2
-                sub2 = [sub2; i]
-            end
+elseif ex == 1
+if sat in SUB2
+sub2 = [sub2; i]
+end
 
-        end
-    end
+end
+end
 
-    println("EXACT ", length(exact))
-    for i in exact
-        println(summ[i,:])
-    end
-    println()
+println("EXACT ", length(exact))
+for i in exact
+println(summ[i,:])
+end
+println()
 
-    println("SUB1  ", length(sub1))
-    for i in sub1
-        println(summ[i,:])
-    end
-    println()
+println("SUB1  ", length(sub1))
+for i in sub1
+println(summ[i,:])
+end
+println()
 
-    println("SUB2  ", length(sub2))
-    for i in sub2
-        println(summ[i,:])
-    end
-    println()
+println("SUB2  ", length(sub2))
+for i in sub2
+println(summ[i,:])
+end
+println()
 
-    println("SUBTRNS  ", length(subtrans))
-    for i in subtrans
-        println(summ[i,:])
-    end
-    println()
+println("SUBTRNS  ", length(subtrans))
+for i in subtrans
+println(summ[i,:])
+end
+println()
 
-    return summ[exact, :], summ[sub1, :], summ[sub2, :], summ[subtrans, :]
+return summ[exact, :], summ[sub1, :], summ[sub2, :], summ[subtrans, :]
 =#
