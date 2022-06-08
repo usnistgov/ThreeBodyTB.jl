@@ -928,7 +928,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 bb = min_dimer_dist_dict[ (T2,T2)]
 
                 
-                A = diagm([18,18,10.0])
+                A = diagm([18,10,18.0])
                 coords = zeros(3,3)
                 t = [T1, T1, T2]
                 coords[1,1] = aa / A[1,1] / 2.0
