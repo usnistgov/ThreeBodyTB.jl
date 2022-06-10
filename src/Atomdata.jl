@@ -431,6 +431,9 @@ fil = open("$SRCDIR/mindist.csv")
 
 for line in readlines(fil)
     sp = split(line)
+#    if sp[1] == "Li" && sp[2] == "Li"
+#        println(sp, " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+#    end
     min_dimer_dist_dict[(Symbol(sp[1]), Symbol(sp[2]))] = parse(Float64, sp[3])
     min_dimer_dist_dict[(sp[1], sp[2])] = parse(Float64, sp[3])
 end

@@ -203,6 +203,7 @@ function setup_proto_data()
 
 
     CalcD["trimer_ab_new"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_ab_new", "nscf", false]
+    CalcD["trimer_a_new"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_a_new", "nscf", false]
     
 
     CalcD["trimer_ab2_dense"] =       ["$STRUCTDIR/binary/trimer.in.ab2", "none", "2Dxy", "coords_trimer_ab_dense", "nscf", false]
@@ -666,6 +667,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "coords_trimer_ab_new"  
             #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
             ncalc = 4*4
+        elseif newst == "coords_trimer_a_new"  
+            #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
+            ncalc = 4*2
         elseif newst == "coords_trimer3"
             ncalc = 5*4*2
         elseif (newst == "coords_trimer_dense" || newst == "coords_trimer_ab_dense" )
@@ -981,6 +985,42 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 coords[2,1] = 1.0 - bb / A[1,1] / 2.0
                 coords[3,3] = ab / A[3,3]
                 coords[3,1] = bb / A[1,1] / 2.0
+
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.02, 1.07, 1.15, 1.3]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+
+            elseif newst == "coords_trimer_a_new"
+
+                aa = min_dimer_dist_dict[ (T1,T1)]
+
+                
+                A = diagm([15,7,15.0])
+                coords = zeros(3,3)
+                t = [T1, T1, T2]
+                coords[1,1] = aa / A[1,1] / 2.0
+                coords[2,1] = 1.0 - aa / A[1,1] / 2.0
+                coords[3,3] = sqrt(aa^2 -  (aa/2 )^2) / A[3,3]
+                coords[3,1] = 0.00005
+
+                cnew = makecrys(A, coords, t)
+                
+                for x in [1.02, 1.07, 1.15 ,  1.3]
+                    c = deepcopy(cnew) * x
+                    push!(torun, deepcopy(c))
+                end
+
+                
+                A = diagm([15,7,15.0])
+                coords = zeros(3,3)
+                t = [T1, T1, T2]
+                coords[1,1] = aa / A[1,1] / 2.0
+                coords[2,1] = 1.0 - aa / A[1,1] / 2.0
+                coords[3,3] = aa / A[3,3]
+                coords[3,1] = aa / A[1,1] / 2.0
 
                 cnew = makecrys(A, coords, t)
                 
