@@ -80,7 +80,7 @@ const n_2body_S = 6
 const n_3body = 8
 const n_3body_same = 6
 
-const n_3body_onsite = 4
+const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
@@ -923,10 +923,12 @@ function get_data_info_v2(at_set, dim)
                 if same_at
                     data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
                     data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+                    tot += n                               #       1 2 3 4 5 6 7 8
                 else
                     data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
-                    #                    data_info[[at1, o1,at3, at2,  symb]] = collect(tot+1:tot+n)
-                    data_info[[at1, at3, at2,o1,  symb]] = tot .+ [1, 3, 2, 4]
+                    data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+
+#                    data_info[[at1, at3, at2,o1,  symb]] = tot .+ [1, 3, 2, 4]
                     
                     #                    data_info[[at1, o1,at2, at3,  symb]] = collect(tot+1:tot+n)
                     #                    data_info[[at1, o1,at3, at2,  symb]] = tot .+ [1 3 2 4]'
@@ -953,7 +955,7 @@ function get_data_info_v2(at_set, dim)
 
         for p in perm_on
             #            if  (p[1] == p[2] ||  p[2] == p[3] || p[1] == p[3])
-            if p[2] == p[3]
+            if p[2] == p[3] && p[2] == p[1]
                 tot_size = get3bdy_onsite(n_3body_onsite_same,true, :O, tot_size, p[1], p[2], p[3]) #all diff
             else
                 tot_size = get3bdy_onsite(n_3body_onsite,false, :O, tot_size, p[1], p[2], p[3]) #
@@ -5485,7 +5487,7 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
         else
 
             if ismissing(memoryV)
-                V = zeros(typeof(d1[1]), 3) 
+                V = zeros(typeof(d1[1]), n_3body_onsite_same) 
             else
                 V = memoryV
             end
@@ -5506,7 +5508,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
+            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
+#            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
 
         else
 
@@ -5516,13 +5519,15 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
 
             if ismissing(memoryV)
-                V = zeros(typeof(d1[1]), 4) 
+                V = zeros(typeof(d1[1]), n_3body_onsite) 
             else
                 V = memoryV
             end
 
+#            V[1:4] .= [d1[1].*d2[1].*d3[1]
             
-            V[1:4] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
+#            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
+            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
 
 #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
             
@@ -6500,10 +6505,13 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
 
 #    o2 = summarize_orb(orb2)    
 
+    sameat = (t1 == t2 && t1 == t3 )
+
     indO = c.inds[[t1,t2,t3,o1,:O]]
 
     #    sameat = (t2 == t3 || t1 == t2 || t1 == t3)
-    sameat = (t2 == t3)
+    #sameat = (t2 == t3)
+    #sameat = (t1 == t2 && t1 == t3 )
 
     Otot = three_body_O(dist12, dist13, dist23, sameat, c.datH[indO], memoryV=memory)
 
@@ -6526,7 +6534,9 @@ function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
 #    println("f3o $t1 $t2 $t3 $orb1  ", sum(dist12-dist13), " ", sum(dist12-dist23), " ",sum(dist13-dist23))
 
 #    sameat = (t2 == t3 || t1 == t2 || t1 == t3)
-    sameat = (t2 == t3)
+#    sameat = (t2 == t3)
+    
+    sameat = (t1 == t2 && t1 == t3)
 
     Otot = three_body_O(dist12, dist13, dist23, sameat)
 
