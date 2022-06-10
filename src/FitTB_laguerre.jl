@@ -2376,7 +2376,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 mix = 0.05
             end
             if iters > 4
-                mix = 0.15
+                mix = 0.12
             end
 
             if scf
