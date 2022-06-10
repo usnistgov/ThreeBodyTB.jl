@@ -914,27 +914,34 @@ function get_data_info_v2(at_set, dim)
             #                push!(orbs, (at1, o1,at3, at2,  symb))
 
             orbs1 = atoms[at1].orbitals
-            for o1 in orbs1
+            if same_at
+                for o1 in orbs1
+                    
+                    if [at1, at2, at3, o1,  symb] in keys(data_info)
+                        continue
+                    end
 
-                if [at1, at2, at3, o1,  symb] in keys(data_info)
-                    continue
-                end
-
-                if same_at
                     data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
                     data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
                     tot += n                               #       1 2 3 4 5 6 7 8
-                else
+                end
+            else
+                for o1 in orbs1
+                    if [at1, at2, at3, o1,  symb] in keys(data_info)
+                        continue
+                    end
                     data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
                     data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
-
+                end
+                tot += n
+            end
 #                    data_info[[at1, at3, at2,o1,  symb]] = tot .+ [1, 3, 2, 4]
                     
                     #                    data_info[[at1, o1,at2, at3,  symb]] = collect(tot+1:tot+n)
                     #                    data_info[[at1, o1,at3, at2,  symb]] = tot .+ [1 3 2 4]'
-                end
-                tot += n                               #       1 2 3 4 5 6 7 8
-            end                
+#                end
+#                tot += n                               #       1 2 3 4 5 6 7 8
+#            end                
 
 
             return tot
