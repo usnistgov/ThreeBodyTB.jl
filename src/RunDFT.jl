@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30)
 """
 Run SCF calculation using QE
 """
@@ -126,7 +126,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, grid=grid, klines=klines)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, grid=grid, klines=klines, nstep=nstep)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -225,7 +225,7 @@ end
 
 Make QE inputfile for SCF DFT calculation.
 """
-function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing, klines = missing)
+function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing, klines = missing, nstep=30)
 """
 Make inputfile for SCF calculation
 """
@@ -240,6 +240,7 @@ Make inputfile for SCF calculation
     temp = replace(temp, "PSEUDODIR" => PSEUDOS)
     
     temp = replace(temp, "JULIANAT" => crys.nat)
+
 
     c = calculation
     if calculation == "nscf-sym"
@@ -456,7 +457,8 @@ Make inputfile for SCF calculation
     else
         temp = replace(temp, "JULIACELLFACTOR" => "cell_factor = 1.0")
     end
-        
+
+    temp = replace(temp, "NSTEP" => nstep)
                              
     return tmpdir, prefix, temp
     

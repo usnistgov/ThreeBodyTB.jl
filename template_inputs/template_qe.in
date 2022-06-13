@@ -13,7 +13,7 @@
     disk_io = 'low'
     wf_collect = .true.
     verbosity = 'high'    
-    nstep = 30
+    nstep = NSTEP
  /
 &system
     JULIABRAV 
