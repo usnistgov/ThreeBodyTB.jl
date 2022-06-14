@@ -295,6 +295,8 @@ function makecrys(A,coords,types; units=missing)
     A = convert(Array{T,2}, A)
     coords = convert(Array{T,2}, coords)
 
+#    coords = mod.(coords, 1.0)
+    
     if size(coords)[1] != size(types)[1]
         error("Error making crys, types and coords sizes don't match")
         return 
@@ -1001,6 +1003,39 @@ function orbital_index(c::crystal)
 #    end
 
     return ind2orb, orb2ind, etotal, nval
+    
+end
+
+
+"""
+    function interpolate(c1::crystal, c2::crystal; n = 5)
+
+Linearly interpolate between two crystal structures. 
+
+`return C`, a crystal array
+
+- `c1, c2` start and ending crystal structures
+- `n=5` number of interpolating structures, counting endpoints
+"""
+function interpolate(c1::crystal, c2::crystal; n = 5)
+
+    if c1.nat != c2.nat
+        println("error interplate nat $(c1.nat) != $(c2.nat)")
+        return
+    end
+    if n < 3
+        println("error n must be >= 3")
+        return
+    end
+    C = []
+    for x = 0.0:(1.0 / (n-1) ):1.0
+        c = deepcopy(c1)
+        c.coords = c1.coords * (1-x) + c2.coords * x
+        c.A = c1.A * (1-x) + c2.A * x
+        push!(C, c)
+    end
+    return C
+    
     
 end
 

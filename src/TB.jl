@@ -2049,7 +2049,8 @@ end
                  vals, vects = eigen(hk, sk)
                  
                  if maximum(abs.(imag.(vals))) > 1e-10
-                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                     println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                     println("s ", eigvals(sk)[1:3])
                  end
                  VALS[c,:, spin] .= real.(vals)
                  VALS0[c,:, spin] .= real.(diag(vects'*hk0*vects))
