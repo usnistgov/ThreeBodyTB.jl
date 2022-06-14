@@ -485,7 +485,7 @@ function make_random_crystal(types; database=missing)
         
         within_fit = calc_tb_fast(crys*0.97, db, check_only=true)
         if within_fit
-            return crys * 1.07
+            return crys * 1.03
         end
 
         total_vol = total_vol * 1.02
