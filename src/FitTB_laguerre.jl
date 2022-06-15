@@ -107,7 +107,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         println(typeof(tbc))
         if ismissing(tbc) || typeof(tbc) == tb_crys_kspace{Float64}
             println("calc fake tbc")
-            tbc_fake = calc_tb_fast(tbc.crys) #we calculate the fake tbc in order to take the fourier transform.
+            tbc_fake = calc_tb_fast(tbc.crys, repel=false) #we calculate the fake tbc in order to take the fourier transform.
             if tbc.nspin == 2
                 s = size(tbc_fake.tb.H)
                 H2 = zeros(2,s[2], s[3], s[4])
@@ -1795,7 +1795,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         end
 
         if ismissing(tbc)
-            tbc_fake = calc_tb_fast(d.crys)
+            tbc_fake = calc_tb_fast(d.crys, repel=false)
             tbc = tbc_fake
         end
 

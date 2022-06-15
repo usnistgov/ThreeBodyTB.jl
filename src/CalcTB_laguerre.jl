@@ -2868,13 +2868,15 @@ electron density and Fermi level will be wrong.
 - `verbose=true` - set to false for less output.
 - `var_type=missing` - variable type of `tb_crys`. Default is `Float64`.
 """
-function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false)
+function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
 
     #    use_threebody= false
     #    use_threebody_onsite=false
     
 ####    verbose = true
 
+#    println("repel $repel -------------------------------")
+    
     if verbose
         println()
         println("-----")
@@ -2888,6 +2890,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
     if ismissing(database)
         println("missing database, creating empty tbc")
+        repel = false
 #    else
 #        println(keys(database))
     end
@@ -2941,7 +2944,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         for key in keys(dmin_types)
             for key2 in keys(database)
                 if key == Set(key2)
-                    if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2
+                    if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
                         println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors")
                         println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
                         within_fit = false
@@ -2973,11 +2976,14 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     if !ismissing(database) && check_frontier
         #    if false
         diststuff = (R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3)
-        violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose)
+        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=diststuff, verbose=verbose, var_type=var_type)
         if vio_bool == false
             within_fit = false
         end
+    else
+        repel_vals = zeros(var_type, crys.nat)
     end
+    
     if check_only==true
         return within_fit
     end
@@ -3358,6 +3364,9 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
                         #                        H[o1, o2, c_zero] += h
                         Son[o1, o2, id] += s 
                         Hon[o1, o2, id] += h
+                        if repel
+                            Hon[o1, o2, id] += repel_vals[a1a]
+                        end
                         
                     else
                         o = calc_twobody_onsite(t1,t2, s1,s2,dist,LMN[:,id], database)
@@ -3404,6 +3413,8 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
 
 #    use_threebody= false
 #    use_threebody_onsite=false
+
+
     
     if verbose
         println()
@@ -3852,6 +3863,17 @@ function calc_frontier_list(crys_list, frontier=missing)
     return frontier
 end
 
+
+function repel_short_dist_fn(dist, dref, lim)
+
+    if dist >= dref * (1.0 + lim); return 0.0 * dist; end
+    
+    x = (dref*(1.0 + lim) - dist) / (dref * lim)
+    return x^3
+
+end
+
+
 """
     function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=false, diststuff=missing, verbose=true)
 
@@ -3868,6 +3890,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     if ismissing(var_type)
         var_type=Float64
     end
+
+    lim = 0.04
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     use_threebody=true
@@ -3894,6 +3918,9 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
     nowarn = true
 
+    repel_vals = zeros(var_type, crys.nat)
+
+    
 #    println("a")
     for c = 1:nkeep_ab
 
@@ -3929,6 +3956,15 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         push!(violation_list, (t1,t2,dist))
                     end
                 end
+
+                if !ismissing(d) && dist < d*(1+lim) && dist > 0.1
+#                    println("type of repel_vals[a1] ", typeof(repel_vals[a1]))
+#                    println("type fo repel ", typeof(repel_short_dist_fn(dist, d, lim) * 0.1))
+
+                    repel_vals[a1] += repel_short_dist_fn(dist, d, lim) * 0.1
+                    repel_vals[a2] += repel_short_dist_fn(dist, d, lim) * 0.1
+                end
+                
             else
                 if !( (t1,t2,0) in violation_list)
                     push!(violation_list, (t1,t2,0))
@@ -3980,7 +4016,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
 
         if test_frontier                 ##############
-            if dist > 10.0 || dist31 > 10.0 || dist32 > 10.0
+            if dist > 9.5 || dist31 > 9.5 || dist32 > 9.5
                 continue
             end
 
@@ -3998,6 +4034,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                 end
 
                 vio = true
+                vio_lim = true
                 for f in vals
 
                     if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
@@ -4006,7 +4043,40 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
                         vio = false
                     end
+                    if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
+                        vio_lim = false
+                    end
                 end
+
+                if vio_lim == true
+#                    println("vio_lim true")
+                    rsum = 10000000.0
+                    rvals = zeros(var_type, 3)
+                    for f in vals
+                        if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
+#                            println("dist $dist $dist31 $dist32 " , f)
+
+                            rvals_t = [repel_short_dist_fn(dist, f[1], lim),repel_short_dist_fn(dist31, f[2], lim),repel_short_dist_fn(dist32, f[3], lim)]
+                            if sum(rvals_t) < rsum
+                                rsum = sum(rvals_t)
+                                rvals[:] = rvals_t[:]
+                            end
+                        end
+                    end
+                    repel_vals[a1] += rvals[1] * 0.1
+                    repel_vals[a2] += rvals[1] * 0.1
+                    
+                    repel_vals[a1] += rvals[2] * 0.1
+                    repel_vals[a3] += rvals[2] * 0.1
+                    
+                    repel_vals[a2] += rvals[3] * 0.1
+                    repel_vals[a3] += rvals[3] * 0.1
+                    
+                end
+                        
+
+                
+                
                 if vio
                     threebody_test = false
 
@@ -4020,6 +4090,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     if need
                         push!(violation_list, (t1,t2,t3,dist, dist31, dist32))
                     end
+                    
+
                     
                 end
             else
@@ -4075,19 +4147,21 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
         end
     end
 
+#    println("repel_vals , ", repel_vals)
+    
     if test_frontier   
         if twobody_test && threebody_test
             if verbose println("CHECK FRONTIER - everything fine") end
         else
-            println("CHECK FRONTIER WARNING- twobody $twobody_test threebody $threebody_test")
             if var_type == Float64
+                println("CHECK FRONTIER WARNING- twobody $twobody_test threebody $threebody_test")
                 for v in violation_list
                     println(v)
                 end
             end
 
         end
-        return violation_list, twobody_test && threebody_test
+        return violation_list, twobody_test && threebody_test, repel_vals
     else
         return frontier
     end

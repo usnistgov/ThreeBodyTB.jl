@@ -64,12 +64,12 @@ Returns Ryd units. Generally users should use the `scf_energy_force_stress` func
 
 Uses automatic differentation for gradient.
 """
-function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing, nspin=1)
+function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing, nspin=1, repel=true)
 
 #    println("crys")
 #    tbc = []
     tbc = calc_tb_fast(crys, database)
-    return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing, nspin=nspin)
+    return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing, nspin=nspin, repel=repel)
 end
 
 """
@@ -214,7 +214,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         end
         
 
-        tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=false)
+        tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true)
 
         nwan = tbc.tb.nwan
 
@@ -297,6 +297,8 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
 
 #    x0 = inv_reshape_vec(ct.coords, ct.nat)
 
+
+    
     chunksize=min(cs, 3*ct.nat + 6)
     cfg = ForwardDiff.GradientConfig(f, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
     g = ForwardDiff.gradient(f, zeros(3*ct.nat + 6)  )
@@ -337,13 +339,13 @@ Finite differences force/stress, for testing.
 - `smearing = 0.01` smearing energy
 - `grid = missing` kpoint grid
 """
-function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1)
+function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1, repel=true)
     if ismissing(grid)
         grid = get_grid(crys)
     end
 
 
-    tbc0 = calc_tb_fast(crys, database, verbose=false, check_frontier=false)
+    tbc0 = calc_tb_fast(crys, database, verbose=false, check_frontier=false, repel=repel)
 
     energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
 
@@ -360,7 +362,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, repel=repel)
 
 
         crys2 = deepcopy(crys)
@@ -371,7 +373,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, repel=repel)
         
         force = - (energy_tot1 - energy_tot2) / (2 * step)
 
@@ -391,7 +393,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, repel=repel)
 
 
         crys2 = deepcopy(crys)
@@ -403,7 +405,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, repel=repel)
 
         stress = -1.0* (energy_tot1 - energy_tot2) / (2 * step) / abs(det(crys.A))
 
@@ -910,6 +912,8 @@ where the fitting doesn't apply.
 """
 function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true)
 
+    return false, 10.0
+    
     diststuff = distances_etc_3bdy_parallel(crys,10.0, 0.0, var_type=var_type)
     R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = diststuff
     nkeep = size(R_keep_ab)[1]
@@ -930,7 +934,8 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true)
                     energy += 1e-3/dist_arr[a1,a2,cind,1]
                 end
 
-                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
+                #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
+                if dist_arr[a1,a2,cind,1] < dmin*1.02 && dist_arr[a1,a2,cind,1] > 1e-7
                     tooshort = true
                     energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
                     if var_type == Float64 && warned[a1] == false
@@ -969,7 +974,7 @@ end
 
 Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_force_stress`, which calls this. Uses automatic differentation for jacobian.
 """
-function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1)
+function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("get_energy_force_stress_fft")
 
@@ -1068,7 +1073,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 gamma_dual=zeros(T, ct.nat,ct.nat)
             end
 
-            tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual , check_frontier=false)
+            tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual , check_frontier= true, repel=repel)
             ret = zeros(T, size_ret * 2 + 1)
 
             
@@ -1096,12 +1101,13 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             chunksize=min(9, 3*ct.nat + 6)
             #chunksize=min(6, 3*ct.nat + 6)
             
+
             cfg = ForwardDiff.JacobianConfig(ham, zeros(Float64, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
             #cfg = ForwardDiff.JacobianConfig(ham, zeros( 6), ForwardDiff.Chunk{chunksize}())
 
 #            println("jac")
             g = ForwardDiff.jacobian(ham, zeros(Float64, 3*ct.nat + 6) , cfg ) ::  Array{Float64,2}
-
+#            println("end jac")
 #            g = ForwardDiff.jacobian(ham, zeros( 6) , cfg ) ::  Array{Float64,2}
 
         end

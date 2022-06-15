@@ -1973,7 +1973,7 @@ end
 
      thetype=typeof(real(sk3[1,1,1,1,1]))
 
-     println("size ", size(hk3))
+#     println("size ", size(hk3))
      nwan = size(sk3)[1]
      nspin = size(hk3)[3]
      nk = prod(size(hk3)[end-2:end])
@@ -2239,7 +2239,7 @@ end
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
 #         println("energy band $energy")
-         println("efermi $efermi")
+#         println("efermi $efermi")
          energy0 = sum(occ .* VALS0) / nk * 2.0
 
 #         println("VALS0")
@@ -3081,7 +3081,7 @@ end
  """
  function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing)
 
-     println("size ham_kS ", size(ham_kS))
+#     println("size ham_kS ", size(ham_kS))
      
      wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(crys)
 
@@ -3139,8 +3139,8 @@ end
          SR3 = ifft(S_k_fftw, [3,4,5])    
      end
 
-     println("size ham_k_fftw ", size(ham_k_fftw))
-     println("size hamR3 ", size(hamR3))
+#     println("size ham_k_fftw ", size(ham_k_fftw))
+#     println("size hamR3 ", size(hamR3))
      
  #    println("myfft SR3 0 0 0 ")
  #    println(SR3[:,:,1,1,1])
@@ -3819,10 +3819,10 @@ end
 
      etypes = types_energy(tbcK.crys)
 
-     println("efermi $efermi")
+#     println("efermi $efermi")
      
      energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
+#     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
      return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 
