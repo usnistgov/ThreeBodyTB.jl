@@ -912,7 +912,7 @@ where the fitting doesn't apply.
 """
 function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true)
 
-    return false, 10.0
+#    return false, 10.0
     
     diststuff = distances_etc_3bdy_parallel(crys,10.0, 0.0, var_type=var_type)
     R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = diststuff
@@ -935,7 +935,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true)
                 end
 
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
-                if dist_arr[a1,a2,cind,1] < dmin*1.02 && dist_arr[a1,a2,cind,1] > 1e-7
+                if dist_arr[a1,a2,cind,1] < dmin*1.01 && dist_arr[a1,a2,cind,1] > 1e-7
                     tooshort = true
                     energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
                     if var_type == Float64 && warned[a1] == false
