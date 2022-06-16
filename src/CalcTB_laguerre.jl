@@ -3983,6 +3983,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
         end
 
     end
+
+#    println("repel 2 ", repel_vals)
     #threebody
 
 
@@ -4053,7 +4055,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     rsum = 10000000.0
                     rvals = zeros(var_type, 3)
                     for f in vals
-                        if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
+                        if dist <= f[1]*(1+lim) || dist31 <= f[2]*(1+lim) || dist32 <= f[3]*(1+lim) 
 #                            println("dist $dist $dist31 $dist32 " , f)
 
                             rvals_t = [repel_short_dist_fn(dist, f[1], lim),repel_short_dist_fn(dist31, f[2], lim),repel_short_dist_fn(dist32, f[3], lim)]
