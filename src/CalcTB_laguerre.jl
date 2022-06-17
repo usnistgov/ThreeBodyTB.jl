@@ -3891,7 +3891,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
         var_type=Float64
     end
 
-    lim = 0.04
+    lim = 0.05
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     use_threebody=true
