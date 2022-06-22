@@ -726,7 +726,7 @@ using ..CrystalMod:crystal
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30)
     
     if ismissing(smearing)
         if calculation=="scf"
@@ -743,11 +743,11 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         end
         qeout = missing
         try
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep)
             return qeout
         catch
             println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep)
             return qeout
 
         end
