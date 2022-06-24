@@ -6622,9 +6622,9 @@ function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
 
     Otot = three_body_O(dist12, dist13, dist23, sameat)
 
-    if sameat
-        Otot[1] = 0.0
-    end
+#    if !sameat
+#        Otot[1] = 0.0
+#    end
     
     return Otot
         
