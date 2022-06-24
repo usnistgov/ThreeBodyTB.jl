@@ -6598,7 +6598,9 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
 
     Otot = three_body_O(dist12, dist13, dist23, sameat, c.datH[indO], memoryV=memory)
 
-    
+    if sameat
+        Otot[1] = 0.0
+    end
 
     return Otot
         
