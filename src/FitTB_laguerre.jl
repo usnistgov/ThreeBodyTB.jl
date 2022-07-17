@@ -100,6 +100,7 @@ Make lots of preperations for fitting. Moves things around, put stuff in materic
 """
 function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing)
 
+    println("KPOINTS0 ", ismissing(kpoints))
 
     tbc_list = []
     tbc_list_real = []
@@ -416,7 +417,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     snum_new = length(toupdate_inds_S)
 
 #####################################
-    if ismissing(kpoints)
+    println("KPOINTS ", ismissing(kpoints))
+
+    if !ismissing(kpoints)
         X_H = zeros(rows, hnum_new)
         X_S = zeros(rows, snum_new)
     
@@ -430,6 +433,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         Y_S = missing
     end
 
+    println("Y_H ", length(Y_H))
+    
 #    X_Hnew_BIG = zeros(0,hnum)
 #    X_Snew_BIG = zeros(0, snum)
 
@@ -487,8 +492,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                 sind = SIND[(key,2)]
                 #            println(key, " cols: ", minimum(hind), " ",  maximum(hind))
 
-#                X_H[rind,hind] = arr2[key][1]
-#                X_S[rind,sind] = arr2[key][2]
+                X_H[rind,hind] = arr2[key][1]
+                X_S[rind,sind] = arr2[key][2]
                 X_H_temp[:,hind] = arr2[key][1]
                 X_S_temp[:,sind] = arr2[key][2]
 
@@ -665,6 +670,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         mode=:rspace
     end
 
+    println("kpoints $kpoints")
     scf = false
     for m in list_of_tbcs
         if !ismissing(m)
@@ -689,7 +695,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         @time ch = X_H \ Y_H
         @time cs = X_S \ Y_S
 
-        println("rspace !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        println("rspace !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ", sum(abs.(X_H)))
         xc = X_H*ch
         for i = 1:min(length(Y_H), 300)
             println(i, " " , xc[i]," " , Y_H[i])
@@ -781,12 +787,12 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         
         if mode == :rspace
             rows = size(X_H)[1]
-            scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8)
+            display(scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8))
 #            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
         else
             println("do plot k")
             rows1 = size(X_Hnew_BIG)[1]
-            scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4)
+            display(scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4))
 #            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
 #            scatter!(X_S[1:rows1, :]*cs , Y_S  , MarkerSize=6, color="orange")
 #            plot(Xc_Snew_BIG, Y_Snew_BIG , "k.")
