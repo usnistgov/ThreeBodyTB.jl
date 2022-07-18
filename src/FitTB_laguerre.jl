@@ -781,12 +781,12 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         
         if mode == :rspace
             rows = size(X_H)[1]
-            scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8)
+            display(scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8))
 #            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
         else
             println("do plot k")
             rows1 = size(X_Hnew_BIG)[1]
-            scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4)
+            display(scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4))
 #            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
 #            scatter!(X_S[1:rows1, :]*cs , Y_S  , MarkerSize=6, color="orange")
 #            plot(Xc_Snew_BIG, Y_Snew_BIG , "k.")
@@ -805,7 +805,8 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
-    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN
+    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, 
+    Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN
            
 
 end
