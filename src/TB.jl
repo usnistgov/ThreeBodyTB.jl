@@ -1827,9 +1827,9 @@ end
 #         println(occ)
          
          energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-         println("energy band $energy")
-         println("energy smear $energy_smear")
-         println("efermi $efermi")
+#         println("energy band $energy")
+#         println("energy smear $energy_smear")
+#         println("efermi $efermi")
          
          energy0 = sum(occ .* VALS0) / nk * 2.0
          
