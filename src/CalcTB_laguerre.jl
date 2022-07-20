@@ -77,13 +77,10 @@ const n_2body_onsite = 5
 
 const n_2body_S = 6
 
-#const n_3body = 8
-const n_3body = 4
+const n_3body = 8
 const n_3body_same = 6
 
-#const n_3body_onsite = 2
-const n_3body_onsite = 4
-
+const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
@@ -873,10 +870,8 @@ function get_data_info_v2(at_set, dim)
                         #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2  4 6 5]' #switch 2 4 and 3 6
                         #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 6 5  7 9 8 ]' #switch 2 4 and 3 6
                         #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4, 5, 7, 6  ] #switch 2 4 and 3 6
-                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4 ] #switch 2 4 and 3 6
-
-                        #data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4,5,6, 8, 7 ] #switch 2 4 and 3 6
-
+#                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4 ] #switch 2 4 and 3 6
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4,5,6, 8, 7 ] #switch 2 4 and 3 6
                     end
                     
                     #                    println([at1, o1, at2, o2, at3,  symb], tot, " ",  n, " " , data_info[[at1, o1, at2, o2, at3,  symb]] )
@@ -931,15 +926,12 @@ function get_data_info_v2(at_set, dim)
                     tot += n                               #       1 2 3 4 5 6 7 8
                 end
             else
-                data_info[[at1, at2, at3,  symb]] = collect(tot+1:tot+n)
-                data_info[[at1, at3, at2,  symb]] = tot .+ [1, 3, 2, 4]
-
-                #               for o1 in orbs1
- #                   if [at1, at2, at3, o1,  symb] in keys(data_info)
- #                       continue
- #                   end
- #                   data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
- #                   data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+                for o1 in orbs1
+                    if [at1, at2, at3, o1,  symb] in keys(data_info)
+                        continue
+                    end
+                    data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
+                    data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
                 end
                 tot += n
             end
@@ -5599,14 +5591,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-
-            #XXXXXXXXXXXXX
-            #V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
-            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
-
-            
-
-            #            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
+            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
+#            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
 
         else
 
@@ -5624,13 +5610,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V[1:4] .= [d1[1].*d2[1].*d3[1]
             
 #            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
+            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
 
-            #XXXXXXXXXXXXX
-#            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
-            V[1:4] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
-
-
-            
 #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
             
         end
@@ -5803,12 +5784,9 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
-#            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
-
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1] ]
-
             V = Vt
         else
 #            try
@@ -5822,11 +5800,11 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
                 memoryV[3] =  a[2].*b[1]
                 memoryV[4] =  zero[1].*a[1].*b[1]
 
-#                memoryV[5] =  zero[2].*a[1].*b[1]
-#                memoryV[6] =  a[2].*b[2]
+                memoryV[5] =  zero[2].*a[1].*b[1]
+                memoryV[6] =  a[2].*b[2]
 
-#                memoryV[7] =  zero[1].*a[1].*b[2]
-#                memoryV[8] =  zero[1].*a[2].*b[1]
+                memoryV[7] =  zero[1].*a[1].*b[2]
+                memoryV[8] =  zero[1].*a[2].*b[1]
                 
 
 #                memoryV[6] =  
@@ -6610,8 +6588,7 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
 
 #    o2 = summarize_orb(orb2)    
 
-#    sameat = (t1 == t2 && t1 == t3 )
-    sameat = (t2 == t3)
+    sameat = (t1 == t2 && t1 == t3 )
 
     indO = c.inds[[t1,t2,t3,o1,:O]]
 
@@ -6621,6 +6598,7 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
 
     Otot = three_body_O(dist12, dist13, dist23, sameat, c.datH[indO], memoryV=memory)
 
+    
 
     return Otot
         
@@ -6645,10 +6623,6 @@ function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
 
     Otot = three_body_O(dist12, dist13, dist23, sameat)
 
-#    if !sameat
-#        Otot[1] = 0.0
-#    end
-    
     return Otot
         
 end
@@ -6830,4 +6804,3 @@ end
 
 
 end #end module
-

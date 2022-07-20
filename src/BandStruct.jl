@@ -64,9 +64,9 @@ Plot a comparison between different tight binding objects `h1`, `h2`, and option
 """
 function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false,  align="vbm", spin=1)
     if ismissing(h3)
-        plot_compare_tb(h1.tb, h2.tb, h3=missing, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
+        plot_compare_tb(h1.tb, h2.tb, h3=missing, kpath=kpath, names = names, npts=npts, efermi = h1.efermi, efermi2=h2.efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
     else
-        plot_compare_tb(h1.tb, h2.tb, h3=h3.tb, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
+        plot_compare_tb(h1.tb, h2.tb, h3=h3.tb, kpath=kpath, names = names, npts=npts, efermi = h2.efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
     end
 end
 
@@ -74,10 +74,10 @@ end
 """
     function plot_compare_tb(h1::tb, h2::tb; h3=missing)
 """
-function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, efermi2 = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
     println("plot_compare_tb ")
     plot_bandstr(h1, kpath=kpath, names = names, npts=npts, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
-    plot_bandstr(h2, kpath=kpath, names = names, npts=npts, efermi = efermi, color="yellow", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
+    plot_bandstr(h2, kpath=kpath, names = names, npts=npts, efermi = efermi2, color="yellow", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
     if !ismissing(h3)
         plot_bandstr(h3, kpath=kpath, names = names, npts=npts, efermi = efermi, color="magenta", MarkerSize=1, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)
     end
@@ -415,6 +415,8 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 #            println("efermi ", efermi)
 #            println("test", sum(vals .< efermi))
             
+#            println("vals $vals")
+#            println("efermi $efermi")
             vbm = maximum(vals[vals .< efermi])
             vals = vals .- vbm
             alignstr = "Energy - VBM ($units)"
