@@ -464,7 +464,7 @@ function plot_database(database, entry, t=missing)#::coefs)
     xlims!(dist[1]-0.5, dist[end]+0.5)
 #    styles = ["-b", "-g", "-r", "-c", "-m", "-k", "-y","--b", "--g", "--r", "--c", "--m", "--k", "--y", ":b", ":g", ":r", ":c", ":m", ":k", ":y"]
 #    ns = length(styles)
-    linew = [2.5, 2.5,  2.5,  2.5, 2.0, 2.0,	2.0,  2.0, 1.5, 1.5,	1.5,  1.5, 1.0, 1.0,	1.0,  1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    linew = [2.5, 2.5,  2.5,  2.5, 2.0, 2.0,2.0,  2.0, 1.5, 1.5,1.5,  1.5, 1.0, 1.0,1.0,  1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     
     cs=1
     handels = String[]
@@ -6598,7 +6598,6 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
 
     Otot = three_body_O(dist12, dist13, dist23, sameat, c.datH[indO], memoryV=memory)
 
-    
 
     return Otot
         
@@ -6623,6 +6622,10 @@ function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
 
     Otot = three_body_O(dist12, dist13, dist23, sameat)
 
+#    if !sameat
+#        Otot[1] = 0.0
+#    end
+    
     return Otot
         
 end
