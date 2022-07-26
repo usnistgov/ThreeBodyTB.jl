@@ -912,7 +912,7 @@ where the fitting doesn't apply.
 """
 function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true)
 
-    return false, 10.0
+#    return false, 10.0
     
     diststuff = distances_etc_3bdy_parallel(crys,10.0, 0.0, var_type=var_type)
     R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = diststuff
