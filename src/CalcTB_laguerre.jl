@@ -4016,7 +4016,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
 
         if test_frontier                 ##############
-            if dist > 9.5 || dist31 > 9.5 || dist32 > 9.5
+            if dist > 4.7 || dist31 > 4.7 || dist32 > 4.7
                 continue
             end
 

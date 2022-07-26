@@ -67,10 +67,10 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true)
 
 #    println("calc tb")
-    tbc = calc_tb_fast(c, database, verbose=verbose);
+    tbc = calc_tb_fast(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
     return t
     
@@ -394,7 +394,7 @@ e_den = deepcopy(e_den0)
 
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
-            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
+#            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
             if iter > 5 && (delta_eden >= delta_eden_old*0.99999 && iter%3 == 0)  #|| delta_energy_old < abs(energy_old - energy_tot)
                 mixA = max(mixA * 0.5, 0.001)
