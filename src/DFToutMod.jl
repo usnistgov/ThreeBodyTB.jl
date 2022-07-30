@@ -259,7 +259,7 @@ end
 
 function make_empty_bs(;nspin=1)
     
-    return bandstructure(1, 1, 1, nspin, 0.0, zeros(1,3), zeros(3), [1, 1, 1], zeros(1,1))
+    return bandstructure(1, 1, 1, nspin, 0.0, zeros(1,3), zeros(3), [1, 1, 1], zeros(1,1,1))
 
 end
 
