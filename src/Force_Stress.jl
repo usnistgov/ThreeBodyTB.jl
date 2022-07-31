@@ -102,7 +102,8 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
     kgrid, kweights = make_kgrid(grid)
     nk = size(kgrid)[1]
 
-    tooshort, energy_tot = safe_mode_energy(tbc.crys, database)
+    println("safe")
+    @time tooshort, energy_tot = safe_mode_energy(tbc.crys, database)
 
     if !(tooshort)
         if !ismissing(vv)
@@ -194,37 +195,41 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
 
     #    function f(x::Vector)
     function f(x)
-        T=typeof(x[1])
 
-        x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
-        
-        A = ct.A * (I(3) + x_r_strain)
-        #A = deepcopy(ct.A)
+        println("begin")
+        @time begin
+            T=typeof(x[1])
 
-        crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
+            x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
+            
+            A = ct.A * (I(3) + x_r_strain)
+            #A = deepcopy(ct.A)
+
+            crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
 
 
-        #this deals with cases where the distances between atoms become very short, which can happen during relaxations
-        #currently we just have an artificial repulsive force in this case
-        if tooshort
-            tooshort, energy_short = safe_mode_energy(crys_dual, database, var_type=T)
-            return energy_short
+            #this deals with cases where the distances between atoms become very short, which can happen during relaxations
+            #currently we just have an artificial repulsive force in this case
+            if tooshort
+                tooshort, energy_short = safe_mode_energy(crys_dual, database, var_type=T)
+                return energy_short
+            end
+
+
+            
+            if database["scf"] == true
+                scf = true
+                kappa = estimate_best_kappa(ct.A)
+                gamma_dual = electrostatics_getgamma(crys_dual, kappa=kappa)
+            else
+                scf = false
+                gamma_dual=zeros(T, ct.nat,ct.nat)
+            end
         end
-
-
         
-        if database["scf"] == true
-            scf = true
-            kappa = estimate_best_kappa(ct.A)
-            gamma_dual = electrostatics_getgamma(crys_dual, kappa=kappa)
-        else
-            scf = false
-            gamma_dual=zeros(T, ct.nat,ct.nat)
-        end
-        
-        
+        println("dual")
         tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true)
-        #tbc_dual = calc_tb_lowmem(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true, DIST=DIST)
+        @time tbc_dual = calc_tb_lowmem(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true, DIST=DIST)
 
         nwan = tbc.tb.nwan
 
@@ -238,8 +243,9 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         VALS0 = zeros(T, nk, nwan, nspin)
 
 
+        println("aft")
         #analytic fourier transform
-        for k = 1:nk
+        @time for k = 1:nk
             #vect, vals, hk, sk, vals0 = Hk(hktemp, sktemp, tbc.tb, grid[k,:])
             
 
@@ -309,11 +315,15 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
     
 #    x0 = inv_reshape_vec(ct.coords, ct.nat)
 
+    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(ct,cutoff2X,cutoff3bX,var_type=Float64, return_floats=false)
+    DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind
 
     
-#    chunksize=min(cs, 3*ct.nat + 6)
-#    cfg = ForwardDiff.GradientConfig(f, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
-#    g = ForwardDiff.gradient(f, zeros(3*ct.nat + 6)  )
+    chunksize=min(cs, 3*ct.nat + 6)
+    cfg = ForwardDiff.GradientConfig(f, zeros(3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
+
+    println("grad")
+    @time g = ForwardDiff.gradient(f, zeros(3*ct.nat + 6)  )
 
 
     
@@ -321,7 +331,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
 #    g = zeros(3*ct.nat + 6)
 #    ReverseDiff.gradient!(g, f, zeros(3*ct.nat + 6) )
     
-   x, stress = reshape_vec(g, ct.nat)
+    x, stress = reshape_vec(g, ct.nat)
 
     f_cart = -1.0 * x 
     f_cart = f_cart * inv(ct.A)' / nspin
@@ -1129,7 +1139,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 
 
             #we stick eewald in the last entry of ret
-            if scf
+            if scf 
                 eewald, pot = ewald_energy(crys_dual, gamma_dual, dq)
                 ret[end] = eewald
             end
@@ -1137,17 +1147,19 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             return ret
         end
 
-        #println("jac")
-        begin
+        println("jac")
+        @time begin
 
 
             
 #            ret = ham(zeros(3*ct.nat + 6))
 
             #ret = ham(zeros( 6))
-            
+           
+            #chunksize=min(18, 3*ct.nat + 6) 
+            chunksize=min(15, 3*ct.nat + 6)
             #chunksize=min(12, 3*ct.nat + 6)
-            chunksize=min(9, 3*ct.nat + 6)
+            #chunksize=min(9, 3*ct.nat + 6)
             #chunksize=min(6, 3*ct.nat + 6)
             
 

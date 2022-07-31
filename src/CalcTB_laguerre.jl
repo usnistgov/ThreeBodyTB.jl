@@ -1750,7 +1750,7 @@ end
 
 
 
-function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true)
+function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0)
     #    println("cutoff $cutoff $cutoff2")
 
     if ismissing(cutoff)
@@ -1769,9 +1769,9 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
     dmin_types3 = Dict()
     for t1 = crys.stypes
         for t2 in crys.stypes
-            dmin_types[Set((t1,t2))] = get_cutoff(t1,t2)[1]
+            dmin_types[Set((t1,t2))] = get_cutoff(t1,t2)[1] * shrink
             for t3 in crys.stypes
-                dmin_types3[Set((t1,t2,t3))] = get_cutoff(t1,t2,t3)
+                dmin_types3[Set((t1,t2,t3))] = get_cutoff(t1,t2,t3) * shrink
             end
         end
     end
@@ -1837,7 +1837,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
                 if dist > 1e-7
                     dist_arr[a,b,c,2:4].= dR/(dist )
                 end
-                cutoffXX = get_cutoff(ta,tb)[1]
+                cutoffXX = get_cutoff(ta,tb)[1] * shrink
                 if dist < cutoffXX
                     found = true
                 end
@@ -1954,7 +1954,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
                 dmin_types[Set((ta,tb))] = dmin
             end
 
-            cutoffYY = get_cutoff(ta,tb)[1]
+            cutoffYY = get_cutoff(ta,tb)[1] * shrink
             ind2 = findall(dist_arr[a,b,:,1] .< cutoffYY)
             ind_cutoff[(a,b)] = deepcopy(ind2)
             for i in ind2
@@ -2019,7 +2019,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
             ta = crys.stypes[a]
 
             tb = crys.stypes[b]
-            cutoffZZ = get_cutoff(ta,tb)[1]
+            cutoffZZ = get_cutoff(ta,tb)[1] * shrink
 
             id = threadid()
             #id = 1
@@ -2041,7 +2041,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
                 for c = 1:crys.nat
                     
                     tc = crys.stypes[c]
-                    cutoff3 = get_cutoff(ta,tb,tc)
+                    cutoff3 = get_cutoff(ta,tb,tc) * shrink
                     
                     cut_ab2 = cutoff_fn(dist_ab, cutoff3 - cutoff_length, cutoff3)
                     
@@ -2102,13 +2102,15 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
                                     end
                                 end
 
-                                r = Rind[c1,:]
+                            r = Rind[c1,:]
                             ikeep = R_dict[r]
-                            r2 = Rind[c12,:]
+#                            r = Rind[c1,:]
+#                            ikeep = R_dict[r]
+                            r2 = Rind[c2,:]
                             ikeep2 = R_dict[r2]                            
                             
                             
-                                array_ind3X[COUNTER[id],:] .= [a,b,c,ikeep,ikeep2]
+                            array_ind3X[COUNTER[id],:] .= [a,b,c,ikeep,ikeep2]
                             #                            array_floats3X[COUNTER[id], :] .= [dist_ab, dist_ac, dist_bc, lmn_ab[1],lmn_ab[2], lmn_ab[3], lmn_ac[1],lmn_ac[2], lmn_ac[3], lmn_bc[1],lmn_bc[2], lmn_bc[3], cut_ab*cut_bc*cut_ac, cut_ab2*cut_bc*cut_ac]
                             if return_floats
                                 array_floats3X[COUNTER[id], :] .= [dist_ab, dist_ac, dist_bc,  lmn_ac[1],lmn_ac[2], lmn_ac[3], lmn_bc[1],lmn_bc[2], lmn_bc[3], cut_ab*cut_bc*cut_ac, cut_ab2*cut_bc*cut_ac]                            
@@ -4036,9 +4038,11 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
         cind1 = array_ind3[counter,4]
         cind2 = array_ind3[counter,5]
 
+        rind1 = R_keep[cind1,2:4]
+        rind2 = R_keep[cind2,2:4]
         
-        rind1 = R_keep_ab[cind1,4:6]
-        rind2 = R_keep_ab[cind2,4:6]
+#        rind1 = R_keep_ab[cind1,4:6]
+#        rind2 = R_keep_ab[cind2,4:6]
 #        rind2 = Rind[cind2,1:3]
         
         dist, lmn = get_dist(a1,a2, rind1, crys, At)
@@ -5591,10 +5595,10 @@ end
 three body onsite.
 """
 function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing)
-    d1 = laguerre(dist1, missing, nmax=3)
-    d2 = laguerre(dist2, missing, nmax=3)
-    d3 = laguerre(dist3, missing, nmax=3)
 
+    d1 = laguerre(dist1, missing, nmax=1)
+    d2 = laguerre(dist2, missing, nmax=1)
+    d3 = laguerre(dist3, missing, nmax=1)
         
     if same_atom
     
@@ -5625,8 +5629,16 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
 #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
 
-            V = [d1[1].*d2[1].*d3[1] (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2] d1[1].*d2[1]  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
+            #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
 
+            V[1] = d1[1].*d2[1].*d3[1]
+            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
+            V[3] = d1[1].*d2[1].*d3[2]
+            V[4] = d1[1].*d2[1]
+            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+                
+
+            
 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
 
 
@@ -5656,8 +5668,11 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V[1:4] .= [d1[1].*d2[1].*d3[1]
             
 #            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
-            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
+#            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
 
+            V[1] = d1[1].*d2[1]
+            V[2] = d1[1].*d2[1].*d3[1]
+            
 #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
             
         end
@@ -5773,9 +5788,9 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 
 #    return 0.0
 
-    zero =  laguerre(dist0,missing, nmax=2, memory=memory0)
-    a = laguerre(dist1,missing, nmax=2, memory=memory1)
-    b = laguerre(dist2,missing, nmax=2, memory=memory2)
+    zero =  laguerre(dist0,missing, nmax=1, memory=memory0)
+    a = laguerre(dist1,missing, nmax=1, memory=memory1)
+    b = laguerre(dist2,missing, nmax=1, memory=memory2)
 
 #    println(same_atom, "three_body_H ", zero, a,b)
 
@@ -6643,7 +6658,7 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, database; set
     #sameat = (t1 == t2 && t1 == t3 )
 
     Otot = three_body_O(dist12, dist13, dist23, sameat, c.datH[indO], memoryV=memory)
-
+#    Otot = 0.0
     
 
     return Otot
@@ -6851,7 +6866,7 @@ function  get_dist(a1,a2,Rvec, crys, At)
     v = At*( (@view crys.coords[a1,:])  - (@view crys.coords[a2,:]) + Rvec)
     dist = norm(v)
     
-    return dist, v./(dist + 1e-20)
+    return dist, v./(dist + 1e-30)
     
 end
 
@@ -6897,17 +6912,23 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
     if verbose println("distances") end
 
-    #R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
+#R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST    
 
-    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
+#    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
 
+
+    if !ismissing(DIST)
     
-#    if (use_threebody || use_threebody_onsite ) && !ismissing(database)
-#        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
-#    else
-#        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type)
-#    end
+        R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
 
+    else
+        if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
+        else
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type, return_floats=false)
+        end
+    end
+    
     
     within_fit = true
     
@@ -7026,7 +7047,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
             dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
 
-            dist_a_old = dist_arr[a1,a2,cind,1]
+#            dist_a_old = dist_arr[a1,a2,cind,1]
             
             
             if (dist_a > cutoff2Xt || dist_a < 1e-5)
@@ -7036,7 +7057,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
 #            LMN[:,id] .= (dist_arr[a1,a2,cind,2:4])
 
-            println("dist_a $dist_a $dist_a_old")
+#            println("dist_a $dist_a $dist_a_old")
 
             
             lag = two_body_S(dist_a)
@@ -7161,7 +7182,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 #        println("3bdy")
         if use_threebody || use_threebody_onsite
             #        if false
-            for counter = 1:size(array_ind3)[1]
+            @threads for counter = 1:size(array_ind3)[1]
                 #            for counter = 1:size(array_ind3)[1]
                 id = threadid()
                 #id = 1
@@ -7173,11 +7194,12 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 cind2 = array_ind3[counter,5]
 
 #                println("$a1 $a2 $a3 $cind1 $cind2")
-                rind1 = R_keep_ab[cind1,4:6]
-                rind2 = R_keep_ab[cind2,4:6]
+#                r_dict
+                rind1 = ind_arr[cind1,1:3]
+                rind2 = ind_arr[cind2,1:3]
                 #                rind2 = Rind[cind2,1:3]
 
-                println("rind1 $rind1  rind2 $rind2")
+#                println("rind1 $rind1  rind2 $rind2")
                 
 
                 dist, lmn = get_dist(a1,a2, rind1, crys, At)
@@ -7185,9 +7207,9 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 dist32, lmn32 = get_dist(a2,a3, -rind1+rind2, crys, At)
 
                 
-                distO = array_floats3[counter, 1]
-                dist31O = array_floats3[counter, 2]
-                dist32O = array_floats3[counter, 3]
+#                distO = array_floats3[counter, 1]
+#                dist31O = array_floats3[counter, 2]
+#                dist32O = array_floats3[counter, 3]
                 
                 #                lmn[:] = array_floats3[counter, 4:6]
                 #                lmn31[:] = array_floats3[counter, 7:9]
@@ -7197,7 +7219,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 #                lmn31 = @view array_floats3[counter, 4:6]
 #                lmn32 = @view array_floats3[counter, 7:9]
 
-                println("dist3 $dist $distO  $dist31 $dist31O   $dist32 $dist32O")
+#                println("dist3 $dist $distO  $dist31 $dist31O   $dist32 $dist32O")
 #                println("lmn $lmn31_a_new $lmn31     $lmn32_a_new  $lmn32")
 
                 
@@ -7231,18 +7253,18 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 if haskey(database, (t1, t2, t3))
                     cdat = database[(t1,t2,t3)]
                     (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
-                    if use_threebody
+                    if use_threebody  
 
-                        
+
                         
                         three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
 
                         #puts what we need in memoryV
 
 
-
-                        for sum1 = 1:3
-                            for sum2 = 1:3
+                        
+                        for sum1 = 1:maximum(sumorbs[a1,:])
+                            for sum2 = 1:maximum(sumorbs[a2,:])
                                 @inbounds hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
                             end
                         end
@@ -7252,8 +7274,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                         
                         #                        Htemp = zeros(norb[a1], norb[a2])
                         Htemp[:,:, id] .= 0.0
-
-
+                        
                         for o1x = 1:norb[a1]
                             o1 = orbs[a1,o1x]
                             s1 = sorbs[a1,o1x]
@@ -7266,10 +7287,14 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                                 s2 = sorbs[a2,o2x]
                                 sum2 = sumorbs[a2,o2x] 
 
+#                                hht = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
+                                
                                 sym32 = symmetry_factor_int(s2,1,lmn32, one)    
 
                                 #                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id]  * sym31 * sym32
-                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32 
+
+                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32
+                                #@inbounds Htemp[o1x,o2x,id] += hht * sym31 * sym32 
                                 
                                 #                                @inbounds H_thread[o1, o2, cind1, id ] += hh[sum1,sum2, id]  * sym31 * sym32
 
@@ -7282,11 +7307,13 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                         @inbounds Htemp[1:norb[a1],1:norb[a2], id] .*= cut * 10^3
                         
                         @inbounds H_thread[orbs[a1,1:norb[a1]] , orbs[a2,1:norb[a2]]  , cind1, id ] .+= (@view Htemp[1:norb[a1],1:norb[a2], id])
+
+
                         
                     end
                     ############################################
-                    if use_threebody_onsite
-                        #        if false
+                    if use_threebody_onsite 
+
 #                        cut2 = array_floats3[counter, 11]
                         for o1 = orb2ind[a1]
                             a1a,t1,s1 = ind2orb[o1]
