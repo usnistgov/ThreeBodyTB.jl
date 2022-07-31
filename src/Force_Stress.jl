@@ -1147,8 +1147,8 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             return ret
         end
 
-        println("jac")
-        @time begin
+        #println("jac")
+        begin
 
 
             
