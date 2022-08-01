@@ -43,7 +43,7 @@ function test_basics()
             @test gaptype == :metal
             @test abs(indirectgap) < 1e-5
             @test abs(directgap) < 1e-5
-            @test abs(bandwidth - 0.8334073432114558) < 1e-5
+            @test abs(bandwidth - 0.8637424657699075) < 1e-5
 
             
             @test abs(energy - energy_fft) < 1e-5

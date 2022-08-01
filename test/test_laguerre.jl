@@ -20,6 +20,8 @@ include("../FitTB.jl")
 function test1()
     tbc_list = []
     @testset "testing laguerre fitting fake example" begin
+
+        @suppress begin
         
         c1 = makecrys([7.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0], ["Li"], units="Bohr");
         c2 = makecrys([8.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0], ["Li"], units="Bohr");
@@ -59,9 +61,11 @@ function test1()
             @test sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1e-5
         end
         
+        end
     end
     return tbc_list
 end
 
 
-tbc_list = test1()
+tbc_list = test1();
+Nothing

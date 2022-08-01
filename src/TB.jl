@@ -2207,7 +2207,7 @@ end
 
      end
 #     println("go")
-     @time go(grid, VALS, VALS0, VECTS)
+     go(grid, VALS, VALS0, VECTS)
 
 #     println("VALS ", sum(VALS))
      
@@ -2757,7 +2757,7 @@ end
      c=0
      keep = []
      npin = h.nspin
-     for spin = 1:nspin
+     for spin = 1:h.nspin
          for r = 1:h.nr
              if sum(abs.(h.H[spin,:,:,r]) .> tol) > 0 || h.ind_arr[r,:] == [0, 0, 0] 
                  if  ! (r in keep)

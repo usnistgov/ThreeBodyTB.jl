@@ -616,6 +616,10 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     end
     X_Hnew_BIG_list = []
     println("done assign memory")
+
+    @time ch = X_Hnew_BIG \ Float32.(Y_Hnew_BIG  - Xc_Hnew_BIG)
+    YH_new = X_Hnew_BIG * ch
+    println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     
 
 #    if false
@@ -664,6 +668,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     if ismissing(kpoints)
         mode=:rspace
     end
+    println("MODE $mode")
 
     scf = false
     for m in list_of_tbcs
@@ -719,6 +724,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
         println("kspace lsq ")
+        println("klsq test ", sum(X_Hnew_BIG*ch - (Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)))
 #        println("sum " , sum(abs.(X_S)) ,  " ", sum(abs.(Y_Snew_BIG)))
 #        println("sumH " , sum(abs.(X_H)) ,  " ", sum(abs.(Y_Hnew_BIG)))
 
@@ -781,12 +787,12 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         
         if mode == :rspace
             rows = size(X_H)[1]
-            scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8)
+            display(scatter(X_H[1:rows, :] * ch, Y_H[1:rows], color="green", MarkerSize=8))
 #            scatter!(X_S[1:rows, :] * cs, Y_S[1:rows], MarkerSize=4, color="orange")
         else
             println("do plot k")
             rows1 = size(X_Hnew_BIG)[1]
-            scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4)
+            display(scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4))
 #            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
 #            scatter!(X_S[1:rows1, :]*cs , Y_S  , MarkerSize=6, color="orange")
 #            plot(Xc_Snew_BIG, Y_Snew_BIG , "k.")
@@ -1375,9 +1381,12 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
         println("top")
         KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
     else
+        println("bot")
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
     end
 
+
+    
 #    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
     
     if ismissing(prepare_data)
@@ -1407,6 +1416,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = prepare_data
 
+    println("AAAAAAAA ch_lin ", ch_lin)
+    
     println("keepind " , length(keepind), " " , sum(keepind))
     println(keepind)
 
@@ -1509,6 +1520,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #    @time ch = X_H \ Y_H 
  
     ch=deepcopy(ch_lin)
+
+    println("ch start ", ch)
     
     if !ismissing(ch_refit)
         println("using refit")
@@ -2483,7 +2496,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
 
             ch_new = TOTX \ TOTY
-#            println("new errors")
+
+            println("ch_new ", ch_new)
+            #            println("new errors")
             if true
 
 #                println("mix $mix ch diff ", sum(abs.(ch_old - ch_new)))
