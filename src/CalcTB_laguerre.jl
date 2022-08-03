@@ -4835,7 +4835,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 #                            println(ind)
 #                            println(h)
 #                            println("asdf", at_set3,[t1,t2,t3], size(h), size(ih))
-                            threebody_arrays[at_set3][1][ind,ih] += h[1:size(ih)[1]] * cut
+                            threebody_arrays[at_set3][1][ind,ih] += h[1:size(ih)[1]] * cut * 1000
                         end
                         
                     end
