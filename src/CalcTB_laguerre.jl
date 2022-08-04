@@ -6069,7 +6069,7 @@ function three_body_H_lag(zero,a,b, same_atom, ind=missing; memory0=missing, mem
 #                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
 #                V = Vt
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), n_3body)
+                    memoryV=zeros(typeof(a[1]), n_3body)
                 end
                 memoryV[1] =  a[1].*b[1]
                 memoryV[2] =  a[1].*b[2]
