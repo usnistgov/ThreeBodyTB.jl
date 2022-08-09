@@ -660,6 +660,7 @@ e_den = deepcopy(e_den0)
     
     if conv == false
         println("WARNING !!!! NO convergence in $iters iters")
+        error_flag = true
     end
 
     tbc.eden = e_den #save charge density!!!!!  side effect!!!!!

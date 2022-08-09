@@ -2051,6 +2051,7 @@ end
                  if maximum(abs.(imag.(vals))) > 1e-10
                      println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
                      println("s ", eigvals(sk)[1:3])
+                     error_flag = true
                  end
                  VALS[c,:, spin] .= real.(vals)
                  VALS0[c,:, spin] .= real.(diag(vects'*hk0*vects))
@@ -3845,7 +3846,7 @@ end
      SK = zeros(Complex{Float64}, tb_k.nk,  tb_k.nwan, tb_k.nwan)
 
      error_flag = false
-
+     println("hi")
      for spin = 1:tb_k.nspin
          for k in 1:tb_k.nk
 #             try
@@ -3854,7 +3855,13 @@ end
                  VECTS[k,spin, :,:] = vects
                  SK[k,:,:] = sk
                  VALS0[k, :,spin] = vals0
-#             catch e
+                 if maximum(abs.(imag.(vals))) > 1e-10
+                     println("warning imag ", max(abs.(imag.(vals))))
+                     error_flag = true
+                 end
+                     
+
+             #             catch e
 #                 if e isa InterruptException
 #                     println("user interrupt")
 #                     rethrow(InterruptException)
