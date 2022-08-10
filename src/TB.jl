@@ -3846,7 +3846,7 @@ end
      SK = zeros(Complex{Float64}, tb_k.nk,  tb_k.nwan, tb_k.nwan)
 
      error_flag = false
-     println("hi")
+#     m = 1000.0
      for spin = 1:tb_k.nspin
          for k in 1:tb_k.nk
 #             try
@@ -3855,6 +3855,7 @@ end
                  VECTS[k,spin, :,:] = vects
                  SK[k,:,:] = sk
                  VALS0[k, :,spin] = vals0
+ #            m = minimum(eigvals(sk))
                  if maximum(abs.(imag.(vals))) > 1e-10
                      println("warning imag ", max(abs.(imag.(vals))))
                      error_flag = true
@@ -3871,6 +3872,7 @@ end
 #             end
          end
      end
+
      
      energy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
 
