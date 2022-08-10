@@ -3906,7 +3906,7 @@ function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_thr
 
 end
 
-function prepare_rec_data(, list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
+function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
 
     #PREPARE REFERENCE ENERGIES / EIGENVALUES
     println("prepare reference eigs")
