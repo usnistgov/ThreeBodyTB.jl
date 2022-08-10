@@ -48,6 +48,7 @@ using ..CalcTB:make_coefs
 using ..CalcTB:coefs
 using ..TB:tb_indexes
 using ..TB:magnetic_energy
+using Suppressor
 
 #using ..CrystalMod:orbital_index
 
@@ -2378,7 +2379,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         err_old_en = 1.0e6
 
-        mix = 0.01
+        mix = 0.03
 
 
 
@@ -2386,7 +2387,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         for iters = 1:NITERS #inner loop
 
             if iters > 2
-                mix = 0.05
+                mix = 0.06
             end
             if iters > 4
                 mix = 0.12
@@ -2497,7 +2498,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             ch_new = TOTX \ TOTY
 
-            println("ch_new ", ch_new)
+            #println("ch_new ", ch_new)
             #            println("new errors")
             if true
 
@@ -2603,7 +2604,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println("return")
         return database
     else
-        database, ch =  do_iters(ch, niters)
+        database, ch =  do_iters(ch, min(niters,20)  )
         D = []
         for leave = 1:NCALC
             dat, ch_temp = do_iters(deepcopy(ch), 5, leave_out=leave)
@@ -3873,9 +3874,9 @@ function do_fitting_recursive_cv(list_of_tbcs, X_cv; dft_list=missing, kpoints =
 end
 =#
 
-function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_threebody, fit_threebody_onsite, refit_database)
+function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
 
-    if !ismissing(dft_list)
+    if !ismissing(dft_list) && !ismissing(dft_list[1])
         println("top")
         KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
     else
@@ -3886,6 +3887,9 @@ function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_thr
     pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database, return_database=false, NLIM=NLIM, refit_database=refit_database)
     
 
+    keepdata = pd[19]
+    keepind = pd[18]
+    
     (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
     
     list_of_tbcs = list_of_tbcs[keepind]
@@ -3902,18 +3906,94 @@ function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_thr
         end
     end
 
-    return pd, KPOINTS, KWEIGHTS
+    return pd, KPOINTS, KWEIGHTS, nk_max
 
 end
 
-function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
+function get_electron_density(tbc, kpoints, kweights, vects, occ, S)
 
+    nk = size(kpoints)[1]
+    nw = size(S)[3]
+    TEMP = zeros(Complex{Float64}, nw, nw)
+    denmat = zeros(Float64, nw, nw)
+    electron_den = zeros(Float64, tbc.nspin, nw)
+    for spin = 1:tbc.nspin
+        denmat .= 0.0
+        for k in 1:nk
+            for a = 1:nw
+                for i = 1:nw
+                    for j = 1:nw
+                        TEMP[i,j] = vects[spin, k,i,a]' * S[k,i,j] * vects[spin, k,j,a]
+                    end
+                end
+                TEMP = TEMP + conj(TEMP)
+                #                    println("$k $a $spin size occ $(size(occ)), size(TEMP), $(size(TEMP))  denmat $(size(denmat)) $(size(kweights))")
+                denmat += 0.5 * occ[ k,a,spin] * real.(TEMP) * kweights[k]
+            end
+        end
+        electron_den[spin,:] = sum(denmat, dims=1) / sum(kweights)
+    end
+    #        println("size ", size(electron_den))
+    h1, dq = get_h1(tbc, electron_den)
+    #        println("electron_den $electron_den ", size(electron_den))
+    if tbc.tb.scfspin
+        h1spin = get_spin_h1(tbc, electron_den)
+    else
+        h1spin = zeros(2,nw,nw)
+    end
+    #        println("dq ", dq)
+    #        h1a, dqa = get_h1(tbc, tbc.eden)
+    #        println("dqa ", dqa)
+    
+    return electron_den, h1, dq, h1spin
+    
+end
+
+
+
+
+function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+
+    NWAN_MAX = maximum(ind_BIG[:,3])
+    SPIN_MAX= maximum(SPIN)
+    NAT_MAX = 0
+    for tbc in list_of_tbcs
+        NAT_MAX = max(NAT_MAX, tbc.crys.nat)
+    end
+
+#    nk = size(kpoints)[1]
+    NCALC = length(list_of_tbcs)
+
+    VALS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
+#    VECTS_MIX     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
+    VALS0     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
+
+    E_DEN     = zeros(NCALC, SPIN_MAX, NWAN_MAX)
+    H1     = zeros(NCALC, NWAN_MAX, NWAN_MAX)
+    H1spin     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
+    DQ     = zeros(NCALC, NAT_MAX)
+
+    ENERGY_SMEAR = zeros(NCALC)
+
+    OCCS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
+    WEIGHTS     = zeros(NCALC,  nk_max, NWAN_MAX, SPIN_MAX)
+    ENERGIES = zeros(NCALC)
+
+    
     #PREPARE REFERENCE ENERGIES / EIGENVALUES
     println("prepare reference eigs")
     #println([length(list_of_tbcs), length(KPOINTS), length(KWEIGHTS), length(dft_list), length(SPIN)])
     c=0
     NVAL = zeros(Float64, length(list_of_tbcs))
     NAT = zeros(Int64, length(list_of_tbcs))
+
+    println("x")
+    println(ismissing(list_of_tbcs))
+    println(ismissing(KPOINTS))
+    println(ismissing(KWEIGHTS))
+    println(ismissing(    dft_list))
+    println(ismissing(SPIN))
+
     @time for (tbc, kpoints, kweights, d, spin ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
         c+=1
 
@@ -4137,6 +4217,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
         end
 
 
+        
 #        WEIGHTS[c,1,1:nw] = WEIGHTS[c,1,1:nw] * 100
 
     end
@@ -4154,15 +4235,21 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
     
 
 
-    return 
+    return ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT
 
 end
 
-function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
+function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missing, niters_global = 1, weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
 
 
     #initial 
 
+    if ismissing(dft_list)
+        dft_list = []
+        for i = 1:length(list_of_tbcs)
+            push!(dft_list, missing)
+        end
+    end
 
     
     println("niters $niters")
@@ -4182,10 +4269,8 @@ function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_lis
     else
         starting_database_t = starting_database
     end
-    
-    pd, KPOINTS, KWEIGHTS = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database)
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = prepare_data
 
+    
 
 #    if list_of_tbcs[1].scf == true
 #        scf = true
@@ -4203,120 +4288,41 @@ function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_lis
     end
 
 
-    if ismissing(weights_list)
-        weights_list = ones(Float64, length(list_of_tbcs))
-    else
-        weights_list = weights_list[keepind]
-    end
 
     println("update_all $update_all")
     
-    println("TOUPDATE_INDS ", length(toupdate_inds))
+#    println("TOUPDATE_INDS ", length(toupdate_inds))
 
     #    cs = cs_lin
     #    ch = ch_lin
     
     println("NOW, DO RECURSIVE FITTING")
+
+#    ENERGIES, WEIGHTS, OCSS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC  = 
     
-    NWAN_MAX = maximum(ind_BIG[:,3])
-    SPIN_MAX= maximum(SPIN)
-    NAT_MAX = 0
-    for tbc in list_of_tbcs
-        NAT_MAX = max(NAT_MAX, tbc.crys.nat)
-    end
 
-#    nk = size(kpoints)[1]
-    NCALC = length(list_of_tbcs)
-
-    VALS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
-#    VECTS_MIX     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
-    VALS0     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
-
-    E_DEN     = zeros(NCALC, SPIN_MAX, NWAN_MAX)
-    H1     = zeros(NCALC, NWAN_MAX, NWAN_MAX)
-    H1spin     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
-    DQ     = zeros(NCALC, NAT_MAX)
-
-    ENERGY_SMEAR = zeros(NCALC)
-
-    OCCS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
-    WEIGHTS     = zeros(NCALC,  nk_max, NWAN_MAX, SPIN_MAX)
-    ENERGIES = zeros(NCALC)
-
-    Ys = Ys_new + Xc_Snew_BIG
-    X_Snew_BIG = nothing
-    Xc_Snew_BIG = nothing
-
-    NCOLS_orig = size(X_Hnew_BIG)[2]
-    NCOLS = size(X_Hnew_BIG)[2]
-
-#    println("redo lsq")
-#    @time ch = X_H \ Y_H 
- 
-    ch=deepcopy(ch_lin)
-
-    println("ch start ", ch)
     
-    if !ismissing(ch_refit)
-        println("using refit")
-        for i = 1:length(ch)
-            if abs(ch_refit[i]) > 1e-5
-                ch[i] = ch_refit[i]
-            end
-        end
-    end
+#    if !ismissing(ch_refit)
+#        println("using refit")
+#        for i = 1:length(ch)
+#            if abs(ch_refit[i]) > 1e-5
+#                ch[i] = ch_refit[i]
+#            end
+#        end
+ #   end
 
 
 
-    if start_small
-        ch = ch / 10.0
-    end
+#    if start_small
+#        ch = ch / 10.0
+#    end
    
     keep_bool = true
 
 
-    println("NCOLS $NCOLS")
+#    println("NCOLS $NCOLS")
     
 
-
-    function get_electron_density(tbc, kpoints, kweights, vects, occ, S)
-
-        nk = size(kpoints)[1]
-        nw = size(S)[3]
-        TEMP = zeros(Complex{Float64}, nw, nw)
-        denmat = zeros(Float64, nw, nw)
-        electron_den = zeros(Float64, tbc.nspin, nw)
-        for spin = 1:tbc.nspin
-            denmat .= 0.0
-            for k in 1:nk
-                for a = 1:nw
-                    for i = 1:nw
-                        for j = 1:nw
-                            TEMP[i,j] = vects[spin, k,i,a]' * S[k,i,j] * vects[spin, k,j,a]
-                        end
-                    end
-                    TEMP = TEMP + conj(TEMP)
-#                    println("$k $a $spin size occ $(size(occ)), size(TEMP), $(size(TEMP))  denmat $(size(denmat)) $(size(kweights))")
-                    denmat += 0.5 * occ[ k,a,spin] * real.(TEMP) * kweights[k]
-                end
-            end
-            electron_den[spin,:] = sum(denmat, dims=1) / sum(kweights)
-        end
-#        println("size ", size(electron_den))
-        h1, dq = get_h1(tbc, electron_den)
-#        println("electron_den $electron_den ", size(electron_den))
-        if tbc.tb.scfspin
-            h1spin = get_spin_h1(tbc, electron_den)
-        else
-            h1spin = zeros(2,nw,nw)
-        end
-#        println("dq ", dq)
-#        h1a, dqa = get_h1(tbc, tbc.eden)
-#        println("dqa ", dqa)
-        
-        return electron_den, h1, dq, h1spin
-        
-    end
 
 
     
@@ -4889,45 +4895,12 @@ function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_lis
             println("DOING ITER $iters -------------------------------------------------------------")
 
             #        println("construct_fitted")
+            
             ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, solve_scf_mode)
-
-#            println("vals0 1 ", VALS0_FITTED[4,1,:,1])
-#            println("vals0 2 ", VALS0_FITTED[4,1,:,2])
-
-#            println("energies_working")
-#            println(ENERGIES_working)
-#            println("done")
-#            return
-            
-            #, VALS0_FITTED #, solve_scf_mode
-#            println("energies_working")
-#            println(ENERGIES_working)
-#            return 
-#            println("construct_newXY")
-#            println(typeof(chX))
-##            println(typeof(VECTS_FITTED))
-  #          println(typeof(OCCS_FITTED))
-  #          println(typeof(NCALC))
-  #          println(typeof(NCOLS))
-  #          println(typeof(NLAM))
-  #          println(typeof(leave_out))
-                    
             NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-
+            
+            
             VECTS_FITTED = Dict()
-#            VECTS_FITTED = []
-#            OCCS_FITTED = []
-#            VALS_FITTED = []
-#            VALS0_FITTED = []
-            
-            
-#            println("rs")
-
-#            println("size NEWX ", size(NEWX))
-#            println("size NEWY ", size(NEWY))
-
-#            println("size X_Hnew_BIG ", size(X_Hnew_BIG))
-#            println("size Y_Hnew_BIG ", size(Y_Hnew_BIG))
 
             TOTX = NEWX
             TOTY = NEWY
@@ -4951,80 +4924,23 @@ function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_lis
                 TOTY = [Y_Hnew_BIG[rind, 1]*ks_weight;TOTY]
             end            
 
-
-#            if lambda > 1e-10
-#                XX = zeros(length(threebody_inds), NCOLS)
-#                YY = zeros(length(threebody_inds))
-#                for (ii, ind3) in enumerate(threebody_inds)
-#                    XX[ii,ind3] = lambda
-#                end
-
-#                TOTX = [TOTX; XX]
-#                TOTY = [TOTY; YY]
-                
-#                TOTX = [TOTX; lambda*collect(I(NCOLS))]
-#                TOTY = [TOTY; zeros(NCOLS)]
-
-#            end
-            #println("errors")
             if true
-#                error_old_rs  = sum((X_H * chX .- Y_H).^2)
+
                 error_old_energy  = sum((NEWX * chX .- NEWY).^2)
-
-
-                
-#                error_old = error_old_rs + error_old_energy
             end
             
             ch_old = deepcopy(chX)
-#            println("lsq")
-
-#            println("size TOTX ", size(TOTX))
-#            println("size TOTY ", size(TOTY))
-
-
             ch_new = TOTX \ TOTY
 
-            println("ch_new ", ch_new)
+            #            println("ch_new ", ch_new)
             #            println("new errors")
             if true
 
-#                println("mix $mix ch diff ", sum(abs.(ch_old - ch_new)))
-#                println("len ", length(ch_old), " " , length(ch_new))
-#                for i in 1:length(ch_old)
-#                    if abs(ch_old[i] - ch_new[i]) < 1.0
-#                        println([ ch_old[i] , ch_new[i], ch_old[i] - ch_new[i]])
-#                    else
-#                        println([ ch_old[i] , ch_new[i], ch_old[i] - ch_new[i]], " !!!! ")
-#                    end
- #               end
                 chX = (ch_old * (1-mix) + ch_new * (mix) )
                 
-#                error_new_rs  = sum((X_H * chX .- Y_H).^2)
                 error_new_energy  = sum((NEWX * chX .- NEWY).^2)
                 
-#                error_new = error_new_rs + error_new_energy
-                
-#                println("errors rs     new $error_new_rs old $error_old_rs")
                 println("errors energy new $error_new_energy old $error_old_energy")
-#                println("errors tot    new $error_new old $error_old")
-                #                println()
-#                println("energy counter")
-#                nnn = NEWX[:,:]*chX
-
-                #                println("size nnn ", size(nnn))
-#                for e in energy_counter
-#                    println(["a", nnn[e], NEWY[e,1],  nnn[e] - NEWY[e,1]])
-#                end
-
-                #                println("other")
-#                for e in 1:50
-#                    println(["b", nnn[e], NEWY[e,1],  nnn[e] - NEWY[e,1]])
-#                end
-
-                #                println("energy_counter")
-#                println([NEWX[energy_counter,:] * chX NEWY[energy_counter,1] NEWX[energy_counter,:] * chX -  NEWY[energy_counter,1]])
-#                println()
             end
 
             if abs(error_new_energy - err_old_en) < 5e-3 && iters >= 6
@@ -5076,36 +4992,136 @@ function do_fitting_recursive_ALL(list_of_tbcs ; weights_list = missing, dft_lis
 
     end
 
-    if rs_weight < 1e-5
-        X_H = nothing
-        Y_H = nothing
-    end
-#    if ks_weight < 1e-5
-#        X_Hnew_BIG = nothing
-#        Y_Hnew_BIG = nothing
-#    end            
-
-    VALS_working = zeros(size(VALS))
-    ENERGIES_working = zeros(size(ENERGIES))
-    OCCS_working = zeros(size(OCCS))
+    database = Dict()
 
 
     
-    if leave_one_out == false
-        database, ch =  do_iters(ch, niters)
-        println("return")
-        return database
-    else
-        database, ch =  do_iters(ch, niters)
-        D = []
-        for leave = 1:NCALC
-            dat, ch_temp = do_iters(deepcopy(ch), 5, leave_out=leave)
-            push!(D,deepcopy(dat))
+    iter_global = 1
+    println("GLOBAL ITER $iter_global of $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+    
+    begin
+        
+        pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
+        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
+
+        (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+        if ismissing(weights_list)
+            weights_list = ones(Float64, length(list_of_tbcs))
+        else
+            weights_list = weights_list[keepind]
         end
-        return D
+        if !ismissing(dft_list)
+            dft_list = dft_list[keepind]
+        end
+
+        Ys = Ys_new + Xc_Snew_BIG
+        X_Snew_BIG = nothing
+        Xc_Snew_BIG = nothing
+
+        NCOLS_orig = size(X_Hnew_BIG)[2]
+        NCOLS = size(X_Hnew_BIG)[2]
+
+        #    println("redo lsq")
+        #    @time ch = X_H \ Y_H 
+        
+        if iter_global == 1
+            ch=deepcopy(ch_lin)
+
+        end
+
+        if rs_weight < 1e-5
+            X_H = nothing
+            Y_H = nothing
+        end
+        
     end
 
-#    return database
+    
+    ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+    
+    VALS_working = zeros(size(VALS))
+    ENERGIES_working = zeros(size(ENERGIES))
+    OCCS_working = zeros(size(OCCS))
+    
+    
+    #construct_fitted
+    #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
+    #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
+    
+        
+    println("CH START ", sum(ch))
+    database, ch =  do_iters(ch, niters)
+    println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+    
+    for iter_global = 2:niters_global
+        println("GLOBAL ITER $iter_global of $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+
+        @suppress begin
+
+            list_of_tbcs = vcat(list_of_tbcs, list_of_tbcs2)
+            if !ismissing(dft_list)
+                dft_list = vcat(dft_list, dft_list2)
+            end
+            
+            pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
+            database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
+
+            (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+
+            #add extra weights to end of list
+            weight_max = maximum(weights_list)
+            need = length(keepind) - length(weights_list)
+            for n in need
+                weights_list = vcat(weights_list, weight_max)
+            end
+            
+            if !ismissing(dft_list)
+                dft_list = dft_list[keepind]
+            end
+
+            Ys = Ys_new + Xc_Snew_BIG
+            X_Snew_BIG = nothing
+            Xc_Snew_BIG = nothing
+
+            NCOLS_orig = size(X_Hnew_BIG)[2]
+            NCOLS = size(X_Hnew_BIG)[2]
+
+            #    println("redo lsq")
+            #    @time ch = X_H \ Y_H 
+            
+            if iter_global == 1
+                ch=deepcopy(ch_lin)
+            end
+
+            if rs_weight < 1e-5
+                X_H = nothing
+                Y_H = nothing
+            end
+            
+        end
+
+        
+        @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+        
+        VALS_working = zeros(size(VALS))
+        ENERGIES_working = zeros(size(ENERGIES))
+        OCCS_working = zeros(size(OCCS))
+        
+        
+        #construct_fitted
+        #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
+        #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
+        
+        println("CH START ", sum(ch))
+        database, ch =  do_iters(ch, niters)
+        
+
+        println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+    end
+    
+
+    println("return")
+    return database
 
 end
 
