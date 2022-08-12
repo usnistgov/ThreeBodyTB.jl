@@ -49,6 +49,8 @@ using ..CalcTB:coefs
 using ..TB:tb_indexes
 using ..TB:magnetic_energy
 using Suppressor
+using ..AtomicProj:projwfc_workf
+using ..SCF:remove_scf_from_tbc
 
 #using ..CrystalMod:orbital_index
 
@@ -4239,7 +4241,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 
 end
 
-function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missing, niters_global = 1, weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
+function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, generate_new_structures = missing,  procs=1)
 
 
     #initial 
@@ -4272,9 +4274,9 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
     
 
-#    if list_of_tbcs[1].scf == true
-#        scf = true
-#    end
+    #    if list_of_tbcs[1].scf == true
+    #        scf = true
+    #    end
     println("SCF is $scf")
     
     if ismissing(energy_weight)
@@ -4291,36 +4293,36 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
     println("update_all $update_all")
     
-#    println("TOUPDATE_INDS ", length(toupdate_inds))
+    #    println("TOUPDATE_INDS ", length(toupdate_inds))
 
     #    cs = cs_lin
     #    ch = ch_lin
     
     println("NOW, DO RECURSIVE FITTING")
 
-#    ENERGIES, WEIGHTS, OCSS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC  = 
+    #    ENERGIES, WEIGHTS, OCSS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC  = 
     
 
     
-#    if !ismissing(ch_refit)
-#        println("using refit")
-#        for i = 1:length(ch)
-#            if abs(ch_refit[i]) > 1e-5
-#                ch[i] = ch_refit[i]
-#            end
-#        end
- #   end
+    #    if !ismissing(ch_refit)
+    #        println("using refit")
+    #        for i = 1:length(ch)
+    #            if abs(ch_refit[i]) > 1e-5
+    #                ch[i] = ch_refit[i]
+    #            end
+    #        end
+    #   end
 
 
 
-#    if start_small
-#        ch = ch / 10.0
-#    end
-   
+    #    if start_small
+    #        ch = ch / 10.0
+    #    end
+    
     keep_bool = true
 
 
-#    println("NCOLS $NCOLS")
+    #    println("NCOLS $NCOLS")
     
 
 
@@ -4333,7 +4335,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
         Xc = (X_Hnew_BIG * ch) + Xc_Hnew_BIG
 
-#        VECTS_FITTED     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
+        #        VECTS_FITTED     = zeros(Complex{Float64}, NCALC, nk_max, NWAN_MAX, NWAN_MAX)
         VECTS_FITTED = Dict{Int64, Array{Complex{Float64},4} }()
         VALS_FITTED     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
         VALS0_FITTED     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
@@ -4345,7 +4347,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
         ERROR = zeros(Int64, NCALC)
 
         if solve_self_consistently == true
-#            println("SCF SOLUTIONS")
+            #            println("SCF SOLUTIONS")
             niter_scf = 150
         else
             niter_scf = 1
@@ -4421,19 +4423,19 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
                 h1spin = zeros(Float64,2, nw, nw)
             end
 
-                
-#            println("STARTING DQ")
-#            println(dq)
-#            println("STARTING H1")
-#            println(h1)
-#            println()
+            
+            #            println("STARTING DQ")
+            #            println(dq)
+            #            println("STARTING H1")
+            #            println(h1)
+            #            println()
             function get_eigen(h1_in, h1spin_in, nspin)
                 vals = zeros(Float64, nw)
                 vects = zeros(Complex{Float64}, nw, nw)
                 VECTS = zeros(Complex{Float64}, nspin, nk, nw, nw)
                 for spin = 1:nspin
                     for k in 1:nk 
-                    
+                        
                         H0 = H0mat[k,:,:]
                         S  = Smat[k,:,:]
                         if scf
@@ -4452,21 +4454,21 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
                             vals = zeros(Float64, nw)
                             vects = zeros(Complex{Float64}, nw, nw)
                             println("WARNING, S has negative eigenvalues $c $k")
-                        
+                            
                         end
 
                         #                    VECTS_FITTED[c,k,1:nw,1:nw] = vects
                         VECTS[spin, k,1:nw,1:nw] = vects
                         VALS_FITTED[c,k,1:nw, spin] = real(vals)
-#                        println("VALS_FITT $spin $k ", real.(vals))
+                        #                        println("VALS_FITT $spin $k ", real.(vals))
                         #                    VALS_FITTED[c,k,1:nw] = real.(diag(vects'*H*vects))
 
                         VALS0_FITTED[c,k,1:nw, spin] =  real.(diag(vects'*H0*vects))
-#                        println("VALS0_FITTED $spin $k ", VALS0_FITTED[c,k,1:nw, spin])
-#                    if k == 1
-#                        println("VALS ", VALS_FITTED[c,k,1:nw])
-#                        println("VALS0", VALS0_FITTED[c,k,1:nw])
-#                    end
+                        #                        println("VALS0_FITTED $spin $k ", VALS0_FITTED[c,k,1:nw, spin])
+                        #                    if k == 1
+                        #                        println("VALS ", VALS_FITTED[c,k,1:nw])
+                        #                        println("VALS0", VALS0_FITTED[c,k,1:nw])
+                        #                    end
                     end #kpoints loop
                 end
                 VECTS_FITTED[c] = deepcopy(VECTS)
@@ -4478,14 +4480,14 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             conv = false
 
             for c_scf = 1:niter_scf
-#                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
+                #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
                 get_eigen(h1, h1spin, tbc.tb.nspin)
 
                 
-#                if c_scf == 1
-#                    println("$c VALS_FITTED k0 ", VALS_FITTED[c,1,1:nw])
-#                    println("$c VALS0_FITTED k0 ", VALS0_FITTED[c,1,1:nw])
-#                end
+                #                if c_scf == 1
+                #                    println("$c VALS_FITTED k0 ", VALS_FITTED[c,1,1:nw])
+                #                    println("$c VALS0_FITTED k0 ", VALS0_FITTED[c,1,1:nw])
+                #                end
 
                 #if solve_self_consistently == true
                 if true
@@ -4493,22 +4495,22 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
                     mix = 0.7 * 0.92^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
 
                     
-#                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
+                    #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
 
                     #efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, nval, 0.01)
                     energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true) 
 
                     occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, 0.01)
 
-#                    println("occs late $efermi $nval ",occs)
-#                    println("valsf ", size(VALS_FITTED), " " , size(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin]))
+                    #                    println("occs late $efermi $nval ",occs)
+                    #                    println("valsf ", size(VALS_FITTED), " " , size(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin]))
                     
                     energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
                     eden, h1_new, dq_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
 
-#                    println("EDEN DDDDDDDDDD ", eden)
+                    #                    println("EDEN DDDDDDDDDD ", eden)
                     
                     EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
                     
@@ -4541,11 +4543,11 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
                         energy_charge = 0.0
                         energy_magnetic = 0.0
                     end
-                        
+                    
                     
                     energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
-                        
-#                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
+                    
+                    #                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
                     if abs(energy_new  - energy_old) < 1e-5
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
@@ -4559,7 +4561,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             end #scf loop
 
             if scf && conv
-#                h1 = (h1 + H1[c,1:nw,1:nw]) / 2.0   #mixing
+                #                h1 = (h1 + H1[c,1:nw,1:nw]) / 2.0   #mixing
                 #                dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
 
                 H1[c,1:nw,1:nw] =  h1 
@@ -4586,29 +4588,29 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, 0.01)
             OCCS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin] = occs
 
-#            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnocc=true)
-#            OCCS_FITTED[c,1:nk,1:nw] = occs_fitted
+            #            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnocc=true)
+            #            OCCS_FITTED[c,1:nk,1:nw] = occs_fitted
             
             energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, 0.01)
             ENERGY_SMEAR[c] = energy_smear
             
-#            println("$c smear $energy_smear")
+            #            println("$c smear $energy_smear")
 
             
-#            if scf
-#                energy_charge, pot = ewald_energy(tbc, dq)
-#            else
-#                energy_charge = 0.0
+            #            if scf
+            #                energy_charge, pot = ewald_energy(tbc, dq)
+            #            else
+            #                energy_charge = 0.0
             #            end
-#            
-#            etypes = types_energy(tbc)
+            #            
+            #            etypes = types_energy(tbc)
 
-#            s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], dims=[2,3])
-#            energy_band = sum(s1 .* kweights)
-#            if tbc.tb.nspin == 2
-#                energy_band = energy_band * 2
-#            end
-                
+            #            s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], dims=[2,3])
+            #            energy_band = sum(s1 .* kweights)
+            #            if tbc.tb.nspin == 2
+            #                energy_band = energy_band * 2
+            #            end
+            
             
             if scf
                 energy_charge, pot = ewald_energy(tbc, dq)
@@ -4617,18 +4619,18 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             end
             if tbc.tb.scfspin
                 energy_magnetic = magnetic_energy(tbc.crys, EDEN_FITTED[c, 1:tbc.nspin,1:nw])
-#                if c == 4
-#                    println("magnetic_energy $energy_magnetic")
-#                    println(tbc.crys)
-#                    println(EDEN_FITTED[c, 1:tbc.nspin,1:nw])
-#                    println()
-#                    println("VALS  1", VALS_FITTED[c,1,1:nw, 1])
-#                    println("VALS  2", VALS_FITTED[c,1,1:nw, 2])
-#                    println()
-#                    println("VALS0 1", VALS0_FITTED[c,1,1:nw,1])
-#                    println("VALS0 2", VALS0_FITTED[c,1,1:nw,2])
-#                    println()
-#                end
+                #                if c == 4
+                #                    println("magnetic_energy $energy_magnetic")
+                #                    println(tbc.crys)
+                #                    println(EDEN_FITTED[c, 1:tbc.nspin,1:nw])
+                #                    println()
+                #                    println("VALS  1", VALS_FITTED[c,1,1:nw, 1])
+                #                    println("VALS  2", VALS_FITTED[c,1,1:nw, 2])
+                #                    println()
+                #                    println("VALS0 1", VALS0_FITTED[c,1,1:nw,1])
+                #                    println("VALS0 2", VALS0_FITTED[c,1,1:nw,2])
+                #                    println()
+                #                end
             else
                 energy_magnetic = 0.0
             end
@@ -4637,9 +4639,9 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
             
             ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
-#            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=8))
-#            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
-#            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
+            #            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=8))
+            #            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
+            #            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
             println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq " )
             
 
@@ -4650,24 +4652,17 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
     end
 
 
-    if lambda > 1e-10
-        NLAM = NCOLS
-#        println("alt lambda ", NLAM, " " , NCOLS)
-    else
-        NLAM  = 0
-    end
-    NLAM = Int64(NLAM)
 
 
     
-#    function construct_newXY(VECTS_FITTED::Array{Complex{Float64},4}, OCCS_FITTED::Array{Float64,3}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}; leave_out=-1)
+    #    function construct_newXY(VECTS_FITTED::Array{Complex{Float64},4}, OCCS_FITTED::Array{Float64,3}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}; leave_out=-1)
     function construct_newXY(VECTS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}; leave_out=-1)
 
 
-#        nlam = 0
+        #        nlam = 0
 
-#        NEWX = zeros(ncalc*nk_max*NWAN_MAX + ncalc + nlam, ncols)
-#        NEWY = zeros(ncalc*nk_max*NWAN_MAX + ncalc + nlam)
+        #        NEWX = zeros(ncalc*nk_max*NWAN_MAX + ncalc + nlam, ncols)
+        #        NEWY = zeros(ncalc*nk_max*NWAN_MAX + ncalc + nlam)
 
         counter = 0
 
@@ -4853,12 +4848,12 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             end
         end
 
-#        println("len nonzero_ind ", length(nonzero_ind))
-#        println("size NEWX old ", size(NEWX))
-#        NEWX = NEWX[nonzero_ind,:]
-#        NEWY = NEWY[nonzero_ind]
-#        println("size NEWX new ", size(NEWX))
-#        println("size NEWY new ", size(NEWY))
+        #        println("len nonzero_ind ", length(nonzero_ind))
+        #        println("size NEWX old ", size(NEWX))
+        #        NEWX = NEWX[nonzero_ind,:]
+        #        NEWY = NEWY[nonzero_ind]
+        #        println("size NEWX new ", size(NEWX))
+        #        println("size NEWY new ", size(NEWY))
 
         return NEWX, NEWY, energy_counter
 
@@ -4872,7 +4867,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
         err_old_en = 1.0e6
 
-        mix = 0.01
+        mix = 0.05
 
 
 
@@ -4880,10 +4875,13 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
         for iters = 1:NITERS #inner loop
 
             if iters > 2
-                mix = 0.05
+                mix = 0.1
             end
             if iters > 4
-                mix = 0.12
+                mix = 0.2
+            end
+            if iters > 40
+                mix = 0.1
             end
 
             if scf
@@ -4954,7 +4952,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
                 mix = max(mix * 0.9, 0.05)
                 println("energy increased, reduce mixing $mix")
             end
-#            err_old_en = error_new_energy
+            #            err_old_en = error_new_energy
             
             
         end
@@ -4973,10 +4971,10 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
         cs_big[keep_inds_S] = cs_keep[:]
         csX2 = cs_big
 
-#        else
-#            chX2 = deepcopy(chX)
-#            csX2 = deepcopy(cs_lin)
-#        end
+        #        else
+        #            chX2 = deepcopy(chX)
+        #            csX2 = deepcopy(cs_lin)
+        #        end
 
         
 
@@ -4998,7 +4996,8 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
     
     iter_global = 1
     println("GLOBAL ITER $iter_global of $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
-    
+
+    passtest = false
     begin
         
         pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
@@ -5020,6 +5019,14 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
 
         NCOLS_orig = size(X_Hnew_BIG)[2]
         NCOLS = size(X_Hnew_BIG)[2]
+        
+        if lambda > 1e-10
+            NLAM = NCOLS
+        else
+            NLAM  = 0
+        end
+        NLAM = Int64(NLAM)
+
 
         #    println("redo lsq")
         #    @time ch = X_H \ Y_H 
@@ -5048,7 +5055,7 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
     #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
     #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
     
-        
+    
     println("CH START ", sum(ch))
     database, ch =  do_iters(ch, niters)
     println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
@@ -5056,13 +5063,50 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
     for iter_global = 2:niters_global
         println("GLOBAL ITER $iter_global of $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
 
+        if !ismissing(generate_new_structures)
+            
+            dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
+
+            if passtest
+                println("PASSTEST $passtest, we are done")
+                break
+            end
+
+            #add new data
+            println("do projwfc_workf")
+            tbc_list_NEW = []
+            dft_list_NEW2 = []
+            @suppress for (dft, dname) in zip(dft_list_NEW, dname_list)
+                try
+                    if dft.atomize_energy > 0.05
+                        continue
+                    end
+                    tbc, tbck = projwfc_workf(dft, nprocs=procs, directory=dname, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, writefilek="projham_K.xml")
+                    if scf 
+                        tbck_scf = remove_scf_from_tbc(tbck);
+                        push!(tbc_list_NEW,tbck_scf)
+                        push!(dft_list_NEW2, dft)
+                    else
+                        push!(tbc_list_NEW,tbck)
+                        push!(dft_list_NEW2, dft)
+                        
+                    end
+                catch
+                    println("err projwfc")
+                    println(dft)
+                end
+            end
+
+            println("add data")
+            list_of_tbcs = vcat(list_of_tbcs, tbc_list_NEW)
+            dft_list = vcat(dft_list, dft_list_NEW2)
+
+        end
+        
+
+
         @suppress begin
 
-            list_of_tbcs = vcat(list_of_tbcs, list_of_tbcs2)
-            if !ismissing(dft_list)
-                dft_list = vcat(dft_list, dft_list2)
-            end
-            
             pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
             database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
 
@@ -5071,8 +5115,8 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             #add extra weights to end of list
             weight_max = maximum(weights_list)
             need = length(keepind) - length(weights_list)
-            for n in need
-                weights_list = vcat(weights_list, weight_max)
+            for n in 1:need
+                push!(weights_list, weight_max)
             end
             
             if !ismissing(dft_list)
@@ -5089,41 +5133,45 @@ function do_fitting_recursive_ALL(list_of_tbcs, list_of_tbcs2; dft_list2= missin
             #    println("redo lsq")
             #    @time ch = X_H \ Y_H 
             
-            if iter_global == 1
-                ch=deepcopy(ch_lin)
-            end
-
-            if rs_weight < 1e-5
-                X_H = nothing
-                Y_H = nothing
-            end
-            
+            ch= (ch_lin + ch)*0.5
         end
 
+        if rs_weight < 1e-5
+            X_H = nothing
+            Y_H = nothing
+        end
         
-        @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
-        
-        VALS_working = zeros(size(VALS))
-        ENERGIES_working = zeros(size(ENERGIES))
-        OCCS_working = zeros(size(OCCS))
-        
-        
-        #construct_fitted
-        #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
-        #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
-        
-        println("CH START ", sum(ch))
-        database, ch =  do_iters(ch, niters)
-        
-
-        println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
     end
+
+    
+    @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+    
+    VALS_working = zeros(size(VALS))
+    ENERGIES_working = zeros(size(ENERGIES))
+    OCCS_working = zeros(size(OCCS))
+    
+    
+    #construct_fitted
+    #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
+    #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
+    
+    println("CH START ", sum(ch))
+    database, ch =  do_iters(ch, niters)
     
 
+    println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+
+    if passtest == false && !ismissing(generate_new_structures)
+        
+        dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
+        
+    end
+    
     println("return")
     return database
-
+    
 end
+
 
 
 
