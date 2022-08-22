@@ -243,6 +243,10 @@ function makecrys(A,coords,types; units=missing)
             factor = 1.0
         end
     end
+
+    if isa(types, Tuple)
+        types = collect(types)
+    end
     
     #entering integer coords or A messes everything up later
     if T == Int64
@@ -255,7 +259,7 @@ function makecrys(A,coords,types; units=missing)
 
     A = A * factor
     
-    if length(size(types)) == 2  # if are accidently given a 1 x nat types array 
+    if isa(types,Array) && length(size(types)) == 2  # if are accidently given a 1 x nat types array 
         types = types[:]
     end
 
@@ -295,9 +299,10 @@ function makecrys(A,coords,types; units=missing)
     A = convert(Array{T,2}, A)
     coords = convert(Array{T,2}, coords)
 
+
 #    coords = mod.(coords, 1.0)
     
-    if size(coords)[1] != size(types)[1]
+    if size(coords)[1] != length(types)
         error("Error making crys, types and coords sizes don't match")
         return 
     end
