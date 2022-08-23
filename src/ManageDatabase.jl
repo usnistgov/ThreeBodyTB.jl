@@ -60,7 +60,7 @@ end
 """
     function prepare_database(at_list)
 """
-function prepare_database(at_list; directory = missing, verbose=true)
+function prepare_database(at_list; directory = missing, verbose=false)
     
     if verbose; println("prepare atoms ", at_list); end
     at_list = Symbol.(at_list)
@@ -82,7 +82,7 @@ end
 
 Load elements or twobody terms from precalcuated `coefs` from files.
 """
-function add_to_database(s::Set; directory = missing, verbose=true)#
+function add_to_database(s::Set; directory = missing, verbose=false)#
 
     if verbose; println("add_to_database $s"); end
 
