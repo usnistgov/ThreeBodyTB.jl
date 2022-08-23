@@ -113,14 +113,19 @@ function print_with_force_stress(c::crystal, force, stress)
         At = c.A
     end
         
+    println("Lattice Vectors                       | Stress")
+    println("-----------------------------------------------------------------------")
     for i in 1:3
             @printf( "A%.1i=     %+.5f  %+.5f  %+.5f  |  %+.5f  %+.5f  %+.5f\n", i, At[i,1], At[i,2], At[i,3], stress[i,1],stress[i,2], stress[i,3] )
     end
     @printf( "\n")
+    println("Crystal coords                        | Force (Cartesian)")
+    println("-----------------------------------------------------------------------")
     for i in 1:c.nat
-        @printf( "%-3s  %+.5f  %+.5f  %+.5f |  %+.5f  %+.5f  %+.5f\n", c.types[i], c.coords[i,1], c.coords[i,2], c.coords[i,3], force[i,1],force[i,2],force[i,3])        
+        @printf( "%-3s     %+.5f  %+.5f  %+.5f  |  %+.5f  %+.5f  %+.5f\n", c.types[i], c.coords[i,1], c.coords[i,2], c.coords[i,3], force[i,1],force[i,2],force[i,3])        
     end
-    
+    println("-----------------------------------------------------------------------")
+    println()
 end   
 
 
@@ -417,6 +422,8 @@ function parseMYFORMATinput(lines)
                 A[2,:] = parseARRfloat(sp[2:4])
             elseif sp[1] == "A3="
                 A[3,:] = parseARRfloat(sp[2:4])
+            elseif sp[1] == "Crystal" || sp[1] == "Lattice" 
+                continue
             elseif length(sp) >= 4
                 push!(types, String(sp[1]))
                 nat += 1
