@@ -49,7 +49,7 @@ end
 
 function get_twobody_dist(A,B)
 
-    ab = 4.2
+    ab = 4.7
     #prepare_database([A,B])
     #database = ThreeBodyTB.ManageDatabase.database_cached
     
@@ -439,7 +439,7 @@ function setup_proto_data()
     CalcD["cab_line"] = ["$STRUCTDIR/ternary/cab_line.in", "relax", "all", "coords-small2", "nscf", false]
 
     CalcD["fcc_tern"] = ["$STRUCTDIR/ternary/fcc_tern.in", "vc-relax", "all", "vol-mid", "nscf", false]
-    CalcD["hex_trim"] = ["$STRUCTDIR/ternary/hex_trim_3.in", "vc-relax",  "2Dxy", "2D-mid", "nscf", false]
+    CalcD["hex_trim"] = ["$STRUCTDIR/ternary/hex_trim_3.in", "vc-relax",  "2Dxy", "2D", "nscf", false]
 
     CalcD["hh1"] = ["$STRUCTDIR/ternary/POSCAR_hh1", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["hh2"] = ["$STRUCTDIR/ternary/POSCAR_hh2", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -467,6 +467,9 @@ function setup_proto_data()
 
     CalcD["simple_hex"] = ["$STRUCTDIR/simple_hex.in", "vc-relax", "all", "flyaway", "nscf", false]
 
+    CalcD["trimer_rand"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "all", "scf", "nscf", false]
+
+
     CalcD["trimer_tern"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern", "none", "2Dxy", "trimer_tern", "nscf", false]
     CalcD["trimer_tern_right"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern_right", "none", "2Dxy", "trimer_tern_right", "nscf", false]
     CalcD["trimer_tern_angle"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern_angle", "none", "2Dxy", "trimer_tern_angle", "nscf", false]
@@ -477,6 +480,8 @@ function setup_proto_data()
     CalcD["hh_oxygen"] = ["$STRUCTDIR/ternary/POSCAR_hh_oxygen", "vc-relax", "all", "vol-oxygen", "nscf", false]
     CalcD["hh_oxygen2"] = ["$STRUCTDIR/ternary/POSCAR_hh_oxygen2", "vc-relax", "all", "vol-oxygen", "nscf", false]
     CalcD["hex_oxygen"] = ["$STRUCTDIR/ternary/hex_trim_3.in_oxygen", "vc-relax",  "2Dxy", "2D-oxygen", "nscf", false]
+
+    CalcD["sipau"] = ["$STRUCTDIR/ternary/POSCAR_SiPAu", "vc-relax",  "all", "vol", "nscf", false]
 
     CalcD[""] = ["$STRUCTDIR/ternary/hex_trim_3.in_oxygen", "vc-relax",  "2Dxy", "2D-oxygen", "nscf", false]
 
@@ -518,7 +523,8 @@ function setup_proto_data()
     metals = [ "mg2si", "simg2",  "mgb2_12", "mgb2_21",    "ab2_71", "ba2_71"]
 
     # all_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3","stuffhex_z_1", "stuffhex_z_2", "stuffhex_z_3", "rocksalt_2lay_abo2", "caf2_abc", "perov", "perov2", "perov3",  "perov4",  "perov5",  "perov6"  ]
-    core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3", "trimer_tern","trimer_tern_right","trimer_tern_line", "trimer_tern_angle", "p4mmm" ]
+#    core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3", "trimer_tern","trimer_tern_right","trimer_tern_line", "trimer_tern_angle", "p4mmm" ]
+    core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "trimer_rand", "sipau"]
 
     pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag, core_mono_mag2)
 
@@ -675,7 +681,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif (newst == "coords_trimer_dense" || newst == "coords_trimer_ab_dense" )
             ncalc = length([1.0, 0.95])
         elseif newst == "trimer_tern"
-            ncalc = 4
+            ncalc = 2
         elseif newst == "trimer_tern_right"
             ncalc = 9
         elseif newst == "trimer_tern_line"
@@ -1260,7 +1266,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     if check_twobody_dist(c)
                         counter += 1
                         push!(torun, deepcopy(c))
-                        if counter >= 4
+                        if counter >= 2
                             break
                         end
                     end
@@ -1785,7 +1791,7 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
         println()
         d="$dir/$name"*"_vnscf_"*"$i"        
         try
-            dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true, magnetic=magnetic)
+            dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
             tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
         catch
             println("err dft $d")
