@@ -467,7 +467,7 @@ function setup_proto_data()
 
     CalcD["simple_hex"] = ["$STRUCTDIR/simple_hex.in", "vc-relax", "all", "flyaway", "nscf", false]
 
-    CalcD["trimer_rand"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "all", "scf", "nscf", false]
+    CalcD["trimer_rand"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "all", "vol2", "nscf", false]
 
 
     CalcD["trimer_tern"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern", "none", "2Dxy", "trimer_tern", "nscf", false]
@@ -607,6 +607,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         if newst == "vol"
             ncalc = length([ 0.95 1.0 1.05])
+        elseif newst == "vol2"
+            ncalc = length([ 0.95 1.0 ])
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
         elseif newst == "vol-mag"
@@ -826,6 +828,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             torun = []
             if newst == "vol"
                 for x in [ 0.95 1.0 1.05]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "vol2"
+                for x in [ 0.95 1.0 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
