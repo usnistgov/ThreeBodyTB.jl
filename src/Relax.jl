@@ -488,7 +488,7 @@ function make_random_crystal(types; database=missing)
             return crys * 1.03
         end
 
-        total_vol = total_vol * 1.02
+        total_vol = total_vol * 1.04
         
     end
     println("failed to generate crystal")

@@ -2542,7 +2542,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                println()
             end
 
-            if abs(error_new_energy - err_old_en) < 5e-3 && iters >= 6
+            if abs(error_new_energy - err_old_en) < 2e-2 && iters >= 6
                 println("break")
                 break
             else
@@ -4941,7 +4941,10 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                 println("errors energy new $error_new_energy old $error_old_energy")
             end
 
-            if abs(error_new_energy - err_old_en) < 5e-3 && iters >= 6
+            if abs(error_new_energy - err_old_en) < 1e-2 && iters >= 6
+                println("break")
+                break
+            elseif abs(error_new_energy - err_old_en) < 5e-2 && iters >= 10
                 println("break")
                 break
             else
@@ -5066,17 +5069,19 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         if !ismissing(generate_new_structures)
             
             dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
-
+            println("dname_list, $dname_list ", length(dft_list_NEW))
             if passtest
                 println("PASSTEST $passtest, we are done")
                 break
+            else 
+                println("PASSTEST $passtest, we are NOT done")
             end
-
             #add new data
             println("do projwfc_workf")
             tbc_list_NEW = []
             dft_list_NEW2 = []
             @suppress for (dft, dname) in zip(dft_list_NEW, dname_list)
+                println("dname $dname")
                 try
                     if dft.atomize_energy > 0.05
                         continue
@@ -5092,14 +5097,18 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                         
                     end
                 catch
-                    println("err projwfc")
+                    println("err projwfc $dname")
                     println(dft)
                 end
             end
 
+            println("old len list_of_tbcs ", length(list_of_tbcs), " dft ", length(dft_list))
+
             println("add data")
             list_of_tbcs = vcat(list_of_tbcs, tbc_list_NEW)
             dft_list = vcat(dft_list, dft_list_NEW2)
+
+            println("new len list_of_tbcs ", length(list_of_tbcs), " dft ", length(dft_list))
 
         end
         
@@ -5141,32 +5150,38 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             Y_H = nothing
         end
         
-    end
+
 
     
-    @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+        @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+        
+        VALS_working = zeros(size(VALS))
+        ENERGIES_working = zeros(size(ENERGIES))
+        OCCS_working = zeros(size(OCCS))
     
-    VALS_working = zeros(size(VALS))
-    ENERGIES_working = zeros(size(ENERGIES))
-    OCCS_working = zeros(size(OCCS))
+        
+        #construct_fitted
+        #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
+        #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
     
+        println("CH START ", sum(ch))
+        database, ch =  do_iters(ch, niters)
     
-    #construct_fitted
-    #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
-    #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
-    
-    println("CH START ", sum(ch))
-    database, ch =  do_iters(ch, niters)
-    
+        
+        
+    end
 
     println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
-
-    if passtest == false && !ismissing(generate_new_structures)
         
+    if passtest == false && !ismissing(generate_new_structures)
+            
         dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
         
+        println("FINAL PASSTEST $passtest")
+        
     end
-    
+
+
     println("return")
     return database
     

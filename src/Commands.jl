@@ -42,7 +42,7 @@ and mpi commands (if any)
     
     #main QE SCF driver
     pwscf_command_serial=`$qebin/pw.x -input `
-    pwscf_command_parallel=`$mpi $nprocs $qebin/pw.x -npool 2 -input `
+    pwscf_command_parallel=`$mpi $nprocs $qebin/pw.x -npool 4 -input `
 
     pwscf_command_parallel_backup=`$mpi $nprocs $qebin/pw.x -ndiag 1 -npool 1 -input `
 

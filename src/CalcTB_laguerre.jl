@@ -80,6 +80,7 @@ const n_2body_S = 6
 
 const n_3body = 8
 const n_3body_same = 6
+const n_3body_triple = 3
 
 const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
@@ -846,9 +847,17 @@ function get_data_info_v2(at_set, dim)
             else
                 same_at = false
             end
+            if at1 != at2 && at1 != at3 && at2 != at3
+                triple = true
+            else
+                triple = false
+            end
             
             for o1 in orbs1
                 for o2 in orbs2
+
+
+                    
                     if same_at && ((o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d))
                         continue
                     end
@@ -856,6 +865,13 @@ function get_data_info_v2(at_set, dim)
                     #                    push!(orbs, (o1, o2, symb))
 
                     if [at1, o1, at2, o2, at3,  symb] in keys(data_info)
+                        continue
+                    end
+
+                    if triple
+                        data_info[[at1, o1, at2, o2, at3,  symb]] = collect(tot+1:tot+n_3body_triple)
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2]
+                        tot += n_3body_triple
                         continue
                     end
 
@@ -3259,7 +3275,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 
                         
                         
-                        three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
+                        three_body_H(dist, dist31, dist32,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
 
                         #puts what we need in memoryV
 
@@ -3717,7 +3733,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
                     if use_threebody
 
                         
-                        three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV) #puts what we need in memoryV
+                        three_body_H(dist, dist31, dist32,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV) #puts what we need in memoryV
                         
                         for o1 = orb2ind[a1]
                         #    id = threadid()
@@ -5602,6 +5618,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
     d2 = laguerre(dist2, missing, nmax=1)
     d3 = laguerre(dist3, missing, nmax=1)
         
+    
+
     if same_atom
     
         if  isa(dist1, Array)
@@ -5886,7 +5904,7 @@ end
 
 get 3body hamiltonian terms together.
 """
-function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing)
+function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing)
 
 #    return 0.0
 
@@ -5900,7 +5918,19 @@ function three_body_H(dist0, dist1, dist2, same_atom, ind=missing; memory0=missi
 #    a = memory1
 #    b = memory2
     
-    if same_atom
+    if triple
+        if  isa(dist1, Array)
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] ]
+        else
+            if ismissing(memoryV)
+                memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+            end
+            memoryV[1] =  a[1].*b[1]
+            memoryV[2] =  a[1].*b[2]
+            memoryV[3] =  a[2].*b[1]
+        end
+
+    elseif same_atom
         if  isa(dist1, Array)
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) ]
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   ]
@@ -6002,7 +6032,7 @@ end
 
 
 
-function three_body_H_lag(zero,a,b, same_atom, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing)
+function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing)
 
 #    return 0.0
 
@@ -6015,8 +6045,21 @@ function three_body_H_lag(zero,a,b, same_atom, ind=missing; memory0=missing, mem
 #    zero = memory0
 #    a = memory1
 #    b = memory2
-    
-    if same_atom
+
+    if triple
+        if  false
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] ]
+        else
+            if ismissing(memoryV)
+                memoryV=zeros(typeof(zero[1]), n_3body_triple)
+            end
+            memoryV[1] =  a[1].*b[1]
+            memoryV[2] =  a[1].*b[2]
+            memoryV[3] =  a[2].*b[1]
+        end
+
+        
+    elseif same_atom
         if  false
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) ]
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   ]
@@ -6953,7 +6996,7 @@ function calc_threebody(c,ind, t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn3
         H = ( (@view memoryV[1:s])'* (@view c.datH[ind]))[1] * 10^3        
 
     else
-        H =  three_body_H(dist, dist31, dist32,t1==t2, c.datH[ind], memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
+        H =  three_body_H(dist, dist31, dist32,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3,  c.datH[ind], memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
     end
 
     sym31 = symmetry_factor(orb1,:s,lmn31, [1.0])
@@ -6979,7 +7022,7 @@ function fit_threebody(t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn31,lmn32)
     o1 = summarize_orb(orb1)
     o2 = summarize_orb(orb2)    
     
-    H =  three_body_H(dist, dist31, dist32, t1==t2)
+    H =  three_body_H(dist, dist31, dist32, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
 #    println("H ", H)
 
     sym31 = symmetry_factor(orb1,:s,lmn31, [1.0])
@@ -7504,11 +7547,11 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                     (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
                     if use_threebody  
 
-
+                        
                         
                         #                        three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
                         #        memoryV = three_body_H(dist, dist31, dist32,t1==t2)
-                        memoryV = three_body_H_lag(d1,d2,d3,t1==t2)
+                        memoryV = three_body_H_lag(d1,d2,d3,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
 
                         #puts what we need in memoryV
 
