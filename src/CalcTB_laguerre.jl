@@ -7690,7 +7690,9 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                         Son[o1, o2, id] += s 
                         Hon[o1, o2, id] += h
                         if repel
-                            Hon[o1, o2, id] += repel_vals[a1a]
+                            if o1 == o2
+                                Hon[o1, o1, id] += repel_vals[a1a] * 0.1
+                            end
                         end
                         
                     else
