@@ -470,7 +470,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
     if (ismissing(names))
         names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"]
-        names = [names;names;names;names;names;names;names; names; names; names; names;names;names;names ]
+        names = [names;names;names;names;names;names;names; names; names; names; names;names;names;names;names;names;names;names;names;names;names; names; names; names; names;names;names;names;names;names;names;names;names;names;names; names; names; names; names;names;names;names ]
         names = names[1:NK]
     end
 
