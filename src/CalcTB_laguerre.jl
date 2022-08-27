@@ -80,7 +80,7 @@ const n_2body_S = 6
 
 const n_3body = 8
 const n_3body_same = 6
-const n_3body_triple = 3
+const n_3body_triple = 4
 
 const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
@@ -870,7 +870,7 @@ function get_data_info_v2(at_set, dim)
 
                     if triple
                         data_info[[at1, o1, at2, o2, at3,  symb]] = collect(tot+1:tot+n_3body_triple)
-                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2]
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4]
                         tot += n_3body_triple
                         continue
                     end
@@ -5920,7 +5920,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
     
     if triple
         if  isa(dist1, Array)
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] ]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
         else
             if ismissing(memoryV)
                 memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
@@ -5928,6 +5928,8 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
             memoryV[1] =  a[1].*b[1]
             memoryV[2] =  a[1].*b[2]
             memoryV[3] =  a[2].*b[1]
+            memoryV[4] =  zero[1].*a[1].*b[1]
+            
         end
 
     elseif same_atom
@@ -6048,7 +6050,7 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
 
     if triple
         if  false
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] ]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
         else
             if ismissing(memoryV)
                 memoryV=zeros(typeof(zero[1]), n_3body_triple)
@@ -6056,6 +6058,7 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
             memoryV[1] =  a[1].*b[1]
             memoryV[2] =  a[1].*b[2]
             memoryV[3] =  a[2].*b[1]
+            memoryV[4] =  zero[1].*a[1].*b[1]
         end
 
         

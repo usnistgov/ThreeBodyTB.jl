@@ -1252,9 +1252,13 @@ function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
 #        NLIM = 100
         for n = 1:ncalc
 
-            kpts = dft_list[n].bandstruct.kpts
-            wghts = dft_list[n].bandstruct.kweights
-
+            if isa(dft_list[n], tb_crys_kspace)
+                kpts = dft_list[n].tb.K
+                wghts = dft_list[n].tb.kweights
+            else
+                kpts = dft_list[n].bandstruct.kpts
+                wghts = dft_list[n].bandstruct.kweights
+            end
 #            println("get k $n ", typeof(list_of_tbcs[n]), " " , typeof(list_of_tbcs[n]) == tb_crys_kspace{Float64})
 
             if typeof(list_of_tbcs[n]) == tb_crys_kspace{Float64} #superceeding
@@ -4246,7 +4250,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
     #initial 
 
-    if ismissing(dft_list)
+    if ismissing(dft_list) 
         dft_list = []
         for i = 1:length(list_of_tbcs)
             push!(dft_list, missing)
@@ -5086,7 +5090,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                     if dft.atomize_energy > 0.05
                         continue
                     end
-                    tbc, tbck = projwfc_workf(dft, nprocs=procs, directory=dname, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, writefilek="projham_K.xml")
+                    tbc, tbck = projwfc_workf(dft, nprocs=procs, directory=dname, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, writefilek="projham_K.xml", min_nscf=true)
                     if scf 
                         tbck_scf = remove_scf_from_tbc(tbck);
                         push!(tbc_list_NEW,tbck_scf)
@@ -5142,7 +5146,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             #    println("redo lsq")
             #    @time ch = X_H \ Y_H 
             
-            ch= (ch_lin + ch)*0.5
+            ch= ch_lin    #+ ch)*0.5
         end
 
         if rs_weight < 1e-5
@@ -5171,7 +5175,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         
     end
 
-    println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+    println("DONE GLOBAL iter $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
         
     if passtest == false && !ismissing(generate_new_structures)
             
