@@ -971,7 +971,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
                 
                 #                if dist_arr[a1,a2,cind,1] < dmin*2 && dist_arr[a1,a2,cind,1] > 1e-7
                 if dist_a < dmin*2 && dist_a > 1e-7
-                    energy += 1e-3/dist_a
+                    energy += 1e-2/dist_a
                 end
 
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
@@ -979,7 +979,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
                 if dist_a < dmin*1.02 && dist_a > 1e-7
                     tooshort = true
                     #                    energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
-                    energy += 0.02 * (dist_a - dmin)^2 + 0.3 * abs(dist_a - dmin)
+                    energy += 0.05 * (dist_a - dmin)^2 + 0.5 * abs(dist_a - dmin)
                     if var_type == Float64 && warned[a1] == false
                         println("WARNING, SAFE MODE $a1 $t1 $a2 $t2 $c ", dist_a)
                         warned[a1] = true

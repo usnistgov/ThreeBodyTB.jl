@@ -113,7 +113,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         if crys_working != tbc.crys
 #                println("yes calc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 #                println(crys_working)
-            tbc = calc_tb_fast(deepcopy(crys_working), database, verbose=false)
+            tbc = calc_tb_fast(deepcopy(crys_working), database, verbose=false, repel=repel)
         else
 #                println("nocalc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 #                println(crys_working)

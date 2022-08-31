@@ -289,9 +289,7 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     
     if min_nscf
         println("minimize kgrid")
-        if dft.bandstruct.nks > 100
-            grid = min.(grid, 4)
-        end
+        grid = max.(grid .- 1, 2)
     end
                 
 

@@ -1434,7 +1434,23 @@ end
                  break
              end
          end
-         if ind == 0
+         if ind == 0 #look for equivalent k-points
+             
+             for x = [-1,0,1]
+                 for y = [-1,0,1]
+                     for z = [-1,0,1]
+                         for i = 1:h.nk
+                             if sum(abs.(kpoint - (h.K[i,:] + [x,y,z])))   < 5e-4
+                                 ind = i
+                                 break
+                             end
+                         end
+                     end
+                 end
+             end
+         end
+         if ind == 0 #still  not found
+
              println("error, k not found!!! , $kpoint tb_k")
              println(tb)
              for i = 1:h.nk
