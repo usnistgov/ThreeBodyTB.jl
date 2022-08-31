@@ -2407,8 +2407,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             println("DOING ITER $iters -------------------------------------------------------------")
 
-            #        println("construct_fitted")
-            ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, solve_scf_mode)
+            println("construct_fitted")
+            @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, solve_scf_mode)
 
 #            println("vals0 1 ", VALS0_FITTED[4,1,:,1])
 #            println("vals0 2 ", VALS0_FITTED[4,1,:,2])
@@ -2430,8 +2430,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
   #          println(typeof(NCOLS))
   #          println(typeof(NLAM))
   #          println(typeof(leave_out))
-                    
-            NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+            println("construct_newXY")
+            @time  NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
 
             VECTS_FITTED = Dict()
 #            VECTS_FITTED = []
@@ -2448,28 +2448,30 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("size X_Hnew_BIG ", size(X_Hnew_BIG))
 #            println("size Y_Hnew_BIG ", size(Y_Hnew_BIG))
 
-            TOTX = NEWX
-            TOTY = NEWY
+            println("prepare fit")
+            @time begin
+                TOTX = NEWX
+                TOTY = NEWY
+                
+                if rs_weight > 1e-5
+                    TOTX = [X_H*rs_weight;TOTX]
+                    TOTY = [Y_H*rs_weight;TOTY]
+                end            
+                if ks_weight > 1e-5
 
-            if rs_weight > 1e-5
-                TOTX = [X_H*rs_weight;TOTX]
-                TOTY = [Y_H*rs_weight;TOTY]
-            end            
-            if ks_weight > 1e-5
+                    l = length(Y_Hnew_BIG[:,1]) #randomly sample Hk to keep size reasonable
+                    if l > 5e5
+                        frac = 5e5 / l
+                        println("randsubseq $frac")
+                        rind = randsubseq( 1:l, frac)
+                    else
+                        rind = 1:l
+                    end
 
-                l = length(Y_Hnew_BIG[:,1]) #randomly sample Hk to keep size reasonable
-                if l > 5e5
-                    frac = 5e5 / l
-                    println("randsubseq $frac")
-                    rind = randsubseq( 1:l, frac)
-                else
-                    rind = 1:l
-                end
-
-                TOTX = [X_Hnew_BIG[rind,:]*ks_weight;TOTX]
-                TOTY = [Y_Hnew_BIG[rind, 1]*ks_weight;TOTY]
-            end            
-
+                    TOTX = [X_Hnew_BIG[rind,:]*ks_weight;TOTX]
+                    TOTY = [Y_Hnew_BIG[rind, 1]*ks_weight;TOTY]
+                end            
+            end
 
 #            if lambda > 1e-10
 #                XX = zeros(length(threebody_inds), NCOLS)
@@ -2501,8 +2503,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("size TOTX ", size(TOTX))
 #            println("size TOTY ", size(TOTY))
 
-
-            ch_new = TOTX \ TOTY
+            println("fit")
+            @time ch_new = TOTX \ TOTY
 
             #println("ch_new ", ch_new)
             #            println("new errors")
