@@ -452,12 +452,19 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     ind_BIG = zeros(Int64, size(INDVEC)[1], 4)
 
     println("setup matricies")
+    println("keepind")
+    println(keepind)
+
 
 
     #reformat the data into matrices, fourier transform the real-space fitting data to k-space if using kspace
     c=0
     for (arr2, arr3, hvec, svec, rind, Rvec, INDvec, h_on, ind_convert, tbc_real, tbc, spin) in zip(ARR2,ARR3, HVEC, SVEC, RIND, RVEC, INDVEC, HON, IND_convert, tbc_list_real, list_of_tbcs[keepind], SPIN)
         c+=1
+        
+        println("asdf tbc $c  $(keepind[c])")
+        println(tbc)
+
 #        println("first part $c")
 
         X_H_temp = zeros(size(hvec[1])[1], hnum) #old sizes
@@ -576,7 +583,11 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
             nk = size(kpoints[keepind[c]])[1]
             ind_BIG[c, 4] = nk            
-#            println("ind_BIG $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ", ind_BIG[c,:])
+            println("size indvec ", size(INDvec))
+            println("max ", maximum(INDvec))
+            println("$c tbc nw ", tbc.tb.nwan)
+            println(tbc)
+            println("ind_BIG $c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ", ind_BIG[c,:])
             
 
         end
@@ -3912,7 +3923,7 @@ function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_thr
         end
     end
 
-    return pd, KPOINTS, KWEIGHTS, nk_max
+    return pd, KPOINTS, KWEIGHTS, nk_max, list_of_tbcs, dft_list
 
 end
 
@@ -4010,7 +4021,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 
         #        nw = ind_BIG[c, 3]
         nw = tbc.tb.nwan
-#        println("NW $nw")
+        println("NW $nw")
         nk = size(kpoints)[1]
         nspin = tbc.nspin
         row1, rowN, nw = ind_BIG[c, 1:3]
@@ -4044,9 +4055,9 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
                 if !ismissing(tbc) 
                     vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[k,:], spin=spin)  #reference
 
-#                    println("size(vals) ",size(vals))
-#                    println("size VALS ", size(VALS))
-#                    println("$c $k $nw $spin")
+                    println("size(vals) ",size(vals))
+                    println("size VALS ", size(VALS))
+                    println("$c $k $nw $spin")
 
                     VALS[c,k,1:nw, spin] = vals                           #reference
                     VALS0[c,k,1:nw,spin] = vals0                          #reference
@@ -5019,6 +5030,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         if !ismissing(dft_list)
             dft_list = dft_list[keepind]
         end
+        list_of_tbcs= list_of_tbcs[keepind]
 
         Ys = Ys_new + Xc_Snew_BIG
         X_Snew_BIG = nothing
@@ -5090,7 +5102,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                     if dft.atomize_energy > 0.05
                         continue
                     end
-                    tbc, tbck = projwfc_workf(dft, nprocs=procs, directory=dname, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, writefilek="projham_K.xml", min_nscf=true)
+                    tbc, tbck = projwfc_workf(dft, nprocs=procs, directory=dname, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, writefilek="projham_K.xml", min_nscf=false)
                     if scf 
                         tbck_scf = remove_scf_from_tbc(tbck);
                         push!(tbc_list_NEW,tbck_scf)
@@ -5120,7 +5132,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
         @suppress begin
 
-            pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
+            pd, KPOINTS, KWEIGHTS, nk_max, list_of_tbcs, dft_list = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
             database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
 
             (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
@@ -5132,9 +5144,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                 push!(weights_list, weight_max)
             end
             
-            if !ismissing(dft_list)
-                dft_list = dft_list[keepind]
-            end
+
 
             Ys = Ys_new + Xc_Snew_BIG
             X_Snew_BIG = nothing
