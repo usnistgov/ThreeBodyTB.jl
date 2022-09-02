@@ -461,6 +461,8 @@ function setup_proto_data()
     CalcD["abb_tri"] = ["$STRUCTDIR/binary/abb_tri.in", "relax", "all", "coords-small2", "nscf", false]
     CalcD["baa_tri"] = ["$STRUCTDIR/binary/baa_tri.in", "relax", "all", "coords-small2", "nscf", false]
 
+    CalcD["quad"] = ["$STRUCTDIR/binary/quad.in", "relax", "all", "coords-small2", "nscf", false]
+
 
     #ternary
     CalcD["abc_line"] = ["$STRUCTDIR/ternary/abc_line.in", "relax", "all", "coords-small2", "nscf", false]
