@@ -34,7 +34,7 @@ function conjgrad(fn, grad, x0; maxstep=2.0, niters=50, conv_thr = 1e-2, fn_conv
 #    println("CG RUN LS1")
 
     old_step=step_size
-    x, step_size = linesearch(x, dx, fn, f, step_size, verbosity)
+    x, step_size, good = linesearch(x, dx, fn, f, step_size, verbosity)
     step_size = min(step_size, maxstep)
 
 
@@ -99,6 +99,8 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
 #    println("ls $x $dx $f0 $step_size")
 #    println("CG FN1 ss $step_size")
 
+    println("linesearch")
+    
     if verbosity=="low"
         @suppress f0r, flag0r = fn( x + dx * step_size * 0.0)
     else
