@@ -53,13 +53,17 @@ function conjgrad(fn, grad, x0; maxstep=2.0, niters=50, conv_thr = 1e-2, fn_conv
 #            println("nochange to grad")
         end
 
-        if (sqrt(sum(g.^2)) < conv_thr && f < 0.1) || ( abs(fold1 - fold2) < fn_conv &&  abs(fold1 - f) < fn_conv)
-            println("yes conv sum_grad ", sqrt(sum(g.^2)), " fn_diff_1 ", abs(fold1 - fold2), " fn_diff_2 ", abs(fold1 - f))
+        if (sqrt(sum(g.^2)) < conv_thr && f < 0.1) || ( abs(fold1 - fold2) < fn_conv &&  abs(fold1 - f) < fn_conv) 
+#            println("yes conv sum_grad ", sqrt(sum(g.^2)), " fn_diff_1 ", abs(fold1 - fold2), " fn_diff_2 ", abs(fold1 - f))
             return x, f, g
 #        else
 #            println("no conv ", sqrt(sum(g.^2)), " ", conv_thr, " f ", f)
         end
 
+        if step_size < 0.5e-5
+            println("WARNING, step size too small: $step_size , we give up")
+            return x, f, g
+        end
 #        println("MY CONJGRAD $i ", f, " sg ", sqrt(sum(g.^2)), " step_size $step_size --------------------")
 
 
