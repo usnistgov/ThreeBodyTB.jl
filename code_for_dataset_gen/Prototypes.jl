@@ -96,17 +96,28 @@ end
 function check_twobody_dist(crys)
     R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,10.0, 0.0)
     ret = true
+    D = Dict()
+    for t1 in crys.types
+        for t2 in crys.types
+            D[(t1,t2)] = 100.0
+        end
+    end
     for t1 in crys.types
         for t2 in crys.types
             ab = get_twobody_dist(t1,t2)
-            if dmin_types[Set([t1,t2])] < ab
-                ret = false
-                break
-            end
+            D[(t1,t2)] = min(D[(t1,t2)], ab)
         end
     end
-    return ret
+    return D
 end
+#            if dmin_types[Set([t1,t2])] < ab
+#                ret = false
+#                break
+#            end
+#        end
+#    end
+#    return ret
+#end
 
 
 
@@ -115,6 +126,11 @@ function setup_proto_data()
     STRUCTDIR = ThreeBodyTB.STRUCTDIR
 
     CalcD = Dict()
+
+    CalcD["big1"] = ["$STRUCTDIR/binary/big1", "scf", "all", "scf", "nscf", false]
+    CalcD["big2"] = ["$STRUCTDIR/binary/big2", "scf", "all", "scf", "nscf", false]
+    CalcD["big3"] = ["$STRUCTDIR/binary/big3", "scf", "all", "scf", "nscf", false]
+    CalcD["big4"] = ["$STRUCTDIR/binary/big4", "scf", "all", "scf", "nscf", false]
 
 
     CalcD["atom2_mag"] = ["$STRUCTDIR/atom_small.in", "scf", "all", "scf", "nscf", true]
@@ -153,6 +169,8 @@ function setup_proto_data()
     CalcD["bcc_inv"] = ["$STRUCTDIR/bcc_atom2.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["fcc"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "vol-mid", "nscf", false]
 
+    CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "vol", "nscf", false]
+
     CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol", "nscf", false]
     CalcD["line_rumple"] = ["$STRUCTDIR/line.in.rumple.up", "vc-relax", "z", "vol", "nscf", false]
 
@@ -173,6 +191,11 @@ function setup_proto_data()
     CalcD["hex"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
     CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "2D", "nscf", false]
+
+
+    CalcD["el_party"] =       ["$STRUCTDIR/dimer.in.small", "relax", "2Dxy", "el_party", "nscf", false]
+    CalcD["bin_party"] =       ["$STRUCTDIR/binary/dimer.in.small", "relax", "2Dxy", "bin_party", "nscf", false]
+    CalcD["tern_party"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "2Dxy", "tern_party", "nscf", false]
 
 
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
@@ -238,7 +261,7 @@ function setup_proto_data()
 
 
     #    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
-    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "vol", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["rocksalt"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -432,6 +455,12 @@ function setup_proto_data()
     CalcD["mol_h2o_v1"] = ["$STRUCTDIR/binary/POSCAR_mol_h2o_v1", "relax", "all", "coords-small", "nscf", false]
     CalcD["mol_h2o_v2"] = ["$STRUCTDIR/binary/POSCAR_mol_h2o_v2", "relax", "all", "coords-small", "nscf", false]
 
+    CalcD["abb_line"] = ["$STRUCTDIR/binary/abb_line.in", "relax", "all", "coords-small2", "nscf", false]
+    CalcD["baa_line"] = ["$STRUCTDIR/binary/baa_line.in", "relax", "all", "coords-small2", "nscf", false]
+
+    CalcD["abb_tri"] = ["$STRUCTDIR/binary/abb_tri.in", "relax", "all", "coords-small2", "nscf", false]
+    CalcD["baa_tri"] = ["$STRUCTDIR/binary/baa_tri.in", "relax", "all", "coords-small2", "nscf", false]
+
 
     #ternary
     CalcD["abc_line"] = ["$STRUCTDIR/ternary/abc_line.in", "relax", "all", "coords-small2", "nscf", false]
@@ -532,7 +561,7 @@ function setup_proto_data()
 
 end
 
-function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false)
+function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false, min_nscf = false)
 
     TORUN = []
     for t in torun
@@ -641,6 +670,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [-0.06 -0.03 0.03 0.06])
         elseif newst == "coords"
             ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+        elseif newst == "el_party"
+            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
+        elseif newst == "bin_party"
+            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
+        elseif newst == "tern_party"
+            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
         elseif newst == "coords-scf"
             ncalc = 1
         elseif newst == "coords_min"
@@ -656,7 +691,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "coords-small"
             ncalc = length( [ -0.15  -0.10 -0.05  0.0 0.05 0.10  0.15  ])
         elseif newst == "coords-small2"
-            ncalc = length( [   0.0   ])
+            ncalc = length( [ -0.1, -0.05, 0.0   ])
         elseif newst == "coords_super"
             ncalc = length( 0.08:.03:0.2)
         elseif newst == "break_inv"
@@ -801,24 +836,30 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                 println("START DFT.runSCF")
                 
-                dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                if scf != "scf"
+                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    
+                    println("did dft, get new struct")
+                    
+                    if (scf == "relax" || scf == "vc-relax") && maximum(abs.(dft_ref.stress)) > 2e-5
+                        println()
+                        println("structure convergence not reached, relax again")
+                        c2 = dft_ref.crys
+                        println(c2)
+                        println()
+                        
+                        dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    end
+                    println("END DFT.runSCF")
+                    println(dft_ref)
 
-                println("did dft, get new struct")
+                    cnew = deepcopy(dft_ref.crys)
 
-                if (scf == "relax" || scf == "vc-relax") && maximum(abs.(dft_ref.stress)) > 2e-5
-                    println()
-                    println("structure convergence not reached, relax again")
-                    c2 = dft_ref.crys
-                    println(c2)
-                    println()
-
-                    dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                else
+                    cnew = deepcopy(c)
                 end
+                    
 
-                println("END DFT.runSCF")
-                println(dft_ref)
-
-                cnew = deepcopy(dft_ref.crys)
                 #            cnew = deepcopy(c)
 
             else
@@ -1208,6 +1249,168 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))
                 end
+
+            elseif newst == "el_party"
+                c = deepcopy(cnew)
+                push!(torun, deepcopy(c))
+                ThreeBodyTB.ManageDatabase.prepare_database(c)
+                COEF = ThreeBodyTB.ManageDatabase.database_cached[(Symbol(c.types[1]), Symbol(c.types[1]))]
+                min_dist = COEF.min_dist / 12 /2
+                println("min_dist ", min_dist)
+                for x in [0, 0.03, 0.05, 0.07, 0.09, 0.12, 0.15, 0.20, 0.25, 0.3, 0.4]
+                    
+                    c = deepcopy(cnew)
+                    c.coords[1,3] = min_dist * (1+x)
+                    c.coords[2,3] = -min_dist * (1+x)
+                    push!(torun, deepcopy(c))
+                end
+                c0 = min_dist * 2
+                t = cnew.types[1]
+                min_dist = c0 * 2 * 0.20
+                
+                for x in [0.03, 0.05, 0.07]
+                    for theta in [  pi/4, pi/2, 3*pi/4, pi]
+                        for z2 in [0.01, 0.08, 0.12, 0.15]
+#                for x in [ 0.0, 0.25, 0.5, 0.75, 1.0, 1.25]
+#                    for z1 in [-1.0, -0.6, -0.3, 0.0, 0.25, 0.5]
+#                        for z2 in [-0.15, -0.07, 0.0, 0.07]
+                            
+                            X = c0  * (1+x) * sin(theta)
+                            Z1 = c0 * (1+x) * cos(theta)
+                            Z2 = c0 * (1+z2)
+ 
+                            c = makecrys([12.0 0 0 ; 0 7 0; 0 0 12.0], [0 0 0; 0 0 Z2; X 0 Z1] , [t,t,t])
+                            D = check_twobody_dist(c)
+                            if D[(t,t)] > min_dist
+                                push!(torun, deepcopy(c))
+                            end
+
+                        end
+                    end
+                end
+
+            elseif newst == "tern_party"
+                for x in [-0.05,  0.0, 0.05]
+                    c = deepcopy(cnew)
+                    c = c*(1+x)
+                    push!(torun, deepcopy(c))
+                end
+                t1 = cnew.types[1]
+                t2 = cnew.types[2]
+                t3 = cnew.types[3]
+
+                ab = min_dimer_dist_dict[(t1,t2)]/12.0
+                ac = min_dimer_dist_dict[(t1,t3)]/12.0
+                bc = min_dimer_dist_dict[(t2,t3)]/12.0
+
+                for x in [0.02, 0.1]
+                    for theta in [  pi/4, pi/2, 3*pi/4, pi]
+                        for z2 in [ 0.05,  0.2]
+
+                            X = ac  * (1+x) * sin(theta)
+                            Z1 = ac * (1+x) * cos(theta)
+                            Z2 = ab * (1+z2)
+                            c = makecrys([12.0 0 0 ; 0 7 0; 0 0 12.0], [0 0 0; 0 0 Z2; X 0 Z1] , [t1,t2,t3])
+                            
+                            D = check_twobody_dist(c)
+                            good = true
+                            for key in keys(D)
+                                if D[(t1,t2)] < min_dimer_dist_dict[key]
+                                    good = false
+                                end
+                            end
+                            if good
+                                push!(torun, deepcopy(c))
+                            end
+###############
+
+
+                            X = ab  * (1+x) * sin(theta)
+                            Z1 = ab * (1+x) * cos(theta)
+                            Z2 = bc * (1+z2)
+
+                            c = makecrys([12.0 0 0 ; 0 7 0; 0 0 12.0], [0 0 0; 0 0 Z2; X 0 Z1] , [t2,t3,t1])
+                            
+                            D = check_twobody_dist(c)
+                            good = true
+                            for key in keys(D)
+                                if D[(t1,t2)] < min_dimer_dist_dict[key]
+                                    good = false
+                                end
+                            end
+                            if good
+                                push!(torun, deepcopy(c))
+                            end
+
+
+##
+                            X = ab  * (1+x) * sin(theta)
+                            Z1 = ab * (1+x) * cos(theta)
+                            Z2 = bc * (1+z2)
+
+                            c = makecrys([12.0 0 0 ; 0 7 0; 0 0 12.0], [0 0 0; 0 0 Z2; X 0 Z1] , [t3,t1,t2])
+                            
+                            D = check_twobody_dist(c)
+                            good = true
+                            for key in keys(D)
+                                if D[(t1,t2)] < min_dimer_dist_dict[key]
+                                    good = false
+                                end
+                            end
+                            if good
+                                push!(torun, deepcopy(c))
+                            end
+
+                            
+                        end
+                    end
+                end
+
+
+            elseif newst == "bin_party"
+                for x in [-0.22 -0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.2 0.35 0.5]
+                    c = deepcopy(cnew)
+                    c.coords = c.coords * (1+x)
+                    push!(torun, deepcopy(c))
+                end
+                c0 = abs(cnew.coords[2,3])
+                t1 = cnew.types[1]
+                t2 = cnew.types[2]
+
+                
+
+                for types in [[t1,t2,t1], [t2,t1,t1], [t1,t2,t2], [t2,t1,t2] ]
+
+                    ab = min_dimer_dist_dict[(types[1],types[2])]/12.0
+                    ac = min_dimer_dist_dict[(types[1],types[3])]/12.0
+                    bc = min_dimer_dist_dict[(types[2],types[3])]/12.0
+                    
+                    for x in [0.01, 0.15]
+                        for theta in [  pi/4, pi/2, 3*pi/4, pi]
+                            for z2 in [ 0.05,  0.2]
+
+                                X = ac  * (1+x) * sin(theta)
+                                Z1 = ac * (1+x) * cos(theta)
+                                Z2 = ab * (1+z2)
+                                c = makecrys([12.0 0 0 ; 0 7 0; 0 0 12.0], [0 0 0; 0 0 Z2; X 0 Z1] , [types[1], types[2], types[3]])
+                                
+                                D = check_twobody_dist(c)
+                                good = true
+                                for key in keys(D)
+                                    if D[(t1,t2)] < min_dimer_dist_dict[key]
+                                        good = false
+                                    end
+                                end
+                                if good
+                                    push!(torun, deepcopy(c))
+                                end
+                                ###############
+
+                                
+                            end
+                        end
+                    end
+                end                
             elseif newst == "coords-short"
                 for x in [-0.3 -0.27 -0.25]
                     c = deepcopy(cnew)
@@ -1221,7 +1424,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords-small2"
-                for x in [  0.0  ]
+                for x in [ -0.1, -0.05, 0.0  ]
                     c = deepcopy(cnew)
                     c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))
@@ -1482,7 +1685,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     if calc_mode == "nscf"
 
                         try
-                            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
+                            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
                         catch err3
                             println("err3")
                             println(err3)
@@ -1494,7 +1697,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d2", tmpdir="$d2", wannier=false, code="QE", skip=true, cleanup=true, magnetic=false)
                         if calc_mode == "nscf"
                             try
-                                tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d2, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
+                                tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d2, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
                             catch err3
                                 println("err3")
                                 println(err3)
@@ -1704,7 +1907,7 @@ end
 #        else
 #            at1 == atom1
 
-function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
+function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = false)
 
     CR0, CR1, CR2, CRTRANS, SUB0, SUB1, SUB2, SUBTRANS = structure_substitute(at1, at2, at3)
 
@@ -1800,7 +2003,7 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12)
         d="$dir/$name"*"_vnscf_"*"$i"        
         try
             dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
-            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace)
+            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
         catch
             println("err dft $d")
         end

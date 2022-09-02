@@ -1,57 +1,51 @@
 &control
-    calculation = 'SCF'
+    calculation = 'vc-relax'
     restart_mode='from_scratch',
-    prefix = 'PREFIX'
+    prefix = 'qe3'
     tstress = .true.
     tprnfor = .true.
-    pseudo_dir = 'PSEUDODIR',
-!    pseudo_dir = '/home/kfg/psuedo/gbrv_1.5/',
-!    pseudo_dir = '/home/kevin/psuedo/gbrv_1.5/',
-!    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
+    pseudo_dir = '/users/kfg/psuedo/gbrv_1.5/',
 !    pseudo_dir = '/home/kevin/psp/'
-    outdir = 'TMPDIR'
+    outdir = '/tmp'
     disk_io = 'low'
     wf_collect = .true.
     verbosity = 'high'    
-    nstep = NSTEP
  /
 &system
-    JULIABRAV 
-    nat=  JULIANAT 
-    ntyp= JULIANTYPE
+    ibrav=  0, 
+    nat=  2 
+    ntyp= 2
     ecutwfc= 45,
     ecutrho= 250,
     q2sigma= 1
     ecfixed= 44.5,
     qcutz= 800
     occupations= "smearing",
-    degauss= 0.01
+    degauss= 0.005
     lda_plus_u= .false.
     force_symmorphic = true
-    JULIAOTHER
-    nosym = false
-    noinv = false
 /
 &electrons
     diagonalization='david'
-    mixing_mode = 'MIXING'
+    mixing_mode = 'local-TF'
     mixing_beta = 0.3
     conv_thr = 1d-9
-    startingpot = 'STARTATOMIC'
  /
 &ions
   ion_dynamics='bfgs',
 /
 &cell
  cell_dynamics = 'bfgs'
- JULIADOFREE
- JULIACELLFACTOR
 /
 ATOMIC_SPECIES
-JULIAPSP
+A  26.98  al.pbesol.UPF  
+B  26.98  al.pbesol.UPF  
 ATOMIC_POSITIONS crystal
-JULIACOORDS
+A 0.000000000 0.000000000 0.000000000   
+B 0.000000000 0.000000000 0.500000000   
 CELL_PARAMETERS
-JULIACELL
-JULIAKTYPE
-JULIAKPOINTS
+   10.0   0.000000000   0.000000000
+   0.000000000   10.0   0.000000000
+   0.000000000   0.000000000   8.5
+K_POINTS automatic
+  2 2 10 0 0 0

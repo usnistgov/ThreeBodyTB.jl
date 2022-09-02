@@ -15,7 +15,7 @@
 &system
     ibrav=  0, 
     nat=  3 
-    ntyp= 2
+    ntyp= 3
     ecutwfc= 45,
     ecutrho= 250,
     q2sigma= 1
@@ -46,7 +46,7 @@
 ATOMIC_SPECIES
 A  28.09  si.pbesol.UPF  
 ATOMIC_POSITIONS crystal
-A  0.21 0 0.0.0
+A  0.21 0 0.0
 B  0 0.2 0.0
 C -0.2 -0.2 0
 CELL_PARAMETERS
