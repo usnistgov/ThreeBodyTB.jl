@@ -461,7 +461,7 @@ function setup_proto_data()
     CalcD["abb_tri"] = ["$STRUCTDIR/binary/abb_tri.in", "relax", "all", "coords-small2", "nscf", false]
     CalcD["baa_tri"] = ["$STRUCTDIR/binary/baa_tri.in", "relax", "all", "coords-small2", "nscf", false]
 
-    CalcD["quad"] = ["$STRUCTDIR/binary/quad.in", "relax", "all", "coords-small2", "nscf", false]
+    CalcD["quad"] = ["$STRUCTDIR/binary/quad.in", "relax", "all", "scf", "nscf", false]
 
 
     #ternary
@@ -693,7 +693,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "coords-small"
             ncalc = length( [ -0.15  -0.10 -0.05  0.0 0.05 0.10  0.15  ])
         elseif newst == "coords-small2"
-            ncalc = length( [ -0.1, -0.05, 0.0   ])
+            ncalc = length( [ -0.08, 0.0   ])
         elseif newst == "coords_super"
             ncalc = length( 0.08:.03:0.2)
         elseif newst == "break_inv"
@@ -1426,7 +1426,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords-small2"
-                for x in [ -0.1, -0.05, 0.0  ]
+                for x in [ -0.08, 0.0  ]
                     c = deepcopy(cnew)
                     c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))

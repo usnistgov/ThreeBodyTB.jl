@@ -857,6 +857,7 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
     function add(AT_ARRS, coef)
         for KEY in AT_ARRS
             database[KEY] = coef
+
 #            if haskey(frontier, KEY)
 #                database[KEY].dist_frontier =  frontier[KEY]
 #            end
