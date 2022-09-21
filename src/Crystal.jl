@@ -235,6 +235,8 @@ H    0.00000  0.00000  0.00000
 function makecrys(A,coords,types; units=missing)
     T = typeof(A[1,1])
 
+
+    
     if !ismissing(units)
         if units == "A" || units == "Ang" || units == "Ang." || units == "Angstrom" || units == "a" || units == "ang" || units == "ang." || units == "angstrom" || units == "Å"
             factor = 1.0 / Ang
@@ -343,6 +345,7 @@ function makecrys(filename::String)
     else
         println("newlines found, interpret as string containing file instead of filename")
         lines = String.(split(filename, "\n"))
+
         c = makecrys(lines)
     end
     
@@ -370,6 +373,7 @@ function makecrys(lines::Array{String,1})
 
     if intype == "POSCAR"
 
+#        println("parse POSCAR")
         A, coords, types = parsePOSCAR(lines)
 
     elseif intype == "QE"
@@ -452,7 +456,7 @@ function parsePOSCAR(lines)
 
     
     a = parse(Float64, split(lines[2])[1])
-    
+
     A = zeros(3,3)
     A[1,:] = parseARRfloat(split(lines[3]))
     A[2,:] = parseARRfloat(split(lines[4]))
@@ -462,12 +466,12 @@ function parsePOSCAR(lines)
 
     thetypes = split(lines[6])
 
-
+    
 
     thenumbers = parseARRint(split(lines[7]))
 
 
-
+    
     
     if size(thetypes)[1] != size(thenumbers)[1]
 

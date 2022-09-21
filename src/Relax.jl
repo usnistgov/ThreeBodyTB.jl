@@ -435,6 +435,10 @@ end
 =#
 
 
+function make_random_crys(types; database=missing)
+    return make_random_crystal(types; database=database)
+end
+
 "
     function make_random_crystal(types)
 
