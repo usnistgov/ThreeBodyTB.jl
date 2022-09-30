@@ -593,6 +593,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         end
 
     end
+
+    println("done reformat")
+
 #    println("ind_BIG end xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ", ind_BIG)
     
 #    @time ch2 = X_H \ Y_H
@@ -606,7 +609,10 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     #    return
     
     
-    println("assign memory S ", size(Xc_Hnew_BIG))
+    println("assign memory S ", [size(Xc_Hnew_BIG)[1], snum_new])
+    flush(stdout)
+    sleep(0.001)
+
     @time X_Snew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1], snum_new)
     @time for (c,S) in enumerate(X_Snew_BIG_list)
         X_Snew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(S)
@@ -615,14 +621,20 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     X_Snew_BIG_list = []
     println("calc cs")
+    flush(stdout)
+    sleep(0.001)
     @time cs = X_Snew_BIG \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)
     YS_new = X_Snew_BIG * cs
     println("error fit S cs , ", sum( (YS_new  - (Y_Snew_BIG  - Xc_Snew_BIG)).^2))
+    flush(stdout)
+    sleep(0.001)
 
     X_Snew_BIG = []
 
 
-    println("assign memory H")
+    println("assign memory H ", [ size(Xc_Hnew_BIG)[1],hnum_new])
+    flush(stdout)
+    sleep(0.001)
     @time X_Hnew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1],hnum_new)
     @time for (c,H) in enumerate(X_Hnew_BIG_list)
         X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(H)
@@ -630,10 +642,14 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     end
     X_Hnew_BIG_list = []
     println("done assign memory")
+    flush(stdout)
+    sleep(0.001)
 
     @time ch = X_Hnew_BIG \ Float32.(Y_Hnew_BIG  - Xc_Hnew_BIG)
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
+    flush(stdout)
+    sleep(0.001)
     
 
 #    if false
@@ -648,6 +664,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     println("ind_BIG prepare")
     println(ind_BIG)
+    flush(stdout)
+    sleep(0.001)
 
     return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN
     
@@ -1059,7 +1077,10 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
     nk = size(kpoints)[1]
 
     println("fs prepare $nw $nk")
-        
+#    println(tbc)
+#    flush(stdout)
+#    sleep(0.001)
+
     colh = size(X_H)[2]
     cols = size(X_S)[2]
 
@@ -3972,7 +3993,7 @@ end
 
 
 
-function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
 
     NWAN_MAX = maximum(ind_BIG[:,3])
     SPIN_MAX= maximum(SPIN)
@@ -4197,6 +4218,11 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
            
             WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2 + occs3)/3.0
 
+            if abs(ENERGIES[c] - d.atomize_energy) > 0.1
+                println("warning, issue with energy $c ", [ENERGIES[c] , d.atomize_energy])
+                WEIGHTS[c,:,:,:] .= 0.001
+                weights_list[c] = 0.0
+            end
 
 #        else
 #
@@ -4875,7 +4901,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     end
     println("end add data etc 1")
     println("prepare rec data 1")
-    @time ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+    @time ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
     println("end prepare rec data 1")
     
     VALS_working = zeros(size(VALS))
@@ -4900,7 +4926,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
         if !ismissing(generate_new_structures)
             
             println("generate")
-            @time dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
+            @time dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs, ITER = iter_global)
             println("dname_list, $dname_list ", length(dft_list_NEW))
             if passtest
                 println("PASSTEST $passtest, we are done")
@@ -4986,7 +5012,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
 
 
         println("prepare_rec_data")
-        @time @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM)
+        @time @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
         println("end rec data")
         VALS_working = zeros(size(VALS))
         ENERGIES_working = zeros(size(ENERGIES))
@@ -5009,7 +5035,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
         
     if passtest == false && !ismissing(generate_new_structures)
             
-        dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs)
+        dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs, ITER=niters_global)
         
         println("FINAL PASSTEST $passtest")
         

@@ -306,7 +306,7 @@ Calculate energy, force, and stress for a crystal.
 """
 function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true)
     
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-7, verbose=false, repel=repel)
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=false, repel=repel)
 
     if ismissing(database)
         database = ManageDatabase.database_cached
