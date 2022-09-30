@@ -987,7 +987,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     end
 
     if ismissing(gamma) 
-#        println("gamma")
+#        println("ismissing gamma")
         gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 

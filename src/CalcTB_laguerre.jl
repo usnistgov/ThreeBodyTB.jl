@@ -49,6 +49,8 @@ using ..TB:make_rdict
 
 using ..Utility:dict2str
 using ..Utility:str2tuplesdict
+using ForwardDiff
+using ..CrystalMod:makecrys
 
 using Random
 
@@ -1826,7 +1828,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
     found_arr = zeros(Bool, nr)
     found_arr[:] .= false
 
-    
+    #threads
     @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1)
         
         r3 = mod(c-1 , R[3]*2+1 ) - R[3]
@@ -2029,6 +2031,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
         
         #             for b = 1:crys.nat
 
+        #threads
         @threads for ab = 1:crys.nat^2
             b = mod(ab-1, crys.nat)+1
             a = (ab-1) ÷ crys.nat   +1
@@ -3229,7 +3232,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         if verbose println("3body") end
         if use_threebody || use_threebody_onsite
             #        if false
-            @threads for counter = 1:size(array_ind3)[1]
+            @time @threads for counter = 1:size(array_ind3)[1]
                 #            for counter = 1:size(array_ind3)[1]
                 id = threadid()
                 #id = 1
@@ -7204,8 +7207,8 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
 #    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
 
-
-    if !ismissing(DIST)
+    
+    @time if !ismissing(DIST)
     
         R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
 
@@ -7247,7 +7250,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
     
     if verbose println("check_frontier") end
-    if !ismissing(database) && check_frontier
+    @time if !ismissing(database) && check_frontier
         #    if false
 
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type)
@@ -7316,9 +7319,11 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
     if !ismissing(database)
 
+
         if verbose println("2body") end
         LMN = zeros(var_type, 3, nthreads())
-        @time @threads for c = 1:nkeep_ab
+
+        @time @threads for c = 1:nkeep_ab #@threads
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -7426,7 +7431,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
             end
         end
 
-        #############
+            #############
         #threebody
 
         #        memory0=zeros(var_type, 3)
@@ -7471,9 +7476,9 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
         if verbose println("3body") end
 #        println("3bdy")
-        if use_threebody || use_threebody_onsite
+        @time if use_threebody || use_threebody_onsite
             #        if false
-            @time @threads for counter = 1:size(array_ind3)[1]
+            @threads for counter = 1:size(array_ind3)[1] #@threads
                 #            for counter = 1:size(array_ind3)[1]
                 id = threadid()
                 #id = 1
@@ -7481,6 +7486,8 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 a2 = array_ind3[counter,2]
                 a3 = array_ind3[counter,3]
 
+#                println("3bdy $a1 $a2 $a3")
+                
                 cind1 = array_ind3[counter,4]
                 cind2 = array_ind3[counter,5]
 
@@ -7525,7 +7532,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 t3 = crys.stypes[a3]
 
                 cutoff3 = get_cutoff(t1,t2,t3)
-                cutoffZZ = get_cutoff(t1,t1)[1]
+                cutoffZZ = get_cutoff(t1,t2)[1]
 
                 cut_ab = cutoff_fn(dist, cutoffZZ - cutoff_length, cutoffZZ)
                 cut_ab2 = cutoff_fn(dist, cutoff3 - cutoff_length, cutoff3)
@@ -7633,7 +7640,6 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 end
             end
         end
-
         #        println("thread sum")
         #        println(size(H))
         #        println(size(H_thread))
@@ -7652,7 +7658,8 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
         Son = zeros(var_type, nwan,nwan, nthreads())
         
         if verbose println("onsite") end
-        @threads for c = 1:nkeep_ab
+
+        @time @threads for c = 1:nkeep_ab #@threads 
             id = threadid()
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -7711,10 +7718,10 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 
             end
         end
+        end
         H[1, :,:,c_zero] += sum(Hon, dims=3)[:,:]
         S[:,:,c_zero] += sum(Son, dims=3)[:,:]
 
-    end
 
     
 
@@ -7745,7 +7752,6 @@ end
 
 
 
-end #end module
 
 
 
@@ -7753,7 +7759,6 @@ end #end module
 
 
 
-#=
 function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
 
@@ -7897,7 +7902,8 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         twobdy =  begin
             if verbose println("2body") end
             LMN = zeros(var_type, 3, nthreads())
-            for c = 1:nkeep_ab
+
+            @threads for c = 1:nkeep_ab
                 id = threadid()
 
                 #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -7976,38 +7982,43 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                 end
             end
         end
-            
+
         #############
         #threebody
 
-        H_thread = zeros(var_type,  nwan, nwan,  nkeep )
-
+        #H_thread = zeros(var_type,  nwan, nwan,  nkeep )
+        H_thread = zeros(var_type,   nwan, nwan,  nkeep,  nthreads() )
+        
         threebdy = begin
         
-            #        H_thread = zeros(var_type,  nwan, nwan,  nkeep,  nthreads() )
 
 
             memoryV_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
 
-            hh = zeros(var_type, 3,3, nthreads())
+            hh = zeros(var_type, nthreads(), 3,3)
 
             skip = 0
             keep = 0
 
-            d1 = zeros(var_type, 2)
-            d2 = zeros(var_type, 2)
-            d3 = zeros(var_type, 2)
+#            d1 = zeros(var_type, 2)
+#            d2 = zeros(var_type, 2)
+#            d3 = zeros(var_type, 2)
             
+            
+            Htemp = zeros(var_type,  9,9,nthreads())
             
             if verbose println("3body") end
             #        println("3bdy")
             if use_threebody || use_threebody_onsite
                 #        if false
-                @time @threads for counter = 1: (size(array_ind3)[1] )
+                @threads for  counter = 1: (size(array_ind3)[1] )
                     #            for counter = 1:size(array_ind3)[1]
                     a1 = array_ind3[counter,1]
                     a2 = array_ind3[counter,2]
 
+#                    if a1 > a2
+#                        continue
+#                    end
                     
                     id = threadid()
                     #id = 1
@@ -8044,7 +8055,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                     t3 = crys.stypes[a3]
 
                     cutoff3 = get_cutoff(t1,t2,t3)
-                    cutoffZZ = get_cutoff(t1,t1)[1]
+                    cutoffZZ = get_cutoff(t1,t2)[1]
 
                     cut_ab = cutoff_fn(dist, cutoffZZ - cutoff_length, cutoffZZ)
                     cut_ab2 = cutoff_fn(dist, cutoff3 - cutoff_length, cutoff3)
@@ -8058,18 +8069,23 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                     #println("cut $cut $(cut_ab*cut_ac*cut_bc)")
                     #                v = [t1,:s,t2,:s,t3,:H]
 
-                    laguerre(dist, missing, nmax=1, memory=d1)
-                    laguerre(dist31, missing, nmax=1, memory = d2)
-                    laguerre(dist32, missing, nmax=1, memory = d3)
-                    
+#                    laguerre(dist, missing, nmax=1, memory=d1)
+#                    laguerre(dist31, missing, nmax=1, memory = d2)
+#                    laguerre(dist32, missing, nmax=1, memory = d3)
+
+                    d1 = laguerre(dist, missing, nmax=1)
+                    d2 = laguerre(dist31, missing, nmax=1)
+                    d3 = laguerre(dist32, missing, nmax=1)
                     
                     
                     if haskey(database, (t1, t2, t3))
                         cdat = database[(t1,t2,t3)]
                         (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
-                        if use_threebody && a1 <  a2
+                        memoryV = three_body_H_lag(d1,d2,d3,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
 
-                            memoryV = three_body_H_lag(d1,d2,d3,t1==t2)
+                        if use_threebody && a1 <=  a2
+
+                            #memoryV = three_body_H_lag(d1,d2,d3,t1==t2)
                             
 
                             
@@ -8081,27 +8097,28 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                             
                             for sum1 = 1:maximum(sumorbs[a1,:])
                                 for sum2 = 1:maximum(sumorbs[a2,:])
-                                    @inbounds hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
+                                    @inbounds hh[id, sum1,sum2] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
                                 end
                             end
 
-                            
                             sym31 = 1.0
                             sym32 = 1.0                        
+                            
+                            
                             
                             #                        Htemp = zeros(norb[a1], norb[a2])
                             #                        Htemp[:,:, id] .= 0.0
                             
                             
                             for o1x = 1:norb[a1]
-                                o1 = orbs[a1,o1x]
+#                                o1 = orbs[a1,o1x]
                                 s1 = sorbs[a1,o1x]
                                 sum1 = sumorbs[a1,o1x]
                                 
                                 sym31 = symmetry_factor_int(s1,1,lmn31,one ) 
                                 
                                 for o2x = 1:norb[a2]
-                                    o2 = orbs[a2,o2x]
+#                                    o2 = orbs[a2,o2x]
                                     s2 = sorbs[a2,o2x]
                                     sum2 = sumorbs[a2,o2x] 
                                     
@@ -8109,28 +8126,35 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                                     
                                     sym32 = symmetry_factor_int(s2,1,lmn32, one)    
                                     
-                                    #                                @inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32
+                                    #@inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32
                                     
-                                    vtemp = (hh[sum1,sum2, id]) * (sym31 * sym32  * cut * 10^3)
-                                    #@inbounds H_thread[orbs[a1,o1x] , orbs[a2,o2x]  , cind1 ] += vtemp
-                                    
-                                    if (a1 != a2) 
-                                        
-                                        #@inbounds H_thread[orbs[a2,o2x], orbs[a1,o1x] , cind1_reverse ] += vtemp##
+                                    #vtemp = (hh[id, sum1,sum2]) * (sym31 * sym32  * cut * 10^3)
 
-                                    end
+                                    Htemp[ o1x, o2x, id] = (hh[id, sum1,sum2]) * (sym31 * sym32  * cut * 10^3)
+
+                                    #                                    @inbounds H_thread[id, orbs[a1,o1x] , orbs[a2,o2x]  , cind1 ] += vtemp
+#                                    if (a1 != a2) 
+#                                        @inbounds H_thread[id, orbs[a2,o2x], orbs[a1,o1x] , cind1_reverse] += vtemp##
+#                                    end
                                     
                                     
                                 end
                             end
 
-                            #                        @inbounds Htemp[1:norb[a1],1:norb[a2], id] .*= cut * 10^3
+                            #@inbounds Htemp[1:norb[a1],1:norb[a2], id] .*= cut * 10^3
                             
                             #                                @inbounds H_thread[orbs[a1,1:norb[a1]] , orbs[a2,1:norb[a2]]  , cind1, id ] .+= (@view Htemp[1:norb[a1],1:norb[a2], id]) * cut * 10^3
 
 
+
+
+                            @inbounds     H_thread[ orbs[a1,1]:orbs[a1,norb[a1]], orbs[a2,1]:orbs[a2,norb[a2]], cind1, id]              .+= (@view Htemp[1:norb[a1],1:norb[a2], id])
+                            if (a1 != a2) 
+                                @inbounds H_thread[ orbs[a2,1]:orbs[a2,norb[a2]], orbs[a1,1]:orbs[a1,norb[a1]] , cind1_reverse, id] .+= (@view Htemp[1:norb[a1],1:norb[a2], id])'
+                            end
                             
                         end
+                        
                         ############################################
                         if use_threebody_onsite 
 
@@ -8142,7 +8166,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
                                 o = calc_threebody_onsite_lag(t1,t2,t3,s1,d1,d2,d3, cdat, set_maxmin=set_maxmin) * cut2 
 
                                 
-#                                @inbounds H_thread[ o1, o1,c_zero] += o  ####* cut2
+                                @inbounds H_thread[  o1, o1,c_zero, id] += o  ####* cut2
                             end
                         elseif !warned_onsite && use_threebody_onsite
                             println("WARNING, missing 3bdy onsite ", (t1, t2, t3))
@@ -8180,77 +8204,81 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 
         ############ONSITE
 
-            Hon = zeros(var_type, nwan,nwan, nthreads())
-            Son = zeros(var_type, nwan,nwan, nthreads())
-        twobdy_on =  begin 
+        
+        Hon = zeros(var_type, nwan,nwan, nthreads())
+        Son = zeros(var_type, nwan,nwan, nthreads())
+        
+        if verbose println("onsite") end
+
+        @threads for c = 1:nkeep_ab #@threads 
+            id = threadid()
+
+            #        ind_arr[c,:] = R_keep_ab[c][4:6]
+            cind = R_keep_ab[c,1]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+
+            dist, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+
+#            dist = dist_arr[a1,a2,cind,1]
+#            LMN[:, id] = dist_arr[a1,a2,cind,2:4]
+
+            cutoff_onXa = get_cutoff(t1,t2)[2]
+
+            if (dist > cutoff_onXa)
+                continue
+            end
+
+            if dist < cutoff_onXa - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist, cutoff_onXa - cutoff_length, cutoff_onXa)
+            end
+
             
-            
-            if verbose println("onsite") end
-            for c = 1:nkeep_ab
-                id = threadid()
-
-                #        ind_arr[c,:] = R_keep_ab[c][4:6]
-                cind = R_keep_ab[c,1]
-                a1 = R_keep_ab[c,2]
-                a2 = R_keep_ab[c,3]
-                t1 = crys.stypes[a1]
-                t2 = crys.stypes[a2]
-
-                dist, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
-
-                #            dist = dist_arr[a1,a2,cind,1]
-                #            LMN[:, id] = dist_arr[a1,a2,cind,2:4]
-
-                cutoff_onXa = get_cutoff(t1,t2)[2]
-
-                if (dist > cutoff_onXa)
-                    continue
-                end
-
-                if dist < cutoff_onXa - cutoff_length
-                    cut = 1.0
-                else
-                    cut = cutoff_fn(dist, cutoff_onXa - cutoff_length, cutoff_onXa)
-                end
-
-                
-                for o1 = orb2ind[a1]
-                    a1a,t1a,s1 = ind2orb[o1]
-                    sum1 = summarize_orb(s1)
-                    for o2 = orb2ind[a1]
-                        a2a,t2a,s2 = ind2orb[o2]
-                        
-                        if dist < 1e-5 #true onsite
-                            (h,s) = calc_onsite(t1,s1,s2, database)
-                            #                        S[o1, o2, c_zero] += s 
-                            #                        H[o1, o2, c_zero] += h
-                            Son[o1, o2, id] += s 
-                            Hon[o1, o2, id] += h
-                            if repel
-                                Hon[o1, o2, id] += repel_vals[a1a]
+            for o1 = orb2ind[a1]
+                a1a,t1a,s1 = ind2orb[o1]
+                sum1 = summarize_orb(s1)
+                for o2 = orb2ind[a1]
+                    a2a,t2a,s2 = ind2orb[o2]
+                    
+                    if dist < 1e-5 #true onsite
+                        (h,s) = calc_onsite(t1,s1,s2, database)
+                        #                        S[o1, o2, c_zero] += s 
+                        #                        H[o1, o2, c_zero] += h
+                        Son[o1, o2, id] += s 
+                        Hon[o1, o2, id] += h
+                        if repel
+                            if o1 == o2
+                                Hon[o1, o1, id] += repel_vals[a1a] * 0.1
                             end
-                            
-                        else
-                            o = calc_twobody_onsite(t1,t2, s1,s2,dist,lmn, database)
-                            Hon[o1, o2, id] += o * cut
-                            #                        H[o1, o2, c_zero] += o  * cut
                         end
                         
-
-
-
+                    else
+                        o = calc_twobody_onsite(t1,t2, s1,s2,dist,lmn, database)
+                        Hon[o1, o2, id] += o * cut
+                        #                        H[o1, o2, c_zero] += o  * cut
                     end
+                    
+
+
 
                 end
+
             end
         end
-    end
+        end
+#        H[1, :,:,c_zero] += sum(Hon, dims=3)[:,:]
+#        S[:,:,c_zero] += sum(Son, dims=3)[:,:]
 
+        
 #    wait(twobdy)
 #    wait(twobdy_on)
 #    wait(threebdy)
 
-    H[1,:,:,:] .+= H_thread
+    H[1,:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
     H[1, :,:,c_zero] += sum(Hon, dims=3)[:,:]
     S[:,:,c_zero] += sum(Son, dims=3)[:,:]
         
@@ -8276,5 +8304,735 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 
 end
 
-=#
 
+
+end #end module
+
+
+
+
+
+
+#=
+function reshape_vec(x, nat; strain_mode=false)
+#    println("RESHAPEVEC RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRr ", strain_mode)
+
+    T=typeof(x[1])
+    
+#    println("size x ", size(x))
+    x_r = zeros(T, nat, 3)
+    for n = 1:nat
+        for j = 1:3
+            x_r[n,j] = x[3*(n-1) + j]
+        end
+    end
+    
+    x_r_strain = zeros(T, 3,3)
+
+    if length(x) == 3*nat+6 && strain_mode
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[2,2] = x[3*nat+2]
+        x_r_strain[3,3] = x[3*nat+3]
+
+        x_r_strain[2,3] = 0.5*x[3*nat+4]
+        x_r_strain[3,2] = 0.5*x[3*nat+4]
+
+        x_r_strain[1,3] = 0.5*x[3*nat+5]
+        x_r_strain[3,1] = 0.5*x[3*nat+5]
+
+        x_r_strain[1,2] = 0.5*x[3*nat+6]
+        x_r_strain[2,1] = 0.5*x[3*nat+6]
+    elseif length(x) == 3*nat+6 
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[2,2] = x[3*nat+2]
+        x_r_strain[3,3] = x[3*nat+3]
+
+        x_r_strain[2,3] = x[3*nat+4]
+        x_r_strain[3,2] = x[3*nat+4]
+
+        x_r_strain[1,3] = x[3*nat+5]
+        x_r_strain[3,1] = x[3*nat+5]
+
+        x_r_strain[1,2] = x[3*nat+6]
+        x_r_strain[2,1] = x[3*nat+6]
+
+    elseif length(x) == 3*nat+9
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[1,2] = x[3*nat+2]
+        x_r_strain[1,3] = x[3*nat+3]
+        x_r_strain[2,1] = x[3*nat+4]
+        x_r_strain[2,2] = x[3*nat+5]
+        x_r_strain[2,3] = x[3*nat+6]
+        x_r_strain[3,1] = x[3*nat+7]
+        x_r_strain[3,2] = x[3*nat+8]
+        x_r_strain[3,3] = x[3*nat+9]
+    else
+        println("I'm confusing about the length reshape_vec $nat ", length(x) )
+    end
+
+    return x_r, x_r_strain
+end
+
+
+function calc_tb_lowmem_der(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
+
+    #    use_threebody= false
+    #    use_threebody_onsite=false
+    
+    ####    verbose = true
+
+    #    println("repel $repel -------------------------------")
+
+    At = crys.A'
+    
+    if verbose
+        println()
+        println("-----")
+        println("Construct tight-binding model from crystal structure")
+        println()
+    end
+
+    if ismissing(var_type)
+        var_type=Float64
+    end
+
+    if ismissing(database)
+        println("missing database, creating empty tbc")
+        repel = false
+        #    else
+        #        println(keys(database))
+    end
+    
+    if ismissing(reference_tbc)
+        prepare_for_fitting = false
+    else
+        prepare_for_fitting = true
+    end
+    
+
+    
+    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+
+    if verbose println("distances") end
+
+    #R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST    
+
+    #    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
+
+    
+    @time if !ismissing(DIST)
+        
+        R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
+
+    else
+        if (use_threebody || use_threebody_onsite ) && !ismissing(database)
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
+            DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind 
+
+        else
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0,var_type=var_type, return_floats=false)
+            DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind             
+        end
+    end
+    
+    within_fit = true
+    
+    if !ismissing(database)
+        for key in keys(dmin_types)
+            for key2 in keys(database)
+                if key == Set(key2)
+                    if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
+                        println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors")
+                        println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                        within_fit = false
+                    end
+                end
+            end
+        end
+        
+        c_zero_ref=1
+        if !(ismissing(reference_tbc))
+            if size(reference_tbc.tb.ind_arr)[1] > 1
+                c_zero_ref = reference_tbc.tb.r_dict[[0,0,0]]
+            end
+        end
+    end
+
+
+    
+    if verbose println("check_frontier") end
+    @time if !ismissing(database) && check_frontier
+        #    if false
+
+        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type)
+        if vio_bool == false 
+            within_fit = false
+        end
+    else
+        repel_vals = zeros(var_type, crys.nat)
+    end
+    
+    
+    
+    if check_only==true
+        return within_fit
+    end
+    
+    nwan = length(keys(ind2orb))
+
+    nkeep=size(R_keep)[1]
+    #    nkeep2=size(R_keep2)[1]    
+    #    println("nkeep, $nkeep, nkeep2, $nkeep2")
+    
+
+    H = zeros(var_type, 1, nwan, nwan, nkeep, crys.nat*3 + 6)
+    S = zeros(var_type, nwan, nwan, nkeep, crys.nat*3 + 6)    
+
+
+    ind_arr = zeros(Int64, nkeep, 3)
+    ind_arr[:,:] = R_keep[:,2:4]
+
+    #    lmn = zeros(var_type, 3)
+    #    dist = 0.0
+    #    lmn31 = zeros(var_type, 3)
+    #    dist31 = 0.0
+
+    #    lmn32 = zeros(var_type, 3)
+    #    dist32 = 0.0
+
+    #    lmn41 = zeros(var_type, 3)
+    #    dist14 = 0.0
+    #    dist43 = 0.0
+
+
+    norb = zeros(UInt16, crys.nat)
+    orbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    sorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    sumorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+    for a = 1:crys.nat
+        ox = orb2ind[a]
+        norb[a] = length(ox)            
+        for (co,o) = enumerate(orb2ind[a])
+            a1,t,s = ind2orb[o]
+            sumO = summarize_orb_num(s)
+            orbs[a,co] = o
+            
+            sorbs[a,co] = orb_num(s)
+            sumorbs[a,co] = sumO + 1
+        end
+    end
+
+    
+    warned = false
+    warned_onsite = false
+
+    nkeep_ab = size(R_keep_ab)[1]
+
+
+    
+    if !ismissing(database)
+
+
+       
+        function ham2(ret, x :: Vector)
+            ret .= 0.0
+            
+            x_r, x_r_strain = reshape_vec(x, crys.nat, strain_mode=true)
+            A = var_type.(crys.A) * (I(3) + x_r_strain)
+            crys_dual = makecrys( A , crys.coords + x_r, crys.types, units="Bohr")
+            
+            
+            dist_a, lmn = get_dist(a1,a2, (@view R_keep_ab[cc,4:6]), crys_dual, A')
+
+#            dist_aX, lmnX = get_dist(a1,a2, (@view R_keep_ab[cc,4:6]), crys, crys.A')
+#            println("$cc $a1 $a2 dist_aX ", dist_aX)
+            
+            
+            if dist_a > cutoff2Xt || dist_a < 1e-5
+                return ret
+            end
+            
+            
+            lag = two_body_S(dist_a)
+            
+            if dist_a < cutoff2Xt - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist_a, cutoff2Xt - cutoff_length, cutoff2Xt)
+            end
+
+            
+            
+            for o1x = 1:norb[a1]
+                o1 = orbs[a1,o1x]
+                s1 = sorbs[a1,o1x]
+                sum1 = sumorbs[a1,o1x]
+                
+                for o2x = 1:norb[a2]
+                    o2 = orbs[a2,o2x]
+                    s2 = sorbs[a2,o2x]
+                    sum2 = sumorbs[a2,o2x] 
+                    
+                    (hw,sw) = calc_twobody_faster(t1,t2,s1,s2,sum1, sum2, dist_a,lmn, coef, (@view indH[sum1,sum2,:]),( @view indS[sum1,sum2,:]),lag)
+
+                    ret[(o1x-1)*ns + o2x] = hw  *cut
+                    ret[ns2 + (o1x-1)*ns + o2x] = sw  *cut
+                    
+                end
+            end
+#            return ret
+        end
+
+        ns = 9
+        ns2 = ns^2
+        
+        chunksize=min(15, 3*crys.nat + 6)
+        myzero = zeros(var_type, 3*crys.nat+6)
+        ret = zeros(var_type, ns2*2)
+        gradh = zeros(var_type, ns2*2, 3*crys.nat+6)
+        
+        cfg = ForwardDiff.JacobianConfig(ham2, ret, myzero)#, ForwardDiff.Chunk{chunksize}())
+        
+        
+        if verbose println("2body") end
+        LMN = zeros(var_type, 3, nthreads())
+        cc=1
+        a1=1
+        a2=1
+        cutoff2Xt=0.0
+        t1=crys.stypes[1]
+        t2=crys.stypes[1]
+        coef = database[(t1,t2)]
+        indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+        cutoff2Xt = get_cutoff(t1,t2)[1]
+
+        
+        @time @threads for c = 1:nkeep_ab #@threads
+
+
+            begin
+                cc = c
+                id = threadid()
+
+                #        ind_arr[c,:] = R_keep_ab[c][4:6]
+                cind = R_keep_ab[c,1]
+                cham = R_keep_ab[c,7]
+                a1 = R_keep_ab[c,2]
+                a2 = R_keep_ab[c,3]
+
+                t1 = crys.stypes[a1]
+                t2 = crys.stypes[a2]
+
+                #           println("2bdy ", [cind, cham, a1, a2, t1, t2])
+                
+                coef = database[(t1,t2)]
+
+                indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+
+                cutoff2Xt = get_cutoff(t1,t2)[1]
+
+                #dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+                #            println("$c $a1 $a2 normal dist ", dist_a)
+                
+                #            println("$a1 $a2 $c check1")
+                #            println("c $c")
+            end
+            
+            #            @time gradh = ForwardDiff.jacobian!(ham2, myzero , cfg ) ::  Array{var_type,2}
+
+            ForwardDiff.jacobian!(gradh, ham2, ret, myzero, cfg  ) #::  Array{var_type,2}
+
+            #            println("gradh ", gradh)
+
+#            println("ham2 $a1 $a2 $cham ", ham2(myzero))
+            
+            for o1x = 1:norb[a1]
+                o1 = orbs[a1,o1x]
+                #                s1 = sorbs[a1,o1x]
+                #                sum1 = sumorbs[a1,o1x]
+                
+                for o2x = 1:norb[a2]
+                    o2 = orbs[a2,o2x]
+                    #                    s2 = sorbs[a2,o2x]
+                    #                    sum2 = sumorbs[a2,o2x] 
+
+#                    println("$c o1, o2 cham $o1 $o2 $cham ", gradh[(o1x-1)*9 + o2x,:])
+                    H[1, o1, o2, cham,:] .+= @view gradh[(o1x-1)*ns + o2x,:]
+                    S[o1, o2, cham,:] .+= @view gradh[ns2 + (o1x-1)*ns + o2x,:]
+#                    println("add $o1 $o2 $cham ", gradh[(o1x-1)*9 + o2x,:])
+                    
+                end
+            end
+        end
+
+
+
+        #############
+        #threebody
+
+        #        memory0=zeros(var_type, 3)
+        #        memory1=zeros(var_type, 3)
+        #        memory2=zeros(var_type, 3)
+        #        memoryV=zeros(var_type, n_3body)
+
+        #        lmn = zeros(var_type, 3)
+
+        H_thread = zeros(var_type,  nwan, nwan,  nkeep,  nthreads() )
+
+
+        #        memory0_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
+        #        memory1_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
+        #        memory2_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
+        memoryV_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
+
+        #        Htemp = zeros(var_type, 16,16, nthreads())
+        
+        #        v =Array{Symbol}(undef, 6, nthreads())
+        
+
+        #        sdict = Dict()
+        #        sumdict = Dict()
+        #        for a1 = 1:crys.nat
+        #            sdict[a1] = Symbol[]
+        #            sumdict[a1] = Symbol[]
+        #            
+        #            for o1 = orb2ind[a1]
+        #                a1a,t1,s1 = ind2orb[o1]
+        #                sum1 = summarize_orb(s1)
+        #                push!(sdict[a1], s1)
+        #                push!(sumdict[a1], sum1)
+        #            end
+        #            
+        #        end
+        
+
+
+
+
+        if verbose println("3body") end
+        #        println("3bdy")
+        @time if use_threebody || use_threebody_onsite
+            #        if false
+
+            function ham3(ret, x :: Vector)
+                ret .= 0.0
+                #                ret = zeros(typeof(x[1]), 81*2)
+                x_r, x_r_strain = reshape_vec(x, crys.nat, strain_mode=true)
+                A = var_type.(crys.A) * (I(3) + x_r_strain)
+                crys_dual = makecrys( A , crys.coords + x_r, crys.types, units="Bohr")
+
+                hh = zeros(typeof(x[1]), 3,3, nthreads())
+
+
+                cutoff3 = get_cutoff(t1,t2,t3)
+                cutoffZZ = get_cutoff(t1,t1)[1]
+                
+
+                dist, lmn = get_dist(a1,a2, rind1, crys_dual, A')
+                dist31, lmn31 = get_dist(a1,a3, rind2, crys_dual, A')
+                dist32, lmn32 = get_dist(a2,a3, -rind1+rind2, crys_dual, A')
+
+
+                cut_ab = cutoff_fn(dist, cutoffZZ - cutoff_length, cutoffZZ)
+                cut_ab2 = cutoff_fn(dist, cutoff3 - cutoff_length, cutoff3)
+                cut_ac = cutoff_fn(dist31, cutoff3 - cutoff_length, cutoff3)
+                cut_bc = cutoff_fn(dist32, cutoff3 - cutoff_length, cutoff3)
+
+                cut = cut_ab*cut_ac*cut_bc
+                cut2 = cut_ab2*cut_ac*cut_bc   
+                
+                
+                d1 = laguerre(dist, missing, nmax=1)
+                d2 = laguerre(dist31, missing, nmax=1)
+                d3 = laguerre(dist32, missing, nmax=1)
+                
+                memoryV = three_body_H_lag(d1,d2,d3,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
+                if use_threebody
+
+                    for sum1 = 1:maximum(sumorbs[a1,:])
+                        for sum2 = 1:maximum(sumorbs[a2,:])
+                            @inbounds hh[sum1,sum2,id] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
+                        end
+                    end
+
+                    sym31 = 1.0
+                    sym32 = 1.0                        
+
+                    for o1x = 1:norb[a1]
+                        o1 = orbs[a1,o1x]
+                        s1 = sorbs[a1,o1x]
+                        sum1 = sumorbs[a1,o1x]
+                        
+                        sym31 = symmetry_factor_int(s1,1,lmn31,one ) 
+                        
+                        for o2x = 1:norb[a2]
+                            o2 = orbs[a2,o2x]
+                            s2 = sorbs[a2,o2x]
+                            sum2 = sumorbs[a2,o2x] 
+
+                            sym32 = symmetry_factor_int(s2,1,lmn32, one)    
+
+#                            @inbounds H_thread[orbs[a1,o1x] , orbs[a2,o2x]  , cind1, id ] += (hh[sum1,sum2, id]) * (sym31 * sym32  * cut * 10^3)
+#                            println("add ", (o1x-1)*9 + o2x , " ", (hh[sum1,sum2, id]) * (sym31 * sym32  * cut * 10^3))
+                            ret[(o1x-1)*ns + o2x] += (hh[sum1,sum2, id]) * (sym31 * sym32  * cut * 10^3)
+                            
+                        end
+                        
+                    end
+                end
+                    ############################################
+                if use_threebody_onsite 
+                    
+                    for o1x = 1:norb[a1] ###orb2ind[a1]
+                        o1 = orbs[a1,o1x]
+                        a1a,t1,s1 = ind2orb[o1]
+                        o = calc_threebody_onsite_lag(t1,t2,t3,s1,d1,d2,d3, cdat, set_maxmin=set_maxmin, memory=memoryV) * cut2
+                        
+                        ret[ns2+(o1x-1)*ns + o1x] += o
+#                        println("onsite $a1 $a2 $a3 $o1x ", o)
+                        #                            @inbounds H_thread[ o1, o1,c_zero, id] += o  ####* cut2
+                    end
+                end
+#                println("ret ", sum(abs.(ret)))
+                ###########################################
+                return ret
+            end
+            
+            
+            chunksize=min(15, 3*crys.nat + 6)
+            myzero = zeros(var_type, 3*crys.nat+6)
+            cfg3 = ForwardDiff.JacobianConfig(ham3, ret, myzero)#, ForwardDiff.Chunk{chunksize}())
+
+            t3 = crys.stypes[a2]
+            cdat = database[(t1,t2,t3)]
+            (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+            a3 = 1
+            #cind1 = array_ind3[1,4]
+            #cind2 = array_ind3[1,5]
+
+            cind1 = 1
+            cind2 = 1
+            
+            rind1 = ind_arr[cind1,1:3]
+            rind2 = ind_arr[cind2,1:3]
+            id = 1
+            for counter = 1:size(array_ind3)[1] #@threads
+#                println("a")
+                begin
+                    #            for counter = 1:size(array_ind3)[1]
+                    id = threadid()
+                    #id = 1
+                    a1 = array_ind3[counter,1]
+                    a2 = array_ind3[counter,2]
+                    a3 = array_ind3[counter,3]
+
+                    cind1 = array_ind3[counter,4]
+                    cind2 = array_ind3[counter,5]
+
+                    #                println("$a1 $a2 $a3 $cind1 $cind2")
+                    #                r_dict
+                    rind1 = ind_arr[cind1,1:3]
+                    rind2 = ind_arr[cind2,1:3]
+
+                    t1 = crys.stypes[a1]
+                    t2 = crys.stypes[a2]
+                    t3 = crys.stypes[a3]
+
+                end                
+                if haskey(database, (t1, t2, t3))
+                    cdat = database[(t1,t2,t3)]
+                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+
+                    #gradh = ForwardDiff.jacobian(ham3, myzero , cfg3 ) ::  Array{var_type,2}
+
+                    ForwardDiff.jacobian!(gradh, ham3, ret, myzero, cfg3  ) #::  Array{var_type,2}
+
+#                    println("sum(abs(gradh)) ", sum(abs.(gradh)))
+                    for o1x = 1:norb[a1]
+#                        o1 = orbs[a1,o1x]
+#                        s1 = sorbs[a1,o1x]
+#                        sum1 = sumorbs[a1,o1x]
+                        
+                        for o2x = 1:norb[a2]
+#                            o2 = orbs[a2,o2x]
+#                            s2 = sorbs[a2,o2x]
+#                            sum2 = sumorbs[a2,o2x] 
+
+
+                            @inbounds H[1, orbs[a1,o1x] , orbs[a2,o2x]  , cind1, : ] += gradh[(o1x-1)*ns + o2x,:]
+                        end
+                    end
+                    for o1x = 1:norb[a1]
+                        o1 = orbs[a1,o1x]
+                        @inbounds H[1, o1, o1,c_zero,:] += gradh[ns2+(o1x-1)*ns + o1x,:]
+                    end
+
+
+                elseif !warned
+                    println("WARNING, missing 3bdy ", (t1, t2, t3))
+                    within_fit = false
+
+                    warned = true
+                end
+            end
+        end
+
+        #        println("thread sum")
+        #        println(size(H))
+        #        println(size(H_thread))
+
+        
+#        H[1,:,:,:] .+= sum(H_thread, dims=4)[:,:,:] #uncomment
+
+        
+        #        H += sum(H_thread, dims=4)[:, :,:]
+
+
+
+        #        lmn = zeros(var_type, 3)
+
+        ############ONSITE
+
+        Hon = zeros(var_type, nwan,nwan, nthreads(), crys.nat*3 + 6)
+        Son = zeros(var_type, nwan,nwan, nthreads(), crys.nat*3 + 6)
+        
+        if verbose println("onsite") end
+
+        function ham_on(x :: Vector)
+
+            ret = zeros(typeof(x[1]), 81*2)
+            x_r, x_r_strain = reshape_vec(x, crys.nat, strain_mode=true)
+            A = var_type.(crys.A) * (I(3) + x_r_strain)
+            crys_dual = makecrys( A , crys.coords + x_r, crys.types, units="Bohr")
+            
+            dist, lmn = get_dist(a1,a2, R_keep_ab[cc,4:6], crys_dual, A')
+
+
+            if (dist > cutoff_onXa)
+                return ret
+            end
+
+            if dist < cutoff_onXa - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist, cutoff_onXa - cutoff_length, cutoff_onXa)
+            end
+
+            
+            for o1x = 1:norb[a1]
+                o1 = orb2ind[a1][o1x]
+                a1a,t1a,s1 = ind2orb[o1]
+                sum1 = summarize_orb(s1)
+                for o2x =  1:norb[a1]
+                    o2 = orb2ind[a1][o2x]
+                    a2a,t2a,s2 = ind2orb[o2]
+                    
+                    if dist < 1e-5 #true onsite
+                        (h,s) = calc_onsite(t1,s1,s2, database)
+                        #                        S[o1, o2, c_zero] += s 
+                        #                        H[o1, o2, c_zero] += h
+                        ret[(o1x-1)*9 + o2x] += h
+                        ret[81 + (o1x-1)*9 + o2x] += s
+#                        Son[o1, o2, id] += s 
+#                        Hon[o1, o2, id] += h
+#                        if repel
+#                            if o1 == o2
+#                                Hon[o1, o1, id] += repel_vals[a1a] * 0.1
+#                            end
+                        #                        end
+                        
+                    else
+                        o = calc_twobody_onsite(t1,t2, s1,s2,dist,lmn, database)
+                        #Hon[o1, o2, id] += o * cut
+                        ret[(o1x-1)*9 + o2x] += o * cut
+                        #                        H[o1, o2, c_zero] += o  * cut
+                    end
+                    
+
+
+
+                end
+
+            end
+            return ret
+
+        end
+
+        cfg_on = ForwardDiff.JacobianConfig(ham_on, myzero)#, ForwardDiff.Chunk{chunksize}())
+        
+        cutoff_onXa = get_cutoff(t1,t2)[2]
+
+
+        for c = 1:nkeep_ab #@threads 
+            cc = c
+            id = threadid()
+
+            #        ind_arr[c,:] = R_keep_ab[c][4:6]
+            cind = R_keep_ab[c,1]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+
+            cutoff_onXa = get_cutoff(t1,t2)[2]
+            
+            gradh = ForwardDiff.jacobian(ham_on, myzero , cfg_on ) ::  Array{var_type,2}
+            
+            
+            for o1x = 1:norb[a1]
+                o1 = orb2ind[a1][o1x]
+                a1a,t1a,s1 = ind2orb[o1]
+                sum1 = summarize_orb(s1)
+                for o2x =  1:norb[a1]
+                    o2 = orb2ind[a1][o2x]
+                    a2a,t2a,s2 = ind2orb[o2]
+                    
+                    Hon[o1, o2, id,:] +=  gradh[(o1x-1)*9 + o2x,:]
+                    Son[o1, o2, id,:] +=  gradh[81 + (o1x-1)*9 + o2x,:]
+                    
+                end
+
+            end
+        end
+
+#        println("size Hon ", size(Hon))
+#        println("size H ", size(H))
+#        println("size Son ", size(Son))
+#        println("size S ", size(S))
+
+#        println("a ", size(sum(Hon, dims=3)[:,:,1,:]))
+#        println("b ", size(H[1, :,:,c_zero,:] ))
+
+#        println("check ", sum(abs.(H)), " " , sum(abs.(S)))
+        
+        H[1, :,:,c_zero,:] += sum(Hon, dims=3)[:,:,1,:]
+        S[:,:,c_zero,:] += sum(Son, dims=3)[:,:,1,:]
+
+    end
+
+    return H, S
+
+    if verbose println("make") end
+    @time if true
+        #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
+        tb = make_tb(H, ind_arr, S)
+        if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
+            scf = database["scf"]
+        else
+            scf = false
+        end
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+    end
+    if verbose 
+        println("-----")
+        println()
+    end
+
+    return tbc
+
+end
+
+
+
+
+=#

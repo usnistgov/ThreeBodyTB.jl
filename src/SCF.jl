@@ -43,7 +43,7 @@ using ..TB:get_spin_h1
 using ..TB:get_dq
 using ..TB:get_energy_electron_density_kspace
 using ..TB:smearing_energy
-using ..CalcTB:calc_tb_fast
+using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_lowmem
 using ..TB:get_magmom
 using ..CrystalMod:get_grid
@@ -71,7 +71,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true)
 
     #println("calc tb")
-    tbc = calc_tb_fast(c, database, verbose=verbose, repel=repel);
+    tbc = calc_tb_lowmem2(c, database, verbose=verbose, repel=repel);
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)

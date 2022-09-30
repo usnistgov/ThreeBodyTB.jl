@@ -225,7 +225,7 @@ end
 
 Make QE inputfile for SCF DFT calculation.
 """
-function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=startingpot)
+function makeSCF(crys::crystal, directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false; mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing)
 """
 Make inputfile for SCF calculation
 """

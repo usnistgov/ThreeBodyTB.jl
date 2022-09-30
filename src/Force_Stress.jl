@@ -33,6 +33,7 @@ using ..CrystalMod:makecrys
 
 using ..CalcTB:calc_tb_fast
 using ..CalcTB:calc_tb_lowmem
+using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:distances_etc_3bdy_parallel
 using ..CalcTB:get_dist
 
@@ -76,7 +77,7 @@ function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid 
 
 #    println("crys")
 #    tbc = []
-    tbc = calc_tb_fast(crys, database)
+    tbc = calc_tb_lowmem2(crys, database)
     return get_energy_force_stress_fft(tbc, database, do_scf=tbc.scf, grid = grid, smearing=smearing, nspin=nspin, repel=repel)
 end
 
@@ -227,9 +228,9 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
             end
         end
         
-        println("dual")
-        tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true)
-        @time tbc_dual = calc_tb_lowmem(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true, DIST=DIST)
+        #        println("dual")
+#        tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true)
+        @time tbc_dual = calc_tb_lowmem2(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual, check_frontier=true, DIST=DIST)
 
         nwan = tbc.tb.nwan
 
@@ -373,7 +374,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
     end
 
 
-    tbc0 = calc_tb_fast(crys, database, verbose=false, check_frontier=false, repel=repel)
+    tbc0 = calc_tb_lowmem2(crys, database, verbose=false, check_frontier=false, repel=repel)
 
     energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
 
@@ -388,7 +389,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         crys1.coords = cart1 * inv(crys1.A)
 
-        tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false, repel=repel)
+        tbc1 = calc_tb_lowmem2(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
         energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
 
@@ -399,7 +400,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         crys2.coords = cart2 * inv(crys2.A)
 
-        tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false, repel=repel)
+        tbc2 = calc_tb_lowmem2(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
         energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
         
@@ -419,7 +420,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
        
         crys1.A = crys1.A *(I(3) + strain)
 
-        tbc1 = calc_tb_fast(crys1, database, verbose=false, check_frontier=false, repel=repel)
+        tbc1 = calc_tb_lowmem2(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
         energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
 
@@ -431,7 +432,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
        
         crys2.A = crys2.A *(I(3) + strain)
 
-        tbc2 = calc_tb_fast(crys2, database, verbose=false, check_frontier=false, repel=repel)
+        tbc2 = calc_tb_lowmem2(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
         energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
 
@@ -1023,9 +1024,10 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 #    println("get_energy_force_stress_fft")
 
     FloatX = Float32
+    #FloatX = Float64
     ct = deepcopy(tbc.crys)
     
-    #    println("dist")
+    #println("dist")
     begin
         R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(ct,cutoff2X,cutoff3bX,var_type=FloatX, return_floats=false)
         DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind
@@ -1038,6 +1040,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
     kgrid, kweights = make_kgrid(grid)
     nk = size(kgrid)[1]
 
+#    println("get_energy_force_stress_fft2")
     
     #println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database, DIST=DIST)
@@ -1118,93 +1121,100 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 
         #size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
 
+        if database["scf"] == true
+            scf = true
+        else
+            scf = false
+        end
         
+        dontcheck = calc_tb_lowmem2(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+#        println("dontcheck $dontcheck")
         
         function ham(x :: Vector)
-            T=typeof(x[1])
-            
+            begin
+                T=typeof(x[1])
+                
 
-            x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
-
-            #x_r, x_r_strain = reshape_vec(x, 0, strain_mode=true)
-
-            A = FloatX.(ct.A) * (I(3) + x_r_strain)
-            crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
-
-            #crys_dual = makecrys( A , ct.coords , ct.types)
-
-            #        gamma_dual=zeros(T, ct.nat,ct.nat)
-            #println("gamma")
-            if database["scf"] == true
-                scf = true
-                kappa = estimate_best_kappa(FloatX.(ct.A))
-                gamma_dual = electrostatics_getgamma(crys_dual, kappa=kappa)
-            else
-                scf = false
+                x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
+                A = FloatX.(ct.A) * (I(3) + x_r_strain)
+                crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
                 gamma_dual=zeros(T, ct.nat,ct.nat)
+                
+                tbc_dual = calc_tb_lowmem2(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST)
+                begin
+                    ret = zeros(T, size_ret * 2 + 1)
+                    ret[1:size_ret] = real.(tbc_dual.tb.H[1,:,:,:][nz_arr])
+                    ret[size_ret+1:size_ret*2] = real.(tbc_dual.tb.S[nz_arr])
+                end
             end
-
-            #tbc_dual = calc_tb_fast(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual , check_frontier= true, repel=repel)
-            tbc_dual = calc_tb_lowmem(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=gamma_dual , check_frontier= true, repel=repel, DIST=DIST)
-
-            
-            ret = zeros(T, size_ret * 2 + 1)
-
-            ret[1:size_ret] = real.(tbc_dual.tb.H[1,:,:,:][nz_arr])
-            ret[size_ret+1:size_ret*2] = real.(tbc_dual.tb.S[nz_arr])
-            
-#            ret[1:size_ret] = real.(tbc_dual.tb.H[:])
-#            ret[size_ret+1:size_ret*2] = real.(tbc_dual.tb.S[:])
-
-
-            #we stick eewald in the last entry of ret
-            if scf 
-                eewald, pot = ewald_energy(crys_dual, gamma_dual, dq)
-                ret[end] = eewald
-            end
-
             return ret
         end
 
+        function ew(x :: Vector)
+#            println("ew top")
+            T=typeof(x[1])
+            ret = zeros(T, 1)
 
-#        println("jac")
+
+            x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
+            A = FloatX.(ct.A) * (I(3) + x_r_strain)
+            crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
+            
+            kappa = estimate_best_kappa(FloatX.(ct.A))
+            gamma_dual = electrostatics_getgamma(crys_dual, kappa=kappa)
+            eewald, pot = ewald_energy(crys_dual, gamma_dual, dq)
+            ret[end] = eewald
+            return ret
+        end
+
+        chunksize=min(15, 3*ct.nat + 6)        
+
+        g_ew = zeros(FloatX, 1, 3*ct.nat + 6)
+        size_ret_full = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
+        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
+
+        #println("jac")
         begin
-
-            
-#            ret = ham(zeros(3*ct.nat + 6))
-
-            #ret = ham(zeros( 6))
-           
-            #chunksize=min(18, 3*ct.nat + 6) 
-            chunksize=min(15, 3*ct.nat + 6)
-            #chunksize=min(12, 3*ct.nat + 6)
-            #chunksize=min(9, 3*ct.nat + 6)
-            #chunksize=min(6, 3*ct.nat + 6)
-            
-
-            
-            cfg = ForwardDiff.JacobianConfig(ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
-
-            #cfg = ForwardDiff.JacobianConfig(ham, zeros( 6), ForwardDiff.Chunk{chunksize}())
-
-#            hz = ham(zeros(FloatX, 3*ct.nat + 6))
-
-            #println("j")
-            g_nz = ForwardDiff.jacobian(ham, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
-
-            size_ret_full = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
-
-            g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
-            counter = 0
-            for i = 1:size_ret
-                g[nz_arr[i],:] = g_nz[i,:]
-                g[size_ret_full + nz_arr[i],:] = g_nz[size_ret + i,:]
+        
+            EW = @spawn begin
+                if scf
+                    cfg = ForwardDiff.JacobianConfig(ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
+                    g_ew = ForwardDiff.jacobian(ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
+                end
             end
-            g[end,:] = g_nz[end,:]
-            g_nz = missing
-            
-            size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
+            #println("done ew")
+            HAM = @spawn begin
+                chunksize=min(15, 3*ct.nat + 6)
+                cfg = ForwardDiff.JacobianConfig(ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
+                g_nz = ForwardDiff.jacobian(ham, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
 
+
+                counter = 0
+                for i = 1:size_ret
+                    g[nz_arr[i],:] = g_nz[i,:]
+                    g[size_ret_full + nz_arr[i],:] = g_nz[size_ret + i,:]
+                end
+                g[end,:] = g_nz[end,:]
+                g_nz = missing
+            end
+            #println("wait")
+            wait(HAM)
+            wait(EW)
+        end
+
+        #return g
+        
+        if scf
+            g[end,:] = g_ew[1,:]
+        end
+        size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
+
+            #println("g_old diff")
+            #println(sum(abs.(g_old - g)))
+            #println("yyy")
+            #println()
+
+            
 #=                  
         
         function ham_old(x :: Vector)
@@ -1283,7 +1293,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             
 #            g = ForwardDiff.jacobian(ham, zeros( 6) , cfg ) ::  Array{Float64,2}
 
-        end
+#        end
 #        println("end jac")
 
         #        println("end jac")
@@ -1351,7 +1361,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         DENMAT = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, prod(grid), nspin)
         DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, prod(grid), nspin)
         for spin = 1:nspin
-            @threads for counter = 1:prod(grid)
+            @threads for counter = 1:prod(grid) #threads
                 k3 = mod(counter-1 , grid[3])+1
                 k2 = 1 + mod((counter-1) ÷ grid[3], grid[2])
                 k1 = 1 + (counter-1) ÷ (grid[2]*grid[3])
@@ -1376,7 +1386,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         end
         end            
 
-        
+        #println("FIND")
         for FIND in 1:3*ct.nat + 6
 #            println("FIND $FIND")
 
@@ -1393,12 +1403,12 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             hr_g .= 0.0
             sr_g .= 0.0
 
-                
-            @threads for c in 1:size(tbc.tb.ind_arr)[1]
+            
+            for c in 1:size(tbc.tb.ind_arr)[1] #@threads 
                 
                 ind = tbc.tb.ind_arr[c,:]
                 new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
-                for nb = 1:tbc.tb.nwan
+                @threads for nb = 1:tbc.tb.nwan
                     @inbounds hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
                     @inbounds sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
                     

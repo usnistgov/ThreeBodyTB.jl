@@ -8,7 +8,7 @@ using ..CrystalMod:crystal
 using ..CrystalMod:print_with_force_stress
 using ..CrystalMod:makecrys
 using ..CrystalMod:write_axsf
-using ..CalcTB:calc_tb_fast
+using ..CalcTB:calc_tb_lowmem2
 using ..Atomdata:atom_radius
 
 using LinearAlgebra
@@ -42,7 +42,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     eden = missing #starts off missing
 
     #do this ahead of first iteration, to get memory in correct place
-    tbc = calc_tb_fast(deepcopy(crys), database, verbose=false, repel=repel)
+    tbc = calc_tb_lowmem2(deepcopy(crys), database, verbose=false, repel=repel)
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false)
 
     if error_flag
@@ -113,7 +113,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         if crys_working != tbc.crys
 #                println("yes calc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 #                println(crys_working)
-            tbc = calc_tb_fast(deepcopy(crys_working), database, verbose=false, repel=repel)
+            tbc = calc_tb_lowmem2(deepcopy(crys_working), database, verbose=false, repel=repel)
         else
 #                println("nocalc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 #                println(crys_working)
@@ -170,7 +170,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 
 #        println("too short ", tooshort)
 
-        tbc = calc_tb_fast(deepcopy(crys_working), database, verbose=false, repel=repel)
+        tbc = calc_tb_lowmem2(deepcopy(crys_working), database, verbose=false, repel=repel)
 
         #        if crys_working != tbc.crys && !tooshort
         if !tooshort        
@@ -487,7 +487,7 @@ function make_random_crystal(types; database=missing)
         
         crys = makecrys(A, c, types, units="Bohr")
         
-        within_fit = calc_tb_fast(crys*0.97, db, check_only=true)
+        within_fit = calc_tb_lowmem2(crys*0.97, db, check_only=true)
         if within_fit
             return crys * 1.03
         end
