@@ -1138,7 +1138,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
                 A = FloatX.(ct.A) * (I(3) + x_r_strain)
                 crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
-                gamma_dual=zeros(T, ct.nat,ct.nat)
+#                gamma_dual=zeros(T, ct.nat,ct.nat)
                 
                 tbc_dual = calc_tb_lowmem2(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST)
                 begin
@@ -1176,14 +1176,14 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         #println("jac")
         begin
         
-            EW = @spawn begin
+            EW = begin
                 if scf
                     cfg = ForwardDiff.JacobianConfig(ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                     g_ew = ForwardDiff.jacobian(ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
                 end
             end
             #println("done ew")
-            HAM = @spawn begin
+            HAM = begin
                 chunksize=min(15, 3*ct.nat + 6)
                 cfg = ForwardDiff.JacobianConfig(ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                 g_nz = ForwardDiff.jacobian(ham, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
