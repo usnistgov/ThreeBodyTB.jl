@@ -1198,8 +1198,8 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 g_nz = missing
             end
             #println("wait")
-            wait(HAM)
-            wait(EW)
+#            wait(HAM)
+#            wait(EW)
         end
 
         #return g
