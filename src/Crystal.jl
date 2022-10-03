@@ -1,6 +1,9 @@
 
 module CrystalMod
 
+using AtomsBase
+using Unitful
+using UnitfulAtomic
 
 using LinearAlgebra
 using Printf
@@ -318,6 +321,56 @@ function makecrys(A,coords,types; units=missing)
     stypes = Symbol.(types)
     return crystal{T}(A, coords, types, stypes, nat)
 end
+
+"""
+    function makecrys(atomsb::FlexibleSystem)
+
+Attempt to make a crystal from an AtomsBase object. This may not always work. Must be periodic
+"""
+function makecrys(atomsb::FlexibleSystem)
+
+    thetype = typeof(atomsb.box[1][1].val)
+    
+    A = zeros(thetype, 3,3)
+    for i = 1:3
+        for j = 1:3
+            x = atomsb.box[i][j]
+            try
+                A[i,j] = Unitful.uconvert(u"Å",x )
+            catch
+                A[i,j] = x.val * 0.529177
+            end
+        end
+    end
+
+    stypes = []
+    pos = zeros(Float64, 0,3)
+    parts = atomsb.particles
+    for p in parts
+        push!(stypes , p.atomic_symbol)
+        pos = vcat(pos, [0.0  0.0  0.0])
+        try
+            
+            pos[end,1] = ustrip(Unitful.uconvert(u"Å",p.position[1]))
+            pos[end,2] = ustrip(Unitful.uconvert(u"Å",p.position[2]))
+            pos[end,3] = ustrip(Unitful.uconvert(u"Å",p.position[3]))
+        catch
+            pos[end,1] = ustrip(p.position[1])*0.529177
+            pos[end,2] = ustrip(p.position[2])*0.529177
+            pos[end,3] = ustrip(p.position[3])*0.529177
+        end
+            
+    end
+
+    pos = pos*inv(A)
+    
+    return makecrys(A, pos, stypes, units="Å")
+
+end
+            
+
+                  
+
 
 
 """
