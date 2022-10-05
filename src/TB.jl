@@ -10,6 +10,8 @@ module TB
 Scripts to run tight-binding from wannier90
 """
 
+using ..ThreeBodyTB:eV
+
 using LinearAlgebra
 using SpecialFunctions
 using EzXML
@@ -1258,6 +1260,95 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
 end
 
 
+"""
+    function write_hr_dat(tbc, filename="wannier90_hr.dat", directory="./")
+write an orthogonalized  wannier90 hr.dat file
+Not currently a major part of program, but you can use if you want.
+"""
+function write_hr_dat(tbc; filename="wannier90_hr.dat", directory="./", verbose=true, grid=missing)
+
+    if ismissing(grid)
+        grid = get_grid(tbc.crys)
+    else
+        if length(grid) != 3
+            grid = get_grid(tbc.crys, grid)
+        end
+    end
+
+    println("grid: $grid")
+
+    hk3, sk3 = myfft_R_to_K(tbc, grid)
+
+
+    nw = size(hk3)[1]
+    hk3_orth = zeros(Complex{Float64}, 1, nw, nw, grid[1], grid[2], grid[3])
+    
+    for spin = 1:tbc.nspin
+        if tbc.nspin == 2
+            if spin == 1
+                prepend = "up."
+            else spin == 2
+                prepend = "dn."
+            end
+        else
+            prepend = ""
+        end
+
+        fname = "$directory/"*prepend*filename
+
+        for k1 = 1:grid[1]
+            for k2 = 1:grid[2]
+                for k3 = 1:grid[3]
+                    sk = sk3[:,:,k1,k2,k3]
+                    hk= hk3[:,:,spin,k1,k2,k3]
+                    hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * hk * (sk^-0.5)
+
+#                    println("asdf")
+#                    println( eigvals(hk, sk) - eigvals(hk3_orth[1,:,:,k1,k2,k3]))
+                    
+                end
+            end
+        end
+
+        kpts, kweights = make_kgrid(grid)
+
+        ham_r, r_dict, ind_arr = myfft(tbc.crys, false, grid, kpts , hk3_orth)
+
+        hr = open(fname, "w")
+        nr = size(ind_arr)[1]
+        
+        write(hr, "written by ThreeBodyTB.jl - kfg\n")
+        write(hr, "      $nw\n")
+        write(hr, "      $nr\n")
+        for i = 1:15:nr
+            if i+14 == nr || i+14 < nr
+                write(hr, "   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1\n")
+            else
+                st = ""
+                for ii = i:nr
+                    st *= "   1"
+                end
+                st=st*"\n"
+                write(hr, st)
+            end
+        end
+        ham_r *= eV
+        for n = 1:nr
+            for nw1 = 1:nw
+                for nw2 = 1:nw
+                    write(hr, "   $(ind_arr[n,1])   $(ind_arr[n,2])   $(ind_arr[n,3])   $nw1   $nw2   $(real(ham_r[1,nw1, nw2, n]))   $(imag(ham_r[1,nw1, nw2, n])) \n")
+                end
+            end
+        end
+        write(hr, "\n")
+        close(hr)
+        
+        
+    end
+
+    Nothing;
+
+end
 
 """
     function load_hr_dat(filename, directory="")
