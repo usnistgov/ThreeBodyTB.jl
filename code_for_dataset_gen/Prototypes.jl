@@ -1926,6 +1926,9 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
     DONE = []
     DONE_TYPES = []
 
+    DO_RELAX = []
+
+
     torun = []
     n = 0
 
@@ -1940,11 +1943,19 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
         if n <= n1
             push!(torun, deepcopy(c) * 0.95)
             push!(DONE, name)
+            push!(DO_RELAX, false)
+
+            push!(torun, deepcopy(c) * 1.0)
+            push!(DONE, name)
+            push!(DO_RELAX, false)
+
         end
         n += 1
         if n <= n1
             push!(torun, deepcopy(c) * 1.05)
             push!(DONE, name)
+            push!(DO_RELAX, false)
+
         end
         if n >= n2
             break
@@ -1961,12 +1972,9 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
         if sort(c.types) in DONE_TYPES
             continue
         end
+
         n += 1
-        if n <= n1
-            push!(torun, deepcopy(c) * 0.95)
-            push!(DONE, name)
-        end
-        n += 1
+        push!(DO_RELAX, true)
         push!(torun, deepcopy(c) )
         push!(DONE, name)
         if n >= n2
@@ -1979,12 +1987,13 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
     if n < n2
         for (i,c) in enumerate(CBIG)
             name = SBIG[i][1]
-            if name in DONE
+            if name in DONE #&& n >= n1
                 continue
             end
             n += 1
             push!(torun, deepcopy(c) )
             push!(DONE, name)
+            push!(DO_RELAX, true)
             if n >= n2
                 break
             end
@@ -1999,18 +2008,31 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
     for (i,c) in enumerate(torun)
         name = DONE[i]
 
+        do_relax = DO_RELAX[i]
+
         println("running dft ternary")
         println(c)
         println()
         d="$dir/$name"*"_vnscf_"*"$i"        
         try
-            dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
-            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
-        catch
+            if !isdir("$d/qe.save")
+                if do_relax
+                    dftR = ThreeBodyTB.DFT.runSCF(c, calculation = "vc-relax", nstep=3, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
+                    cr = deepcopy(dftR.crys)
+                else
+                    cr = c
+                end
+                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=false, cleanup=true)
+            else
+                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
+            end
+            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, min_nscf = min_nscf)
+        catch err
             println("err dft $d")
+            println(err)
         end
         println("done run")
-
+        flush(stdout)
 
     end
 
@@ -2019,6 +2041,71 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
 end
 
 
+
+function oxidation_guess(atom1, atom2, atom3)
+
+    possible_configs = zeros(Int64, 0, 7)
+
+    for (c1, o1) = enumerate(atom_prefered_oxidation[atom1])
+        for (c2,o2) = enumerate(atom_prefered_oxidation[atom2])
+            for (c3,o3) = enumerate(atom_prefered_oxidation[atom3])
+
+
+                if c1 == 1
+                    score1=1
+                elseif o1 == 0
+                    score1=4
+                else
+                    score1=2
+                end
+
+                if c2 == 1
+                    score2=1
+                elseif o2 == 0
+                    score2=4
+                else
+                    score2=2
+                end
+
+                if c3 == 1
+                    score3=1
+                elseif o3 == 0
+                    score3=4
+                else
+                    score3=2
+                end
+
+
+                for n1 = 1:6
+                    for n2 = 1:6
+                        for n3 = 1:6
+                            
+                            if (n1+n2+n3) >= 6
+                                continue
+                            end
+
+                            if n1 == 1 && n2 == 1 && n3 == 1
+                                continue
+                            end
+
+                            if gcd(n1,n2) > 1 && gcd(n1,n3) > 1 && gcd(n2,n3) > 1
+                                continue
+                            end
+                            if o1 * n1 + o2 * n2 + o3 * n3 == 0
+                                possible_configs = [possible_configs; n1 n2 n3 (score1+score2+score3)*2+n1+n2+n3   score1  score2 score3]
+                            elseif  abs(o1 * n1 + o2 * n2 + o3 * n3) == 1
+                                possible_configs = [possible_configs; n1 n2 n3 (score1+score2+score3)*2+n1+n2+n3+5  score1  score2 score3] 
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    possible_configs = possible_configs[sortperm(possible_configs[:, 4]), :]
+    
+
+end
 
 
 
