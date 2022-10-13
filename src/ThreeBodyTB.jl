@@ -49,6 +49,7 @@ using .TB:Hk
 using .TB:calc_bands
 using .TB:read_tb_crys
 using .TB:write_tb_crys
+using .TB:get_formation_energy
 
 include("AtomicProj.jl")
 include("BandStruct.jl")
@@ -266,6 +267,9 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
 
 
 #    energy = convert_energy(energy)
+    println()
+    println("Formation energy: " , round(convert_energy(get_formation_energy(energy, cfinal)), digits=3) , " $global_energy_units/atom" )
+    println()
 
     energy = convert_energy(energy)
     force = convert_force(force)
@@ -319,6 +323,10 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
 
     println("done")
     println("----")
+    println()
+    println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, c)), digits=3) , " $global_energy_units/atom" )
+    println()
+
 
     
     energy_tot = convert_energy(energy_tot)
@@ -355,6 +363,9 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
 
     println("done")
     println("----")
+    println()
+    println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)),digits=3) , " $global_energy_units/atom" )
+    println()
 
     energy_tot = convert_energy(energy_tot)
     f_cart = convert_force(f_cart)
@@ -410,6 +421,9 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         println("scf_energy error detected somewhere!!!!!!!!!!, done")
     end
     println()
+    println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, c)), digits=3) , " $global_energy_units/atom" )
+    println()
+
 
 
     energy_tot = convert_energy(energy_tot)
@@ -439,6 +453,9 @@ end
 function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1, verbose=true)
 
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose)
+    println()
+    println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )
+    println()
 
     conv_flag = !error_flag
     if tbc.within_fit == false
@@ -449,7 +466,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
     else
         println("error detected!!!!!!!!!!, done")
     end
-    println()
+
 
     energy_tot = convert_energy(energy_tot)
     
