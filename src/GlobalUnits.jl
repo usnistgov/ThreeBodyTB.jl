@@ -66,3 +66,9 @@ function convert_length(length)
     return length * f1
     
 end
+
+global no_display=false
+
+function set_no_display(d)
+    no_display = d
+end

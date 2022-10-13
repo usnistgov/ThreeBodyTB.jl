@@ -57,12 +57,8 @@ export plot_bandstr
 export plot_compare_dft
 export band_summary
 
+using ..ThreeBodyTB:no_display
 
-global no_display=false
-
-function set_no_display(d)
-    global no_display = d
-end
 
 
 """
@@ -264,7 +260,7 @@ function plot_bandstr_dos(c::crystal;
     l = @layout [ x{0.6w} y]
     p = plot(p_band, p_dos, layout=l, size=(900, 400), margin = 4.0Plots.mm)
 
-    if do_display
+    if do_display && no_display == false
         display(p)
     end
     
@@ -314,7 +310,7 @@ function plot_bandstr_dos(tbc::tb_crys;
     l = @layout [ x{0.6w} y]
     p = plot(p_band, p_dos, layout=l, size=(900, 400), margin = 4.0Plots.mm)
 
-    if do_display
+    if do_display && no_display == false
         display(p)
     end
 
@@ -859,7 +855,7 @@ This function will run a new QE dft calculation and band structure calculation a
 
 Other options like the other plotting commands
 """
-function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, align="vbm")
+function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, align="vbm", spin = 1, skip= true)
 
 
     NK = size(kpath)[1]
@@ -867,17 +863,27 @@ function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0
     K, locs = get_kpath(kpath, npts)
     nk = size(K)[1]
 
-    dft = runSCF(tbc.crys, nprocs=nprocs, prefix=prefix, directory=outdir, tmpdir=outdir, wannier=false, code="QE", skip=true, cleanup=true)
+    if tbc.nspin == 2 || tbc.tb.scfspin
+        magnetic = true
+    else
+        magnetic = false
+    end
+
+    println("magnetic $magnetic")
+    
+    dft = runSCF(tbc.crys, nprocs=nprocs, prefix=prefix, directory=outdir, tmpdir=outdir, wannier=false, code="QE", skip=skip, cleanup=true, magnetic=magnetic)
 
     prefix = dft.prefix
-    if isdir("$outdir/$prefix.nscf.save")
+    if isdir("$outdir/$prefix.nscf.save") && skip
         println("loading nscf from file")
         dft_nscf = loadXML("$outdir/$prefix.nscf.save")
     else
-        dft_nscf = run_nscf(dft, outdir; tmpdir=outdir, nprocs=nprocs, prefix=prefix, min_nscf=false, only_kspace=false, klines=K)
+        dft_nscf, prefix = run_nscf(dft, outdir; tmpdir=outdir, nprocs=nprocs, prefix=prefix, min_nscf=false, only_kspace=false, klines=K)
     end
 
-    plot_compare_dft(tbc, dft_nscf.bandstruct;  names=names, locs=locs)    
+    println("typeof ", typeof(dft_nscf))
+    
+    plot_compare_dft(tbc, dft_nscf;  names=names, locs=locs, spin=spin)    
     
 
 end

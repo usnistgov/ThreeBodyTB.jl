@@ -24,7 +24,7 @@ using ..TB:get_energy_electron_density_kspace
 using ..ThreeBodyTB:convert_energy
 using ..ThreeBodyTB:convert_dos
 using ..ThreeBodyTB:global_energy_units
-using ..BandStruct:no_display
+using ..ThreeBodyTB:no_display
 
 function get_projtype(tbc, ptype=missing)
 

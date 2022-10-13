@@ -9,6 +9,9 @@ module ThreeBodyTB
 include("GlobalUnits.jl")
 include("SetDir.jl")
 
+
+
+
 include("Utility.jl")
 include("BandTools.jl")
 include("Atomic.jl")
@@ -54,6 +57,15 @@ using .TB:get_formation_energy
 
 include("AtomicProj.jl")
 
+include("CalcTB_laguerre.jl")
+using .CalcTB:calc_tb_fast
+export calc_tb_fast
+using .CalcTB:calc_twobody
+
+include("ManageDatabase.jl")
+
+include("SCF.jl")
+
 include("DOS.jl")
 using .DOS:dos
 
@@ -62,7 +74,7 @@ include("BandStruct.jl")
 using .BandStruct:plot_compare_tb
 using .BandStruct:plot_bandstr
 using .BandStruct:plot_compare_dft
-using .BandStruct:set_no_display
+#using .BandStruct:set_no_display
 using .BandStruct:band_summary
 using .BandStruct:plot_bandstr_dos
 using .BandStruct:plot_bandstr_sym
@@ -73,6 +85,8 @@ export calc_bands
 export plot_compare_tb
 export plot_bandstr
 export plot_compare_dft
+export plot_bandstr_dos
+export plot_bandstr_sym
 export read_tb_crys
 export dos
 export write_tb_crys
@@ -87,11 +101,6 @@ export set_bin_dirs
 
 
 #include("RunWannier90.jl")
-include("CalcTB_laguerre.jl")
-using .CalcTB:calc_tb_fast
-export calc_tb_fast
-using .CalcTB:calc_twobody
-include("SCF.jl")
 
 
 include("FitTB_laguerre.jl")
@@ -100,7 +109,6 @@ include("Force_Stress.jl")
 
 
 
-include("ManageDatabase.jl")
 
 include("MyOptim.jl")
 
