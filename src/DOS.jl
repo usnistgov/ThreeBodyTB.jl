@@ -220,16 +220,16 @@ function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)
 end
             
     
-function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.015, npts=missing, proj_type=missing, do_display=true)
+function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true)
 
     return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display)
     
 end
 
 """
-    function dos(tbc::tb_crys; grid=missing, smearing=0.02, npts=missing, proj_type=missing, do_display=true)
+    function dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true)
 
-Simple Gaussian DOS, mostly for testing.
+DOS, mostly for testing.
 
 - `npts` is number of energies
 - `proj_type` can be `"none"`, `"atomic"`, or `"orbital"`
@@ -241,7 +241,7 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, smearing=0.015, npts=missing, proj_type=missing, do_display=true)
+function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -335,7 +335,7 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.015, npts=missing, proj_type
 end
 
 
-function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
 
 
     @time bandenergy, eden, vects, vals, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=0.01)
@@ -920,6 +920,95 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
     if !ismissing(filename)
         savefig(filename)
     end
+    
+end
+
+
+function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=true, yrange=[-6, 4.0])
+
+    if ismissing(names)
+        plot(legend=false, grid=false, framestyle=:box)
+    else 
+        plot(legend=true, grid=false, framestyle=:box)
+    end
+
+    nspin = size(dos)[2]
+
+    if nspin == 1
+    
+        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:bottomright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!( pdos[:,i,1], energies, color=color, lw=3, label=names[i])
+            end
+        end    
+
+    elseif nspin == 2
+
+        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:bottomright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            end
+        end    
+
+        plot!( -dos[:,2], energies, color="black", lw=4, label=false)
+
+        if !ismissing(names)
+            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            for i in 1:size(pdos)[2]
+                color = colors[i%7+1]
+                #            println("i $i $color", names[i])
+                plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
+            end
+        end    
+    end
+
+        
+    
+    if global_energy_units == "eV"
+        xlabel!("DOS  ( 1 / eV )", guidefontsize=10)
+        #ylabel!("Energy - E_F ( eV )", guidefontsize=16)
+    else
+        xlabel!("DOS  ( 1 / Ryd. )", guidefontsize=10)
+        #ylabel!("Energy - E_F ( Ryd. )", guidefontsize=16)
+    end
+
+    xl1 = minimum(energies)
+    xl2 = min(10.0, maximum(energies))
+#    xl2 = ( maximum(energies))
+
+    p = ylims!(yrange[1], yrange[2])
+
+    if nspin == 1
+        xlims!(0.0, maximum(dos) * 1.1)
+    elseif nspin == 2
+        xlims!(-maximum(dos) * 1.1, maximum(dos) * 1.1)
+    end
+
+    yticks!(Float64[],String[])
+    
+    if do_display && ! no_display
+        display(plot!( [-maximum(dos) * 1.1, maximum(dos) * 1.1], [0,0], color="black", linestyle=:dot, label=""))
+    else
+
+        plot!( [-maximum(dos) * 1.1, maximum(dos) * 1.1], [0,0], color="black", linestyle=:dot, label="")
+
+    end        
+
+    return p
+    
+#    if !ismissing(filename)
+#        savefig(filename)
+    #    end
     
 end
 

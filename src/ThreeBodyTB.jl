@@ -15,6 +15,7 @@ include("Atomic.jl")
 include("Atomdata.jl")
 include("AtomicMag.jl")
 include("Crystal.jl")
+include("Symmetry.jl")
 
 using Suppressor
 
@@ -52,6 +53,10 @@ using .TB:write_tb_crys
 using .TB:get_formation_energy
 
 include("AtomicProj.jl")
+
+include("DOS.jl")
+using .DOS:dos
+
 include("BandStruct.jl")
 
 using .BandStruct:plot_compare_tb
@@ -59,9 +64,9 @@ using .BandStruct:plot_bandstr
 using .BandStruct:plot_compare_dft
 using .BandStruct:set_no_display
 using .BandStruct:band_summary
+using .BandStruct:plot_bandstr_dos
+using .BandStruct:plot_bandstr_sym
 
-include("DOS.jl")
-using .DOS:dos
 
 export Hk
 export calc_bands
@@ -72,6 +77,9 @@ export read_tb_crys
 export dos
 export write_tb_crys
 export band_summary
+
+using .TB:write_hr_dat
+export write_hr_dat
 
 
 export set_units

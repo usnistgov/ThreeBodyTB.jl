@@ -1,22 +1,260 @@
 
+
 module Symmetry
 
 using Spglib
 using ..CrystalMod:crystal
-using ..CrystalMod:make_crys
+using ..CrystalMod:makecrys
+
+spg_sym = Dict()
+spg_sym[1] = "P1"
+spg_sym[2] = "P-1"
+spg_sym[3] = "P2"
+spg_sym[4] = "P21"
+spg_sym[5] = "C2"
+spg_sym[6] = "Pm"
+spg_sym[7] = "Pc"
+spg_sym[8] = "Cm"
+spg_sym[9] = "Cc"
+spg_sym[10] = "P2/m"
+spg_sym[11] = "P21/m"
+spg_sym[12] = "C2/m"
+spg_sym[13] = "P2/c"
+spg_sym[14] = "P21/c"
+spg_sym[15] = "C2/c"
+spg_sym[16] = "P222"
+spg_sym[17] = "P2221"
+spg_sym[18] = "P21212"
+spg_sym[19] = "P212121"
+spg_sym[20] = "C2221"
+spg_sym[21] = "C222"
+spg_sym[22] = "F222"
+spg_sym[23] = "I222"
+spg_sym[24] = "I212121"
+spg_sym[25] = "Pmm2"
+spg_sym[26] = "Pmc21"
+spg_sym[27] = "Pcc2"
+spg_sym[28] = "Pma2"
+spg_sym[29] = "Pca21"
+spg_sym[30] = "Pnc2"
+spg_sym[31] = "Pmn21"
+spg_sym[32] = "Pba2"
+spg_sym[33] = "Pna21"
+spg_sym[34] = "Pnn2"
+spg_sym[35] = "Cmm2"
+spg_sym[36] = "Cmc21"
+spg_sym[37] = "Ccc2"
+spg_sym[38] = "Amm2"
+spg_sym[39] = "Aem2"
+spg_sym[40] = "Ama2"
+spg_sym[41] = "Aea2"
+spg_sym[42] = "Fmm2"
+spg_sym[43] = "Fdd2"
+spg_sym[44] = "Imm2"
+spg_sym[45] = "Iba2"
+spg_sym[46] = "Ima2"
+spg_sym[47] = "Pmmm"
+spg_sym[48] = "Pnnn"
+spg_sym[49] = "Pccm"
+spg_sym[50] = "Pban"
+spg_sym[51] = "Pmma"
+spg_sym[52] = "Pnna"
+spg_sym[53] = "Pmna"
+spg_sym[54] = "Pcca"
+spg_sym[55] = "Pbam"
+spg_sym[56] = "Pccn"
+spg_sym[57] = "Pbcm"
+spg_sym[58] = "Pnnm"
+spg_sym[59] = "Pmmn"
+spg_sym[60] = "Pbcn"
+spg_sym[61] = "Pbca"
+spg_sym[62] = "Pnma"
+spg_sym[63] = "Cmcm"
+spg_sym[64] = "Cmce"
+spg_sym[65] = "Cmmm"
+spg_sym[66] = "Cccm"
+spg_sym[67] = "Cmme"
+spg_sym[68] = "Ccce"
+spg_sym[69] = "Fmmm"
+spg_sym[70] = "Fddd"
+spg_sym[71] = "Immm"
+spg_sym[72] = "Ibam"
+spg_sym[73] = "Ibca"
+spg_sym[74] = "Imma"
+spg_sym[75] = "P4"
+spg_sym[76] = "P41"
+spg_sym[77] = "P42"
+spg_sym[78] = "P43"
+spg_sym[79] = "I4"
+spg_sym[80] = "I41"
+spg_sym[81] = "P-4"
+spg_sym[82] = "I-4"
+spg_sym[83] = "P4/m"
+spg_sym[84] = "P42/m"
+spg_sym[85] = "P4/n"
+spg_sym[86] = "P42/n"
+spg_sym[87] = "I4/m"
+spg_sym[88] = "I41/a"
+spg_sym[89] = "P422"
+spg_sym[90] = "P4212"
+spg_sym[91] = "P4122"
+spg_sym[92] = "P41212"
+spg_sym[93] = "P4222"
+spg_sym[94] = "P42212"
+spg_sym[95] = "P4322"
+spg_sym[96] = "P43212"
+spg_sym[97] = "I422"
+spg_sym[98] = "I4122"
+spg_sym[99] = "P4mm"
+spg_sym[100] = "P4bm"
+spg_sym[101] = "P42cm"
+spg_sym[102] = "P42nm"
+spg_sym[103] = "P4cc"
+spg_sym[104] = "P4nc"
+spg_sym[105] = "P42mc"
+spg_sym[106] = "P42bc"
+spg_sym[107] = "I4mm"
+spg_sym[108] = "I4cm"
+spg_sym[109] = "I41md"
+spg_sym[110] = "I41cd"
+spg_sym[111] = "P-42m"
+spg_sym[112] = "P-42c"
+spg_sym[113] = "P-421m"
+spg_sym[114] = "P-421c"
+spg_sym[115] = "P-4m2"
+spg_sym[116] = "P-4c2"
+spg_sym[117] = "P-4b2"
+spg_sym[118] = "P-4n2"
+spg_sym[119] = "I-4m2"
+spg_sym[120] = "I-4c2"
+spg_sym[121] = "I-42m"
+spg_sym[122] = "I-42d"
+spg_sym[123] = "P4/mmm"
+spg_sym[124] = "P4/mcc"
+spg_sym[125] = "P4/nbm"
+spg_sym[126] = "P4/nnc"
+spg_sym[127] = "P4/mbm"
+spg_sym[128] = "P4/mnc"
+spg_sym[129] = "P4/nmm"
+spg_sym[130] = "P4/ncc"
+spg_sym[131] = "P42/mmc"
+spg_sym[132] = "P42/mcm"
+spg_sym[133] = "P42/nbc"
+spg_sym[134] = "P42/nnm"
+spg_sym[135] = "P42/mbc"
+spg_sym[136] = "P42/mnm"
+spg_sym[137] = "P42/nmc"
+spg_sym[138] = "P42/ncm"
+spg_sym[139] = "I4/mmm"
+spg_sym[140] = "I4/mcm"
+spg_sym[141] = "I41/amd"
+spg_sym[142] = "I41/acd"
+spg_sym[143] = "P3"
+spg_sym[144] = "P31"
+spg_sym[145] = "P32"
+spg_sym[146] = "R3"
+spg_sym[147] = "P-3"
+spg_sym[148] = "R-3"
+spg_sym[149] = "P312"
+spg_sym[150] = "P321"
+spg_sym[151] = "P3112"
+spg_sym[152] = "P3121"
+spg_sym[153] = "P3212"
+spg_sym[154] = "P3221"
+spg_sym[155] = "R32"
+spg_sym[156] = "P3m1"
+spg_sym[157] = "P31m"
+spg_sym[158] = "P3c1"
+spg_sym[159] = "P31c"
+spg_sym[160] = "R3m"
+spg_sym[161] = "R3c"
+spg_sym[162] = "P-31m"
+spg_sym[163] = "P-31c"
+spg_sym[164] = "P-3m1"
+spg_sym[165] = "P-3c1"
+spg_sym[166] = "R-3m"
+spg_sym[167] = "R-3c"
+spg_sym[168] = "P6"
+spg_sym[169] = "P61"
+spg_sym[170] = "P65"
+spg_sym[171] = "P62"
+spg_sym[172] = "P64"
+spg_sym[173] = "P63"
+spg_sym[174] = "P-6"
+spg_sym[175] = "P6/m"
+spg_sym[176] = "P63/m"
+spg_sym[177] = "P622"
+spg_sym[178] = "P6122"
+spg_sym[179] = "P6522"
+spg_sym[180] = "P6222"
+spg_sym[181] = "P6422"
+spg_sym[182] = "P6322"
+spg_sym[183] = "P6mm"
+spg_sym[184] = "P6cc"
+spg_sym[185] = "P63cm"
+spg_sym[186] = "P63mc"
+spg_sym[187] = "P-6m2"
+spg_sym[188] = "P-6c2"
+spg_sym[189] = "P-62m"
+spg_sym[190] = "P-62c"
+spg_sym[191] = "P6/mmm"
+spg_sym[192] = "P6/mcc"
+spg_sym[193] = "P63/mcm"
+spg_sym[194] = "P63/mmc"
+spg_sym[195] = "P23"
+spg_sym[196] = "F23"
+spg_sym[197] = "I23"
+spg_sym[198] = "P213"
+spg_sym[199] = "I213"
+spg_sym[200] = "Pm-3"
+spg_sym[201] = "Pn-3"
+spg_sym[202] = "Fm-3"
+spg_sym[203] = "Fd-3"
+spg_sym[204] = "Im-3"
+spg_sym[205] = "Pa-3"
+spg_sym[206] = "Ia-3"
+spg_sym[207] = "P432"
+spg_sym[208] = "P4232"
+spg_sym[209] = "F432"
+spg_sym[210] = "F4132"
+spg_sym[211] = "I432"
+spg_sym[212] = "P4332"
+spg_sym[213] = "P4132"
+spg_sym[214] = "I4132"
+spg_sym[215] = "P-43m"
+spg_sym[216] = "F-43m"
+spg_sym[217] = "I-43m"
+spg_sym[218] = "P-43n"
+spg_sym[219] = "F-43c"
+spg_sym[220] = "I-43d"
+spg_sym[221] = "Pm-3m"
+spg_sym[222] = "Pn-3n"
+spg_sym[223] = "Pm-3n"
+spg_sym[224] = "Pn-3m"
+spg_sym[225] = "Fm-3m"
+spg_sym[226] = "Fm-3c"
+spg_sym[227] = "Fd-3m"
+spg_sym[228] = "Fd-3c"
+spg_sym[229] = "Im-3m"
+spg_sym[230] = "Ia-3d"
 
 
-function get_symmetry(c::crystal; verbose=true, sym_prec = 1e-5, magmoms=missing)
+"""
+    function get_symmetry(c::crystal; verbose=true, sym_prec = 5e-4, magmoms=missing)
+
+Return space group number, print other symmetry information if `verbose=true`. Based on Spglib.jl
+"""
+function get_symmetry(c::crystal; verbose=true, sym_prec = 5e-4, magmoms=missing)
 
     coords = [c.coords[i,:] for i in 1:c.nat]
     
     if ismissing(magmoms)
-        cell = Spglib.Cell(c.A, coords, c.types)
+        cell = Spglib.Cell(c.A', coords, c.types)
     else
-        cell = Spglib.Cell(c.A, c.coords, c.types, magmoms=magmoms)
+        cell = Spglib.Cell(c.A', coords, c.types, magmoms=magmoms)
     end
     
-    dat = Spglib.get_dataset(cell, sypprec = sym_prec)
+    dat = Spglib.get_dataset(cell, sym_prec)
     
     if verbose
         println("Symmetry info")
@@ -28,282 +266,92 @@ function get_symmetry(c::crystal; verbose=true, sym_prec = 1e-5, magmoms=missing
 
 end
 
+"""
+    function get_standard_crys(c::crystal; sym_prec = 5e-4, magmoms=missing, to_primitive=true)
 
-function get_standard_crys(c::crystal; sym_prec = 1e-5, magmoms=missing)
+Return standardized crystal structure, per spglib convention. Check if space-group is correct.
+"""
+function get_standard_crys(c::crystal; sym_prec = 5e-4, magmoms=missing, to_primitive=true)
 
     coords = [c.coords[i,:] for i in 1:c.nat]
+
     if ismissing(magmoms)
-        cell = Spglib.Cell(c.A, coords, c.types)
+        cell = Spglib.Cell( c.A', coords, c.types)
     else
-        cell = Spglib.Cell(c.A, coords, c.types, magmoms=magmoms)
+        cell = Spglib.Cell( c.A', coords, c.types, magmoms=magmoms)
     end
     
-    cell_std = Spglib.standardize_cell(cell, to_primitive=false, symprec=symprec)
+    cell_std = Spglib.standardize_cell(cell, to_primitive=to_primitive, symprec=sym_prec)
 
     #cell_std = Spglib.standardize_cell(cell, to_primitive=false, symprec=symprec)
     #cell_std = Spglib.find_primitive(cell_std)
 
-    coords = zeros(c.nat, 3)
+    coords = zeros( length(cell_std.positions), 3)
     t = cell_std.positions
     for i = 1:length(t)
         coords[i,:] = t[i][:]
     end
 
-    c_std = make_crys(collect(cell_std.lattice), coords, cell.types)
+    types_uniq = []
+    for tt in c.types
+        if !(tt in  types_uniq)
+            push!(types_uniq, tt)
+        end
+    end
+    
+    types_new = []
+    for i in cell_std.types
+        push!(types_new, types_uniq[i])
+    end
+              
+#    println("cell_std")
+#    println(cell_std)
+   
+    c_std = makecrys(collect(cell_std.lattice'), coords, types_new, units=:Bohr)
 
     return c_std
     
 end
 
-function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
 
-    c_std = get_standard_crys(c, sym_prec = 1e-5, magmoms=magmoms)
-    sym = get_symmetry(c_std, verbose=false, sym_prec = sym_prec, magmoms=magmoms)
+"""
+    function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
+
+The group-theory based k-point path. Uses Spglib.jl for symmetry and
+largely follows the conventions of 'High-throughput electronic band
+structure calculations: Challenges and tools' - Setyawan and Curtarolo
+Comp Mater Sci 2010
+
+Implementation based on jarvis-tools by C. Choudhary
+(https://github.com/usnistgov/jarvis/blob/master/jarvis/core/kpoints.py
+and
+https://github.com/usnistgov/jarvis/blob/master/jarvis/analysis/structure/spacegroup.py
+)
+
+"""
+function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
+
+    c_std = get_standard_crys(c, sym_prec = sym_prec, magmoms=magmoms)
+    sym = get_symmetry(c_std, verbose=true, sym_prec = sym_prec, magmoms=magmoms)
     
-    spg_sym = Dict()
-    spg_sym[1] = "P1"
-    spg_sym[2] = "P-1"
-    spg_sym[3] = "P2"
-    spg_sym[4] = "P21"
-    spg_sym[5] = "C2"
-    spg_sym[6] = "Pm"
-    spg_sym[7] = "Pc"
-    spg_sym[8] = "Cm"
-    spg_sym[9] = "Cc"
-    spg_sym[10] = "P2/m"
-    spg_sym[11] = "P21/m"
-    spg_sym[12] = "C2/m"
-    spg_sym[13] = "P2/c"
-    spg_sym[14] = "P21/c"
-    spg_sym[15] = "C2/c"
-    spg_sym[16] = "P222"
-    spg_sym[17] = "P2221"
-    spg_sym[18] = "P21212"
-    spg_sym[19] = "P212121"
-    spg_sym[20] = "C2221"
-    spg_sym[21] = "C222"
-    spg_sym[22] = "F222"
-    spg_sym[23] = "I222"
-    spg_sym[24] = "I212121"
-    spg_sym[25] = "Pmm2"
-    spg_sym[26] = "Pmc21"
-    spg_sym[27] = "Pcc2"
-    spg_sym[28] = "Pma2"
-    spg_sym[29] = "Pca21"
-    spg_sym[30] = "Pnc2"
-    spg_sym[31] = "Pmn21"
-    spg_sym[32] = "Pba2"
-    spg_sym[33] = "Pna21"
-    spg_sym[34] = "Pnn2"
-    spg_sym[35] = "Cmm2"
-    spg_sym[36] = "Cmc21"
-    spg_sym[37] = "Ccc2"
-    spg_sym[38] = "Amm2"
-    spg_sym[39] = "Aem2"
-    spg_sym[40] = "Ama2"
-    spg_sym[41] = "Aea2"
-    spg_sym[42] = "Fmm2"
-    spg_sym[43] = "Fdd2"
-    spg_sym[44] = "Imm2"
-    spg_sym[45] = "Iba2"
-    spg_sym[46] = "Ima2"
-    spg_sym[47] = "Pmmm"
-    spg_sym[48] = "Pnnn"
-    spg_sym[49] = "Pccm"
-    spg_sym[50] = "Pban"
-    spg_sym[51] = "Pmma"
-    spg_sym[52] = "Pnna"
-    spg_sym[53] = "Pmna"
-    spg_sym[54] = "Pcca"
-    spg_sym[55] = "Pbam"
-    spg_sym[56] = "Pccn"
-    spg_sym[57] = "Pbcm"
-    spg_sym[58] = "Pnnm"
-    spg_sym[59] = "Pmmn"
-    spg_sym[60] = "Pbcn"
-    spg_sym[61] = "Pbca"
-    spg_sym[62] = "Pnma"
-    spg_sym[63] = "Cmcm"
-    spg_sym[64] = "Cmce"
-    spg_sym[65] = "Cmmm"
-    spg_sym[66] = "Cccm"
-    spg_sym[67] = "Cmme"
-    spg_sym[68] = "Ccce"
-    spg_sym[69] = "Fmmm"
-    spg_sym[70] = "Fddd"
-    spg_sym[71] = "Immm"
-    spg_sym[72] = "Ibam"
-    spg_sym[73] = "Ibca"
-    spg_sym[74] = "Imma"
-    spg_sym[75] = "P4"
-    spg_sym[76] = "P41"
-    spg_sym[77] = "P42"
-    spg_sym[78] = "P43"
-    spg_sym[79] = "I4"
-    spg_sym[80] = "I41"
-    spg_sym[81] = "P-4"
-    spg_sym[82] = "I-4"
-    spg_sym[83] = "P4/m"
-    spg_sym[84] = "P42/m"
-    spg_sym[85] = "P4/n"
-    spg_sym[86] = "P42/n"
-    spg_sym[87] = "I4/m"
-    spg_sym[88] = "I41/a"
-    spg_sym[89] = "P422"
-    spg_sym[90] = "P4212"
-    spg_sym[91] = "P4122"
-    spg_sym[92] = "P41212"
-    spg_sym[93] = "P4222"
-    spg_sym[94] = "P42212"
-    spg_sym[95] = "P4322"
-    spg_sym[96] = "P43212"
-    spg_sym[97] = "I422"
-    spg_sym[98] = "I4122"
-    spg_sym[99] = "P4mm"
-    spg_sym[100] = "P4bm"
-    spg_sym[101] = "P42cm"
-    spg_sym[102] = "P42nm"
-    spg_sym[103] = "P4cc"
-    spg_sym[104] = "P4nc"
-    spg_sym[105] = "P42mc"
-    spg_sym[106] = "P42bc"
-    spg_sym[107] = "I4mm"
-    spg_sym[108] = "I4cm"
-    spg_sym[109] = "I41md"
-    spg_sym[110] = "I41cd"
-    spg_sym[111] = "P-42m"
-    spg_sym[112] = "P-42c"
-    spg_sym[113] = "P-421m"
-    spg_sym[114] = "P-421c"
-    spg_sym[115] = "P-4m2"
-    spg_sym[116] = "P-4c2"
-    spg_sym[117] = "P-4b2"
-    spg_sym[118] = "P-4n2"
-    spg_sym[119] = "I-4m2"
-    spg_sym[120] = "I-4c2"
-    spg_sym[121] = "I-42m"
-    spg_sym[122] = "I-42d"
-    spg_sym[123] = "P4/mmm"
-    spg_sym[124] = "P4/mcc"
-    spg_sym[125] = "P4/nbm"
-    spg_sym[126] = "P4/nnc"
-    spg_sym[127] = "P4/mbm"
-    spg_sym[128] = "P4/mnc"
-    spg_sym[129] = "P4/nmm"
-    spg_sym[130] = "P4/ncc"
-    spg_sym[131] = "P42/mmc"
-    spg_sym[132] = "P42/mcm"
-    spg_sym[133] = "P42/nbc"
-    spg_sym[134] = "P42/nnm"
-    spg_sym[135] = "P42/mbc"
-    spg_sym[136] = "P42/mnm"
-    spg_sym[137] = "P42/nmc"
-    spg_sym[138] = "P42/ncm"
-    spg_sym[139] = "I4/mmm"
-    spg_sym[140] = "I4/mcm"
-    spg_sym[141] = "I41/amd"
-    spg_sym[142] = "I41/acd"
-    spg_sym[143] = "P3"
-    spg_sym[144] = "P31"
-    spg_sym[145] = "P32"
-    spg_sym[146] = "R3"
-    spg_sym[147] = "P-3"
-    spg_sym[148] = "R-3"
-    spg_sym[149] = "P312"
-    spg_sym[150] = "P321"
-    spg_sym[151] = "P3112"
-    spg_sym[152] = "P3121"
-    spg_sym[153] = "P3212"
-    spg_sym[154] = "P3221"
-    spg_sym[155] = "R32"
-    spg_sym[156] = "P3m1"
-    spg_sym[157] = "P31m"
-    spg_sym[158] = "P3c1"
-    spg_sym[159] = "P31c"
-    spg_sym[160] = "R3m"
-    spg_sym[161] = "R3c"
-    spg_sym[162] = "P-31m"
-    spg_sym[163] = "P-31c"
-    spg_sym[164] = "P-3m1"
-    spg_sym[165] = "P-3c1"
-    spg_sym[166] = "R-3m"
-    spg_sym[167] = "R-3c"
-    spg_sym[168] = "P6"
-    spg_sym[169] = "P61"
-    spg_sym[170] = "P65"
-    spg_sym[171] = "P62"
-    spg_sym[172] = "P64"
-    spg_sym[173] = "P63"
-    spg_sym[174] = "P-6"
-    spg_sym[175] = "P6/m"
-    spg_sym[176] = "P63/m"
-    spg_sym[177] = "P622"
-    spg_sym[178] = "P6122"
-    spg_sym[179] = "P6522"
-    spg_sym[180] = "P6222"
-    spg_sym[181] = "P6422"
-    spg_sym[182] = "P6322"
-    spg_sym[183] = "P6mm"
-    spg_sym[184] = "P6cc"
-    spg_sym[185] = "P63cm"
-    spg_sym[186] = "P63mc"
-    spg_sym[187] = "P-6m2"
-    spg_sym[188] = "P-6c2"
-    spg_sym[189] = "P-62m"
-    spg_sym[190] = "P-62c"
-    spg_sym[191] = "P6/mmm"
-    spg_sym[192] = "P6/mcc"
-    spg_sym[193] = "P63/mcm"
-    spg_sym[194] = "P63/mmc"
-    spg_sym[195] = "P23"
-    spg_sym[196] = "F23"
-    spg_sym[197] = "I23"
-    spg_sym[198] = "P213"
-    spg_sym[199] = "I213"
-    spg_sym[200] = "Pm-3"
-    spg_sym[201] = "Pn-3"
-    spg_sym[202] = "Fm-3"
-    spg_sym[203] = "Fd-3"
-    spg_sym[204] = "Im-3"
-    spg_sym[205] = "Pa-3"
-    spg_sym[206] = "Ia-3"
-    spg_sym[207] = "P432"
-    spg_sym[208] = "P4232"
-    spg_sym[209] = "F432"
-    spg_sym[210] = "F4132"
-    spg_sym[211] = "I432"
-    spg_sym[212] = "P4332"
-    spg_sym[213] = "P4132"
-    spg_sym[214] = "I4132"
-    spg_sym[215] = "P-43m"
-    spg_sym[216] = "F-43m"
-    spg_sym[217] = "I-43m"
-    spg_sym[218] = "P-43n"
-    spg_sym[219] = "F-43c"
-    spg_sym[220] = "I-43d"
-    spg_sym[221] = "Pm-3m"
-    spg_sym[222] = "Pn-3n"
-    spg_sym[223] = "Pm-3n"
-    spg_sym[224] = "Pn-3m"
-    spg_sym[225] = "Fm-3m"
-    spg_sym[226] = "Fm-3c"
-    spg_sym[227] = "Fd-3m"
-    spg_sym[228] = "Fd-3c"
-    spg_sym[229] = "Im-3m"
-    spg_sym[230] = "Ia-3d"
 
     centering = spg_sym[sym][1]
+    centering = "$centering"    
     
-    
+    println("spg $sym $(spg_sym[sym]) $centering")
 
     a = sqrt(sum(c_std.A[1,:].^2))
     b = sqrt(sum(c_std.A[2,:].^2))
     c = sqrt(sum(c_std.A[3,:].^2))
 
-    alpha = acos(c_std.A[2,:] .* c_std.A[3,:] / b / c) * 180/pi
-    beta =  acos(c_std.A[1,:] .* c_std.A[3,:] / a / c) * 180/pi
-    gamma = acos(c_std.A[1,:] .* c_std.A[2,:] / a / b) * 180/pi
+    alpha = acos( sum(c_std.A[2,:] .* c_std.A[3,:]) / b / c) * 180/pi
+    beta =  acos( sum(c_std.A[1,:] .* c_std.A[3,:]) / a / c) * 180/pi
+    gamma = acos( sum(c_std.A[1,:] .* c_std.A[2,:]) / a / b) * 180/pi
 
+    
+    abc = round.([a,b,c,alpha, beta, gamma], digits=3)
+    println("$(abc[1]) $(abc[2]) $(abc[3])  |  $(abc[4]) $(abc[5]) $(abc[6])")
+    
 
     if sym in 1:2
         lattice="triclinic"
@@ -329,6 +377,7 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
     end
     
     if lattice == "cubic"
+        println("centering $centering ",centering == "F")
         if centering == "F"
             cat = "FCC"
         elseif centering == "I"
@@ -336,7 +385,7 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
         else
             cat = "SC"
         end
-    
+        
     elseif lattice == "tetragonal"
         if centering == "P"
             cat = "tet"
@@ -384,9 +433,9 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
             elseif gamma > 90
                 cat = "mclc1"
             else
-                if     b * cos(alpha * pi / 180) / c + b ^ 2 * sin(alpha * pi / 180) ^2 2 / a ^2 2  ≈ 1
+                if     b * cos(alpha * pi / 180) / c + b ^ 2 * sin(alpha * pi / 180) ^2  / a ^2   ≈ 1
                     cat = "mclc4"
-                
+                    
                 elseif b * cos(alpha * pi / 180) / c + b ^ 2 * sin(alpha * pi / 180) ^ 2 / a ^ 2  < 1
                     cat = "mclc3"
                 else
@@ -412,6 +461,8 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
     end
 
     #########
+
+    #println("cat $cat")
     
     kdict = Dict()
     if cat == "SC"
@@ -421,7 +472,7 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
         kdict["M"] = [0.5, 0.5, 0.0]
 
         names = ["Γ", "X", "M", "Γ", "R", "X"]
-    
+        
     elseif cat == "FCC"
         
         kdict["Γ"] = [0.0, 0.0, 0.0]
@@ -495,7 +546,7 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
 
         names =   ["Γ", "X", "S", "Y", "Γ", "Z", "U", "R", "T", "Z"]
 
-    elseif cat = "orcf1"
+    elseif cat == "orcf1"
 
         zeta = (1 + a ^ 2 / b ^ 2 - a ^ 2 / c ^ 2) / 4
         eta = (1 + a ^ 2 / b ^ 2 + a ^ 2 / c ^ 2) / 4
@@ -837,7 +888,7 @@ function get_kpath(c::crystal; sym_prec = 1e-5, magmoms = missing)
         kdict["Y"] = [0.5, 0.0, 0.0]
         kdict["Z"] = [-0.5, 0.0, 0.5]
         
-        names = ["X", "Γ", "Y", "L", "Γ", "Z", "N", "Γ", "M", "R", "Γ"],
+        names = ["X", "Γ", "Y", "L", "Γ", "Z", "N", "Γ", "M", "R", "Γ"]
 
     end
 
@@ -850,12 +901,16 @@ end
 
 
 
+"""
+    function kassemble(kdict, names)
 
+Helper function, converts names to k-points.
+"""
 function kassemble(kdict, names)
 
-    kpts = []
-    for n in names
-        push!(kpts, kdict[n])
+    kpts = zeros(length(names), 3)
+    for (i,n) in enumerate(names)
+        kpts[i,:] = kdict[n]
     end
 
     return kpts

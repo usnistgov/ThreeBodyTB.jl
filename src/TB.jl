@@ -58,6 +58,7 @@ export make_tb_crys_kspace
 export make_tb
 export make_tb_k
 export load_hr_dat
+export write_hr_dat
 export Hk
 
 export calc_bands
@@ -1263,10 +1264,12 @@ end
 
 """
     function write_hr_dat(tbc, filename="wannier90_hr.dat", directory="./")
-write an orthogonalized  wannier90 hr.dat file
-Not currently a major part of program, but you can use if you want.
+
+Write an orthogonalized  wannier90 hr.dat file
+Not currently a major part of program, but you can use if you want to
+interface with other codes.
 """
-function write_hr_dat(tbc; filename="wannier90_hr.dat", directory="./", verbose=true, grid=missing)
+function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=true, grid=missing)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -1283,9 +1286,14 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory="./", verbose=
 
     nw = size(hk3)[1]
     hk3_orth = zeros(Complex{Float64}, 1, nw, nw, grid[1], grid[2], grid[3])
+
+    nspin = tbc.nspin
+    if tbc.tb.scfspin
+        nspin = 2
+    end
     
-    for spin = 1:tbc.nspin
-        if tbc.nspin == 2
+    for spin = 1:nspin
+        if nspin == 2
             if spin == 1
                 prepend = "up."
             else spin == 2
@@ -1301,9 +1309,17 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory="./", verbose=
             for k2 = 1:grid[2]
                 for k3 = 1:grid[3]
                     sk = sk3[:,:,k1,k2,k3]
-                    hk= hk3[:,:,spin,k1,k2,k3]
-                    hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * hk * (sk^-0.5)
-
+                    if tbc.nspin == 2
+                        hk= hk3[:,:,spin,k1,k2,k3]
+                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)                        
+                    elseif tbc.tb.scfspin
+                        hk= hk3[:,:,1,k1,k2,k3]
+                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                    else
+                        hk= hk3[:,:,1,k1,k2,k3]
+                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1) * (sk^-0.5)
+                    end
+                    
 #                    println("asdf")
 #                    println( eigvals(hk, sk) - eigvals(hk3_orth[1,:,:,k1,k2,k3]))
                     
@@ -1343,16 +1359,17 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory="./", verbose=
         end
         write(hr, "\n")
         close(hr)
+        println("wrote  $fname")
         
         
     end
 
-    Nothing;
 
 end
 
 """
     function load_hr_dat(filename, directory="")
+
 Load a wannier90 hr.dat file
 Not currently a major part of program, but you can use if you want.
 """
