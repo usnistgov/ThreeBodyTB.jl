@@ -952,18 +952,19 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
         plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:bottomright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
 
         if !ismissing(names)
-            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            #colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
             for i in 1:size(pdos)[2]
                 color = colors[i%7+1]
                 #            println("i $i $color", names[i])
-                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+                plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
             end
         end    
 
         plot!( -dos[:,2], energies, color="black", lw=4, label=false)
 
         if !ismissing(names)
-            colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+            colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
             for i in 1:size(pdos)[2]
                 color = colors[i%7+1]
                 #            println("i $i $color", names[i])

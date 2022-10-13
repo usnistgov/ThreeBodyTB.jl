@@ -252,7 +252,7 @@ function plot_bandstr_dos(c::crystal;
                           database=missing, smearing = 0.025)
     
     
-    tbc, p_band = plot_bandstr_sym(c;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database)
+    tbc, p_band = plot_bandstr_sym(c;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database, nspin = nspin)
 
     ylimsX = ylims(p_band)
     
