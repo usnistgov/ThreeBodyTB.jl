@@ -4,7 +4,7 @@
 
 
 
-####################### Wannier90 specific 
+#######################
 module TB
 """
 Scripts to run tight-binding from wannier90
@@ -25,6 +25,7 @@ using Base.Threads
 
 #include("Atomdata.jl")
 using ..Atomdata:atoms
+using ..Atomdata:formation_energy_ref
 #include("Commands.jl")
 
 using ..DFToutMod:bandstructure
@@ -1069,7 +1070,7 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
 
     T=typeof(real(H[1,1,1,1]))
     
-    S =zeros(Complex{T}, size(H))
+    S =zeros(Complex{T}, size(H)[2:4])
 
     if ismissing(h1) 
         h1 =zeros(T, nw, nw)
@@ -1084,7 +1085,7 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
     else
         scfspin = true
     end
-
+    println("size H 2 ", size(H))
 
     return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, scfspin, h1, h1spin)
 end
@@ -1355,7 +1356,7 @@ end
 Load a wannier90 hr.dat file
 Not currently a major part of program, but you can use if you want.
 """
-function load_hr_dat(filename, directory="")
+function load_hr_dat(filename; directory=".")
 """
 Load hr.dat file from wannier90
 """
@@ -1425,7 +1426,9 @@ Load hr.dat file from wannier90
     
     for i = (4+wlines):length(hr_file)
         sp = split(hr_file[i])
-
+        if length(sp) == 0
+            continue
+        end
         rind = [parse(Int, sp[1]), parse(Int, sp[2]),parse(Int, sp[3])]
         
         if rind in keys(r_dict)
@@ -1459,6 +1462,7 @@ Load hr.dat file from wannier90
     if nonorth
         return make_tb(H, ind_arr, r_dict, S)
     else
+        println("size H ", size(H))
         return make_tb(H, ind_arr, r_dict)
     end
 end
@@ -4034,6 +4038,30 @@ end
 
      
      return energy0, electron_den, VECTS, VALS, efermi, error_flag
+
+ end
+
+
+"""
+    get_formation_energy(energy, types)    
+""" 
+ function get_formation_energy(energy, types)
+
+    eform = energy
+    for t in types
+        eform -= formation_energy_ref[t]
+    end
+     
+     return eform / length(types) 
+
+ end
+
+"""
+    get_formation_energy(energy, c::crystal)    
+""" 
+ function get_formation_energy(energy, c::crystal)
+
+     return get_formation_energy(energy, c.stypes)
 
  end
 
