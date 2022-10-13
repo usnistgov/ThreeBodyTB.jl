@@ -1,9 +1,9 @@
 
 module CrystalMod
 
-using AtomsBase
-using Unitful
-using UnitfulAtomic
+#using AtomsBase
+#using Unitful
+#using UnitfulAtomic
 
 using LinearAlgebra
 using Printf
@@ -322,12 +322,15 @@ function makecrys(A,coords,types; units=missing)
     return crystal{T}(A, coords, types, stypes, nat)
 end
 
+
+#=
 """
     function makecrys(atomsb::FlexibleSystem)
 
 Attempt to make a crystal from an AtomsBase object. This may not always work. Must be periodic
 """
 function makecrys(atomsb::FlexibleSystem)
+
 
     thetype = typeof(atomsb.box[1][1].val)
     
@@ -336,7 +339,7 @@ function makecrys(atomsb::FlexibleSystem)
         for j = 1:3
             x = atomsb.box[i][j]
             try
-                A[i,j] = Unitful.uconvert(u"Å",x )
+                A[i,j] = UnitfulAtomic.auconvert(u"Å",x )
             catch
                 A[i,j] = x.val * 0.529177
             end
@@ -367,7 +370,7 @@ function makecrys(atomsb::FlexibleSystem)
     return makecrys(A, pos, stypes, units="Å")
 
 end
-            
+=#            
 
                   
 
