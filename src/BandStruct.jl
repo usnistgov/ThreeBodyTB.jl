@@ -22,6 +22,15 @@ using ..CrystalMod:crystal
 using ..CrystalMod:orbital_index
 using ..TB:summarize_orb
 
+using ..DOS:dos
+using ..DOS:plot_dos_flip
+
+using ..Symmetry:get_kpath_sym
+using ..SCF:scf_energy
+
+using ..ManageDatabase:prepare_database
+using ..ManageDatabase:database_cached
+
 using ..Atomdata:atoms
 using ..BandTools:calc_fermi
 using ..BandTools:calc_fermi_sp
@@ -153,6 +162,165 @@ function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerS
     
 end
 
+"""
+    function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
+
+
+Plots the band structure using a set of K-points determined by the
+space group. Will standardize the crystal structure and run the SCF 
+calculation automatically. Conventions similar to Setyawan and Curtarolo CMS 2010
+as well as the jarvis-tools package. Other options similar to `plot_bandstr`"""
+function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=30, efermi
+                          = missing, color="blue", MarkerSize=missing, yrange=missing,
+                          plot_hk=false, align = "vbm", proj_types = missing, proj_orbs =
+                          missing, proj_nums=missing, clear_previous=true, do_display=true,
+                          color_spin = ["green", "orange"], spin = :both, nspin = 1,
+                          database=missing)
+    
+    kpts, names, c_std = get_kpath_sym(c, sym_prec = sym_prec)
+
+    if ismissing(database)
+        prepare_database(c)
+        database = database_cached
+    end
+    
+    energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
+    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
+
+
+    return tbc, p
+    
+end
+
+"""
+    function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
+
+Plots the band structure using a set of K-points determined by the
+space group. This version takes in a tight-binding crystal object from a pervious SCF calculation. 
+If the crystal is in the standardized unit cell, then it will not repeat the SCF
+calculation, but otherwise it will.
+"""
+function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
+
+    kpts, names, c_std = get_kpath_sym(tbc.crys, sym_prec = sym_prec)
+            
+    if sum(abs.(tbc.crys.A - c_std.A)) > 1e-5
+        println("need to rerun in standard structure for symmetry")
+        if ismissing(database)
+            prepare_database(tbc.crys)
+            database = database_cached
+        end
+    
+        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
+    end
+    
+    
+
+    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
+
+    
+    return tbc, p
+
+end
+
+
+"""
+    function plot_bandstr_dos(c::crystal; sym_prec = 5e-4, npts=30, efermi = missing,color="blue", MarkerSize=missing,yrange=missing,plot_hk=false, align = "fermi",  proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"],  spin = :both, nspin = 1, database=missing, smearing = 0.025)
+
+Run SCF in standardized crystal structure and calculate band structure
+along symmetry-derived k-lines, as well as the DOS. Then plot them layed out side-by-side.
+
+See `plot_bandstr_sym` and `dos`
+"""
+function plot_bandstr_dos(c::crystal;
+                          sym_prec = 5e-4,
+                          npts=30,
+                          efermi = missing,
+                          color="blue",
+                          MarkerSize=missing,
+                          yrange=missing,
+                          plot_hk=false,
+                          align = "fermi",
+                          proj_types = missing,
+                          proj_orbs = missing,
+                          proj_nums=missing,
+                          clear_previous=true,
+                          do_display=true,
+                          color_spin = ["green", "orange"],
+                          spin = :both,
+                          nspin = 1,
+                          database=missing, smearing = 0.025)
+    
+    
+    tbc, p_band = plot_bandstr_sym(c;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database)
+
+    ylimsX = ylims(p_band)
+    
+    energies,DOS, pdos, names, proj =  dos(tbc, do_display=false, smearing=smearing)
+
+    p_dos = plot_dos_flip(energies, DOS, pdos, names, do_display=false, yrange=ylimsX)
+
+    
+    l = @layout [ x{0.6w} y]
+    p = plot(p_band, p_dos, layout=l, size=(900, 400), margin = 4.0Plots.mm)
+
+    if do_display
+        display(p)
+    end
+    
+    return tbc, p
+    
+end
+
+"""
+    function plot_bandstr_dos(tbc::tb_crys)
+
+
+Plot symmetry-derived k-lines and DOS layout out together. This version takes in
+`tb_crys` object from a previous SCF calculation. Will need re-run SCF if
+`tbc.crys` is not standardized.
+
+See `plot_bandstr_sym` and `dos`
+"""
+function plot_bandstr_dos(tbc::tb_crys;
+                          sym_prec = 5e-4,
+                          npts=30,
+                          efermi = missing,
+                          color="blue",
+                          MarkerSize=missing,
+                          yrange=missing,
+                          plot_hk=false,
+                          align = "fermi",
+                          proj_types = missing,
+                          proj_orbs = missing,
+                          proj_nums=missing,
+                          clear_previous=true,
+                          do_display=true,
+                          color_spin = ["green", "orange"],
+                          spin = :both,
+                          nspin = 1,
+                          database=missing, smearing = 0.025)
+    
+    
+    tbc, p_band = plot_bandstr_sym(tbc;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database)
+
+    ylimsX = ylims(p_band)
+    
+    energies,DOS, pdos, names, proj =  dos(tbc, do_display=false, smearing=smearing)
+
+    p_dos = plot_dos_flip(energies, DOS, pdos, names, do_display=false, yrange=ylimsX)
+
+    
+    l = @layout [ x{0.6w} y]
+    p = plot(p_band, p_dos, layout=l, size=(900, 400), margin = 4.0Plots.mm)
+
+    if do_display
+        display(p)
+    end
+
+    return tbc, p
+    
+end
 
 
 """
@@ -213,8 +381,13 @@ Construct a k_path for a band structure calculations. Very simple.
 - `names` names of kpoints like `["Γ", "X"]`
 - `npts` number of points between high-symmetry kpoints
 """
-function get_kpath(kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5], names = missing, npts=30)
+function get_kpath(kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5], npts=30)
 
+#    println("get kpath")
+#    println(kpath)
+#    println(npts)
+#    println()
+    
     NK = size(kpath)[1]
     K = zeros(npts *(NK-1)+1 , 3)
 
@@ -278,7 +451,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
     if clear_previous
         #println("clear")
         #        display(plot(legend=false, grid=false, framestyle=:box))
-        plot(legend=false, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12, legendfontsize=16)
+        plot(legend=false, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12, legendfontsize=12)
     end
 
     if ismissing(MarkerSize)
@@ -292,7 +465,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
     NK = size(kpath)[1]
 
-    K, locs = get_kpath(kpath, names , npts)
+    K, locs = get_kpath(kpath, npts)
     nk = size(K)[1]
     
     proj = zeros(nk, h.nwan)
@@ -409,7 +582,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             alignstr = "Energy - Emin ($units)"
         elseif align == "fermi" || align == "ef" 
             vals = vals .- efermi
-            alignstr = "Energy - E_F ($units)"
+            alignstr = "Energy - \$E_F\$ ($units)"
         elseif align == "vbm" || align == "valence"
 
 #            println("efermi ", efermi)
@@ -521,17 +694,20 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
 #    println(locs)
 #    println(names)    
-    xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
+    p = xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
 
     if do_display && no_display == false
         println("display")
-        display(ylabel!(alignstr, guidefontsize=16))
+        display(ylabel!(alignstr, guidefontsize=12))
     else
         println("no display")
-        ylabel!(alignstr, guidefontsize=16)
+        ylabel!(alignstr, guidefontsize=12)
     end
     
     #    println("end plot")
+
+    return p
+    
     
 end
 
@@ -622,7 +798,7 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
 #    vbm = 0.0
 #    vbmD = 0.0
 
-    plot(legend=true, grid=false, framestyle=:box, xtickfontsize=16, ytickfontsize=16)
+    plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
 
     
     plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
@@ -654,9 +830,9 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
     plot!([0, nk], convert_energy([efermi_tbc, efermi_tbc] .- vbm), color="black", linestyle=:dash, label="E_F TB")
 
     if global_energy_units == "eV"
-        ylabel!("Energy - VBM (eV)", guidefontsize=16)
+        ylabel!("Energy - VBM (eV)", guidefontsize=12)
     else
-        ylabel!("Energy - VBM (Ryd.)", guidefontsize=16)
+        ylabel!("Energy - VBM (Ryd.)", guidefontsize=12)
     end
 
     if !ismissing(names) && !ismissing(locs)
@@ -688,7 +864,7 @@ function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0
 
     NK = size(kpath)[1]
 
-    K, locs = get_kpath(kpath, names , npts)
+    K, locs = get_kpath(kpath, npts)
     nk = size(K)[1]
 
     dft = runSCF(tbc.crys, nprocs=nprocs, prefix=prefix, directory=outdir, tmpdir=outdir, wannier=false, code="QE", skip=true, cleanup=true)
