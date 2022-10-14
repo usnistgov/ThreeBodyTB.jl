@@ -4218,10 +4218,10 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
            
             WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2 + occs3)/3.0
 
-            if abs(ENERGIES[c] - d.atomize_energy) > 0.1
+            if abs(ENERGIES[c] - d.atomize_energy)/d.crys.nat > 0.07
                 println("warning, issue with energy $c ", [ENERGIES[c] , d.atomize_energy])
                 WEIGHTS[c,:,:,:] .= 0.001
-                weights_list[c] = 0.0
+                weights_list[c] = 0.001
             end
 
 #        else
@@ -4737,7 +4737,9 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
             println("construct_fitted")
             @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, solve_scf_mode)
 
-
+            for i in BAD_LIST
+                ERROR[i] = 1
+            end
 
                           
             @time NEWX, NEWY, energy_counter = construct_newXY_popout(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NLAM, ERROR, EDEN_FITTED, ind_BIG, KPOINTS, SPIN, ENERGIES,ENERGY_SMEAR, WEIGHTS, KWEIGHTS, energy_weight, weights_list, lambda , scf, list_of_tbcs, DQ, X_Hnew_BIG, Xc_Hnew_BIG, keep_bool,h_on, VALS0, leave_out=leave_out)
@@ -4832,6 +4834,8 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
         
 
         good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
+        energy_error =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) 
+
 
         println("good")
         println(good)
@@ -4839,7 +4843,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
 
         database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
 
-        return database, chX
+        return database, chX, energy_error
 
     end
 
@@ -4912,13 +4916,37 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     #construct_fitted
     #list_of_tbcs,KPOINTS,KWEIGHTS, dft_list, NVAL, ind_BIG, Xc, h_on, Ys, Y_Snew_BIG, ENERGIES
     #ERROR, ind_BIG, list_of_tbcs, X_Hnew_BIG
-    
+
+    BAD_LIST = Int64[]
     
     println("CH START ", sum(ch))
     println("total doiter")
-    @time database, ch =  do_iters(ch, niters)
+    @time database, ch, energy_error  =  do_iters(ch, niters)
     println("end doiter")
+
+    for metaiter = 1:3
+        if sum(energy_error[setdiff(1:length(energy_error), BAD_LIST)] .> 0.08) > 0
+            
+            z = deepcopy(energy_error)
+            z[BAD_LIST] .= 0.0
+            max_err = argmax(z) 
+            println("BAD_LIST max_err $max_err ", energy_error[max_err])
+            push!(BAD_LIST, max_err)
+            println("BAD_LIST ", BAD_LIST)
+            println()
+            println("BAD_LIST try do_iters again $metaiter")
+            @time database, ch, energy_error =  do_iters(ch, niters)
+            println("BAD_LIST end try do_iters again $metaiter")
+        else
+            break
+        end
+    end
+    
+
     println("DONE GLOBAL iter $iter_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
+
+    old_len = 1
+    new_len = 1
     
     for iter_global = 2:niters_global
         println("GLOBAL ITER $iter_global of $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
@@ -4964,12 +4992,18 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
 
             println("old len list_of_tbcs ", length(list_of_tbcs), " dft ", length(dft_list))
 
+            old_len = length(list_of_tbcs)
+
             println("add data")
             list_of_tbcs = vcat(list_of_tbcs, tbc_list_NEW)
             println("typeof list_of_tbcs ", typeof(list_of_tbcs))
             dft_list = vcat(dft_list, dft_list_NEW2)
 
             println("new len list_of_tbcs ", length(list_of_tbcs), " dft ", length(dft_list))
+
+            new_len = length(list_of_tbcs)
+            
+
 
         end
         
@@ -5025,9 +5059,27 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     
         println("CH START ", sum(ch))
         println("do iters2 ")
-        @time database, ch =  do_iters(ch, niters)
+        @time database, ch, energy_error =  do_iters(ch, niters)
         println("end do iters2")
-        
+
+        for metaiter = 1:2
+            z = deepcopy(energy_error)
+            z[BAD_LIST] .= 0.0
+            if sum(z[old_len+1:new_len] .> 0.05) > 0
+                max_err = argmax(z[old_len+1:new_len]) + old_len
+                println("BAD_LIST max_err $max_err ", energy_error[max_err])
+                push!(BAD_LIST, max_err)
+                println("BAD_LIST ", BAD_LIST)
+                println()
+                println("BAD_LIST try do_iters again $metaiter")
+
+                @time database, ch, energy_error =  do_iters(ch, niters)
+                println("BAD_LIST end try do_iters again $metaiter")
+
+            else
+                break
+            end
+        end
         
     end
 

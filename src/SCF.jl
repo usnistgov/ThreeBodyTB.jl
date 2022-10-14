@@ -43,6 +43,7 @@ using ..TB:get_spin_h1
 using ..TB:get_dq
 using ..TB:get_energy_electron_density_kspace
 using ..TB:smearing_energy
+
 using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_lowmem
 using ..TB:get_magmom
@@ -148,6 +149,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #        energy, efermi, eden, VECTS, VALS =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
 #        error_flag = false
         dq = get_dq(tbc.crys, eden)
+
         return energy, efermi, eden, dq, VECTS, VALS, error_flag, tbc
     end
 
@@ -399,7 +401,7 @@ e_den = deepcopy(e_den0)
 
 #            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
-            if iter > 5 && (delta_eden >= delta_eden_old*0.99999 && iter%3 == 0)  #|| delta_energy_old < abs(energy_old - energy_tot)
+            if iter > 5 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
                 mixA = max(mixA * 0.5, 0.001)
                 nreduce += 1
                 if nreduce > 10 && mixing_mode == :pulay
