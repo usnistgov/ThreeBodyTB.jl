@@ -17,7 +17,7 @@ include("test_forces.jl")
 include("test_proto.jl")
 include("test_makescf.jl")
 include("test_atomicproj.jl")
-
+include("test_wan.jl")
 
 #include("test_examples.jl")
 

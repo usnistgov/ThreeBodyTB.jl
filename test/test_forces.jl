@@ -129,10 +129,10 @@ function test_stress()
             en, f_cart, stress = ThreeBodyTB.Force_Stress.get_energy_force_stress(tbc_list[x].crys, database,   smearing = smearing, repel=false);
 
             enFD, f_cartFD = ThreeBodyTB.Force_Stress.finite_diff(tbc_list[x].crys, database,1, 3,   smearing = smearing, repel=false);
-
-            #        println("TEST force finite diff: ", f_cartFD , " autodiff:   ", f_cart[1,3], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-            #        println("TEST dft ref ", dft_list[x].forces[1,3])
-            @test abs(f_cartFD - f_cart[1,3]) < 1e-4
+            
+                    println("TEST force finite diff: ", f_cartFD , " autodiff:   ", f_cart[1,3], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                    println("TEST dft ref ", dft_list[x].forces[1,3])
+            @test abs(f_cartFD - f_cart[1,3]) < 2e-4
 
 
             x=1
@@ -140,15 +140,17 @@ function test_stress()
 
             println("TEST stress11 finite diff: ", stressFD , " autodiff:   ", stress[1,1], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             println("TEST dft ref ", dft_list[x].stress[1,1])
-            @test abs(stressFD - stress[1,1]) < 1e-4
+            @test abs(stressFD - stress[1,1]) < 2e-4
 
 
             x=1
             enFD, stressFD = ThreeBodyTB.Force_Stress.finite_diff(tbc_list[x].crys, database,1, 2, stress_mode=true,  smearing = smearing, repel=false);
+            println("TEST stress12 finite diff: ", stressFD , " autodiff:   ", stress[1,2], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            println("TEST dft ref ", dft_list[x].stress[1,2])
 
             #        println("TEST stress12 finite diff: ", stressFD , " autodiff:   ", stress[1,2], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             #        println("TEST dft ref ", dft_list[x].stress[1,2])
-            @test abs(stressFD - stress[1,2]) < 1e-4
+            @test abs(stressFD - stress[1,2]) < 2e-4
 
             #        println("done")
         end
