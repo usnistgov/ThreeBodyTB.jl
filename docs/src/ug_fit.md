@@ -58,8 +58,8 @@ You can look in `code_for_dataset_gen/Prototypes.jl`
 and `reference_structures/` for examples of how to create a database of example structures.
 
 You can load `dft` variables from the
-"prefix.save/data-file-schema.xml" output file as `dft =
-[`ThreeBodyTB.QE.loadXML`](@ref)("prefix.save")`. You will need the charge
+"prefix.save/data-file-schema.xml" output file as 
+[`dft = ThreeBodyTB.QE.loadXML("prefix.save")`](@ref). You will need the charge
 density in the next step to run the non-SCF calculation, but after
 that you don't need the wavefunctions or charge density from either
 the DFT or NSCF run.
@@ -161,7 +161,7 @@ the two-body interaction coefs, and `(:Al, :Al, :Al)` with the three
 body interactions, and a `bool` called `"SCF"`.
 
 You can save the coefficients in xml files for use later with
-`ThreeBodyTB.CalcTB.write_coefs("Al_2bdy.xml", database[(:Al,Al)])` and read them with
+`ThreeBodyTB.CalcTB.write_coefs("Al_2bdy.xml", database[(:Al,:Al)])` and read them with
 `ThreeBodyTB.CalcTB.read_coefs("Al_2bdy.xml")`
 
 You can use the coefficients to run a calculation by using
