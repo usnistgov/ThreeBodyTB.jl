@@ -66,8 +66,8 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     function fix_strain(s)
         for i = 1:3
             for j = 1:3
-                s[i,j] = min(s[i,j], 0.60)
-                s[i,j] = max(s[i,j], -0.60)
+                s[i,j] = min(s[i,j], 2.0)
+                s[i,j] = max(s[i,j], -2.0)
             end
         end
         return 0.5*(s'+s)
@@ -79,21 +79,33 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     FORCES = []
     
     function fn(x)
-#        println("CALL FN", x)
+#        println("CALL FN FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+#        println(x)
+#        println()
         coords, strain = reshape_vec(x, nat, strain_mode=true)
 
         strain=fix_strain(strain)
         coords = coords .% 1.0
 
+#        println("strain")
+#        println(strain)
+        
         A = A0 * (I(3) + strain)
         
         crys_working.coords = coords
+
+        
         if  mode == "vc-relax"
             crys_working.A = A
         end
 
+#        println("crys_working")
+#        println(crys_working)
+#        println()
+
+        
         if crys_working == tbc.crys
-            #            println("SKIP")
+            #println("SKIP")
             #we already have energy from calling grad, we don't need to call again.
             return energy_global, true
         end
@@ -103,8 +115,9 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #        println("before short ")
         
         tooshort, energy_short = safe_mode_energy(crys_working, database)
-
+        println("too short $tooshort   $energy_short")
         if tooshort
+
             return energy_short, false
         end
 
@@ -341,8 +354,10 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         =#
         ##    else
 
+#    println("fn ", fn(x0))
+    
 
-    minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=5.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr)
+    minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=5.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr, verbosity="low")
 
 ##    end
 

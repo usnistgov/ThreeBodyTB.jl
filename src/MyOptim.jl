@@ -37,10 +37,11 @@ function conjgrad(fn, grad, x0; maxstep=2.0, niters=50, conv_thr = 1e-2, fn_conv
     x, step_size, good = linesearch(x, dx, fn, f, step_size, verbosity)
     step_size = min(step_size, maxstep)
 
-
+#    println("starting step $step_size")
 
     for i = 1:niters
         
+ #       println("step $i $step_size")
 
         if sum(abs.(xold - x)) > 1e-7  #only update grad if x changes
 
@@ -103,8 +104,9 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
 #    println("ls $x $dx $f0 $step_size")
 #    println("CG FN1 ss $step_size")
 
-    println("linesearch")
-    
+#    println("linesearch")
+#    println("x ", x)
+#    println("dx ", dx)
     if verbosity=="low"
         @suppress f0r, flag0r = fn( x + dx * step_size * 0.0)
     else
@@ -121,7 +123,8 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
 
 #    println("CG FN1 $f1 $flag1")
     if f1 > f0 || flag1 == false
-#        println("MY LS uphill $f1 > $f0 flag $flag1, reduce step")
+        #        println("MY LS uphill $f1 > $f0 flag $flag1, reduce step")
+#        println(f1 > f0, " or ", flag1 , " ", step_size / 3.1)
         return x, step_size/3.1, false
     end
 #    println("CG FN2")    
@@ -135,7 +138,8 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
 #    println("CG FN2 $f2 $flag2")
 
     if flag2 == false
-#        println("MY LS flag2 $flag2")
+        #        println("MY LS flag2 $flag2")
+#        pritntln("flag2 false ", step_size/1.75)
         return x + dx * step_size * 0.5, step_size/1.75, false
     end
 
@@ -143,13 +147,24 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
     a = 2 * (f2-2*f1+f0)
     b = f2 - a - c
 
+#    println("f ", [f0, f1, f2])
+    
 #    println("a b c $a $b $c ", -b/(2*a))
 
     if a < 0
-#        println("MY LS a negative $a, take max step increase stepsize")
+
+#        println("a > 0; step size ", step_size * 2.0)
+        #        println("MY LS a negative $a, take max step increase stepsize")
         return x + dx * step_size * 1.0, step_size * 2.0, true
     else
         step = min(-b/(2*a), 1.0)
+
+        if isnan(step) || isinf(step)
+            step = 0.1
+        end
+
+        #        println("else; step size ", step * step_size * 1.5, " x step $step step_size $step_size a $a b $b")
+        
 #        println("MY LS NORMAL $step")
         return x + dx * step * step_size, step * step_size * 1.5, true
     end

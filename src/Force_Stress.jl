@@ -943,6 +943,8 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
 
 #    return false, 10.0
 
+    #println("SAFE MODE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ")
+    
     #println("safemode dist")
     if !ismissing(DIST)
         R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
@@ -972,7 +974,9 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
                 
                 #                if dist_arr[a1,a2,cind,1] < dmin*2 && dist_arr[a1,a2,cind,1] > 1e-7
                 if dist_a < dmin*2 && dist_a > 1e-7
-                    energy += 1e-2/dist_a
+#                    println("add 1e-2/dist_a $dist_a")
+                    energy += 0.1/dist_a
+
                 end
 
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
@@ -980,7 +984,8 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
                 if dist_a < dmin*1.02 && dist_a > 1e-7
                     tooshort = true
                     #                    energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
-                    energy += 0.05 * (dist_a - dmin)^2 + 0.5 * abs(dist_a - dmin)
+#                    println("add 2 ", 0.5 * (dist_a - dmin)^2 + 5.0 * abs(dist_a - dmin))
+                    energy += 0.05 * (dist_a - dmin)^2 + 0.05 * abs(dist_a - dmin)
                     if var_type == Float64 && warned[a1] == false
                         println("WARNING, SAFE MODE $a1 $t1 $a2 $t2 $c ", dist_a)
                         warned[a1] = true
@@ -999,7 +1004,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
         violation_list, vio_bool = calc_frontier(crys, database, test_frontier=true, verbose=false, diststuff=DIST)
 #        println("vio_vool $vio_bool")
         if vio_bool == false
-            println("ACTIVATE SAFE MODE")
+            println("ACTIVATE SAFE MODE $energy")
             return true, energy
         else
             return false, energy
@@ -1131,6 +1136,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
 #        println("dontcheck $dontcheck")
         
         function ham(x :: Vector)
+#            println("ham ", x)
             begin
                 T=typeof(x[1])
                 

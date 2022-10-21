@@ -3917,6 +3917,7 @@ function repel_short_dist_fn(dist, dref, lim)
     if dist >= dref * (1.0 + lim); return 0.0 * dist; end
     
     x = (dref*(1.0 + lim) - dist) / (dref * lim)
+    #println("repel_short_dist_fn $dref $lim $dist $x")
     return x^3
 
 end
@@ -7761,7 +7762,8 @@ end
 
 function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
-
+#    println("low mem 2")
+    
     At = crys.A'
     
     if verbose
@@ -7852,7 +7854,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         repel_vals = zeros(var_type, crys.nat)
     end
     
-    
+#    println("repel_vals ", repel_vals)
     
     if check_only==true
         return within_fit
