@@ -132,6 +132,46 @@ function print_with_force_stress(c::crystal, force, stress)
 end   
 
 
+Base.:*(c::crystal,strain::String) = begin
+
+    println("string version")
+    
+end
+
+Base.:*(c::crystal,strain::Array{<:Real,1}) = begin
+    if size(strain) == (3,)
+        A_new = c.A*(I(3) + diagm(strain))
+        return makecrys(A_new, c.coords, c.types, units=:Bohr)
+    else
+        println("we cannot interpret as strain")
+        println(strain)
+        return c
+    end
+end
+
+Base.:*(strain::Array{<:Real,1}, c::crystal) = begin
+    return c*strain 
+end
+
+Base.:*(c::crystal,strain::Array{<:Real,2}) = begin
+    if size(strain) == (3,3)
+        A_new = c.A*(I(3) + strain)
+        return makecrys(A_new, c.coords, c.types, units=:Bohr)
+    elseif size(strain) == (1,3)
+        A_new = c.A*(I(3) + diagm(strain[:]))
+        return makecrys(A_new, c.coords, c.types, units=:Bohr)
+    else
+        println("we cannot interpret as strain")
+        println(strain)
+        return c
+    end
+end
+
+Base.:*(strain::Array{<:Real, 2}, c::crystal) = begin
+    return c*strain 
+end
+
+
 Base.:+(c1::crystal, c2::crystal) = begin
 
     if c1.nat != c2.nat

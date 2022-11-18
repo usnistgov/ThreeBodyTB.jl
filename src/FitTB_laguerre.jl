@@ -4924,7 +4924,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     @time database, ch, energy_error  =  do_iters(ch, niters)
     println("end doiter")
 
-    for metaiter = 1:3
+    for metaiter = 1:5
         if sum(energy_error[setdiff(1:length(energy_error), BAD_LIST)] .> 0.08) > 0
             
             z = deepcopy(energy_error)
@@ -5062,9 +5062,13 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
         @time database, ch, energy_error =  do_iters(ch, niters)
         println("end do iters2")
 
-        for metaiter = 1:2
+        for metaiter = 1:3
             z = deepcopy(energy_error)
+            new_len = length(z)
             z[BAD_LIST] .= 0.0
+            if length(z[old_len+1:new_len]) == 0
+                break
+            end
             if sum(z[old_len+1:new_len] .> 0.05) > 0
                 max_err = argmax(z[old_len+1:new_len]) + old_len
                 println("BAD_LIST max_err $max_err ", energy_error[max_err])
@@ -5095,7 +5099,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
 
 
     println("return")
-    return database
+    return database, passtest
     
 end
 

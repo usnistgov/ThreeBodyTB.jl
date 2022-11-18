@@ -287,8 +287,8 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
         end
     elseif length(s) == 3
 
-        println("warning, ternary not currently supported")
-        return
+        #println("warning, ternary not currently supported")
+        #return
 
         a1 = Symbol(at_arr[1])
         a2 = Symbol(at_arr[2])
@@ -305,7 +305,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
             loaded = false
             for d in dirlist
             
-                f =  "$d/tern_$a1/coef.el.3bdy.$a1.$a2.$a3.xml.gz"
+                f =  "$d/ternary/coef.el.3bdy.$a1.$a2.$a3.xml.gz"
                 if  isfile(f) || isfile(f*".gz")
                     try
                         dat = read_coefs(f)
