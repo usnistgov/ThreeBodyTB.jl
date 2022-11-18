@@ -2186,9 +2186,9 @@ function oxidation_guess(atom1, atom2)
     #    end
 
     n_config = 0
-    keep = []
+#    keep = []
     
-#    keep = [[atom1, atom2, :core_binary]]
+    keep = [[atom1, atom2, :core_binary]]
 
     for p in 1:size(possible_configs,1)
         use = false
@@ -2246,7 +2246,7 @@ function oxidation_guess(atom1, atom2)
 
         end
     end
-    if length(keep) < 1
+    if length(keep) <= 1
 #        if maximum(atom_prefered_oxidation[atom1]) > 0 || maximum(atom_prefered_oxidation[atom2]) > 0
         push!(keep, [atom1, atom2, :metals])
 #        end

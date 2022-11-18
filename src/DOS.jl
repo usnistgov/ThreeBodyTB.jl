@@ -335,6 +335,13 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
 end
 
 
+function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+
+    return dos(tbcK; smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display)
+    
+end
+
+
 function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
 
 

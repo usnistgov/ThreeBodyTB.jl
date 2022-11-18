@@ -7,6 +7,10 @@ using Suppressor
 
 TESTDIR=ThreeBodyTB.TESTDIR
 
+@suppress begin
+    ThreeBodyTB.set_units(both="atomic")
+end
+
 function loaddata(dirs; scf=true)
     tbc_list  = []
     dft_list = []
@@ -104,7 +108,7 @@ end
 
 function test_stress()
 
-    @testset "testing force znse" begin
+    @testset "testing force/stress znse" begin
         @suppress begin
         #begin
             
@@ -130,9 +134,9 @@ function test_stress()
 
             enFD, f_cartFD = ThreeBodyTB.Force_Stress.finite_diff(tbc_list[x].crys, database,1, 3,   smearing = smearing, repel=false);
             
-                    println("TEST force finite diff: ", f_cartFD , " autodiff:   ", f_cart[1,3], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-                    println("TEST dft ref ", dft_list[x].forces[1,3])
-            @test abs(f_cartFD - f_cart[1,3]) < 2e-4
+            println("TEST force finite diff: ", f_cartFD , " autodiff:   ", f_cart[1,3], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            println("TEST dft ref ", dft_list[x].forces[1,3])
+            @test abs(f_cartFD - f_cart[1,3]) < 5e-4
 
 
             x=1
@@ -140,7 +144,7 @@ function test_stress()
 
             println("TEST stress11 finite diff: ", stressFD , " autodiff:   ", stress[1,1], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             println("TEST dft ref ", dft_list[x].stress[1,1])
-            @test abs(stressFD - stress[1,1]) < 2e-4
+            @test abs(stressFD - stress[1,1]) < 5e-4
 
 
             x=1
@@ -150,7 +154,7 @@ function test_stress()
 
             #        println("TEST stress12 finite diff: ", stressFD , " autodiff:   ", stress[1,2], " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             #        println("TEST dft ref ", dft_list[x].stress[1,2])
-            @test abs(stressFD - stress[1,2]) < 2e-4
+            @test abs(stressFD - stress[1,2]) < 5e-4
 
             #        println("done")
         end

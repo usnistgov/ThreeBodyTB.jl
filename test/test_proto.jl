@@ -14,8 +14,9 @@ SRCDIR=ThreeBodyTB.SRCDIR
         @test t == tref
 
         t =  oxidation_guess("Na", "Mg")
-        tref = [["Na", "Mg", :core_binary],["Na", "Mg", :metals], ["Na", "Mg", "hh_oxygen"], ["Na", "Mg", "hh_oxygen2"], ["Na", "Mg", "hex_oxygen"]]
-
+        #tref = [["Na", "Mg", :core_binary],["Na", "Mg", :metals], ["Na", "Mg", "hh_oxygen"], ["Na", "Mg", "hh_oxygen2"], ["Na", "Mg", "hex_oxygen"]]
+        tref = [["Na", "Mg", :core_binary],["Na", "Mg", :metals]]
+        
         @test t == tref
 
         ThreeBodyTB.set_units(both="eVAng")
