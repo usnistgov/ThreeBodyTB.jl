@@ -972,7 +972,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
                 
                 #                if dist_arr[a1,a2,cind,1] < dmin*2 && dist_arr[a1,a2,cind,1] > 1e-7
                 if dist_a < dmin*2.5 && dist_a > 1e-7
-                    energy += 1e-2/dist_a
+                    energy += 0.1/dist_a
                 end
 
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
