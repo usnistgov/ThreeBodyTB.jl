@@ -239,7 +239,7 @@ Find the lowest energy atomic configuration of crystal `c`.
 - `conv_thr = 2e-3 `: Convergence threshold for gradient
 - `energy_conv_thr = 2e-4 `: Convergence threshold for energy in Ryd
 """
-function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4)
+function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, filename="t.axsf")
 
     if ismissing(database)
         ManageDatabase.prepare_database(c)
@@ -249,7 +249,7 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
         update_grid = false
     end
 
-    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr)
+    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, filename=filename)
 
    
     println("Relax done")
