@@ -223,9 +223,11 @@ Base.:*(c::crystal,a::Real) = begin
     return a*c
 end
 
-Base.:*(a::Array{Int}, c::crystal) = begin
+Base.:*(a::Vector{<:Int}, c::crystal) = begin
 
-    A_new = zeros(3,3)
+    return generate_supercell(c, a)
+    
+#=    A_new = zeros(3,3)
     A_new[1,:] = c.A[1,:] *a[1]
     A_new[2,:] = c.A[2,:] *a[2]
     A_new[3,:] = c.A[3,:] *a[3]
@@ -248,9 +250,11 @@ Base.:*(a::Array{Int}, c::crystal) = begin
     end
 
     return makecrys(A_new, coords_new, types_new, units="Bohr")
+    =#
+    
 end   
 
-Base.:*(c::crystal,  a::Array{Int} ) = begin
+Base.:*(c::crystal,  a::Vector{<:Int} ) = begin
     return a*c
 end
 
@@ -693,12 +697,37 @@ Note, perfered notation is to use syntax:
 using overloading of the `*` operator, 
 rather than calling directly.
 """
-function generate_supercell(crys, cell)
+function generate_supercell(c, cell)
 
-    if typeof(cell) == Int
+    if typeof(cell) == Int64
         cell = [cell,cell,cell]
     end
 
+    A_new = zeros(3,3)
+    A_new[1,:] = c.A[1,:] *cell[1]
+    A_new[2,:] = c.A[2,:] *cell[2]
+    A_new[3,:] = c.A[3,:] *cell[3]
+
+    n = prod(cell)
+    coords_new = zeros(n*c.nat, 3)
+    types_new = String[]
+
+    counter = 0
+    for x = 1:cell[1]
+        for y = 1:cell[2]
+            for z = 1:cell[3]
+                for i = 1:c.nat
+                    counter +=1
+                    coords_new[counter,:] = (c.coords[i,:] + [x-1, y-1, z-1]) ./ [cell[1], cell[2], cell[3]]
+                    push!(types_new, c.types[i])
+                end
+            end
+        end
+    end
+
+    return makecrys(A_new, coords_new, types_new, units="Bohr")
+
+#=    
     A = copy(crys.A)
     A[1,:] *= cell[1]
     A[2,:] *= cell[2]
@@ -719,7 +748,8 @@ function generate_supercell(crys, cell)
                 for at in 1:crys.nat
                     c+= 1
 
-                    coords[c,:] = (crys.coords[at,:] + [i, j, k]) ./ cell'
+                    coords_new[counter,:] = (c.coords[i,:] + [x-1, y-1, z-1]) ./ [a[1], a[2], a[3]]
+                    coords[c,:] = (crys.coords[at,:] + [i j k]) ./ cell
                     push!(types, crys.types[at])
                 end
             end
@@ -728,6 +758,9 @@ function generate_supercell(crys, cell)
 
     csuper = makecrys(A, coords, types, units="Bohr")
     return csuper
+
+    =#
+    
 end
 
 """
