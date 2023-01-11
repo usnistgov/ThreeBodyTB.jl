@@ -111,23 +111,42 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         end
     end
 
-    
+    a1 = sqrt(sum(tbc.crys.A[1,:].^2))
+    a2 = sqrt(sum(tbc.crys.A[2,:].^2))
+    a3 = sqrt(sum(tbc.crys.A[3,:].^2))
+
+    extend = false
+    if a1 / a2 > 3.0 || a1 / a3 > 3.0 || a2 / a3 > 3.0 || a2 / a1 > 3.0 || a3 / a1 > 3.0 || a3 / a2 > 3.0 #likely a surface, 
+        extend=true
+#        mixing_mode = :simple
+    end
+
 
     if mixing_mode != :simple
         mixing_mode = :pulay
         if mix < 0
-            if tbc.crys.nat <= 10 
-                mix = 0.9
+
+            if extend
+                mix = 0.015
             else
-                mix = 0.3
+                if tbc.crys.nat <= 10 
+                    mix = 0.8
+                else
+                    mix = 0.2
+                end
             end
         end
     else
         if mix < 0
-            if tbc.crys.nat <= 10 
-                mix= 0.1
+
+            if extend
+                mix = 0.015
             else
-                mix= 0.05
+                if tbc.crys.nat <= 10 
+                    mix= 0.1
+                else
+                    mix= 0.05
+                end
             end
                 
         end
@@ -290,6 +309,7 @@ e_den = deepcopy(e_den0)
 
 #        println("S ", e_denA)
         nreduce = 0
+        nkeep = 0
         e_den_NEW = deepcopy(e_denA)
 
         energy_band = 0.0
@@ -401,23 +421,36 @@ e_den = deepcopy(e_den0)
 
 #            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
-            if iter > 5 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
-                mixA = max(mixA * 0.5, 0.001)
+            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
+                mixA = max(mixA * 0.5, 0.0001)
                 nreduce += 1
-                if nreduce > 10 && mixing_mode == :pulay
-                    mixA = 0.2
-                    nreduce = -5
+                if nreduce > 15 && mixing_mode == :pulay
+                    #if nreduce > 3 && mixing_mode == :pulay
+                    println("switch to :simple")
+                    mixing_mode=:simple
+                    break
+                    #                    mixA = 0.02
+#                    nreduce = -5
                 end
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
 #                println("delta_energy_old $delta_energy_old new ",  abs(energy_old - energy_tot), " " ,  delta_energy_old < abs(energy_old - energy_tot))
 
+            else
+                nkeep +=1
             end
+            
             if iter == 100
                 mixA = max(mixA * 0.5, 0.001)
                 nreduce += 1
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
-            end                
+            end
 
+            if nkeep > 5
+                mixA = min(0.9, mixA*1.2)
+                #                println("keep $mixA")
+                nkeep = 0
+            end
+            
 
             if mixing_mode == :pulay
 
@@ -441,16 +474,34 @@ e_den = deepcopy(e_den0)
             end
             
             if mixing_mode == :simple 
-                e_denA = e_denA * (1 - mixA ) + e_den_NEW * (mixA )  
-            elseif iter < 4
+                mixA_temp = mixA
                 if iter == 1
-                    if tbc.crys.nat <= 10
-                        mixA_temp = 0.05
+                    if extend
+                        mixA_temp = 0.002
                     else
-                        mixA_temp = 0.025
-                    end                        
+                        mixA_temp = 0.01
+                    end
+                end 
+                e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
+
+            elseif iter <= 3
+                if iter == 1
+                    if extend
+                        mixA_temp = 0.002
+                    else
+                        if tbc.crys.nat <= 10
+                            mixA_temp = 0.005
+                        else
+                            mixA_temp = 0.0025
+                        end
+                    end
                 else
-                    mixA_temp = 0.02
+                    if extend
+                        mixA_temp = 0.004
+                    else
+                        mixA_temp = 0.02
+                    end
+
                 end
 
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
@@ -559,9 +610,9 @@ e_den = deepcopy(e_den0)
             else
 #                println("SCF CALC $iter energy   $energy_tot   en_diff ", abs(energy_tot - energy_old), "   dq_diff:   $delta_eden    ")
                 #                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, delta_eden )
-                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.(dq - dq_old)) )
+                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E    \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.(dq - dq_old)) )
 
-#                println("dq   ", round.(dq; digits=3))
+                #println("mix $mixA dq   ", round.(dq; digits=3))
 
 #                println(round.(e_denA[1,:], digits=3))
 #                if magnetic
@@ -608,7 +659,7 @@ e_den = deepcopy(e_den0)
             mixing_mode = :simple
             e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
 #            e_den = 0.5*(e_den + e_denS)
-            mix = 0.01
+            mix = 0.005
 
         end
     end
