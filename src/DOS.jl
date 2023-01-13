@@ -251,6 +251,8 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
 
     etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true)
 
+    println("dos fermi $efermi xxxxxxxxxxxxx---------------")
+    
     nspin = size(vals)[end]
     println("nspin $nspin")
     
@@ -933,6 +935,7 @@ end
 
 function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=true, yrange=[-6, 4.0])
 
+    
     if ismissing(names)
         plot(legend=false, grid=false, framestyle=:box)
     else 
@@ -943,7 +946,7 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
     if nspin == 1
     
-        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:bottomright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:topright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
@@ -956,7 +959,7 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
     elseif nspin == 2
 
-        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:bottomright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!( dos[:,1], energies, color="black", lw=4, label="Total", legend=:topright, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
 
         if !ismissing(names)
             #colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
@@ -965,6 +968,8 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
                 color = colors[i%7+1]
                 #            println("i $i $color", names[i])
                 plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
+                p = ylims!(yrange[1], yrange[2])
+                
             end
         end    
 
@@ -976,6 +981,8 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
                 color = colors[i%7+1]
                 #            println("i $i $color", names[i])
                 plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
+                p = ylims!(yrange[1], yrange[2])
+                
             end
         end    
     end
@@ -996,6 +1003,8 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
     p = ylims!(yrange[1], yrange[2])
 
+    println("DOS flit range ", yrange)
+    
     if nspin == 1
         xlims!(0.0, maximum(dos) * 1.1)
     elseif nspin == 2

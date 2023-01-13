@@ -366,6 +366,17 @@ function makecrys(A,coords,types; units=missing)
     return crystal{T}(A, coords, types, stypes, nat)
 end
 
+"""
+   function set_types(c::crystal, types)
+
+Helper function to keep crystal structure but change atoms on sites.
+Types is a new set of atom types like `["Si", "Ge"]` or `[:Si, :Ge]`
+Must match number of atoms in `c`
+"""
+function set_types(c::crystal, types)
+    makecrys(c.A, c.coords, types)
+end
+
 
 #=
 """
@@ -1184,6 +1195,19 @@ function interpolate(c1::crystal, c2::crystal; n = 5)
     
 end
 
+"""
+    function concatenate(c1::crystal, c2::crystal)
+
+Average unit cells, put atoms from each cell into average of the two cells
+"""
+function concatenate(c1::crystal, c2::crystal)
+    A = (c1.A + c2.A)/2.0
+
+    tt = vcat(c1.types, c2.types)
+    coords = vcat(c1.coords, c2.coords)
+
+    return makecrys(A,coords, tt, units="Bohr")
+end
 
 
 end #end module

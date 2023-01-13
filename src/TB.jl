@@ -45,6 +45,10 @@ using ..CrystalMod:get_grid
 using ..Ewald:electrostatics_getgamma
 using ..CrystalMod:orbital_index
 
+using ..ThreeBodyTB:convert_energy
+using ..ThreeBodyTB:global_energy_units
+
+
 export tb
 export tb_crys
 export tb_k
@@ -167,8 +171,9 @@ Base.show(io::IO, x::tb_crys) = begin
     println(io)
     println(io, "nelec: ", x.nelec, "; nspin (hoppings): ", x.nspin)
     println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin)
-    println("calculated energy: ", round(x.energy*1000)/1000)
-    println("efermi  : ", round(x.efermi*1000)/1000)
+    println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
+    println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
+    println("efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
     dq = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2

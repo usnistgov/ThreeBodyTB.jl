@@ -181,7 +181,7 @@ function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=30, efermi
     end
     
     energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
-    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
+    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=tbc.efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
 
 
     return tbc, p
@@ -206,8 +206,12 @@ function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=30, efermi = miss
             prepare_database(tbc.crys)
             database = database_cached
         end
-    
-        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
+
+        if size(tbc.eden)[1] == 2
+            nspin = 2
+        end
+        
+        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, e_den0=tbc.eden, nspin=nspin)
     end
     
     
@@ -251,7 +255,7 @@ function plot_bandstr_dos(c::crystal;
     tbc, p_band = plot_bandstr_sym(c;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database, nspin = nspin)
 
     ylimsX = ylims(p_band)
-    
+
     energies,DOS, pdos, names, proj =  dos(tbc, do_display=false, smearing=smearing)
 
     p_dos = plot_dos_flip(energies, DOS, pdos, names, do_display=false, yrange=ylimsX)
@@ -571,20 +575,33 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
     if !ismissing(align)
      #   println("align ", align)
-        align = lowercase(align)
-        if align == "min" || align == "minimum"
+        if typeof(align) == String
+            align = Symbol(lowercase(align))
+        end
+        if  align == :min || align == :minimum
             vmin = minimum(vals)
             vals = vals .- vmin
+            if (h.nspin == 2  || h.scfspin) && spin == 0
+                vals_up = vals_up .- vmin
+                vals_dn = vals_dn .- vmin
+            end
             alignstr = "Energy - Emin ($units)"
-        elseif align == "fermi" || align == "ef" 
+        elseif  align == :fermi || align == :ef
             vals = vals .- efermi
+            if (h.nspin == 2  || h.scfspin) && spin == 0
+                vals_up = vals_up .- efermi
+                vals_dn = vals_dn .- efermi
+            end
             alignstr = "Energy - \$E_F\$ ($units)"
-        elseif align == "vbm" || align == "valence"
+            println("align fermi $efermi -------------------------")
+        elseif  align == :vbm || align == :valence
 
 #            println("efermi ", efermi)
 #            println("test", sum(vals .< efermi))
             
             vbm = maximum(vals[vals .< efermi])
+            println("vbm $vbm     efermi $efermi")
+
             vals = vals .- vbm
             alignstr = "Energy - VBM ($units)"
 
@@ -614,7 +631,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
             plot!(convert_energy(vals_up[:,1]), color=color_spin[1], lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[1], label="up", grid=false, legend=true)
             for i = 2:h.nwan
-                plot!(convert_energy(vals_up[:,i]), color=color_spin[1], lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[1], label=false, grid=false, legend=:bottomright, legendfontsize=12)
+                plot!(convert_energy(vals_up[:,i]), color=color_spin[1], lw=2.0, marker=(:circle), markersize=MarkerSize, markerstrokecolor=color_spin[1], label=false, grid=false, legend=:topright, legendfontsize=12)
             end
 
                 
@@ -676,13 +693,13 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
 
     if !ismissing(align) 
 #        println("nk ", nk)
-        if align == "vbm" || align == "valence"
+        if align == :vbm || align == :valence
             plot!([0, nk+1], convert_energy([efermi - vbm, efermi - vbm]), color="gray", linestyle=:dot, label=false)
         end
-        if align == "min" || align == "minimum"
+        if align == :min || align == :minimum
             plot!([0, nk+1], convert_energy([efermi - vmin, efermi - vmin]), color="gray", linestyle=:dot, label=false)
         end
-        if align == "fermi" || align == "ef"
+        if align == :fermi || align == :ef
             plot!([0, nk+1], [0.0, 0.0], color="black", linestyle=:dot, label=false)
         end
 
