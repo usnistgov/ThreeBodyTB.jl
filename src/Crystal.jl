@@ -370,7 +370,7 @@ end
    function set_types(c::crystal, types)
 
 Helper function to keep crystal structure but change atoms on sites.
-Types is a new set of atom types like `["Si", "Ge"]` or `[:Si, :Ge]`
+cd Types is a new set of atom types like `["Si", "Ge"]` or `[:Si, :Ge]`
 Must match number of atoms in `c`
 """
 function set_types(c::crystal, types)
