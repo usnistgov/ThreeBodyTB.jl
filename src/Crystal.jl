@@ -8,6 +8,7 @@ module CrystalMod
 using LinearAlgebra
 using Printf
 using ..Atomdata:atoms
+using ..Atomdata:atom_radius
 using GZip
 
 using ..ThreeBodyTB:global_length_units
@@ -319,6 +320,15 @@ function makecrys(A,coords,types; units=missing)
 
     if typeof(types[1]) == Symbol
         types = String.(types)
+    end
+
+    for t in types
+        if !(t in keys(atoms))
+            println()
+            println("WARNING, atom $t not currently supported --------------")
+            periodictable()
+            break
+        end
     end
     
     nat = length(types)
@@ -1194,6 +1204,84 @@ function interpolate(c1::crystal, c2::crystal; n = 5)
     
     
 end
+
+"""
+    function periodictable( print_atoms = missing)
+
+Silly function. Default no argument display periodic table and
+currently allowed atoms for calculations.
+
+With array of strings as argument: print the atoms in the list. You
+can also set argument to `false` to just print a periodic table.  
+"""
+function periodictable( print_atoms = missing)
+
+    st = "Input atoms: "
+    
+    if ismissing(print_atoms)
+        print_atoms = keys(atoms)
+        st = "Currently supported atoms: "
+    end
+    
+    st1 = "H                                                  He"
+    st2 = "Li Be                               B  C  N  O  F  Ne"
+    st3 = "Na Mg                               Al Si P  S  Cl Ar"
+    st4 = "K  Ca Sc Ti V  Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr"
+    st5 = "Rb Sr Y  Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I  Xe"
+    st6 = "Cs Ba La Hf Ta W  Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn"
+
+    lan = "         Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu "
+    println()
+    println("Full table: ")
+    println("...........")
+    println(st1)
+    println(st2)
+    println(st3)
+    println(st4)
+    println(st5)
+    println(st6)
+    println()
+    println(lan)
+    println()
+    if print_atoms != false
+        println(st)
+        for a in keys(atom_radius)
+            if typeof(a) != String
+                continue
+            end
+            if !(a in print_atoms)
+                
+                if length(a) == 1
+                    ar = a*" "
+                else
+                    ar = a
+                end
+                
+                st1 = replace(st1, ar => "--")
+                st2 = replace(st2, ar => "--")
+                st3 = replace(st3, ar => "--")
+                st4 = replace(st4, ar => "--")
+                st5 = replace(st5, ar => "--")
+                st6 = replace(st6, ar => "--")
+                lan = replace(lan, ar => "--")
+            end
+        end
+        println("...........")
+        println(st1)
+        println(st2)
+        println(st3)
+        println(st4)
+        println(st5)
+        println(st6)
+        println()
+        println(lan)
+        println()
+    end    
+    
+    
+end
+
+
 
 """
     function concatenate(c1::crystal, c2::crystal)

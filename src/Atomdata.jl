@@ -257,6 +257,7 @@ atom_radius[ "Pb" ] =  147
 atom_radius[ "Bi" ] =  146
 atom_radius[ "Po" ] =  140
 atom_radius[ "At" ] =  140
+atom_radius[ "Rn" ] =  130
 
 for key in keys(atom_radius)
     atom_radius[Symbol(key)] = atom_radius[key]
