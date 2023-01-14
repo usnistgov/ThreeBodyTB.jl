@@ -1212,7 +1212,7 @@ Silly function. Default no argument display periodic table and
 currently allowed atoms for calculations.
 
 With array of strings as argument: print the atoms in the list. You
-can also set argument to `false` to just print a periodic table.  
+can also set argument to `false` to just print a periodic table for fun!
 """
 function periodictable( print_atoms = missing)
 
