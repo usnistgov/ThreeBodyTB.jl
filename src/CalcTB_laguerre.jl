@@ -3938,8 +3938,10 @@ Useful for deciding if old fitting data applies to a new structure with atoms th
 `test_frontier=true` is used to check if new structure is in the frontier.
 othersise, see if new structure changes frontier.
 """
-function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=false, diststuff=missing, verbose=true)
+function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=false, diststuff=missing, verbose=true, use_threebody=true)
 
+    println("calc_frontier use_threebody $use_threebody")
+    
     if ismissing(var_type)
         var_type=Float64
     end
@@ -3947,7 +3949,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     lim = 0.04
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
-    use_threebody=true
+    #use_threebody=true
 
     if ismissing(diststuff)
 #        println("distances")
@@ -4049,183 +4051,185 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     end
     #threebody
 
-    #println("3bd")
-    for counter = 1:size(array_ind3)[1]
-        a1 = array_ind3[counter,1]
-        a2 = array_ind3[counter,2]
-        a3 = array_ind3[counter,3]
+    if use_threebody
+        println("3bd $use_threebody")
+        for counter = 1:size(array_ind3)[1]
+            a1 = array_ind3[counter,1]
+            a2 = array_ind3[counter,2]
+            a3 = array_ind3[counter,3]
 
-#        cind1 = array_ind3[counter,4]
-#        cind2 = array_ind3[counter,5]
+            #        cind1 = array_ind3[counter,4]
+            #        cind2 = array_ind3[counter,5]
 
-        #dist = array_floats3[counter, 1]
-        #dist31 = array_floats3[counter, 2]
-        #dist32 = array_floats3[counter, 3]
-        
-        cind1 = array_ind3[counter,4]
-        cind2 = array_ind3[counter,5]
-
-        rind1 = R_keep[cind1,2:4]
-        rind2 = R_keep[cind2,2:4]
-        
-#        rind1 = R_keep_ab[cind1,4:6]
-#        rind2 = R_keep_ab[cind2,4:6]
-#        rind2 = Rind[cind2,1:3]
-        
-        dist, lmn = get_dist(a1,a2, rind1, crys, At)
-        dist31, lmn31 = get_dist(a1,a3, rind2, crys, At)
-        dist32, lmn32 = get_dist(a2,a3, -rind1+rind2, crys, At)
-
-        
-        t1 = crys.stypes[a1]
-        t2 = crys.stypes[a2]
-        t3 = crys.stypes[a3]
-        
-        if t1 == t2
-            tmp1 = min(dist31, dist32)
-            tmp2 = max(dist31, dist32)
+            #dist = array_floats3[counter, 1]
+            #dist31 = array_floats3[counter, 2]
+            #dist32 = array_floats3[counter, 3]
             
-            dist31=tmp1
-            dist32=tmp2
-        end
+            cind1 = array_ind3[counter,4]
+            cind2 = array_ind3[counter,5]
 
+            rind1 = R_keep[cind1,2:4]
+            rind2 = R_keep[cind2,2:4]
+            
+            #        rind1 = R_keep_ab[cind1,4:6]
+            #        rind2 = R_keep_ab[cind2,4:6]
+            #        rind2 = Rind[cind2,1:3]
+            
+            dist, lmn = get_dist(a1,a2, rind1, crys, At)
+            dist31, lmn31 = get_dist(a1,a3, rind2, crys, At)
+            dist32, lmn32 = get_dist(a2,a3, -rind1+rind2, crys, At)
 
-#        if dist < 6.0 && dist31 < 6.0 && dist32 < 6.0
-#            println("dist $t1 $t2 $t3 ", [dist,dist31,dist32])
-#        end
-
-        if test_frontier                 ##############
-            if dist > 5.25 || dist31 > 5.25 || dist32 > 5.25
-                continue
+            
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+            t3 = crys.stypes[a3]
+            
+            if t1 == t2
+                tmp1 = min(dist31, dist32)
+                tmp2 = max(dist31, dist32)
+                
+                dist31=tmp1
+                dist32=tmp2
             end
 
-            if haskey(frontier, (t1,t2,t3))
 
-                if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
-#                if typeof(frontier[(t1,t2,t3)]) == coefs
-                    if ismissing(frontier[(t1,t2,t3)].dist_frontier)
-                        continue
-                    end
-                    vals = frontier[(t1,t2,t3)].dist_frontier[(t1,t2,t3)]
-#                    vals = frontier[(t1,t2,t3)].dist_frontier
-                else
-                    vals = frontier[(t1,t2,t3)]
+            #        if dist < 6.0 && dist31 < 6.0 && dist32 < 6.0
+            #            println("dist $t1 $t2 $t3 ", [dist,dist31,dist32])
+            #        end
+
+            if test_frontier                 ##############
+                if dist > 5.25 || dist31 > 5.25 || dist32 > 5.25
+                    continue
                 end
 
-                vio = true
-                vio_lim = true
-                for f in vals
+                if haskey(frontier, (t1,t2,t3))
 
-                    if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
-                        vio = false
+                    if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
+                        #                if typeof(frontier[(t1,t2,t3)]) == coefs
+                        if ismissing(frontier[(t1,t2,t3)].dist_frontier)
+                            continue
+                        end
+                        vals = frontier[(t1,t2,t3)].dist_frontier[(t1,t2,t3)]
+                        #                    vals = frontier[(t1,t2,t3)].dist_frontier
+                    else
+                        vals = frontier[(t1,t2,t3)]
                     end
-                    if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
-                        vio = false
-                    end
-                    if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
-                        vio_lim = false
-                    end
-                end
 
-                if vio_lim == true
-#                    println("vio_lim true")
-                    rsum = 10000000.0
-                    rvals = zeros(var_type, 3)
+                    vio = true
+                    vio_lim = true
                     for f in vals
-                        if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
-#                            println("dist $dist $dist31 $dist32 " , f)
 
-                            rvals_t = [repel_short_dist_fn(dist, f[1], lim),repel_short_dist_fn(dist31, f[2], lim),repel_short_dist_fn(dist32, f[3], lim)]
-                            if sum(rvals_t) < rsum
-                                rsum = sum(rvals_t)
-                                rvals[:] = rvals_t[:]
-                            end
+                        if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
+                            vio = false
+                        end
+                        if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
+                            vio = false
+                        end
+                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
+                            vio_lim = false
                         end
                     end
-                    repel_vals[a1] += rvals[1] * 0.1
-                    repel_vals[a2] += rvals[1] * 0.1
-                    
-                    repel_vals[a1] += rvals[2] * 0.1
-                    repel_vals[a3] += rvals[2] * 0.1
-                    
-                    repel_vals[a2] += rvals[3] * 0.1
-                    repel_vals[a3] += rvals[3] * 0.1
-                    
-                end
-                        
 
-                
-                
-                if vio
-                    threebody_test = false
+                    if vio_lim == true
+                        #                    println("vio_lim true")
+                        rsum = 10000000.0
+                        rvals = zeros(var_type, 3)
+                        for f in vals
+                            if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
+                                #                            println("dist $dist $dist31 $dist32 " , f)
 
-                    need = true
-                    for v in violation_list
-                        if t1 == v[1] && t2 == v[2] && t3 == v[3] && abs(dist - v[4]) < 1e-5 && abs(dist31 - v[5]) < 1e-5 && abs(dist32 -v[6]) < 1e-5
-                            need = false
-                            break
-                        end
-                    end
-                    if need
-                        push!(violation_list, (t1,t2,t3,dist, dist31, dist32))
-                    end
-                    
-
-                    
-                end
-            else
-                if !( (t1,t2,t3,0,0,0) in violation_list)
-                    push!(violation_list, (t1,t2,t3,0,0,0))
-                end
-            end
-
-        else #add to frontier if necessary #############
-
-            if haskey(frontier, (t1,t2,t3))
-                need = true
-                
-                for f in frontier[(t1,t2,t3)]
-                    if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
-                        need = false
-                    end
-                    if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
-                        need = false
-                    end
-                end
-                
-                if need
-                    push!(frontier[(t1,t2,t3)], [dist, dist31,dist32])
-                    for iter = 1:5
-                        del = -1
-                        for (c1,f1) in enumerate(frontier[(t1,t2,t3)])
-                            need2 = true
-                            for (c2,f2) in enumerate(frontier[(t1,t2,t3)])
-                                if c1 != c2
-                                    
-                                    if f2[1]-1e-5 < f1[1] && f2[2]-1e-5 < f1[2] && f2[3]-1e-5 < f1[3] 
-                                        need2 = false
-                                    end
-                                    if sum(abs.(f1-f2)) < 1e-5
-                                        need2 = false
-                                    end
+                                rvals_t = [repel_short_dist_fn(dist, f[1], lim),repel_short_dist_fn(dist31, f[2], lim),repel_short_dist_fn(dist32, f[3], lim)]
+                                if sum(rvals_t) < rsum
+                                    rsum = sum(rvals_t)
+                                    rvals[:] = rvals_t[:]
                                 end
                             end
-                            if need2 == false
-                                del = c1
+                        end
+                        repel_vals[a1] += rvals[1] * 0.1
+                        repel_vals[a2] += rvals[1] * 0.1
+                        
+                        repel_vals[a1] += rvals[2] * 0.1
+                        repel_vals[a3] += rvals[2] * 0.1
+                        
+                        repel_vals[a2] += rvals[3] * 0.1
+                        repel_vals[a3] += rvals[3] * 0.1
+                        
+                    end
+                    
+
+                    
+                    
+                    if vio
+                        threebody_test = false
+
+                        need = true
+                        for v in violation_list
+                            if t1 == v[1] && t2 == v[2] && t3 == v[3] && abs(dist - v[4]) < 1e-5 && abs(dist31 - v[5]) < 1e-5 && abs(dist32 -v[6]) < 1e-5
+                                need = false
                                 break
                             end
                         end
-                        if del > 0
-                            deleteat!(frontier[(t1,t2,t3)], del)
+                        if need
+                            push!(violation_list, (t1,t2,t3,dist, dist31, dist32))
                         end
+                        
+
+                        
+                    end
+                else
+                    if !( (t1,t2,t3,0,0,0) in violation_list)
+                        push!(violation_list, (t1,t2,t3,0,0,0))
                     end
                 end
-            else
-                frontier[(t1,t2,t3)] = [[dist, dist31,dist32]]
+
+            else #add to frontier if necessary #############
+
+                if haskey(frontier, (t1,t2,t3))
+                    need = true
+                    
+                    for f in frontier[(t1,t2,t3)]
+                        if dist >= f[1]-1e-5 && dist31 >= f[2]-1e-5 && dist32 >= f[3]-1e-5
+                            need = false
+                        end
+                        if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
+                            need = false
+                        end
+                    end
+                    
+                    if need
+                        push!(frontier[(t1,t2,t3)], [dist, dist31,dist32])
+                        for iter = 1:5
+                            del = -1
+                            for (c1,f1) in enumerate(frontier[(t1,t2,t3)])
+                                need2 = true
+                                for (c2,f2) in enumerate(frontier[(t1,t2,t3)])
+                                    if c1 != c2
+                                        
+                                        if f2[1]-1e-5 < f1[1] && f2[2]-1e-5 < f1[2] && f2[3]-1e-5 < f1[3] 
+                                            need2 = false
+                                        end
+                                        if sum(abs.(f1-f2)) < 1e-5
+                                            need2 = false
+                                        end
+                                    end
+                                end
+                                if need2 == false
+                                    del = c1
+                                    break
+                                end
+                            end
+                            if del > 0
+                                deleteat!(frontier[(t1,t2,t3)], del)
+                            end
+                        end
+                    end
+                else
+                    frontier[(t1,t2,t3)] = [[dist, dist31,dist32]]
+                end
             end
         end
     end
-
+    
 #    println("repel_vals , ", repel_vals)
     
     if test_frontier   
@@ -5504,6 +5508,22 @@ function calc_onsite(t1,s1,s2, database=missing)
     end
 
     return H,S
+    
+end
+
+function laguerre_fast!(dist, memory)
+
+    a=2.0
+    ad = a*dist
+    expa=exp.(-0.5*ad)
+    memory[1] = 1.0 * expa
+    memory[2] = (1.0 .- ad) .* expa
+    memory[3]= 0.5*(ad.^2 .- 4.0*ad .+ 2) .* expa
+    memory[4] = 1.0/6.0*(-ad.^3 .+ 9.0*ad.^2 .- 18.0*ad .+ 6.0) .* expa
+    memory[5] = 1.0/24.0*(ad.^4 .- 16.0 * ad.^3 .+ 72.0*ad.^2 .- 96.0*ad .+ 24.0) .* expa
+    memory[6] = 1.0/120*(-ad.^5 .+ 25*ad.^4 .- 200 * ad.^3 .+ 600.0*ad.^2 .- 600.0*ad .+ 120.0) .* expa
+#    memory[7] = 1.0/720*(ad.^6  .- 36*ad.^5 .+ 450*ad.^4 .- 2400 * ad.^3 .+ 5400.0*ad.^2 .- 4320*ad .+ 720.0) .* expa
+
     
 end
 
@@ -7805,8 +7825,8 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 #    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3, Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX,var_type=var_type)
 
 
-    if !ismissing(DIST)
-    
+    @time if !ismissing(DIST)
+        
         R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, Rind = DIST
 
     else
@@ -7909,7 +7929,9 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
             if verbose println("2body") end
             LMN = zeros(var_type, 3, nthreads())
 
-            @threads for c = 1:nkeep_ab
+            println("nkeep_ab $nkeep_ab")
+            
+            @time @threads for c = 1:nkeep_ab #add back threads
                 id = threadid()
 
                 #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -8015,7 +8037,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
             
             if verbose println("3body") end
             #        println("3bdy")
-            if use_threebody || use_threebody_onsite
+            @time if use_threebody || use_threebody_onsite
                 #        if false
                 @threads for  counter = 1: (size(array_ind3)[1] )
                     #            for counter = 1:size(array_ind3)[1]
@@ -8736,7 +8758,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     if verbose println("distances") end
 
 
-    if !ismissing(DIST)
+    @time if !ismissing(DIST)
     
         R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
 
@@ -8781,7 +8803,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     if !ismissing(database) && check_frontier
         #    if false
         #println("check ---------------------------------")
-        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type)
+        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
         if vio_bool == false 
             within_fit = false
         end
@@ -8802,17 +8824,18 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     #    println("nkeep, $nkeep, nkeep2, $nkeep2")
     
 
-    H = zeros(var_type, 1, nwan, nwan, nkeep)
+    H = zeros(var_type, nwan, nwan, nkeep)
+
     S = zeros(var_type, nwan, nwan, nkeep)    
 
 
     ind_arr = zeros(Int64, nkeep, 3)
     ind_arr[:,:] = R_keep[:,2:4]
 
-#    println("ind_arr")
-#    for c in 1:size(ind_arr)[1]
-#        println(ind_arr[c,:])
-    #    end
+    println("ind_arr")
+    for c in 1:size(ind_arr)[1]
+        println("$c ", ind_arr[c,:])
+    end
     
     r_dict = make_rdict(ind_arr)
 
@@ -8839,9 +8862,149 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
     nkeep_ab = size(R_keep_ab)[1]
 
+    a_exp =2.0
+    
     if !ismissing(database)
 
-        twobdy =  begin
+        types_dict = Dict()
+        types_dict_reverse = Dict()
+        types_counter = 0
+        types_arr = zeros(Int64, crys.nat)
+        for a = 1:crys.nat
+            if !(crys.stypes[a]  in keys(types_dict))
+                types_counter += 1
+                types_dict[crys.stypes[a]] = types_counter
+                types_dict_reverse[types_counter] = crys.stypes[a]
+            end
+            types_arr[a] = types_dict[crys.stypes[a]]
+        end
+        
+        orbs_arr = zeros(Int64, crys.nat, 9, 2)
+        DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 33 )
+        DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 100)
+
+        for c1 = 1:types_counter
+            for c2 = 1:types_counter
+                t1 = types_dict_reverse[c1]
+                t2 = types_dict_reverse[c2]
+                coef = database[(t1,t2)]
+                indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+                DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
+                DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
+                DAT_IND_ARR[c1,c2,1,:,:,1] = inH
+                DAT_IND_ARR[c1,c2,2,:,:,1] = inS
+                DAT_ARR[c1,c2,1,1:coef.sizeH] = coef.datH
+                DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
+            end
+        end
+                
+        for a = 1:crys.nat
+            t1 = crys.stypes[a]
+            for o1x = 1:norb[a]
+                o1 = orbs[a,o1x]
+                s1 = sorbs[a,o1x]
+                orbs_arr[a,o1x,1] = o1
+                orbs_arr[a,o1x,2] = s1
+            end
+        end
+        
+        lag_arr_TH = zeros(var_type, 6, nthreads())
+        lmn_arr_TH = zeros(var_type, 3, nthreads())
+        twobody_LV = begin
+            if verbose println("2body LV") end
+
+            
+            println("nkeep_ab $nkeep_ab")
+            @time @threads for c = 1:nkeep_ab
+
+                id = threadid()
+                lmn_arr = lmn_arr_TH[:,id]
+                lag_arr = lag_arr_TH[:,id]
+                
+                cind = R_keep_ab[c,1]
+                cham = R_keep_ab[c,7]
+                a1 = R_keep_ab[c,2]
+                a2 = R_keep_ab[c,3]
+                rind1 = ind_arr[cham,1:3]
+
+                t1 = types_arr[a1]
+                t2 = types_arr[a2]
+
+                dist_a = dist_arr[c,1]
+
+                if dist_a < 1e-5
+                    continue
+                end
+                
+                lmn_arr[1] = dist_arr[c,2]
+                lmn_arr[2] = dist_arr[c,3]
+                lmn_arr[3] = dist_arr[c,4]
+                cut_a = dist_arr[c,5]
+                
+                laguerre_fast!(dist_a, lag_arr)
+
+
+                #=
+                ad = a_exp*dist_a
+                expa=exp(-0.5*ad)
+                lag_arr[1] = 1.0 * expa
+                lag_arr[2] = (1.0 - ad) * expa
+                lag_arr[3]= 0.5*(ad^2 - 4.0*ad + 2) * expa
+                lag_arr[4] = 1.0/6.0*(-ad^3 + 9.0*ad^2 - 18.0*ad + 6.0) * expa
+                lag_arr[5] = 1.0/24.0*(ad^4 - 16.0 * ad^3 + 72.0*ad^2 - 96.0*ad + 24.0) * expa
+                lag_arr[6] = 1.0/120.0*(-ad^5 + 25.0*ad^4 - 200.0 * ad^3 + 600.0*ad^2 - 600.0*ad + 120.0) * expa
+=#
+
+                
+                core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H)
+                
+                #=
+                @inbounds for o2x = 1:norb[a2]
+                    o2 = orbs_arr[a2,o2x,1]
+                    s2 = orbs_arr[a2,o2x,2]
+                                for o1x = 1:norb[a1]
+                        o1 = orbs_arr[a1,o1x,1]
+                        s1 = orbs_arr[a1,o1x,2]
+                        #nind = DAT_IND_ARR[t1,t2,1,s1,s2,1]
+                        #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        
+                        t = 0.0
+                        nind = DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        for n = 1:nind
+                            t +=  lag_arr[n]*DAT_ARR[s1,s2,1,n]
+                        end
+
+                        H[ o1, o2, cham] = t * cut_a
+                        
+                    end
+                end
+
+=#
+                
+            end
+        end
+        return H
+                
+#                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+
+                #            dist_a_old = dist_arr[a1,a2,cind,1]
+                
+                
+#                if (dist_a > cutoff2Xt || dist_a < 1e-5)
+#                    continue
+#                end
+                
+                        
+                        
+                        
+                        
+                
+                
+        #    end
+        #end
+
+        
+        @time twobdy =  begin
             if verbose println("2body") end
             LMN = zeros(var_type, 3, nthreads())
 
@@ -8869,7 +9032,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 t2 = crys.stypes[a2]
                 
                 coef = database[(t1,t2)]
-
+                
                 indH, indS, inH, inS = coef.inds_int[[t1,t2]]
 
                 cutoff2Xt = get_cutoff(t1,t2)[1]
@@ -8889,7 +9052,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 #            println("dist_a $dist_a $dist_a_old")
 
                 
-                lag = two_body_S(dist_a)
+                
 
                 if dist_a < cutoff2Xt - cutoff_length
                     cut = 1.0
@@ -9249,7 +9412,27 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 end
 
 
+function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H)
+    @inbounds @fastmath @simd for o2x = 1:norb[a2]
+        o2 = orbs_arr[a2,o2x,1]
+        s2 = orbs_arr[a2,o2x,2]
+        for o1x = 1:norb[a1]
+            o1 = orbs_arr[a1,o1x,1]
+            s1 = orbs_arr[a1,o1x,2]
+            #nind = DAT_IND_ARR[t1,t2,1,s1,s2,1]
+            #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+            
+            t = 0.0
+            
+            for n = 1:DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                t +=  lag_arr[n]*DAT_ARR[s1,s2,1,n]
+            end
 
+            H[ o1, o2, cham] = t * cut_a
+            
+        end
+    end
+end
 
 end #end module
 
