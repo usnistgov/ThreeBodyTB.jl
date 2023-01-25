@@ -5545,6 +5545,50 @@ function laguerre_fast!(dist, memory)
     
 end
 
+function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory)
+
+    a=2.0
+
+    ad_0 = a*dist_0
+    expa_0 =exp.(-0.5*ad_0)
+
+    ad_a = a*dist_a
+    expa_a =exp.(-0.5*ad_a)
+
+    ad_b = a*dist_b
+    expa_b =exp.(-0.5*ad_b)
+
+    exp_ab = expa_a * expa_b
+    
+    if triple
+        memory[1] = exp_ab
+        memory[2] = exp_ab * (1 - ad_b)
+        memory[3] = (1 - ad_a) * exp_ab
+        memory[4] = expa_0 *exp_ab
+    elseif same_atom
+        memory[1] = exp_ab
+        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
+        memory[3] = expa_0 * exp_ab
+        memory[4] = (1 - ad_0)*expa_0 * exp_ab
+        memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab
+        memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
+    else
+        memory[1] = exp_ab
+        memory[2] = exp_ab *(1 - ad_b)
+        memory[3] = (1 - ad_a)*exp_ab
+        memory[4] = expa_0 * exp_ab
+        memory[5] = (1 - ad_0)*expa_0 * exp_ab
+        memory[6] = (1 - ad_a)*(1 - ad_b)*exp_ab
+        memory[7] = expa_0 * (1 - ad_b) * exp_ab
+        memory[8] = expa_0 * (1 - ad_a) * exp_ab
+    end
+
+
+end
+
+
+
+
 """
     function laguerre(dist, ind=missing; nmax=6, memory=missing)
 
@@ -8445,7 +8489,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 #        println("size coords ", size(coords_ab_TT))
         
         dist_TT = zeros(nr1,nr2,nr3,nat, nat,4)
-        @turbo for r1 = eachindex(rf1) 
+        @tturbo for r1 = eachindex(rf1) 
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat
@@ -8460,7 +8504,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
             end
         end
 
-        @turbo  for r1 = eachindex(rf1) #1
+        @tturbo  for r1 = eachindex(rf1) #1
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat
@@ -8589,16 +8633,17 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         
         dmin_types3_TT = Dict()
     end
- if threebody
+#    println("threebody dist")
+    if threebody
 
         nz_ab = ones(Int64, nat, size(nz_ints,1)*nat,4)
         max_ind_a = zeros(UInt16, nat)
-
+        
         for a = 1:nat
             c_ab = 0
             for i = 1:size(nz_ints,1)
                 for b = 1:nat
-                    if dist_TT[nz_ints[i,1],nz_ints[i,2],nz_ints[i,3],a,b,1] < cutoff_arr[a,b]
+                    if dist_TT[nz_ints[i,1],nz_ints[i,2],nz_ints[i,3],a,b,1] < cutoff_arr[a,b,1]
                         c_ab += 1
                         nz_ab[a, c_ab,1] = nz_ints[i,1]
                         nz_ab[a, c_ab,2] = nz_ints[i,2]
@@ -8611,99 +8656,120 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         end             
 
         max_a = maximum(max_ind_a)
-        dist3 = zeros(nat,max_a, max_a,3+3*3+2)
+
+
+        dist3a = zeros(nat,max_a, max_a)
         @tturbo for a = 1:nat
             for i_b = 1:max_a
                 for i_c = 1:max_a
-                    dist3[a,i_b,i_c,1] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],1]
-                    dist3[a,i_b,i_c,2] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],1]
-
-                    dist3[a,i_b,i_c,4] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],2]
-                    dist3[a,i_b,i_c,5] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],3]
-                    dist3[a,i_b,i_c,6] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],4]
-
-                    dist3[a,i_b,i_c,7] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],2]
-                    dist3[a,i_b,i_c,8] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],3]
-                    dist3[a,i_b,i_c,9] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],4]
-                    
-                    
-                    
                     for i = 1:3
                         temp = -coords_ab_TT[i,nz_ab[a,i_b,4], nz_ab[a,i_c,4]] +At[i,1]*(rf1[nz_ab[a,i_b,1]]-rf1[nz_ab[a,i_c,1]]) + At[i,2]*(rf2[nz_ab[a,i_b,2]]-rf2[nz_ab[a,i_c,2]] )  + At[i,3]*(rf3[nz_ab[a,i_b,3]]-rf3[nz_ab[a,i_c,3]])
-                        dist3[a,i_b,i_c,3] += temp^2
-                        dist3[a,i_b,i_c,9+i] += temp
-                        
+                        dist3a[a,i_b,i_c] += temp^2
                     end
-                    dist3[a,i_b,i_c,3] = dist3[a,i_b,i_c,3]^0.5
+                    dist3a[a,i_b,i_c] = dist3a[a,i_b,i_c]^0.5
                     
                 end
             end
         end
 
-        @tturbo for a = 1:nat
-            for i_b = 1:max_a
-                for i_c = 1:max_a
-                    for i = 1:3
-                        dist3[a,i_b,i_c,9+i] = -dist3[a,i_b,i_c,9+i] / (dist3[a,i_b,i_c,3] + 1e-20)
-                    end
-                end
-            end
-        end
-
-        @tturbo  for a = 1:nat
-            for i_b = 1:max_a
-                for i_c = 1:max_a
-                    
-                    cut3 = cutoff_arr3[a, nz_ab[a,i_b,4],nz_ab[a,i_c,4]]
-                    
-                    cut_ab = cutoff_fn_fast(dist3[a,i_b,i_c,1], cutoff_arr[a, nz_ab[a,i_b,4]] - cutoff_length, cutoff_arr[a, nz_ab[a,i_b,4]])
-                    cut_ac = cutoff_fn_fast(dist3[a,i_b,i_c,2], cut3 - cutoff_length, cut3)
-                    cut_bc = cutoff_fn_fast(dist3[a,i_b,i_c,3], cut3 - cutoff_length, cut3)
-                    
-                    
-                    cut_ab2 = cutoff_fn_fast(dist3[a,i_b,i_c,1], cut3 - cutoff_length, cut3)
-                    
-                    dist3[a,i_b,i_c,13] = cut_ab*cut_bc*cut_ac
-                    dist3[a,i_b,i_c,14] = cut_ab2*cut_bc*cut_ac
-                    
-                end
-            end
-        end
-        
-        dist3_nonzero = zeros(nat*max_a*max_a,3+3*3+2)
-        nz_ind3 = zeros(Int64 ,nat*max_a*max_a,5)
         counter = 0
-        cx = [0,0,0]
-        @fastmath @inbounds @simd for a = 1:nat
+        NZ = zeros(UInt16, nat*max_a*max_a, 3)
+        @inbounds @fastmath @simd for a = 1:nat
             for i_b = 1:max_a
-                if i_b <= max_ind_a[a] && dist3[a,i_b,1,1] > 1e-3
-                    for i_c = 1:max_a
-                        if i_c <= max_ind_a[a] && dist3[a,i_b,i_c,2] > 1e-3 && dist3[a,i_b,i_c,3] > 1e-3 && dist3[a,i_b,i_c,13] > 1e-10
+                d12 = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],1]
+                if i_b <= max_ind_a[a] && d12 > 1e-3 && d12 < cutoff_arr[a, nz_ab[a,i_b,4],1]
+                    for i_c = 1:max_a 
+                        
+                        cut3 = cutoff_arr3[a, nz_ab[a,i_b,4],nz_ab[a,i_c,4]]
+                        d13 = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],1]
+                        d23 = dist3a[a,i_b,i_c]
+                        
+                        #                        if i_c <= max_ind_a[a] && d12 > 1e-3 && d13 > 1e-3 && d23  > 1e-3 && d12 < cutoff_arr[a, nz_ab[a,i_b,4],1] && d13 < cut3 && d23 < cut3
+                        if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3
                             counter += 1
-                            for c = 1:14
-                                dist3_nonzero[counter,c] =  dist3[a,i_b,i_c,c]
-                            end
-                            nz_ind3[counter, 1] = a
-                            nz_ind3[counter, 2] = nz_ab[a,i_b,4]
-                            nz_ind3[counter, 3] = nz_ab[a,i_c,4]
-                            cx[1] = nz_ab[a,i_b,1]-R[1]-1
-                            cx[2] = nz_ab[a,i_b,2]-R[2]-1
-                            cx[3] = nz_ab[a,i_b,3]-R[3]-1
-                            nz_ind3[counter, 4] = R_dict_tt[cx]
-                            cx[1] = nz_ab[a,i_c,1]-R[1]-1
-                            cx[2] = nz_ab[a,i_c,2]-R[2]-1
-                            cx[3] = nz_ab[a,i_c,3]-R[3]-1
-                            nz_ind3[counter, 5] = R_dict_tt[cx]
-                            
+                            NZ[counter,1] = a
+                            NZ[counter,2] = i_b
+                            NZ[counter,3] = i_c
                         end
                     end
                 end
             end
         end
+
+        begin
+            dist3_nonzero = zeros(counter,3+3*3+2)
+            nz_ind3 = zeros(UInt16 ,counter,5)
+        end
+        cx = [0,0,0]
+        for nz = 1:counter
+            a = NZ[nz,1]
+            i_b = NZ[nz,2]
+            i_c = NZ[nz,3]
+            
+            nz_ind3[nz, 1] = a
+            nz_ind3[nz, 2] = nz_ab[a,i_b,4]
+            nz_ind3[nz, 3] = nz_ab[a,i_c,4]
+            cx[1] = nz_ab[a,i_b,1]-R[1]-1
+            cx[2] = nz_ab[a,i_b,2]-R[2]-1
+            cx[3] = nz_ab[a,i_b,3]-R[3]-1
+            nz_ind3[nz, 4] = R_dict_tt[cx]
+            cx[1] = nz_ab[a,i_c,1]-R[1]-1
+            cx[2] = nz_ab[a,i_c,2]-R[2]-1
+            cx[3] = nz_ab[a,i_c,3]-R[3]-1
+            nz_ind3[nz, 5] = R_dict_tt[cx]
+            
+        end
+
+        #println("asdf")
+        @turbo for nz = 1:counter
+            a = NZ[nz,1]
+            i_b = NZ[nz,2]
+            i_c = NZ[nz,3]
+
+            dist3_nonzero[nz,1] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],1]
+            dist3_nonzero[nz,2] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],1]
+            
+            dist3_nonzero[nz,4] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],2]
+            dist3_nonzero[nz,5] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],3]
+            dist3_nonzero[nz,6] = dist_TT[nz_ab[a,i_b,1],nz_ab[a,i_b,2],nz_ab[a,i_b,3],a,nz_ab[a,i_b,4],4]
+            
+            dist3_nonzero[nz,7] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],2]
+            dist3_nonzero[nz,8] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],3]
+            dist3_nonzero[nz,9] = dist_TT[nz_ab[a,i_c,1],nz_ab[a,i_c,2],nz_ab[a,i_c,3],a,nz_ab[a,i_c,4],4]
+            
+            for i = 1:3
+                temp = -coords_ab_TT[i,nz_ab[a,i_b,4], nz_ab[a,i_c,4]] +At[i,1]*(rf1[nz_ab[a,i_b,1]]-rf1[nz_ab[a,i_c,1]]) + At[i,2]*(rf2[nz_ab[a,i_b,2]]-rf2[nz_ab[a,i_c,2]] )  + At[i,3]*(rf3[nz_ab[a,i_b,3]]-rf3[nz_ab[a,i_c,3]])
+                dist3_nonzero[nz,3] += temp^2
+                dist3_nonzero[nz,9+i] += temp
+                #                        println("temp $temp")
+                
+            end
+            dist3_nonzero[nz,3] = dist3_nonzero[nz,3]^0.5
+            
+        end
         
-        
-        dist3_nonzero = dist3_nonzero[1:counter,:]
-        nz_ind3 = nz_ind3[1:counter,:]
+        @turbo for nz = 1:counter
+            a = NZ[nz,1]
+            i_b = NZ[nz,2]
+            i_c = NZ[nz,3]
+
+            for i = 1:3
+                dist3_nonzero[nz,9+i] = -dist3_nonzero[nz,9+i] / (dist3_nonzero[nz,3] + 1e-20)
+            end
+            
+            cut3 = cutoff_arr3[a, nz_ab[a,i_b,4],nz_ab[a,i_c,4]]
+            
+            cut_ab = cutoff_fn_fast(dist3_nonzero[nz,1], cutoff_arr[a, nz_ab[a,i_b,4], 1] - cutoff_length, cutoff_arr[a, nz_ab[a,i_b,4], 1])
+            cut_ac = cutoff_fn_fast(dist3_nonzero[nz,2], cut3 - cutoff_length, cut3)
+            cut_bc = cutoff_fn_fast(dist3_nonzero[nz,3], cut3 - cutoff_length, cut3)
+                    
+                    
+            cut_ab2 = cutoff_fn_fast(dist3_nonzero[nz,1], cut3 - cutoff_length, cut3)
+            
+            dist3_nonzero[nz,13] = cut_ab*cut_bc*cut_ac
+            dist3_nonzero[nz,14] = cut_ab2*cut_bc*cut_ac
+            
+        end            
         
         s = Set(crys.stypes)
         dmin_types3_TT = Dict()
@@ -8742,8 +8808,8 @@ end
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
 
-    println("test")
-    @time twobody(10)
+#    println("test")
+#    @time twobody(10)
 
     
     At = crys.A'
@@ -8912,6 +8978,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 100)
 
         DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
+
+
+
         
         for c1 = 1:types_counter
             for c2 = 1:types_counter
@@ -8929,6 +8998,24 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 DAT_IND_ARR_O[c1,c2,:,:,1] = inO
                 DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
                 
+            end
+        end
+
+        DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
+        DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 64)
+
+        for c1 = 1:types_counter
+            t1 = types_dict_reverse[c1]
+            for c2 = 1:types_counter
+                t2 = types_dict_reverse[c2]
+                for c3 = 1:types_counter
+                    t3 = types_dict_reverse[c3]
+                    cdat = database[(t1,t2,t3)]
+                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+                    DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
+                    DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
+                    DAT_ARR_3[c1,c2,c3,1:length(cdat.datH)] = cdat.datH
+                end
             end
         end
         
@@ -8958,13 +9045,13 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             
             println("nkeep_ab $nkeep_ab")
             @time begin
-                @time twobody(nkeep_ab)
+                #@time twobody(nkeep_ab)
                 for c = 1:nkeep_ab
                     begin
                         id = threadid()
                         lmn_arr = lmn_arr_TH[:,id]
                         sym_arr = sym_arr_TH[:,id]
-                        sym_arrS = sym_arr_TH[:,id]
+                        sym_arrS = sym_arrS_TH[:,id]
                         lag_arr = lag_arr_TH[:,id]
                         
                         cind = R_keep_ab[c,1]
@@ -8980,7 +9067,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         if dist_a <  1e-5    # true onsite
 
-                            @time for o1x = 1:norb[a1]
+                            for o1x = 1:norb[a1]
                                 o1 = orbs_arr[a1,o1x,1]
                                 t1symbol =   crys.stypes[a1]
                                 a1a,t1a,s1 = ind2orb[o1x]
@@ -9020,7 +9107,6 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
         
         
-        return H, S
         
         #                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
 
@@ -9037,9 +9123,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
         H_thread = zeros(var_type,   nwan, nwan,  nkeep,  nthreads() )
         
-        @time threebdy = begin
+        @time threebdy_LV = begin
             
-            memoryV_th=zeros(var_type, maximum([n_3body, n_3body_onsite, n_3body_onsite_same, n_3body_same]) , nthreads())
 
             hh = zeros(var_type, nthreads(), 3,3)
 
@@ -9053,34 +9138,44 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             lag_arr_TH = zeros(var_type, 2, nthreads())
             lag_arr_TH = zeros(var_type, 2, nthreads())
             lag_arr_TH = zeros(var_type, 2, nthreads())
+
+            memory_TH = zeros(var_type, 8, nthreads())
             
-            
-            Htemp = zeros(var_type,  9,9,nthreads())
             if use_threebody || use_threebody_onsite
                 if verbose println("3body") end
                 
 
-                @threads for  counter = 1: (size(array_ind3)[1] )
+                @threads for  counter = 1: (size(array_ind3)[1] ) #add threads back
 
                     id = threadid()
 
-                    t1 = crys.stypes[a1]
-                    t2 = crys.stypes[a2]
-                    t3 = crys.stypes[a3]
 
-                    if !haskey(database, (t1, t2, t3))
+                    
+                    a1 = array_ind3[counter,1]
+                    a2 = array_ind3[counter,2]
+                    a3 = array_ind3[counter,3]
+
+                    
+                    t1s = crys.stypes[a1]
+                    t2s = crys.stypes[a2]
+                    t3s = crys.stypes[a3]
+
+                    if !haskey(database, (t1s, t2s, t3s))
                         continue
                     end
+
+                    t1 = types_arr[a1]
+                    t2 = types_arr[a2]
+                    t3 = types_arr[a3]
                     
                     
                     lmn12 = lmn_arr_TH_1[:,id]
                     lmn13 = lmn_arr_TH_2[:,id]
                     lmn23 = lmn_arr_TH_3[:,id]
-                    
-                    a1 = array_ind3[counter,1]
-                    a2 = array_ind3[counter,2]
 
-                    a3 = array_ind3[counter,3]
+                    sym_arr1 = sym_arr_TH[:,id]
+                    sym_arr2 = sym_arrS_TH[:,id]
+                    
 
                     cind1 = array_ind3[counter,4]
                     cind2 = array_ind3[counter,5]
@@ -9098,118 +9193,29 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     cut_h = array_floats3[counter,13]
                     cut_o = array_floats3[counter,14]
 
+                    memory = memory_TH[:,id]
 
                     
-                    if haskey(database, (t1, t2, t3))
-                        cdat = database[(t1,t2,t3)]
-                        (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
-                        memoryV = three_body_H_lag(d1,d2,d3,t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
+                    if use_threebody
 
-                        if use_threebody && a1 <=  a2
+                        laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
 
-                            #memoryV = three_body_H_lag(d1,d2,d3,t1==t2)
-                            
-
-                            
-                            #                        three_body_H(dist, dist31, dist32,t1==t2, memory0=memory0, memory1=memory1, memory2=memory2, memoryV=memoryV)
-                            #        memoryV = three_body_H(dist, dist31, dist32,t1==t2)
-
-                            #puts what we need in memoryV
-
-                            
-                            for sum1 = 1:maximum(sumorbs[a1,:])
-                                for sum2 = 1:maximum(sumorbs[a2,:])
-                                    @inbounds hh[id, sum1,sum2] = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
-                                end
-                            end
-
-                            sym31 = 1.0
-                            sym32 = 1.0                        
-                            
-                            
-                            
-                            #                        Htemp = zeros(norb[a1], norb[a2])
-                            #                        Htemp[:,:, id] .= 0.0
-                            
-                            
-                            for o1x = 1:norb[a1]
-                                #                                o1 = orbs[a1,o1x]
-                                s1 = sorbs[a1,o1x]
-                                sum1 = sumorbs[a1,o1x]
-                                
-                                sym31 = symmetry_factor_int(s1,1,lmn31,one ) 
-                                
-                                for o2x = 1:norb[a2]
-                                    #                                    o2 = orbs[a2,o2x]
-                                    s2 = sorbs[a2,o2x]
-                                    sum2 = sumorbs[a2,o2x] 
-                                    
-                                    #                                hht = ( (@view memoryV[1:nindX[sum1, sum2]])'* (@view cdat.datH[ (@view cindX[sum1, sum2, 1:nindX[sum1, sum2]])   ]))[1]
-                                    
-                                    sym32 = symmetry_factor_int(s2,1,lmn32, one)    
-                                    
-                                    #@inbounds Htemp[o1x,o2x,id] += hh[sum1,sum2, id] * sym31 * sym32
-                                    
-                                    #vtemp = (hh[id, sum1,sum2]) * (sym31 * sym32  * cut * 10^3)
-
-                                    Htemp[ o1x, o2x, id] = (hh[id, sum1,sum2]) * (sym31 * sym32  * cut * 10^3)
-
-                                    #                                    @inbounds H_thread[id, orbs[a1,o1x] , orbs[a2,o2x]  , cind1 ] += vtemp
-                                    #                                    if (a1 != a2) 
-                                    #                                        @inbounds H_thread[id, orbs[a2,o2x], orbs[a1,o1x] , cind1_reverse] += vtemp##
-                                    #                                    end
-                                    
-                                    
-                                end
-                            end
-
-                            #@inbounds Htemp[1:norb[a1],1:norb[a2], id] .*= cut * 10^3
-                            
-                            #                                @inbounds H_thread[orbs[a1,1:norb[a1]] , orbs[a2,1:norb[a2]]  , cind1, id ] .+= (@view Htemp[1:norb[a1],1:norb[a2], id]) * cut * 10^3
-
-
-
-
-                            @inbounds     H_thread[ orbs[a1,1]:orbs[a1,norb[a1]], orbs[a2,1]:orbs[a2,norb[a2]], cind1, id]              .+= (@view Htemp[1:norb[a1],1:norb[a2], id])
-                            if (a1 != a2) 
-                                @inbounds H_thread[ orbs[a2,1]:orbs[a2,norb[a2]], orbs[a1,1]:orbs[a1,norb[a1]] , cind1_reverse, id] .+= (@view Htemp[1:norb[a1],1:norb[a2], id])'
-                            end
-                            
-                        end
+                        core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_arr1, sym_arr2, lmn13, lmn23)
                         
-                        ############################################
-                        if use_threebody_onsite 
-
-                            #                        cut2 = array_floats3[counter, 11]
-
-
-                            for o1 = orb2ind[a1]
-                                a1a,t1,s1 = ind2orb[o1]
-                                o = calc_threebody_onsite_lag(t1,t2,t3,s1,d1,d2,d3, cdat, set_maxmin=set_maxmin) * cut2 
-
-                                
-                                @inbounds H_thread[  o1, o1,c_zero, id] += o  ####* cut2
-                            end
-                        elseif !warned_onsite && use_threebody_onsite
-                            println("WARNING, missing 3bdy onsite ", (t1, t2, t3))
-                            warned_onsite = true
-                            within_fit = false
-                        end
-                        ###########################################
-
-                    elseif !warned
-                        println("WARNING, missing 3bdy ", (t1, t2, t3))
-                        within_fit = false
-
-                        warned = true
                     end
                 end
             end
+            H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
+#           for id = 1:nthreads()
+#                println("id $id ", sum(H_thread[:,:,:,id]))
+#                println(H_thread[:,:,1,id])
+#                println()
+#            end
         end
     end
+    return H, S
 
-    H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
-
+    
     if verbose println("make") end
     if true
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
@@ -9284,13 +9290,13 @@ end
 
 function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2)
 
-    sym_dat1[1] = 1.0
-    sym_dat1[2] = 0.0
-    sym_dat1[3] = 0.0
+#    sym_dat1[1] = 1.0
+#    sym_dat1[2] = 0.0
+#    sym_dat1[3] = 0.0
 
-    sym_dat2[1] = 1.0
-    sym_dat2[2] = 0.0
-    sym_dat2[3] = 0.0
+#    sym_dat2[1] = 1.0
+#    sym_dat2[2] = 0.0
+#    sym_dat2[3] = 0.0
     
     
     @inbounds @fastmath @simd    for o2x = 1:norb[a1]
@@ -9299,8 +9305,8 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
         sum2 = orbs_arr[a1,o2x,3]
         for o1x = 1:norb[a1]
 
-            sym_dat1[1] = 1.0
-            sym_dat2[1] = 1.0
+#            sym_dat1[1] = 1.0
+#            sym_dat2[1] = 1.0
 
             o1 = orbs_arr[a1,o1x,1]
             s1 = orbs_arr[a1,o1x,2]
@@ -9325,14 +9331,14 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
                 for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
                     temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
                 end
-                temp2= temp2* symmetry_factor_int(s1, 1, lmn, sym_dat1)*symmetry_factor_int(s2, 1, lmn, sym_dat2)
+                temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
             end
 
             if (sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3)
                 for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
                     temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+5]  ]
                 end
-                temp2 = temp2* symmetry_factor_int(s1, 1, lmn, sym_dat1)*symmetry_factor_int(s2, 1, lmn, sym_dat2)
+                temp2 = temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
 
             end
 
@@ -9343,11 +9349,54 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
     end
 end
 
+function core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id, sym_dat1, sym_dat2, lmn31, lmn32)
+
+#    println("core3 $a1 $a2 $a3 $t1 $t2 $t3")
+    
+#    sym_dat1[1] = 1.0
+#    sym_dat1[2] = 0.0
+#    sym_dat1[3] = 0.0
+
+#    sym_dat2[1] = 1.0
+#    sym_dat2[2] = 0.0
+#    sym_dat2[3] = 0.0
+    
+    
+    @inbounds @fastmath @simd    for o2x = 1:norb[a2]
+        o2 = orbs_arr[a2,o2x,1]
+        s2 = orbs_arr[a2,o2x,2]
+        sum2 = orbs_arr[a2,o2x,3]
+
+        sym32 = symmetry_factor_int(s2,1,lmn32, one ) 
+
+        for o1x = 1:norb[a1]
+
+            o1 = orbs_arr[a1,o1x,1]
+            s1 = orbs_arr[a1,o1x,2]
+            sum1 = orbs_arr[a1,o1x,3]
+
+            
+            sym31 = symmetry_factor_int(s1,1,lmn31, one )    
+
+            
+            temp = 0.0
+            for i = 1:DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1]
+                temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1+i]]
+            end
+#            println(DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1], ", $a1 $a2 $a3 | $o1x $o2x | temp $temp | sum(mem) ", sum(memory), " sum DAT_ARR " , sum(DAT_ARR_3[t1,t2,t3,sum1, sum2, :]))
+            H_thread[o1,o2,cind1,id] += temp * sym31*sym32*10^3 * cut_h
+        end
+    end
+            
+end
+
 function twobody(nkeep_ab::Int64)
     @threads for c = 1:nkeep_ab
         begin
         end
     end
+
+    
 end
 
 end #end module
