@@ -266,7 +266,16 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     for (o, i) in zip(orb2, eigs)
 #        d[o] = (i * convert_ev_ryd + shift)
         d[o] = (i * convert_ev_ryd - vac_potential)
-
+        if o == :s
+            d[1] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :p
+            d[2] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :d
+            d[3] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :f
+            d[4] = (i * convert_ev_ryd - vac_potential)
+        end
+        
 #        println("d ", d[o], " ", o)
     end
 

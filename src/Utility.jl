@@ -11,6 +11,10 @@ Some useful functions
 """
 
 function cutoff_fn(num, min_c, max_c)
+
+    if num < 1e-4
+        return 0.0
+    end
     if num < min_c
         return 1.0
     elseif num > max_c
@@ -19,6 +23,12 @@ function cutoff_fn(num, min_c, max_c)
         t = (num - min_c)/(max_c-min_c)
         return 1.0 - 10.0 * t^3 + 15.0 *  t^4  - 6.0 * t^5
     end
+end
+
+function cutoff_fn_fast(num, min_c, max_c)
+
+    t = (num - min_c)/(max_c-min_c)
+    return max.(min.(1.0 - 10.0 * t^3 + 15.0 *  t^4  - 6.0 * t^5, 1.0), 0.0)
 end
 
 function arr2str(a::Array{Int,1})
