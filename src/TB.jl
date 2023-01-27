@@ -2175,8 +2175,8 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
 
         rDEN = zeros(thetype, nwan, nwan, nk)
         iDEN = zeros(thetype, nwan, nwan, nk)
-        rv = zeros(thetype, nwan, nwan, nk, nspin)
-        iv = zeros(thetype, nwan, nwan, nk, nspin)
+        rv = zeros(thetype, nwan, nwan, nk)
+        iv = zeros(thetype, nwan, nwan, nk)
         
         
         if true
@@ -2625,15 +2625,11 @@ function go_charge15(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv)
     d = zeros(Complex{Float64}, nw,nw)
     charge = zeros(nspin, nw)
 
-    #         println("nw $nw nk $nk")
-    #         println(size(VECTS))
-    #         println(size(S))
-    #         println(size(occ))
-    rv[:,:,:,:] .= real.(VECTS)
-    iv[:,:,:,:] .= imag.(VECTS)    
-
 
     for spin = 1:nspin
+        rv[:,:,:] .= real.(VECTS[:,:,:,spin])
+        iv[:,:,:] .= imag.(VECTS[:,:,:,spin])    
+
         rDEN .= 0.0
         iDEN .= 0.0
         @tturbo for n = 1:max_occ
@@ -2646,8 +2642,8 @@ function go_charge15(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv)
 
 #                        DEN[a,b,k] += occ[k,n,spin].*  ( real(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + real(VECTS[a,n,k,spin])*im * imag(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*im*imag(VECTS[b,n,k,spin]))
 
-                        rDEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k,spin]*rv[b,n,k,spin] + iv[a,n,k,spin]*iv[b,n,k,spin])
-                        iDEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k,spin]*iv[b,n,k,spin] - iv[a,n,k,spin]*rv[b,n,k,spin])
+                        rDEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k]*rv[b,n,k] + iv[a,n,k]*iv[b,n,k])
+                        iDEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k]*iv[b,n,k] - iv[a,n,k]*rv[b,n,k])
                         
                         #DEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k,spin]*rv[b,n,k,spin]-iv[b,n,k,spin]*iv[a,n,k,spin])
 

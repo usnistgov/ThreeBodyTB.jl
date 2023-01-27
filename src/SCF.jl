@@ -101,6 +101,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         magnetic = false
     end
 
+    if magnetic
+        mixing_mode=:simple
+    end
+    
     if !ismissing(e_den0)
         if size(e_den0)[1] == 2 && nspin == 1
             println("switch to nspin == 2 because of initial charge density")
@@ -190,15 +194,17 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         e_den0 = deepcopy(tbc.eden)
     end
     dq = get_dq(tbc.crys, e_den0)
+    if nspin == 2 && size(e_den0,1) == 1
+        e_den0 = [e_den0;e_den0]
+        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.5
+        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.5
+    end    
+
     if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
         if verbose println("bad guess, instead get neutral atoms initial guess") end
         e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
     end
-    if nspin == 2 && size(e_den0,1) == 1
-        e_den0 = [e_den0;e_den0]
-        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.2
-        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
-    end    
+
     
     if verbose
         if magnetic 
@@ -219,6 +225,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     if ismissing(grid)
         grid = get_grid(tbc.crys)
     end
+
+    nk = prod(grid)
     
     if verbose
         println()
@@ -244,7 +252,6 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     thetype=typeof(real(sk3[1,1,1,1,1]))
 
     
-    nk = prod(grid)
 
     
     VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
@@ -353,8 +360,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         
         for iter = 1:ITERS
 
-#            println("ΔQ: ", (round.(dq; digits=3)))
-#            println("e_denA ", e_denA)
+            if false
+                println("ΔQ: ", (round.(dq; digits=3)))
+                println("μB: ", round.(get_magmom(tbc.crys, e_denA), digits=3))
+            end
+            
+            #            println("e_denA ", e_denA)
             
             delta_dq2[:] = delta_dq[:]
             
@@ -772,11 +783,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #        println("try kfg")
         conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
         
-        if conv == false
-            println("kfg NO  converge")
-        else
-            println("kfg YES converge")
-        end            
+#        if conv == false
+#            println("kfg NO  converge")
+#        else
+#            println("kfg YES converge")
+#        end            
         
         if true && conv == false 
             println("kfg mix no convergence, switch to simple mixing")

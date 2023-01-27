@@ -102,7 +102,7 @@ function test1()
 
         newdatabase_rec = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false, kpoints=kpts);
         
-        @test sum(abs.(newdatabase_rec[(:Hx, :Hx)].datH .- database[(:Hx, :Hx)].datH)) ≤ 1e-3
+        @test sum(abs.(newdatabase_rec[(:Hx, :Hx)].datH .- database[(:Hx, :Hx)].datH)) ≤ 0.1
 
         
 

@@ -8559,11 +8559,21 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
                 for r3 = eachindex(rf3)
                     for a = 1:nat
                         for b = 1:nat
-                            dtemp = dist_TT[r1,r2,r3,a,b,1]^0.5
-                            dist_TT[r1,r2,r3,a,b,1] = dtemp
-                            dist_TT[r1,r2,r3,a,b,2] = dist_TT[r1,r2,r3,a,b,2]/(dtemp + 1e-20)
-                            dist_TT[r1,r2,r3,a,b,3] = dist_TT[r1,r2,r3,a,b,3]/(dtemp + 1e-20)
-                            dist_TT[r1,r2,r3,a,b,4] = dist_TT[r1,r2,r3,a,b,4]/(dtemp + 1e-20)
+#                            dtemp = dist_TT[r1,r2,r3,a,b,1]^0.5
+                            dist_TT[r1,r2,r3,a,b,1] = dist_TT[r1,r2,r3,a,b,1]^0.5
+                        end
+                    end
+                end
+            end
+        end
+        @turbo  for r1 = eachindex(rf1) #1
+            for r2 = eachindex(rf2)
+                for r3 = eachindex(rf3)
+                    for a = 1:nat
+                        for b = 1:nat
+                            dist_TT[r1,r2,r3,a,b,2] = dist_TT[r1,r2,r3,a,b,2]/(dist_TT[r1,r2,r3,a,b,1] + 1e-20)
+                            dist_TT[r1,r2,r3,a,b,3] = dist_TT[r1,r2,r3,a,b,3]/(dist_TT[r1,r2,r3,a,b,1] + 1e-20)
+                            dist_TT[r1,r2,r3,a,b,4] = dist_TT[r1,r2,r3,a,b,4]/(dist_TT[r1,r2,r3,a,b,1] + 1e-20)
                         end
                     end
                 end
