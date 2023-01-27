@@ -39,13 +39,15 @@ using ..CrystalMod:orbital_index
 using ..TB:get_neutral_eden
 
 using ..TB:get_h1
+using ..TB:get_h1_dq
 using ..TB:get_spin_h1
 using ..TB:get_dq
 using ..TB:get_energy_electron_density_kspace
 using ..TB:smearing_energy
 
-using ..CalcTB:calc_tb_lowmem2
-using ..CalcTB:calc_tb_lowmem
+#using ..CalcTB:calc_tb_lowmem2
+using ..CalcTB:calc_tb_LV
+#using ..CalcTB:calc_tb_lowmem
 using ..TB:get_magmom
 using ..CrystalMod:get_grid
 
@@ -72,7 +74,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true)
 
     #println("calc tb")
-    tbc = calc_tb_lowmem2(c, database, verbose=verbose, repel=repel);
+    tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel);
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
@@ -81,13 +83,14 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
 end
 
 """
-    function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
+    function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 200, mix = -1.0, mixing_mode=:pulay, verbose=true, nspin=1)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
+    #println("e_den0 $e_den0")
     if tbc.nspin == 2
         nspin = 2
     end
@@ -122,17 +125,17 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
 
 
-    if mixing_mode != :simple
-        mixing_mode = :pulay
+    if mixing_mode != :pulay && mixing_mode != :kfg
+        mixing_mode = :simple
         if mix < 0
 
             if extend
-                mix = 0.015
+                mix = 0.05
             else
                 if tbc.crys.nat <= 10 
-                    mix = 0.8
+                    mix = 0.5
                 else
-                    mix = 0.2
+                    mix = 0.3
                 end
             end
         end
@@ -140,12 +143,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         if mix < 0
 
             if extend
-                mix = 0.015
+                mix = 0.05
             else
                 if tbc.crys.nat <= 10 
-                    mix= 0.1
+                    mix= 0.5
                 else
-                    mix= 0.05
+                    mix= 0.3
                 end
             end
                 
@@ -182,32 +185,36 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         z_ion = at.nval
         tot_charge += z_ion / 2.0
     end
-    
+
     if ismissing(e_den0)
-
+        e_den0 = deepcopy(tbc.eden)
+    end
+    dq = get_dq(tbc.crys, e_den0)
+    if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
+        if verbose println("bad guess, instead get neutral atoms initial guess") end
         e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-
-
-#        println("e_den0", e_den0)
-        dq = get_dq(tbc.crys, e_den0)
-        if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
-            if verbose println("bad guess, instead get neutral atoms initial guess") end
-            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-        end
-        if verbose
-            if magnetic 
-                println("Initial ΔQ: ", (round.(dq; digits=3)), "; Initial spin: ", round.(sum(e_den0, dims=2); digits=3))
-            else
-                println("Initial ΔQ: ", (round.(dq; digits=3)))
-            end
-        end
-    else
-        if verbose println("Get initial charge density from input") end
-        if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
-            if verbose println("bad guess, instead get neutral atoms initial guess") end
-            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+    end
+    if nspin == 2 && size(e_den0,1) == 1
+        e_den0 = [e_den0;e_den0]
+        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.2
+        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
+    end    
+    
+    if verbose
+        if magnetic 
+            println("Initial ΔQ: ", (round.(dq; digits=3)), "; Initial spin: ", round.(sum(e_den0, dims=2); digits=3))
+        else
+            println("Initial ΔQ: ", (round.(dq; digits=3)))
         end
     end
+
+#else
+#        if verbose println("Get initial charge density from input") end
+#        if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
+#            if verbose println("bad guess, instead get neutral atoms initial guess") end
+#            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+#        end
+#    end
     
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -217,6 +224,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         println()
         println("Parameters:")
         println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix $mixing_mode , grid = $grid, nspin=$nspin")
+        println("nk $nk: $grid")        
         println()
     end
 
@@ -224,9 +232,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #        println("grid = $grid")
 #    end
 
-println()
-println("START SCF ----------------")
-e_den = deepcopy(e_den0)
+
+    println()
+    println("START SCF ----------------")
+    e_den = deepcopy(e_den0)
 
     etypes = types_energy(tbc.crys)
 #    println("fft time")
@@ -237,7 +246,6 @@ e_den = deepcopy(e_den0)
     
     nk = prod(grid)
 
-    println("nk $nk")
     
     VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
     VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
@@ -250,14 +258,22 @@ e_den = deepcopy(e_den0)
     energy_tot = 0.0
     dq = zeros(tbc.crys.nat)
     dq_old = zeros(tbc.crys.nat)
+    dq_old2 = zeros(tbc.crys.nat)
 
     efermi = 0.0
 
 
 #    println("dq start", round.(dq; digits=2))
 
+    use_kfg = false
+
+    h1, dq = get_h1(tbc, e_den)
+
+    Qpropose = deepcopy(dq)
+    
     
     function innnerloop(mixA, smearingA, e_denA, conv_thrA, ITERS)
+#        println("innnerloop $mixA $ITERS")
         #main SCF loop
         convA = false
         
@@ -304,6 +320,11 @@ e_den = deepcopy(e_den0)
             R3  = zeros(size(e_denA[:]))
             n_pulay = zeros(size(e_denA[:]))
         end
+
+        if mixing_mode == :kfg
+            Qin = zeros(3,tbc.crys.nat)
+            Qout = zeros(3,tbc.crys.nat)
+        end
         
         delta_eden = 0.0
 
@@ -327,19 +348,43 @@ e_den = deepcopy(e_den0)
         SK_w = zeros(Complex{thetype}, nwan, nwan, nk)
         DEN_w = zeros(Complex{thetype}, nwan, nwan, nk)
 
-
+        delta_dq = ones(tbc.crys.nat)*1000.0
+        delta_dq2 = ones(tbc.crys.nat)*1000.0
         
         for iter = 1:ITERS
 
-            dq_old = deepcopy(dq)
+#            println("ΔQ: ", (round.(dq; digits=3)))
+#            println("e_denA ", e_denA)
+            
+            delta_dq2[:] = delta_dq[:]
+            
+            
+            dq_old2[:] = dq_old[:]
+            dq_old[:] = dq[:]
 
 #            println("e_denA", e_denA)
-            h1, dq = get_h1(tbc, e_denA)
 
-#            println("sum e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
+            if mixing_mode == :kfg && use_kfg
+                h1 = get_h1_dq(tbc, Qpropose)
+                dq = Qpropose
+            else
+                h1, dq = get_h1(tbc, e_denA)
+            end
+
+
+#            println("h1 ")
+#            println(h1)
+            
                 
-
-
+            if mixing_mode == :kfg
+                for i = 1:(size(Qin,1)-1)
+                    Qin[i,:] = Qin[i+1,:]
+                end
+#                println("size dq ", size(dq))
+#                println("size Qin ", size(Qin))
+                Qin[end,:] = dq
+            end
+            
             if magnetic 
 #                h1up, h1dn = get_spin_h1(tbc, e_denA)
 #                h1spin = [h1up, h1dn]
@@ -359,13 +404,25 @@ e_den = deepcopy(e_den0)
 #            println("en1")
             #energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin)
 #            println("en2")
-            energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
 
+#            println("mix $mixA dq_in   ", round.(dq; digits=3))
+            
+            energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
+            
 #            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))
             
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
-#            println("dqN  ", round.(dqNEW; digits=3))
+#            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
 
+            delta_dq[:] = dqNEW - dq
+
+            if mixing_mode == :kfg
+                for i = 1:(size(Qout,1)-1)
+                    Qout[i,:] = Qout[i+1,:]
+                end
+                Qout[end,:] = dqNEW
+            end
+            
 
 #            println("e_den_NEW")
 #            println(round.(e_den_NEW[1,:], digits=3))
@@ -392,7 +449,7 @@ e_den = deepcopy(e_den0)
 
 #            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
 
-            delta_eden_old = delta_eden
+            delta_eden_old = deepcopy(delta_eden)
 
 #            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
             delta_eden = sum(abs.(e_den_NEW - e_denA))
@@ -421,18 +478,21 @@ e_den = deepcopy(e_den0)
 
 #            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
-            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
+            #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
+            if iter == 2 && maximum(delta_dq) > 1.0
+                mixA = min(0.05, mixA * 0.5)
+            elseif iter > 2 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
                 mixA = max(mixA * 0.5, 0.0001)
                 nreduce += 1
-                if nreduce > 15 && mixing_mode == :pulay
+                if nreduce > 5 
                     #if nreduce > 3 && mixing_mode == :pulay
                     println("switch to :simple")
                     mixing_mode=:simple
-                    break
+                    #@break
                     #                    mixA = 0.02
 #                    nreduce = -5
                 end
-                @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
+                @printf("                               reduce mixing: % 6.4f   newerr:  % 10.8f  olderr: % 10.8f \n" , mixA ,sum(abs.(delta_dq)) , sum(abs.(delta_dq2)) )
 #                println("delta_energy_old $delta_energy_old new ",  abs(energy_old - energy_tot), " " ,  delta_energy_old < abs(energy_old - energy_tot))
 
             else
@@ -440,7 +500,7 @@ e_den = deepcopy(e_den0)
             end
             
             if iter == 100
-                mixA = max(mixA * 0.5, 0.001)
+                mixA = max(mixA * 0.6, 0.001)
                 nreduce += 1
                 @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
             end
@@ -472,40 +532,42 @@ e_den = deepcopy(e_den0)
                 n3[:] = e_denA[:]
 
             end
+                
             
             if mixing_mode == :simple 
                 mixA_temp = mixA
                 if iter == 1
                     if extend
-                        mixA_temp = 0.002
+                        mixA_temp = 0.004
                     else
-                        mixA_temp = 0.01
+                        mixA_temp = 0.025
                     end
                 end 
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
-
+                use_kfg = false
             elseif iter <= 3
                 if iter == 1
                     if extend
-                        mixA_temp = 0.002
+                        mixA_temp = 0.02
                     else
                         if tbc.crys.nat <= 10
-                            mixA_temp = 0.005
+                            mixA_temp = 0.05
                         else
-                            mixA_temp = 0.0025
+                            mixA_temp = 0.05
                         end
                     end
                 else
                     if extend
-                        mixA_temp = 0.004
-                    else
                         mixA_temp = 0.02
+                    else
+                        mixA_temp = 0.04
                     end
 
                 end
 
-                e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
-
+                e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp ) 
+                use_kfg = false
+ 
             elseif mixing_mode == :pulay
 
 #                R1 = n1out - n1in
@@ -565,6 +627,7 @@ e_den = deepcopy(e_den0)
 #                    e_denA[1,:]  = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[1:tbc.tb.nwan]
 #                    e_denA[2,:]  = (1 - mixA) * e_denA[2,:] + mixA * n_pulay[(tbc.tb.nwan+1):end]
                 end                    
+                use_kfg = false
 
 #               e_denA = (1 - mixA) * 
 
@@ -584,6 +647,45 @@ e_den = deepcopy(e_den0)
 
 #                n_pulay[:] = e_denA * c[1,1] + e_den_NEW * c[2,1]
 #                e_denA = (1 - mixA) * e_denA + mixA * n_pulay 
+            elseif mixing_mode == :kfg
+
+                #println("mixing_mode == kfg")
+                use_kfg = true
+                
+                dQ = (Qin - Qout).^2
+                Qpropose = zeros(tbc.crys.nat)
+
+#                println("dQ")
+#                println(dQ)
+                
+                for i = 1:tbc.crys.nat
+                    m = [ones(size(Qin[:,i])) Qin[:,i] Qin[:,i].^2]
+                    try
+                        c = m \ dQ[:,i]
+                        if c[3] > 0.0
+                            Qpropose[i] = -c[2] / (2*c[3])
+                        else
+                            Qpropose[i] = Qout[end,i]
+                        end
+                    catch
+                        Qpropose[i] = Qout[end,i]
+                    end
+                end
+
+#                println("Qin")
+#                println(Qin)
+#                println("Qout")
+#                println(Qout)
+#                println("Qpropose unnorm")
+#                println(Qpropose)
+#                println("norm er ", sum(Qpropose)/tbc.crys.nat)
+                Qpropose = Qpropose .- sum(Qpropose)/tbc.crys.nat
+#                println("Qpropose norm")
+#                println(Qpropose)
+              
+                Qpropose = (1 - mixA) * Qin[end,:] + mixA*Qpropose*0.25 + mixA*Qout[end,:]*0.75
+                #println("Qpropose ", Qpropose, " mix ", mixA, " dq ", Qin[end,:] - Qpropose, " sum ", sum(Qpropose))
+                
             end
             
             
@@ -610,9 +712,11 @@ e_den = deepcopy(e_den0)
             else
 #                println("SCF CALC $iter energy   $energy_tot   en_diff ", abs(energy_tot - energy_old), "   dq_diff:   $delta_eden    ")
                 #                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, delta_eden )
-                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E    \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.(dq - dq_old)) )
+                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E    \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.( delta_dq )) )
 
-                #println("mix $mixA dq   ", round.(dq; digits=3))
+                
+                
+#                println("mix $mixA dq   ", round.(dq; digits=3))
 
 #                println(round.(e_denA[1,:], digits=3))
 #                if magnetic
@@ -622,7 +726,7 @@ e_den = deepcopy(e_den0)
             
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
                 #                if delta_eden < 0.05 * tbc.crys.nat
-                if sum(abs.(dq - dq_old)) < conv_thrA * tbc.crys.nat * 50 && abs(magmom-magmom_old) < conv_thrA * tbc.crys.nat * 50
+                if sum(abs.( delta_dq )) < conv_thrA * tbc.crys.nat * 5000 && abs(magmom-magmom_old) < conv_thrA * tbc.crys.nat * 50
                     convA = true
                     println()
                     eu = energy_tot*energy_units
@@ -664,51 +768,36 @@ e_den = deepcopy(e_den0)
         end
     end
 
+    if mixing_mode == :kfg
+#        println("try kfg")
+        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
+        
+        if conv == false
+            println("kfg NO  converge")
+        else
+            println("kfg YES converge")
+        end            
+        
+        if true && conv == false 
+            println("kfg mix no convergence, switch to simple mixing")
+            mixing_mode = :simple
+            e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+            mix = 0.01
+        end
+    end
+    
+
+    
     if mixing_mode == :simple
-        println("eden start")
-        println(e_den[1,:])
+#        println("eden start")
+#        println(e_den[1,:])
         if magnetic
             println(e_den[2,:])
         end
         e_den_OLD = deepcopy(e_den)
 
-#        println("SCF STEP 1/2 - get rough charge density")
-#        conv, e_den = innnerloop(0.70, 0.01, e_den, 1e-2, 1)  #first step
-
-#        println("EDEN ")
-#        println(e_den)
-#        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-2, 1)  #first step
-#        energy0 = deepcopy(energy_tot)
-
-#        conv, e_den = innnerloop(0.001, 0.01, e_den, 1e-3, 5)
-#        energy1 = deepcopy(energy_tot)
-        
-#        println("SCF STEP 2/2 - converge final")
-#        e_den_OLD = deepcopy(e_den)
-#        mix = min(mix, 0.1)
-
-
         conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*5)
 
-        #=
-        if energy_tot > 0.1  #|| abs(energy1 - energy_tot)/tbc.crys.nat > 0.05
-            
-            println("Restarting with more conservative settings")
-            e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-            conv, e_den = innnerloop(0.1, 0.02, e_den, 1e-3, 1)  #first step, low mix
-            conv, e_den = innnerloop(0.03, 0.02, e_den, 5e-4, 8)
-            mix = 0.015
-            conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*2)
-        end
-
-        if conv == false 
-            #        e_den = e_den_OLD
-            mix = min(mix, 0.01)
-            println("scf convergence trouble, trying more conservative settings 3  $mix")
-            conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*4)
-            if conv == false println("still scf convergence trouble 3") end
-        end      
-=#  
     end
 
 #    conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, 200)
@@ -720,7 +809,12 @@ e_den = deepcopy(e_den0)
     end
 
     tbc.eden = e_den #save charge density!!!!!  side effect!!!!!
-    h1, dq = get_h1(tbc, e_den)
+    if use_kfg
+        h1= get_h1_dq(tbc, Qpropose)
+        dq = Qpropose
+    else
+        h1, dq = get_h1(tbc, e_den)
+    end
     tbc.tb.h1 = h1     #moar side effect
     tbc.tb.scf = true  #just double checking
     
@@ -729,11 +823,11 @@ e_den = deepcopy(e_den0)
         tbc.tb.h1spin = h1spin
         tbc.tb.scfspin = true
     end
-
     println("ΔQ = ", round.(dq, digits=2))
     if nspin == 2
         println("μB = ", round.(get_magmom(tbc), digits=2))
     end
+    println()
 
     tbc.efermi=efermi
     tbc.energy=energy_tot

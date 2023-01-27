@@ -58,9 +58,10 @@ using .TB:get_formation_energy
 include("AtomicProj.jl")
 
 include("CalcTB_laguerre.jl")
-using .CalcTB:calc_tb_fast
-export calc_tb_fast
-using .CalcTB:calc_twobody
+
+#using .CalcTB:calc_tb_fast
+#export calc_tb_fast
+#using .CalcTB:calc_twobody
 
 include("ManageDatabase.jl")
 
@@ -335,7 +336,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     println()
     println("Calculate Force, Stress")
     
-    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
+    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
 
     println("done")
     println("----")
@@ -375,7 +376,7 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
     println()
     println("Calculate Force, Stress (no scf)")
     
-    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
+    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
 
     println("done")
     println("----")
@@ -412,9 +413,9 @@ returns energy, tight-binding-crystal-object, error-flag
 - `conv_thr = 1e-5`: SCF convergence threshold (Ryd).
 - `iter = 75`: number of iterations before switch to more conservative settings.
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge.
-- `mixing_mode =:pulay`: default is Pulay mixing (DIIS). Other option is :simple, for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
+- `mixing_mode =:simple`: default is simple. Other options are :kfg and :pulay (DIIS), for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
 """
-function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1, eden=missing, verbose=false, repel=true)
+function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:kfg, nspin=1, eden=missing, verbose=false, repel=true)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -454,7 +455,7 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1, verbose=true, repel=true)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:kfg, nspin=1, verbose=true, repel=true)
 
     return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel)
 
@@ -466,7 +467,7 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, nspin=1, verbose=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:kfg, nspin=1, verbose=true)
 
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose)
     println()
