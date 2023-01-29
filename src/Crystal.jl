@@ -798,12 +798,10 @@ function generate_optimum_supercell(c::crystal, dist)
     dist = convert_length(dist)
     
 
-    check_list1 = [0,1,-1,2,-2]
+    check_list1 = [1,-1,2,-2]
     check_list2 = [0,1,-1,2,-2, 3,-3, 4, -4]
     check_list_small = [0,1,-1, 2, -2]
 
-    dist1_old, dist2_old = cutoff_dist[(:Hx, :Hx)] 
-    
     cutoff_dist[(:Hx, :Hx)] = [dist, dist]
 
     #this function does the search. We first do a quicker search, then more thorough if the first one fails.
@@ -846,8 +844,7 @@ function generate_optimum_supercell(c::crystal, dist)
     
     cnew = makecrys(A_new, coords_new, types_new)
 
-     cutoff_dist[(:Hx, :Hx)] = [dist1_old, dist2_old]
-
+    
      
     return cnew
     
