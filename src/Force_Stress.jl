@@ -36,9 +36,9 @@ using ..CalcTB:calc_tb_fast
 using ..CalcTB:calc_tb_lowmem
 using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_LV
-using ..CalcTB:distances_etc_3bdy_parallel
-using ..CalcTB:distances_etc_3bdy_parallel_LV
-using ..CalcTB:get_dist
+using ..CrystalMod:distances_etc_3bdy_parallel
+using ..CrystalMod:distances_etc_3bdy_parallel_LV
+using ..CrystalMod:get_dist
 
 using ..TB:calc_energy_charge_fft
 using ..TB:tb_crys

@@ -9,6 +9,7 @@ using LinearAlgebra
 using Printf
 using ..Atomdata:atoms
 using ..Atomdata:atom_radius
+using ..Atomdata:cutoff_dist
 using GZip
 
 using ..ThreeBodyTB:global_length_units
@@ -74,7 +75,7 @@ mutable struct crystal{T}
 
 end
 
-
+include("Dist.jl")
 
 
 #printing
@@ -783,6 +784,199 @@ function generate_supercell(c, cell)
     =#
     
 end
+
+
+"""
+    function generate_optimum_supercell(c::crystal, dist)
+
+Generate a supercell of crystal `c` where the periodic copies of all atoms
+are at least `dist` apart. Will consider (some) linear combinations of the
+initial lattice vectors and look for the "best" cell.  
+"""
+function generate_optimum_supercell(c::crystal, dist)
+
+    dist = convert_length(dist)
+    
+
+    check_list1 = [0,1,-1,2,-2]
+    check_list2 = [0,1,-1,2,-2, 3,-3, 4, -4]
+    check_list_small = [0,1,-1, 2, -2]
+
+    dist1_old, dist2_old = cutoff_dist[(:Hx, :Hx)] 
+    
+    cutoff_dist[(:Hx, :Hx)] = [dist, dist]
+
+    #this function does the search. We first do a quicker search, then more thorough if the first one fails.
+    good_list, A_new = gen(c, dist, check_list1, check_list_small)
+    if length(good_list) == 0
+        good_list, A_new = gen(c, dist, check_list2, check_list_small)
+        if length(good_list) == 0
+            println("Sorry we did not find an appropriate cell.")
+            return false
+        end
+    end
+
+    vol_factor = Int64(round(abs(det(A_new))/abs(det(c.A))))
+    println("vol_factor ", vol_factor)
+
+    coords_new = zeros(c.nat * vol_factor, 3)
+
+    #generate new crystal
+    found = 0
+    types_new = []
+    @time for x = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]
+        for y = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]
+            for z = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]
+                for n = 1:c.nat
+                    coords = ((c.coords[n,:]+[x, y, z])' * c.A)*inv(A_new)
+                    if coords[1] > -1e-10 && coords[1] < (1.0-1e-10) && coords[2] > -1e-10 && coords[2] < (1.0-1e-10) && coords[3] > -1e-10 && coords[3] < (1.0-1e-10)
+                        found += 1
+                        coords_new[found,:] = coords[:]
+                        push!(types_new, c.stypes[n])
+                        if found == c.nat * vol_factor
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    
+    
+    cnew = makecrys(A_new, coords_new, types_new)
+
+     cutoff_dist[(:Hx, :Hx)] = [dist1_old, dist2_old]
+
+     
+    return cnew
+    
+end
+
+"""
+    function gen(c, dist, check_list, check_list_small)
+
+Helper function to search for optimum supercells 
+"""
+function gen(c, dist, check_list, check_list_small)
+    
+    good_list = []
+    A_new = zeros(3,3)
+
+    vol = zeros(length(check_list)^3 * length(check_list_small)^6)
+    counter = 0
+    inds = zeros(Int64, length(check_list)^3 * length(check_list_small)^6, 9)
+    @time for x1 in check_list
+        for x2 in check_list_small
+            for x3 in check_list_small
+                for y1 in check_list_small
+                    for y2 in check_list
+                        for y3 in check_list_small
+                            for z1 in check_list_small
+                                for z2 in check_list_small
+                                    for z3 in check_list
+#                                        println([x1 y1 z1 x2 y2 z2 x3 y3 z3])
+                                        A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
+                                        A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
+                                        A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
+
+                                        v = det(A_new)
+                                        if v < 1e-3
+                                            continue
+                                        end
+                                        if sum(A_new[1,:].^2) < dist
+                                            continue
+                                        end
+                                        if sum(A_new[2,:].^2) < dist
+                                            continue
+                                        end
+                                        if sum(A_new[3,:].^2) < dist
+                                            continue
+                                        end
+                                        
+                                        counter +=1
+                                        vol[counter] = (det(A_new))
+                                        inds[counter, :] = [x1,x2,x3,y1,y2,y3,z1,z2,z3]
+                                        
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end    
+
+    
+    bv = vol .> 1e-3 #we only consider right handed cells, rest are redundant
+    vol = vol[bv]
+    inds = inds[bv,:]
+
+    
+    #find the smallest vol cells the meet requirements
+    perm = sortperm(vol)
+    good_vec = []
+    good_vol = 1000000000.0
+    @time for p in perm
+        if vol[p] > good_vol + 1e-3
+            break
+        end
+        x1,x2,x3,y1,y2,y3,z1,z2,z3 = inds[p,:]
+
+
+        A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
+        A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
+        A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
+        ctemp = makecrys(A_new, [0.0 0.0 0.0], [:Hx])
+        
+        nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[2,2,2])
+
+        
+        if size(nz_inds)[1] == 1
+            nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[4,4,4])
+            if size(nz_inds)[1] == 1
+                nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[7,7,7])
+                if size(nz_inds)[1] == 1
+                    push!(good_list, p)
+                    good_vol = vol[p]
+                end
+            end
+        end
+    end
+
+
+
+    if length(good_list) == 0
+        return good_list, A_new
+    end
+
+    #now pick "best" lattice vectors from the small vol set.
+    best_vec = 100000000.0
+    current_best = good_list[1]
+    @time for p in good_list
+        vec_new = sum(inds[p,:].^2)
+
+
+        if vec_new < best_vec
+            current_best = p
+            best_vec = vec_new
+            
+        end
+    end
+
+    x1,x2,x3,y1,y2,y3,z1,z2,z3 = inds[current_best,:]
+    
+    A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
+    A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
+    A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
+    
+    return good_list, A_new
+        
+end
+
+
+
 
 """
     function generate_random_distortion(crys, amag, strain_mag)
