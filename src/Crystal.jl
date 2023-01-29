@@ -627,7 +627,12 @@ function parsePOSCAR(lines)
     if cart
         coords = (coords / 0.529177 )* inv(A)
     end
-
+    coords = neaten_coords(coords)
+    coords = neaten_coords(coords)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
+    
     return A, coords, types
 end
 
@@ -702,6 +707,11 @@ function parseQEinput(lines)
 
     A = A / units
 
+    coords = neaten_coords(coords)
+    coords = neaten_coords(coords)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
     
 
     return A, coords, types
@@ -1486,6 +1496,94 @@ function concatenate(c1::crystal, c2::crystal)
     coords = vcat(c1.coords, c2.coords)
 
     return makecrys(A,coords, tt, units="Bohr")
+end
+
+
+function neaten_coords(mat, tol=1e-4)
+    mat = mat .% 1.0
+    for i in 1:size(mat)[1]
+        for j in 1:size(mat)[2]
+            for t in [0.0, 1/4,1/2,3/4,1/8,3/8,5/8,7/8,1/3,2/3,1/6,5/6]
+                if abs(mat[i,j] - t) < tol
+#                    println("$i $j mat[i,j]  $t")
+                    mat[i,j] = t
+                end
+            end
+        end
+    end
+    for i in 1:size(mat)[1]
+        for j in 1:size(mat)[2]
+            for ii in 1:size(mat)[1]
+                for jj in 1:size(mat)[2]
+                    if abs(mat[ii,jj]) < tol
+                        mat[ii,jj] = 0.0
+                    elseif abs(mat[ii,jj] - mat[i,j]) < tol
+                        mat[ii,jj] = mat[i,j]
+                    elseif abs( mat[ii,jj] - (1-mat[i,j]) ) < tol
+                        mat[ii,jj] = (1-mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5-mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5-mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5+mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5+mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5*mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5*mat[i,j])
+                    end
+                end
+            end
+        end
+    end
+    
+    return mat
+end
+function neaten_lattice(mat, tol=1e-4)
+
+    
+    for i in 1:size(mat)[1]
+        for j in 1:size(mat)[2]
+            for ii in 1:size(mat)[1]
+                for jj in 1:size(mat)[2]
+                    if abs(mat[ii,jj]) < tol
+                        mat[ii,jj] = 0.0
+                    else
+                        for t in [1.0, -1.0, 0.5,-0.5,0.25,-0.25,1/3,-1/3,2/3, -2/3, sqrt(3)/2,-sqrt(3)/2, 1/sqrt(3),-1/sqrt(3),1/2/sqrt(3),-1/2/sqrt(3),sqrt(8/9),sqrt(8/9)]
+                            if abs(mat[ii,jj] - t*mat[i,j]) < tol
+                                mat[ii,jj] = mat[i,j] * t
+                            end
+                        end
+                    end
+
+                #=elseif abs(mat[ii,jj] - mat[i,j]) < tol
+                        mat[ii,jj] = mat[i,j]
+                    elseif abs( mat[ii,jj] - (1-mat[i,j]) ) < tol
+                        mat[ii,jj] = (1-mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5-mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5-mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5+mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5+mat[i,j])
+                    elseif abs( mat[ii,jj] - (0.5*mat[i,j]) ) < tol
+                        mat[ii,jj] = (0.5*mat[i,j])
+                    elseif abs( mat[ii,jj] - (sqrt(3)/2)*mat[i,j]) < tol
+                        mat[ii,jj] = (sqrt(3)/2)*mat[i,j]
+                    elseif abs( mat[ii,jj] - (1/sqrt(3))*mat[i,j])  < tol
+                        mat[ii,jj] = (1/sqrt(3))*mat[i,j]
+                    elseif abs( mat[ii,jj] - (1/2/sqrt(3))*mat[i,j]) < tol
+                        mat[ii,jj] = (1/2/sqrt(3))*mat[i,j]
+                    elseif abs( mat[ii,jj] - (1/sqrt(2))*mat[i,j])  < tol
+                        mat[ii,jj] = (1/sqrt(2))*mat[i,j]
+                    elseif abs( mat[ii,jj] - (1/3)*mat[i,j])  < tol
+                        mat[ii,jj] = (1/3)*mat[i,j]
+                    elseif abs( mat[ii,jj] - sqrt(8/9)*mat[i,j])  < tol
+                        mat[ii,jj] = sqrt(8/9)*mat[i,j]
+                    end
+=#
+#                    println("$i $j $ii $jj ", abs( mat[ii,jj] - (1/3)*mat[i,j]) )
+                    
+                end
+            end
+        end
+    end
+    
+    return mat
 end
 
 
