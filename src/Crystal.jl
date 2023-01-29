@@ -1586,6 +1586,47 @@ function neaten_lattice(mat, tol=1e-4)
     return mat
 end
 
+"""
+    function delete_atom(c::crystal, n)
+
+Delete atom `n` from crystal `c`. Returns new crystal with 1 fewer atom.
+"""
+function delete_atom(c::crystal, n)
+
+    if c.nat == 1
+        println("cannot delete atom from 1 atom cell. Consider making a supercell first")
+        return c
+    end
+    if n > c.nat
+        println("warning, only $(c.nat) atoms in this crystal, you wanted to delete num: $n.")
+    end
+    
+    bv = (1:c.nat) .!= n
+
+    coords_new = c.coords[bv, :]
+    types_new = c.types[bv]
+
+    return makecrys(c.A, coords_new, types_new)
+    
+end
+
+"""
+    function add_atom(c::crystal, coord, type)
+
+Add atom `coord` and `type` to crystal `c`. Returns new crystal with 1 more atom.
+"""
+function add_atom(c::crystal, coord, type)
+
+    coords_new = zeros(eltype(c.coords), c.nat+1, 3)
+    coords_new[end,:] = coord
+    
+    types_new = vcat(c.types, String(type))
+
+    return makecrys(c.A, coords_new, types_new)
+    
+end
+
+
 
 end #end module
 
