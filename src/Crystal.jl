@@ -1500,7 +1500,8 @@ end
 
 
 function neaten_coords(mat, tol=1e-4)
-    mat = mat .% 1.0
+    println("neaten")
+    mat = mod.(mat , 1.0)
     for i in 1:size(mat)[1]
         for j in 1:size(mat)[2]
             for t in [0.0, 1/4,1/2,3/4,1/8,3/8,5/8,7/8,1/3,2/3,1/6,5/6]
