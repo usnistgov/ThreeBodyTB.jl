@@ -301,12 +301,15 @@ Make inputfile for SCF calculation
     end
     temp = replace(temp, "JULIAPSP\n" => t) ###strip(t,"\n"))
     
+
 #    if abs(tot_charge) < 1e-5
-#        temp = replace(temp, "JULIACELL\n" => arr2str(crys.A))#strip(arr2str(crys.A), "\n"))
+
+    temp = replace(temp, "JULIACELL\n" => arr2str(crys.A))#strip(arr2str(crys.A), "\n"))
+
 #    else
  
-    temp = replace(temp, "JULIACELL\n" => "")#strip(arr2str(crys.A), "\n"))        
-    temp = replace(temp, "CELL_PARAMETERS\n"  => "")
+    #temp = replace(temp, "JULIACELL\n" => "")#strip(arr2str(crys.A), "\n"))        
+    #temp = replace(temp, "CELL_PARAMETERS\n"  => "")
     
     #end
 
