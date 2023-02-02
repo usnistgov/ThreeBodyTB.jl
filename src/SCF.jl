@@ -196,8 +196,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     dq = get_dq(tbc.crys, e_den0)
     if nspin == 2 && size(e_den0,1) == 1
         e_den0 = [e_den0;e_den0]
-        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.5
-        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.5
+        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.05
+        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.05
     end    
 
     if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
@@ -492,8 +492,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
             if iter == 2 && maximum(delta_dq) > 1.0
                 mixA = min(0.05, mixA * 0.5)
-            elseif iter > 2 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
-                mixA = max(mixA * 0.5, 0.0001)
+            elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
+                mixA = max(mixA * 0.7, 0.0001)
                 nreduce += 1
                 if nreduce > 5 
                     #if nreduce > 3 && mixing_mode == :pulay
@@ -737,7 +737,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
                 #                if delta_eden < 0.05 * tbc.crys.nat
-                if sum(abs.( delta_dq )) < conv_thrA * tbc.crys.nat * 5000 && abs(magmom-magmom_old) < conv_thrA * tbc.crys.nat * 50
+                if sum(abs.( delta_dq )) < conv_thrA * tbc.crys.nat * 5000 && abs(magmom-magmom_old) < 0.05 * tbc.crys.nat 
                     convA = true
                     println()
                     eu = energy_tot*energy_units
