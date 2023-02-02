@@ -735,7 +735,7 @@ The k-points are fixed by the `bs` object.
 
 `tbc2` is an optional second `tbc_crys`.
 """
-function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, spin=1)
+function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, spin=1, align=:vbm)
 
     if typeof(bs) == dftout
         bs = bs.bandstruct
@@ -758,7 +758,7 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
 
     efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
-
+    
     if !ismissing(tbc2)
         vals2 = calc_bands(tbc2.tb, kpts)
         efermi_tbc2 = calc_fermi(vals2, kweights, nelec)
@@ -813,35 +813,40 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
 
     plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
 
-    
-    plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
-    if bs.nbnd > 1
-#        println("test ", vbmD)
-#        println(bs.eigs[:,2, spin] )
-#        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
-
-        plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)    
+    if align == :fermi || align == "fermi"
+        vbmD = efermi_dft
+        vbm = efermi_tbc
     end
+        
+        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
+        if bs.nbnd > 1
+            #        println("test ", vbmD)
+            #        println(bs.eigs[:,2, spin] )
+            #        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
 
-    plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")
-    if tbc.tb.nwan > 1
-        plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
-    end
-
-
-
-    if !ismissing(tbc2)
-        vbm2, cbm2 = find_vbm_cbm(vals2 , efermi_tbc2)
-        plot!(convert_energy(vals2[:,1, spin] .- vbm2),  color="cyan", lw=0.5, label="TB2")
-        if tbc.tb.nwan > 1
-            plot!(convert_energy(vals2[:,2:end, spin] .- vbm2), lw=0.5, color="cyan", label=missing)
+            plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)    
         end
-    end
+
+        plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")
+        if tbc.tb.nwan > 1
+            plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
+        end
 
 
-    plot!([0, nk], convert_energy([efermi_dft, efermi_dft] .- vbmD), color="red", linestyle=:dot, label="E_F DFT")
-    plot!([0, nk], convert_energy([efermi_tbc, efermi_tbc] .- vbm), color="black", linestyle=:dash, label="E_F TB")
 
+        if !ismissing(tbc2)
+            vbm2, cbm2 = find_vbm_cbm(vals2 , efermi_tbc2)
+            plot!(convert_energy(vals2[:,1, spin] .- vbm2),  color="cyan", lw=0.5, label="TB2")
+            if tbc.tb.nwan > 1
+                plot!(convert_energy(vals2[:,2:end, spin] .- vbm2), lw=0.5, color="cyan", label=missing)
+            end
+        end
+
+
+        plot!([0, nk], convert_energy([efermi_dft, efermi_dft] .- vbmD), color="red", linestyle=:dot, label="E_F DFT")
+        plot!([0, nk], convert_energy([efermi_tbc, efermi_tbc] .- vbm), color="black", linestyle=:dash, label="E_F TB")
+
+    
     if global_energy_units == "eV"
         ylabel!("Energy - VBM (eV)", guidefontsize=12)
     else

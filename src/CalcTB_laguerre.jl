@@ -7238,7 +7238,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0)
 
 
 #    println("test")
@@ -7750,7 +7750,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")

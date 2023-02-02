@@ -50,7 +50,8 @@ function magnetic_energy(crys::crystal, eden::Array{Float64,2})
         return 0.0
     else
         Wm, Xm, energy = WX(crys, eden[1,:] - eden[2,:])
-        return energy
+#        println("magnetic energy $energy")
+        return energy 
     end
 end
 

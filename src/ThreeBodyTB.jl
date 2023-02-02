@@ -413,9 +413,9 @@ returns energy, tight-binding-crystal-object, error-flag
 - `conv_thr = 1e-5`: SCF convergence threshold (Ryd).
 - `iter = 75`: number of iterations before switch to more conservative settings.
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge.
-- `mixing_mode =:simple`: default is simple. Other options are :kfg and :pulay (DIIS), for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
+- `mixing_mode =:simple`: default is simple. Other options are :simple and :pulay (DIIS), for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
 """
-function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:kfg, nspin=1, eden=missing, verbose=false, repel=true)
+function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -426,7 +426,7 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         println()
     end
 
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge)
 
     conv_flag = !error_flag
     if tbc.within_fit == false
@@ -455,9 +455,9 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:kfg, nspin=1, verbose=true, repel=true)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true)
 
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge)
 
 end
 
@@ -467,9 +467,9 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:kfg, nspin=1, verbose=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing)
 
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing)
     println()
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )
     println()

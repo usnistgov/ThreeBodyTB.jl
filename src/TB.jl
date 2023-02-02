@@ -102,9 +102,9 @@ mutable struct tb{T}
     H::Array{Complex{T},4}    
     ind_arr::Array{Int64,2}
     r_dict::Dict
-    nwan::Int
-    nr::Int
-    nspin::Int              
+    nwan::Int64
+    nr::Int64
+    nspin::Int64              
     nonorth::Bool
     #    S::Array{Complex{Float64},3}
     S::Array{Complex{T},3}    
@@ -112,7 +112,6 @@ mutable struct tb{T}
     scfspin::Bool
     h1::Array{T,2} #scf term
     h1spin::Array{T,3} #scf term
-
 end
 
 Base.show(io::IO, h::tb) = begin
@@ -170,6 +169,10 @@ Base.show(io::IO, x::tb_crys) = begin
     println(io, x.crys)
     println(io)
     println(io, "nelec: ", x.nelec, "; nspin (hoppings): ", x.nspin)
+    ind2orb, orb2ind, etotal, nval = orbital_index(x.crys)
+    if abs(nval - x.nelec) > 1e-10
+        println("tot_charge: $(nval-x.nelec)")
+    end
     println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin)
     println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
     println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
@@ -2104,6 +2107,10 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
     #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
     vals = zeros(Complex{Float64}, size(h1)[1], nthreads())
     vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+
+#    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    
     @inbounds @fastmath @threads for c = 1:grid[1]*grid[2]*grid[3]
         id = threadid()
         k3 = mod(c-1 , grid[3])+1
@@ -2130,8 +2137,13 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
             
             try
-                vals[:,id], vects[:,:,id] = eigen( Hermitian(hk[:,:,id][:,:]), Hermitian(sk[:,:,id][:,:]))
-            catch
+                #hermH[:,:] = (@view hk[:,:,id][:,:])
+                #hermS[:,:] = (@view sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+
+                #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
+            catch err
+                typeof(err) == InterruptException && rethrow(err)
                 vals[:,id], vects[:,:,id] = eigen( hk[:,:,id], sk[:,:,id])
             end
             
@@ -2260,31 +2272,45 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
 #    println("go")
 #    @time go(grid, VALS, VALS0, VECTS)
 #    println("VALS ", VALS[1])
-    #println("go_eig")
+#    println("go_eig")
     go_eig(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK)
 #    println("VALS ", VALS[1])
 #    println()
-#    println("band energy")
+
+    #println("band energy")
     begin
 
-        energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
-        occ = gaussian.(VALS.-efermi, smearing)
+        if nelec > 1e-10
+            energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
+            occ = gaussian.(VALS.-efermi, smearing)
 
-        max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
-        energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-        energy0 = sum(occ .* VALS0) / nk * 2.0
+            max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
+            energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
+            energy0 = sum(occ .* VALS0) / nk * 2.0
 
-        energy0 += energy_smear * nspin#
+            energy0 += energy_smear * nspin#
+        else
 
+            energy_smear = 0.0
+            energy0 = 0.0
+            efermi = minimum(VALS)
+            occ = zeros(size(VALS))
+            
+        end
+        
+            
         #         println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
         
     end
 
-#    println("charge14")
-#    @time chargeden = go_charge14(VECTS, SK, occ, nspin, max_occ, DEN)
-#    println("charge15")
-    chargeden = go_charge15(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv)
-#    println("sum ddiff ", sum(abs.(chargeden - chargeden15)))
+    println("nelec $nelec")
+    
+    if nelec > 1e-10
+        chargeden = go_charge15(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv)
+    else
+        chargeden = zeros(nspin, nwan)
+    end
+    
     if nspin == 2
         energy0 = energy0 / 2.0
     end
@@ -3730,7 +3756,7 @@ function ewald_energy(tbc::tb_crys, delta_q=missing)
     if ismissing(delta_q)
         delta_q =  get_dq(crys , tbc.eden)
     end
-
+    
     return ewald_energy(crys, gamma, delta_q)
 
 end
@@ -3770,6 +3796,8 @@ function ewald_energy(crys::crystal, gamma, delta_q::Array{Float64,1})
 
     energy = 0.5*sum(pot)
 
+    println("ewald energy ", energy)
+    
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 
     return energy, pot
@@ -3929,7 +3957,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
     
     dq = -z_ion + e_den
 
-    dq = dq .- sum(dq)/crys.nat #charge sum rule
+    #dq = dq .- sum(dq)/crys.nat #charge sum rule
 
     #    println("e_den ", e_den)
     #    println("z_ion ", z_ion)
