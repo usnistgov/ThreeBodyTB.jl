@@ -314,6 +314,10 @@ function makecrys(A,coords,types; units=missing)
     end
 
     A = A * factor
+
+    if rank(A) != 3
+        println("WARNING, possible linearly degenerate lattice vectors ....")
+    end
     
     if isa(types,Array) && length(size(types)) == 2  # if are accidently given a 1 x nat types array 
         types = types[:]
@@ -513,6 +517,11 @@ function makecrys(lines::Array{String,1})
 
 
 
+    coords = neaten_coords(coords)
+    coords = neaten_coords(coords)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
 
     
     c = makecrys(A, coords,types, units="Bohr")
@@ -959,12 +968,20 @@ function gen(c, dist, check_list, check_list_small)
     end
 
     #now pick "best" lattice vectors from the small vol set.
-    best_vec = 100000000.0
+    best_vec = 10000000000.0
     current_best = good_list[1]
     @time for p in good_list
-        vec_new = sum(inds[p,:].^2)
 
+#        vec_new = sum(inds[p,:].^2)
 
+        x1,x2,x3,y1,y2,y3,z1,z2,z3 = inds[p,:]
+        
+        A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
+        A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
+        A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
+
+        vec_new = sum(A_new[1,:].^2) + sum(A_new[2,:].^2) + sum(A_new[3,:].^2)
+        
         if vec_new < best_vec
             current_best = p
             best_vec = vec_new
@@ -1627,6 +1644,18 @@ function add_atom(c::crystal, coord, type)
     
 end
 
+
+function neaten_crys(c::crystal)
+
+    coords = neaten_coords(c.coords)
+    coords = neaten_coords(coords)
+    A = neaten_lattice(c.A)
+    A = neaten_lattice(A)
+    A = neaten_lattice(A)
+
+    return makecrys(A, coords, c.types)
+
+end
 
 
 end #end module
