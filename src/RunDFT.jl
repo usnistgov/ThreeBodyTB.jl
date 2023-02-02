@@ -277,10 +277,12 @@ Make inputfile for SCF calculation
     
     
     brav="ibrav = 0"
-    if abs(tot_charge) > 1e-5
-        a = crys.A[1,1]
-        brav="ibrav = 1, celldm(1) = $a "
-    end
+
+#    if abs(tot_charge) > 1e-5
+#        a = crys.A[1,1]
+#        brav="ibrav = 1, celldm(1) = $a "
+#    end
+
     temp = replace(temp, "JULIABRAV" => brav)
 
 
@@ -299,12 +301,14 @@ Make inputfile for SCF calculation
     end
     temp = replace(temp, "JULIAPSP\n" => t) ###strip(t,"\n"))
     
-    if abs(tot_charge) < 1e-5
-        temp = replace(temp, "JULIACELL\n" => arr2str(crys.A))#strip(arr2str(crys.A), "\n"))
-    else
-        temp = replace(temp, "JULIACELL\n" => "")#strip(arr2str(crys.A), "\n"))        
-        temp = replace(temp, "CELL_PARAMETERS\n"  => "")
-    end
+#    if abs(tot_charge) < 1e-5
+#        temp = replace(temp, "JULIACELL\n" => arr2str(crys.A))#strip(arr2str(crys.A), "\n"))
+#    else
+ 
+    temp = replace(temp, "JULIACELL\n" => "")#strip(arr2str(crys.A), "\n"))        
+    temp = replace(temp, "CELL_PARAMETERS\n"  => "")
+    
+    #end
 
     t=""
 
