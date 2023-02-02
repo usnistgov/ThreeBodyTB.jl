@@ -440,7 +440,8 @@ Make inputfile for SCF calculation
     end
 
     if abs(tot_charge) > 1e-5
-        other *= "   tot_charge = $tot_charge , assume_isolated = 'mp' \n"
+        #other *= "   tot_charge = $tot_charge , assume_isolated = 'mp' \n"
+        other *= "   tot_charge = $tot_charge \n"
     end
 
     if magnetic
