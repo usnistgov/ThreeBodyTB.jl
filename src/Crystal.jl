@@ -315,8 +315,10 @@ function makecrys(A,coords,types; units=missing)
 
     A = A * factor
 
-    if rank(A) != 3
-        println("WARNING, possible linearly degenerate lattice vectors ....")
+    if T == Float64 || T == Float32
+        if rank(A) != 3
+            println("WARNING, possible linearly degenerate lattice vectors ....")
+        end
     end
     
     if isa(types,Array) && length(size(types)) == 2  # if are accidently given a 1 x nat types array 
@@ -714,6 +716,9 @@ function parseQEinput(lines)
         end 
     end
 
+#    println("A")
+#    println(A)
+    
     A = A / units
 
     coords = neaten_coords(coords)
@@ -1517,7 +1522,7 @@ end
 
 
 function neaten_coords(mat, tol=1e-4)
-    println("neaten")
+#    println("neaten")
     mat = mod.(mat , 1.0)
     for i in 1:size(mat)[1]
         for j in 1:size(mat)[2]

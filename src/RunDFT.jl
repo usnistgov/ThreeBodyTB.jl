@@ -555,7 +555,7 @@ function loadXML(savedir)
     outdir = d["espresso"]["input"]["control_variables"]["outdir"]    
 
     tot_charge = parse(Float64, d["espresso"]["input"]["bands"]["tot_charge"])
-
+    #println("tot_charge $tot_charge")
     
     kgrid = [nk1, nk2,nk3]
 #    println("nat ", nat)

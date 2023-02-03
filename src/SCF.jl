@@ -75,7 +75,7 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
 
     #println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
-    println("asdf ", tbc.eden, ", tc ", tot_charge)
+    #println("asdf ", tbc.eden, ", tc ", tot_charge)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
@@ -91,7 +91,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
-    println("before before ", tbc.eden)
+    #println("before before ", tbc.eden)
     
     if !ismissing(tot_charge)
         ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
@@ -197,7 +197,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         z_ion = at.nval
         tot_charge += z_ion / 2.0
     end
-    println("tot_charge calc ", tot_charge, " tbc.nelec ", tbc.nelec)
+#    println("tot_charge calc ", tot_charge, " tbc.nelec ", tbc.nelec)
     
     
 
@@ -212,18 +212,18 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     dq = get_dq(tbc.crys, e_den0)
 
-    println("before ", e_den0)
+#    println("before ", e_den0)
     if abs(sum(e_den0) - nspin* tbc.nelec/2.0 ) > 1e-5
         if verbose println("bad guess, instead get atoms initial guess") end
         e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
         bv = e_den0 .> 1e-5
-        e_den0[bv] = e_den0[bv] .- (sum(e_den0) - nspin* tbc.nelec/2.0)
+        e_den0[bv] = e_den0[bv] .- (sum(e_den0) - nspin* tbc.nelec/2.0)/tbc.crys.nat
         
         #        e_den0 = e_den0 .- (sum(e_den0) - nspin* tbc.nelec/2.0)
     end
 
-    println("e_den0 ", e_den0)
-    println("sum ", sum(e_den0))
+#    println("e_den0 ", e_den0)
+#    println("sum ", sum(e_den0))
     
     if verbose
         if magnetic 
@@ -483,12 +483,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
 
 
-            println("energy band ", energy_band)
+#            println("energy band ", energy_band)
             
 #            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))
-            println(" e_den_NEW ", e_den_NEW)
+#            println(" e_den_NEW ", e_den_NEW)
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
-            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
+#            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
 
             delta_dq[:] = dqNEW - dq
 
@@ -552,7 +552,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
-            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
+#            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
             if iter == 2 && maximum(delta_dq) > 1.0
@@ -1241,32 +1241,32 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
 
 
     hk3, sk3 = myfft_R_to_K(tbc, grid)
-    println("size hk3 ", size(hk3))
+    #println("size hk3 ", size(hk3))
 
     hk3, sk3, e_den_NEW, h1, h1spin, efermi = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = tbc.eden)
-    println("size hk3 v2 ", size(hk3))
+#    println("size hk3 v2 ", size(hk3))
 
     grid = size(hk3)[4:6]
 
     ctemp = tbc.crys
 
     hk3a = permutedims(hk3, [3,1,2,4,5,6])
-    println("size hk3a ", size(hk3a))
-    println("before myfft")
+#    println("size hk3a ", size(hk3a))
+#    println("before myfft")
     ham_r, S_r, r_dict, ind_arr = myfft(ctemp, true, grid, [],hk3a, sk3)
 
 
-    println("after myff")
+#    println("after myff")
 
     if tbc.nspin == 1
         h1spin=missing
     end
         
-    println("size(ham_r) ", size(ham_r))
+#    println("size(ham_r) ", size(ham_r))
     tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=h1, h1spin=h1spin )
 
     #with charge density
-    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=tbc.eden, gamma = tbc.gamma)
+    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=tbc.eden, gamma = tbc.gamma, background_charge_correction = tbc.background_charge_correction)
     tbc_new.efermi = efermi
     
 #    if false

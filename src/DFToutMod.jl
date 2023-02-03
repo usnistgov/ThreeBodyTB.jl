@@ -160,7 +160,7 @@ Base.show(io::IO, d::dftout) = begin
     else
         hasspin = false
     end
-    println(io," Has bandstructure: ", d.hasband,"; Has hamiltonian: ", d.hasham, "; has spin: ", hasspin)
+    println(io," Has bandstructure: ", d.hasband,"; Has hamiltonian: ", d.hasham, "; has spin: ", hasspin, "; tot_charge: ", d.tot_charge)
     if hasspin
         @printf(io, " Net magnetization: % .5f ; Absolute magnetization: % .5f \n", d.mag_tot, d.mag_abs)
     end
@@ -316,9 +316,9 @@ end
 function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0)
     c = makecrys(A,pos,types, units="Bohr")
     if ismissing(bandstruct)
-        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=0.0, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
+        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
     else
-        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=0.0, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
+        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs)
     end
 end
 

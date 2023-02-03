@@ -1739,7 +1739,7 @@ electron density and Fermi level will be wrong.
 - `verbose=true` - set to false for less output.
 - `var_type=missing` - variable type of `tb_crys`. Default is `Float64`.
 """
-function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
+function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
 
     #    use_threebody= false
     #    use_threebody_onsite=false
@@ -2272,7 +2272,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")
@@ -2284,7 +2284,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
 end
 
 
-function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false)
+function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false)
 
 #    use_threebody= false
 #    use_threebody_onsite=false
@@ -2710,7 +2710,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")
@@ -6083,7 +6083,7 @@ end
 
 
 
-function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
+function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
     #    use_threebody= false
     #    use_threebody_onsite=false
@@ -6655,7 +6655,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")
@@ -6680,7 +6680,7 @@ end
 
 
 
-function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
+function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
     println("low mem 2")
     
@@ -7218,7 +7218,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")
@@ -7238,7 +7238,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0)
 
 
 #    println("test")
@@ -7750,7 +7750,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         else
             scf = false
         end
-        tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 
         println("-----")
