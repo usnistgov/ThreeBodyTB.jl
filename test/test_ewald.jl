@@ -9,13 +9,13 @@ function test1()
         @suppress begin 
             cscl = makecrys([1.0 0 0; 0 1.0 0; 0 0 1.0]*2/sqrt(3), [0 0 0; 0.5 0.5 0.5], ["Na", "Cl"], units="Bohr");
             
-            gamma_ij_tot_k1 = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 1.0, noU=true)
-            gamma_ij_tot_k2 = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 2.0, noU=true)
+            gamma_ij_tot_k1, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 1.0, noU=true)
+            gamma_ij_tot_k2, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 2.0, noU=true)
             
             rs = makecrys([1.0 1.0 0; 1.0 0.0 1.0; 0 1.0 1.0], [0 0 0; 0.5 0.5 0.5], ["Na", "Cl"], units="Bohr");
             
             kappa = 3.0
-            gamma_ij_tot_rs = ThreeBodyTB.Ewald.electrostatics_getgamma(rs, kappa = kappa, noU=true)
+            gamma_ij_tot_rs, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(rs, kappa = kappa, noU=true)
 
 
             @test  isapprox(gamma_ij_tot_k1[1,2] - gamma_ij_tot_k1[1,1], gamma_ij_tot_k2[1,2] - gamma_ij_tot_k2[1,1], rtol=1e-5) #do different kappa values agree?
@@ -46,9 +46,9 @@ function test2()
         
             c = makecrys([1.0 0 0; 0 1.0 0; 0 0 1.0]*100, [0 0 0; 0.0 0.0 0.01], ["Na", "Cl"], units="Bohr");
             
-            gamma = ThreeBodyTB.Ewald.electrostatics_getgamma(c, noU=true)
+            gamma, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(c, noU=true)
             
-            energy, pot = ThreeBodyTB.TB.ewald_energy(c, gamma, [1.0, -1.0])
+            energy, pot = ThreeBodyTB.TB.ewald_energy(c, gamma, bc, [1.0, -1.0])
 
 #        println("energy $energy")
 

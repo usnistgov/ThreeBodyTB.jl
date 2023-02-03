@@ -85,6 +85,8 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     end
     kappa = Float64(kappa)
 
+#    println("kappa ", kappa)
+    
     if noU
         println("noU - FOR TESTING")
         U = zeros(Float64, crys.nat)
@@ -114,7 +116,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     
 #    println("gamma_rs")
 #    println(gamma_rs)
-#    println("ks")
+    #println("ks")
     ks = begin 
     #ks = begin
         gamma_k = k_space_LV(crys, kappa, starting_size_kspace)
@@ -128,6 +130,9 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
             gamma_self[i,i] -= kappa / sqrt(pi) * 2.0
         end
     end
+
+    
+
     
 #    wait(ks)
 #    wait(self)
@@ -158,8 +163,11 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
         gamma_tot = gamma_onsiteU
     end
 
+    #interaction of net charge with uniform background
+    background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     
-    return gamma_tot
+    
+    return gamma_tot, background_charge_correction
 
 end
 
@@ -360,6 +368,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
         end
     else
         useU = false
+        Uconst .= 300.0 #for debug
     end
 
     #    R = zeros(T,1, 3)

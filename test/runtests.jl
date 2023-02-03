@@ -24,4 +24,4 @@ include("test_sym.jl")
 delete!(ENV, "GKSwstype") #undo magic to avoid side effects
 
 
-Nothing
+Nothing;

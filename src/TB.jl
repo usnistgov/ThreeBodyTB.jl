@@ -153,6 +153,7 @@ mutable struct tb_crys{T}
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
+    background_charge_correction::T
     eden::Array{Float64,2}
     within_fit::Bool
     energy::Float64
@@ -272,6 +273,7 @@ mutable struct tb_crys_kspace{T}
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
+    background_charge_correction::T
     eden::Array{Float64,2}
     energy::Float64
 
@@ -423,8 +425,13 @@ function read_tb_crys(filename; directory=missing)
         gamma = parse_str_ARR_float(d["gamma"])
         s = Int64(round(sqrt(size(gamma)[1])))
         gamma = reshape(gamma, s, s)
-        
     end
+
+    background_charge_correction = 0.0
+    if "background_charge_correction" in keys(d)
+        background_charge_correction = parse(Float64,d["background_charge_correction"])
+    end
+
     
 
     ##tb
@@ -515,7 +522,7 @@ function read_tb_crys(filename; directory=missing)
         tb = make_tb(H, ind_arr, r_dict, h1=h1, h1spin=h1spin)
     end    
     
-    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, tb_energy=energy, fermi_energy=efermi)
+    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi)
 
     return tbc
     
@@ -637,6 +644,12 @@ function read_tb_crys_kspace(filename; directory=missing)
         
     end
 
+    background_charge_correction = 0.0
+    if "background_charge_correction" in keys(d)
+        background_charge_correction = parse(Float64,d["background_charge_correction"])
+    end
+
+    
     #    if "eden" in keys(d)
     #        eden  = parse_str_ARR_float(d["eden"])
     #    end
@@ -738,7 +751,7 @@ function read_tb_crys_kspace(filename; directory=missing)
 
     tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
-    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma)
+    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction)
 
     return tbck
     
@@ -778,6 +791,7 @@ function write_tb_crys(filename, tbc::tb_crys)
     addelement!(root, "dftenergy", string(tbc.dftenergy))
     addelement!(root, "scf", string(tbc.scf))
     addelement!(root, "gamma", arr2str(tbc.gamma))
+    addelement!(root, "background_charge_correction", string(tbc.background_charge_correction))
     addelement!(root, "eden", arr2str(tbc.eden))
 
     addelement!(root, "efermi", string(tbc.energy))
@@ -889,6 +903,7 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(root, "dftenergy", string(tbc.dftenergy))
     addelement!(root, "scf", string(tbc.scf))
     addelement!(root, "gamma", arr2str(tbc.gamma))
+    addelement!(root, "background_charge_correction", string(tbc.background_charge_correction))
     addelement!(root, "eden", arr2str(tbc.eden))
 
     tightbinding = ElementNode("tightbinding")
@@ -977,7 +992,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -986,21 +1001,16 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
             eden = zeros(nspin,ham.nwan)
         else
             eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
-            #            t = get_neutral_eden(crys, hamk.nwan)
-            #            eden = zeros(nspin, hamk.nwan)
-            #            if nspin == 1
-            #                eden[1,:] = t
-            #            elseif nspin == 2
-            #                eden[1,:] = t
-            #                eden[2,:] = t
-            #            end
-            
+            bv = eden .> 1e-5
+#            println("eden $eden sum $(sum(eden)) nelec $nelec")
+            eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0)/crys.nat
+#            println("new ", eden)
         end
     end
 
     if ismissing(gamma) 
         #        println("ismissing gamma")
-        gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 
     nspin = ham.nspin
@@ -1010,7 +1020,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #    println("type eden " , typeof(eden))
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
-    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden, within_fit, tb_energy, fermi_energy, nspin)
+    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin)
 end
 
 """
@@ -1018,7 +1028,7 @@ end
 
     Constructor function for `tb_crys_kspace` object
     """
-function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, screening=1.0)
+function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, screening=1.0)
 
     nspin = hamk.nspin
     
@@ -1041,7 +1051,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     end
     
     if ismissing(gamma) 
-        gamma = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
     
     #    println(hamk)
@@ -1054,7 +1064,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     #    println(eden)
     #    println(size(gamma))
     #    println(size(eden))
-    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma, eden, -999.0)
+    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0)
 end
 
 
@@ -2303,7 +2313,7 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
         
     end
 
-    println("nelec $nelec")
+    #println("nelec $nelec")
     
     if nelec > 1e-10
         chargeden = go_charge15(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv)
@@ -3750,6 +3760,7 @@ end
      """
 function ewald_energy(tbc::tb_crys, delta_q=missing)
 
+    background_charge_correction = tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
 
@@ -3757,7 +3768,7 @@ function ewald_energy(tbc::tb_crys, delta_q=missing)
         delta_q =  get_dq(crys , tbc.eden)
     end
     
-    return ewald_energy(crys, gamma, delta_q)
+    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
 
 end
 
@@ -3766,6 +3777,7 @@ end
      """
 function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
 
+    background_charge_correction=tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
 
@@ -3773,7 +3785,7 @@ function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
         delta_q =  get_dq(crys , sum(tbc.eden, dims=1))
     end
     #     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
-    return ewald_energy(crys, gamma, delta_q)
+    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
 
 end
 
@@ -3782,7 +3794,7 @@ end
 
      Does the actual calculation.
      """
-function ewald_energy(crys::crystal, gamma, delta_q::Array{Float64,1})
+function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1})
 
     T = typeof(crys.coords[1,1])
     pot = zeros(T, crys.nat, crys.nat)
@@ -3795,8 +3807,8 @@ function ewald_energy(crys::crystal, gamma, delta_q::Array{Float64,1})
 
 
     energy = 0.5*sum(pot)
-
-    println("ewald energy ", energy)
+    energy += background_charge_correction * sum(delta_q)^2
+#    println("ewald energy ", energy)
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 

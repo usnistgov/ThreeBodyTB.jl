@@ -31,7 +31,7 @@ function testU()
             database["SCF"] = true
 
             tbc = ThreeBodyTB.CalcTB.calc_tb_fast(cscl, database, use_threebody=false, use_threebody_onsite=false)
-            tbc.gamma = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, onlyU=true) #only use onsite U, no electrostatics
+            tbc.gamma, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, onlyU=true) #only use onsite U, no electrostatics
 
             @test size(tbc.gamma) == (2,2)
             @test tbc.gamma[1,1] == 0.5
@@ -59,7 +59,7 @@ function testU()
 
             cscl2 = makecrys([1.0 0 0; 0 1.0 0; 0 0 1.0]*10.0, [0 0 0; 0.5 0.5 0.5], ["X", "X"], units="Bohr");
             tbc2 = ThreeBodyTB.CalcTB.calc_tb_fast(cscl2, database, use_threebody=false, use_threebody_onsite=false)
-            tbc2.gamma = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, onlyU=true) #only use onsite U, no electrostatics
+            tbc2.gamma, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, onlyU=true) #only use onsite U, no electrostatics
             tbc2.scf = true
             energy, efermi, e_den, dq, error_flag = ThreeBodyTB.SCF.scf_energy(tbc2, mix=0.75, grid=[1 1 1], conv_thr = 1e-8)
             @test abs(energy - -0.011283791670955126) ≤ 1e-6
