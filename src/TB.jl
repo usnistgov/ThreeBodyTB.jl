@@ -2294,6 +2294,8 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
             energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
             occ = gaussian.(VALS.-efermi, smearing)
 
+            println("nelec $nelec efermi $efermi sum(occ) $(sum(occ)/nk)")
+            
             max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
             energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
             energy0 = sum(occ .* VALS0) / nk * 2.0
@@ -3767,7 +3769,7 @@ function ewald_energy(tbc::tb_crys, delta_q=missing)
     if ismissing(delta_q)
         delta_q =  get_dq(crys , tbc.eden)
     end
-    
+
     return ewald_energy(crys, gamma, background_charge_correction, delta_q)
 
 end
@@ -3808,7 +3810,7 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
 
     energy = 0.5*sum(pot)
     energy += background_charge_correction * sum(delta_q)^2
-#    println("ewald energy ", energy)
+    println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 

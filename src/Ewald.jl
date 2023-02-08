@@ -85,7 +85,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     end
     kappa = Float64(kappa)
 
-#    println("kappa ", kappa)
+    println("kappa ", kappa)
     
     if noU
         println("noU - FOR TESTING")
@@ -112,6 +112,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #println("rs")
     rs = begin 
         gamma_rs, gamma_U = real_space_LV(crys, kappa, U, starting_size_rspace)
+        #gamma_rs, gamma_U = real_space(crys, kappa, U, starting_size_rspace)
     end
     
 #    println("gamma_rs")
@@ -120,6 +121,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     ks = begin 
     #ks = begin
         gamma_k = k_space_LV(crys, kappa, starting_size_kspace)
+        #gamma_k = k_space(crys, kappa, starting_size_kspace)
     end
 #    println("gamma_k")
 #    println(gamma_k)
@@ -138,7 +140,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 #    wait(self)
 #    wait(rs)
     
-    if false #for debugging
+    if true #for debugging
         println("gamma_rs")
         println(gamma_rs)
         println("gamma_k")
@@ -165,6 +167,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     #interaction of net charge with uniform background
     background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
+    #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     
     
     return gamma_tot, background_charge_correction
