@@ -5069,7 +5069,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
             if length(z[old_len+1:new_len]) == 0
                 break
             end
-            if sum(z[old_len+1:new_len] .> 0.05) > 0
+            if sum(z[old_len+1:new_len] .> 0.08) > 0
                 max_err = argmax(z[old_len+1:new_len]) + old_len
                 println("BAD_LIST max_err $max_err ", energy_error[max_err])
                 push!(BAD_LIST, max_err)

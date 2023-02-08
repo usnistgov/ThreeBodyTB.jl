@@ -2154,12 +2154,12 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
             catch err
                 typeof(err) == InterruptException && rethrow(err)
-                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id], sk[:,:,id])
+                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
             end
             
             if maximum(abs.(imag.(vals))) > 1e-10
                 println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
-                println("s ", eigvals(sk)[1:3])
+                println("s ", eigvals(sk[:,:,id])[:,:])
                 error_flag = true
             end
             
