@@ -482,7 +482,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             
             energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
 
-
+            println("e_den_NEW ", e_den_NEW)
+            
 #            println("energy band ", energy_band)
             
 #            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))

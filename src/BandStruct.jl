@@ -813,7 +813,7 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
 
     plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
 
-    if align == :fermi || align == "fermi"
+    if align == :fermi || align == "fermi" || align == :efermi || align == "efermi"
         vbmD = efermi_dft
         vbm = efermi_tbc
     end
