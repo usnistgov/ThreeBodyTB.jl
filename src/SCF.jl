@@ -208,8 +208,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
     if nspin == 2 && size(e_den0,1) == 1
         e_den0 = [e_den0;e_den0]
-        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.1
-        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.1
+        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.2
+        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
     end    
 
     dq = get_dq(tbc.crys, e_den0)
@@ -594,7 +594,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             if iter == 2 && maximum(delta_dq) > 1.0
                 mixA = min(0.1, mixA * 0.5)
             elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
-                mixA = max(mixA * 0.7, 0.0001)
+                mixA = max(mixA * 0.8, 0.0001)
                 nreduce += 1
                 if nreduce > 5 
                     #if nreduce > 3 && mixing_mode == :pulay
@@ -606,7 +606,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                     #                    mixA = 0.02
 #                    nreduce = -5
                 end
-                @printf("                               reduce mixing: % 6.4f   newerr:  % 10.8f  olderr: % 10.8f \n" , mixA ,sum(abs.(delta_dq)) , sum(abs.(delta_dq2)) )
+                #@printf("                               reduce mixing: % 6.4f   newerr:  % 10.8f  olderr: % 10.8f \n" , mixA ,sum(abs.(delta_dq)) , sum(abs.(delta_dq2)) )
 #                println("delta_energy_old $delta_energy_old new ",  abs(energy_old - energy_tot), " " ,  delta_energy_old < abs(energy_old - energy_tot))
 
             else
@@ -616,7 +616,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             if iter == 100
                 mixA = max(mixA * 0.6, 0.001)
                 nreduce += 1
-                @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
+#                @printf("                               reduce mixing: % 6.4f   olderr:  % 10.8f  newerr: % 10.8f \n" , mixA ,delta_eden_old, delta_eden)
             end
 
             if nkeep > 5
@@ -826,7 +826,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             else
 #                println("SCF CALC $iter energy   $energy_tot   en_diff ", abs(energy_tot - energy_old), "   dq_diff:   $delta_eden    ")
                 #                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, delta_eden )
-                @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E    \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.( delta_dq )) )
+                if nspin == 2
+                    @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E   dmag: %08E   mix: %06E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.( delta_dq )),  abs(magmom-magmom_old), mixA )
+                else
+                    @printf("SCF CALC %04i energy  % 10.8f  en_diff:   %08E  dq_diff:   %08E   mix: %06E \n", iter, energy_tot*energy_units, abs(energy_tot - energy_old)*energy_units, sum(abs.( delta_dq )), mixA )
+                end
 
                 
                 
@@ -838,7 +842,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #                end
             end
             
-            #println("conv ", abs(energy_old - energy_tot), " " ,  sum(abs.( delta_dq )), " " , abs(magmom-magmom_old))
+#            println("conv ", abs(energy_old - energy_tot), " " ,  sum(abs.( delta_dq )), " " , abs(magmom-magmom_old))
+#            println([abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat,  sum(abs.( delta_dq )) < 0.02 * tbc.crys.nat, abs(magmom-magmom_old) < 0.02 * tbc.crys.nat])
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
 
                 if sum(abs.( delta_dq )) < 0.02 * tbc.crys.nat && abs(magmom-magmom_old) < 0.02 * tbc.crys.nat

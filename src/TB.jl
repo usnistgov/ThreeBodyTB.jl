@@ -48,6 +48,7 @@ using ..CrystalMod:orbital_index
 using ..ThreeBodyTB:convert_energy
 using ..ThreeBodyTB:global_energy_units
 
+using ..Symmetry:get_kgrid_sym
 
 export tb
 export tb_crys
@@ -1973,7 +1974,7 @@ end
      `etot, efermi, vals, vects`
 
      """
-function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false)
+function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false, use_sym=false)
 
     etypes = types_energy(tbc.crys)
 
@@ -1998,8 +1999,17 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
     #     else
     #         nspin = 1
     #     end
+
+    if use_sym
+        nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+    else
+        nk_red=missing
+        grid_ind = missing
+        kweights = missing
+    end
+
     
-    ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin)
+    ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin, use_sym=use_sym, nk_red=nk_red, grid_ind = grid_ind, kweights=kweights)
 
 
     if return_more_info
@@ -2015,13 +2025,117 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
 
 end
 
+function go_sym(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thetype, nwan, nspin, spin_size, return_more_info)
+    c=0
+    sk = zeros(Complex{thetype}, nwan, nwan)
+    hk = zeros(Complex{thetype}, nwan, nwan)
+    for c = 1:nk_red
+        k1,k2,k3 = grid_ind[c,:]
+        #            for k1 = 1:grid[1]
+        #                for k2 = 1:grid[2]
+        #                    for k3 = 1:grid[3]
+        #c += 1
+        try
+
+            sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+            for spin = 1:nspin
+                spins = min(spin, spin_size)
+                hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
+                
+                if !ismissing(h1)
+                    hk += 0.5*sk .* (h1+h1')
+                end
+                if nspin == 2
+                    hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
+                end
+                
+                vals, vects = eigen(hk, sk)
+                VALS[c, :,spin] = real(vals)
+
+                if return_more_info
+                    VECTS[c,spin, :,:] = vects
+                end
+            end
+            #                    println("tb check ", sum(vects' * sk * vects))
+            #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
+
+        catch e
+            if e isa InterruptException
+                println("user interrupt")
+                rethrow(InterruptException)
+            end
+
+            println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
+            sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+            valsS, vectsS = eigen(sk)
+            println(valsS)
+
+            rethrow(error("BadOverlap"))
+
+        end
+    end
+end
+
+
+function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS, thetype, nwan, nspin, spin_size, return_more_info)
+    c=0
+    sk = zeros(Complex{thetype}, nwan, nwan)
+    hk = zeros(Complex{thetype}, nwan, nwan)
+    for k1 = 1:grid[1]
+        for k2 = 1:grid[2]
+            for k3 = 1:grid[3]
+                c += 1
+                try
+
+                    sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                    for spin = 1:nspin
+                        spins = min(spin, spin_size)
+                        hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
+                        
+                        if !ismissing(h1)
+                            hk += 0.5*sk .* (h1+h1')
+                        end
+                        if nspin == 2
+                            hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
+                        end
+                        
+                        vals, vects = eigen(hk, sk)
+                        VALS[c, :,spin] = real(vals)
+
+                        if return_more_info
+                            VECTS[c,spin, :,:] = vects
+                        end
+                    end
+                    #                    println("tb check ", sum(vects' * sk * vects))
+                    #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
+
+                catch e
+                    if e isa InterruptException
+                        println("user interrupt")
+                        rethrow(InterruptException)
+                    end
+
+                    println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
+                    sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                    valsS, vectsS = eigen(sk)
+                    println(valsS)
+
+                    rethrow(error("BadOverlap"))
+
+                end
+            end
+        end
+    end
+end
+
+
 """
          function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing)
 
      Return energy from hamiltonian `hk3`, overlap `sk3`, `nelec`, etc.
      Primarly for internal calling after fft.
      """
-function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1)
+function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
     #h1 is the scf contribution
 
     grid = size(sk3)[3:5]
@@ -2036,79 +2150,37 @@ function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=f
     #     end
 
     spin_size = size(hk3)[3]
-
-    VALS = zeros(Float64, nk,nwan,nspin)
-
-    VECTS = zeros(Complex{Float64}, nk,nspin, nwan, nwan)
-
-
-
     thetype=typeof(real(sk3[1,1,1,1,1]))
-    
-    function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS)
-        c=0
-        sk = zeros(Complex{thetype}, nwan, nwan)
-        hk = zeros(Complex{thetype}, nwan, nwan)
-        for k1 = 1:grid[1]
-            for k2 = 1:grid[2]
-                for k3 = 1:grid[3]
-                    c += 1
-                    try
 
-                        sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                        for spin = 1:nspin
-                            spins = min(spin, spin_size)
-                            hk[:,:] = 0.5*(hk3[:,:,spins, k1,k2,k3] + hk3[:,:,spins, k1,k2,k3]')
-                            
-                            if !ismissing(h1)
-                                hk += 0.5*sk .* (h1+h1')
-                            end
-                            if nspin == 2
-                                hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
-                            end
-                            
-                            vals, vects = eigen(hk, sk)
-                            VALS[c, :,spin] = real(vals)
+    if use_sym
+        println("use_sym")
+        VALS = zeros(Float64, nk_red,nwan,nspin)
+        VECTS = zeros(Complex{Float64}, nk_red,nspin, nwan, nwan)
 
-                            if return_more_info
-                                VECTS[c,spin, :,:] = vects
-                            end
-                        end
-                        #                    println("tb check ", sum(vects' * sk * vects))
-                        #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
+        go_sym(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thetype, nwan, nspin, spin_size,return_more_info)
+        
+        band_en, efermi = band_energy(VALS, kweights, nelec, smearing, returnef=true)
+        energy_smear = smearing_energy(VALS, kweights, efermi, smearing)
+        
+    else
+        VALS = zeros(Float64, nk,nwan,nspin)
+        VECTS = zeros(Complex{Float64}, nk,nspin, nwan, nwan)
 
-                    catch e
-                        if e isa InterruptException
-                            println("user interrupt")
-                            rethrow(InterruptException)
-                        end
 
-                        println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
-                        sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                        valsS, vectsS = eigen(sk)
-                        println(valsS)
-
-                        rethrow(error("BadOverlap"))
-
-                    end
-                end
-            end
-        end
+        go(grid, sk3, hk3, h1, h1spin, VALS, VECTS, thetype, nwan, nspin, spin_size,return_more_info)
+        
+        band_en, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
+        energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
     end
     
-    go(grid, sk3, hk3, h1, h1spin, VALS, VECTS)
-
-    band_en, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
-    energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-
     if return_more_info
         return  band_en + energy_smear, efermi, VALS, VECTS
     else
         return  band_en + energy_smear
     end
-
+    
 end 
-
+    
 
 function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK)
 

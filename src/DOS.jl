@@ -25,6 +25,7 @@ using ..ThreeBodyTB:convert_energy
 using ..ThreeBodyTB:convert_dos
 using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:no_display
+using ..Symmetry:get_kgrid_sym
 
 function get_projtype(tbc, ptype=missing)
 
@@ -97,7 +98,7 @@ Figures out the projections.
 `ptype` can be `:atomic` or `:orbs` for atom projection or orbital projection (:s,:p,:d)
 Default is to choose `:atomic` except for elemental systems.
 """
-function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)    
+function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false, nk_red=1, grid_ind=missing, kweights = missing)    
 
     nspin = tbc.nspin
     if tbc.tb.scfspin == true
@@ -109,31 +110,53 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
     nk = size(vects)[1]
 
     temp = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
-    proj = zeros(nk, tbc.tb.nwan, length(PROJ), nspin)
 
 #    sk5 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     sk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)    
 
     vectsS = zeros(size(vects))
 
-    for spin = 1:nspin
-        @threads for c = 1:grid[1]*grid[2]*grid[3]
-            
-            k3 = mod(c-1 , grid[3])+1
-            k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
-            k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
-            
-#            skt = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-#            skt5 = skt^0.5
-            v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+    if use_sym
+        proj = zeros(nk_red, tbc.tb.nwan, length(PROJ), nspin)
+        
+        for spin = 1:nspin
+            @threads for c = 1:nk_red
+                k1,k2,k3 = grid_ind[c,:]
+#                k3 = mod(c-1 , grid[3])+1
+#                k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+#                k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+                
+                #            skt = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                #            skt5 = skt^0.5
+                v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
 
 
-            
-            vectsS[c,spin,:,:] = real(v5.*conj(v5))
+                
+                vectsS[c,spin,:,:] = real(v5.*conj(v5))
+            end
+        end
+
+    else
+        proj = zeros(nk, tbc.tb.nwan, length(PROJ), nspin)
+        
+        for spin = 1:nspin
+            @threads for c = 1:grid[1]*grid[2]*grid[3]
+                
+                k3 = mod(c-1 , grid[3])+1
+                k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+                k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+                
+                #            skt = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
+                #            skt5 = skt^0.5
+                v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+
+
+                
+                vectsS[c,spin,:,:] = real(v5.*conj(v5))
+            end
         end
     end
-
-    println("sum vS  ", sum(vectsS))
+#    println("sum vS  ", sum(vectsS))
     
    #= for spin = 1:nspin
         for (pind, proj_inds) in enumerate(PROJ)
@@ -158,22 +181,47 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing)
         end
     end
 =#
-    for spin = 1:nspin
-        for (pind, proj_inds) in enumerate(PROJ)
-            println("proj_inds $proj_inds")
-            for p1 in proj_inds
-                #                for p2 in proj_inds
-                #                    for a = 1:tbc.tb.nwan
-                @threads for c = 1:grid[1]*grid[2]*grid[3]
-                    
-                    for a = 1:tbc.tb.nwan
-                        
-                        proj[c,a,pind, spin] += vectsS[c,spin,p1,a]
 
+    if use_sym
+        for spin = 1:nspin
+            for (pind, proj_inds) in enumerate(PROJ)
+                println("proj_inds $proj_inds")
+                for p1 in proj_inds
+                    #                for p2 in proj_inds
+                    #                    for a = 1:tbc.tb.nwan
+                    @threads for c = 1:nk_red
+                        
+                        for a = 1:tbc.tb.nwan
+                            
+                            proj[c,a,pind, spin] += kweights[c]*vectsS[c,spin,p1,a] * nk/2.0
+
+                        end
+                        
                     end
-                    
+                    #                    end
                 end
-                #                    end
+            end
+        end
+
+    else
+
+        for spin = 1:nspin
+            for (pind, proj_inds) in enumerate(PROJ)
+                println("proj_inds $proj_inds")
+                for p1 in proj_inds
+                    #                for p2 in proj_inds
+                    #                    for a = 1:tbc.tb.nwan
+                    @threads for c = 1:grid[1]*grid[2]*grid[3]
+                        
+                        for a = 1:tbc.tb.nwan
+                            
+                            proj[c,a,pind, spin] += vectsS[c,spin,p1,a]
+
+                        end
+                        
+                    end
+                    #                    end
+                end
             end
         end
     end
@@ -241,7 +289,7 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -249,7 +297,7 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
         println("grid $grid")
     end
 
-    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true)
+    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true, use_sym=use_sym)
 
     println("dos fermi $efermi xxxxxxxxxxxxx---------------")
     
@@ -275,9 +323,19 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
     
     DOS = zeros(length(energies))
 
+    if use_sym
+        nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+    else
+        nk_red=1
+        grid_ind =missing
+        kpts = missing
+        kweights = ones(prod(grid)) * 2 / nk
+    end
+        
+    
     if ismissing(proj_type) || !(  proj_type != "none"  ||  proj_type != :none)
         do_proj=true
-        proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
+        proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym, nk_red=nk_red, grid_ind=grid_ind, kweights = kweights)
         nproj = size(proj)[3]
 
         pdos = zeros(length(energies),nproj, nspin)
@@ -289,12 +347,18 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
         names=missing
     end
     
-    
-    
+
+    KW = repeat(kweights, 1, tbc.tb.nwan)
+                
     DOS = zeros(length(energies), nspin)
+
+#    println("size(KW) $(size(KW))")
+#    println("size(vals) $(size(vals))")
+#    println("size(DOS) $(size(DOS))")
+    
     for spin = 1:nspin
         for (c,e) in enumerate(energies)
-            DOS[c,spin] = sum(exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) )
+            DOS[c,spin] = sum(KW .*  exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) ) / 2.0 * nk
         end
 
         if do_proj

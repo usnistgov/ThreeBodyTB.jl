@@ -257,13 +257,14 @@ function get_symmetry(c::crystal; verbose=true, sym_prec = 5e-4, magmoms=missing
     
     dat = Spglib.get_dataset(cell, sym_prec)
     
+    
     if verbose
         println("Symmetry info")
         println("Space group # $(dat.spacegroup_number)     $(dat.international_symbol)      $(dat.hall_symbol)")
         println("Point group   $(dat.pointgroup_symbol)")
     end
 
-    return dat.spacegroup_number
+    return dat.spacegroup_number, dat
 
 end
 
@@ -333,7 +334,7 @@ https://github.com/usnistgov/jarvis/blob/master/jarvis/analysis/structure/spaceg
 function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     c_std = get_standard_crys(c, sym_prec = sym_prec, magmoms=magmoms)
-    sym = get_symmetry(c_std, verbose=true, sym_prec = sym_prec, magmoms=magmoms)
+    sym, dat = get_symmetry(c_std, verbose=true, sym_prec = sym_prec, magmoms=magmoms)
     
 
     centering = spg_sym[sym][1]
@@ -927,7 +928,14 @@ function get_kgrid_sym(c::crystal; grid=missing,  sym_prec=5e-4)
     coords = [c.coords[i,:] for i in 1:c.nat]
     cell = Spglib.Cell(c.A', coords, c.types)
 
-    nk, gridmap, fullgrid =  Spglib.get_ir_reciprocal_mesh(cell, grid, symprec=sym_prec, is_time_reversal=true)
+#    println("coords ", coords)
+#    println("grid ", grid)
+#    println("c.A' ", c.A')
+#    println("c.types ", c.types)
+#    println("cell ", cell)
+    
+    nk, gridmap, fullgrid =  Spglib.get_ir_reciprocal_mesh(cell, grid[:], symprec=sym_prec, is_time_reversal=true)
+
 
     #println(size(fullgrid))
     #println(prod(grid))
@@ -968,6 +976,96 @@ function get_kgrid_sym(c::crystal; grid=missing,  sym_prec=5e-4)
     
 end
 
+function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 
+    if size(vector,1) != c.nat || size(vector,2) != 3
+        println("error vector size $(size(vector))")
+        println(c)
+        return vector
+    end
+    
+    coords = [c.coords[i,:] for i in 1:c.nat]
+    cell = Spglib.Cell(c.A', coords, c.types)
+    dat = Spglib.get_dataset(cell, sym_prec)
+    
+    SS = dat.rotations
+    TT = dat.translations
+    nsym = dat.n_operations
+
+    atom_trans = zeros(Int64, c.nat, nsym)
+    coords = mod.(c.coords, 1.0)
+    cnew = zeros(1,3)
+    for a = 1:c.nat
+        for isym in 1:nsym
+            S = @view SS[:,:,isym]
+            T = @view TT[:,isym]
+            cnew[1,:] = mod.((@view coords[a,:])' * S + T', 1.0)
+            smin = 100000.0
+            ind = a 
+            for b = 1:c.nat
+                s = 0.0
+                for ii = 1:3
+                    s += min(abs(cnew[1,ii] - coords[b,ii]), abs(abs(cnew[1,ii] - coords[b,ii]) - 1), abs( abs(cnew[1,ii] - coords[b,ii]) + 1))
+                end
+                if s < smin
+                    ind = b
+                    smin = s
+                end
+            end
+            atom_trans[a,isym] = ind #argmin( @view sum(abs.(repeat(cnew, c.nat) - coords), dims=2)[:])
+        end
+    end
+
+    if false
+        for isym in 1:nsym
+            S = SS[:,:,isym]
+            T = TT[:,isym]
+            println("isym $isym")
+            println(S)
+            println(T)
+            println(atom_trans[:,isym])
+            println()
+        end
+    end
+
+    vnew = zeros(size(vector))
+
+    vector_crys = vector * inv(c.A)
+
+#    println("vector_crys")
+#    println(vector_crys)
+    
+    for a = 1:c.nat
+        for isym = 1:nsym
+            S = @view SS[:,:,isym]
+#            println(size((@view vector[atom_trans[a,isym],:])' * S))
+            t = ((vector_crys[atom_trans[a,isym],:])' * S)'
+            vnew[a,:] += t
+        end
+    end
+
+#    println("vnew ")
+#    println(vnew)
+    
+    snew = zeros(3,3)
+    tensor_crys = inv(c.A) * tensor * inv(c.A)
+    for isym = 1:nsym
+        S = @view SS[:,:,isym]
+        for i = 1:3
+            for j = 1:3
+                for k = 1:3
+                    for l = 1:3
+                        snew[i,j] += S[k,i]*S[l,j]*tensor_crys[k,l]
+                    end
+                end
+            end
+        end
+    end
+
+    
+    
+    return (vnew / nsym) * c.A, c.A*(snew / nsym)*c.A
+    
+end
 
 end #end module
