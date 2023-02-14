@@ -33,9 +33,9 @@ function test_Symmetry()
 
             c = makecrys([6 0 0; 0 6 0;0 0 6], [0.0 0 0.0], ["H"])
 
-            nk, grid_ind, kpts, kweights = ThreeBodyTB.Symmetry.get_kgrid_sym(c)
+            nk, grid_ind, kpts, kweights = ThreeBodyTB.Symmetry.get_kgrid_sym(c, grid=[6,6,6])
 
-            @test nk == 56
+            @test nk == 20
             @test isapprox(sum(kweights) , 2.0, atol=1e-10)
 
             v,t = ThreeBodyTB.Symmetry.symmetrize_vector_tensor(rand(1,3), [1.0 0 0; 0 1.0 0; 0 0 1.0], c; sym_prec = 5e-4)
