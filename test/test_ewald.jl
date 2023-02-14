@@ -9,12 +9,12 @@ function test1()
         @suppress begin 
             cscl = makecrys([1.0 0 0; 0 1.0 0; 0 0 1.0]*2/sqrt(3), [0 0 0; 0.5 0.5 0.5], ["Na", "Cl"], units="Bohr");
             
-            gamma_ij_tot_k1, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 1.0, noU=true)
-            gamma_ij_tot_k2, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 2.0, noU=true)
+            gamma_ij_tot_k1, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 5.0, noU=true)
+            gamma_ij_tot_k2, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(cscl, kappa = 6.0, noU=true)
             
             rs = makecrys([1.0 1.0 0; 1.0 0.0 1.0; 0 1.0 1.0], [0 0 0; 0.5 0.5 0.5], ["Na", "Cl"], units="Bohr");
             
-            kappa = 3.0
+            kappa = 4.0
             gamma_ij_tot_rs, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(rs, kappa = kappa, noU=true)
 
 
