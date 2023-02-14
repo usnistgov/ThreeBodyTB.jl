@@ -5,6 +5,7 @@ module Symmetry
 using Spglib
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys
+using ..CrystalMod:get_grid
 
 spg_sym = Dict()
 spg_sym[1] = "P1"
@@ -917,6 +918,55 @@ function kassemble(kdict, names)
 
 end
 
+function get_kgrid_sym(c::crystal; grid=missing,  sym_prec=5e-4)
+
+    if ismissing(grid)
+        grid = get_grid(c)
+    end
+    
+    coords = [c.coords[i,:] for i in 1:c.nat]
+    cell = Spglib.Cell(c.A', coords, c.types)
+
+    nk, gridmap, fullgrid =  Spglib.get_ir_reciprocal_mesh(cell, grid, symprec=sym_prec, is_time_reversal=true)
+
+    #println(size(fullgrid))
+    #println(prod(grid))
+    #println(size(repeat(grid', prod(grid))))
+
+    fullgrid_ind = deepcopy(fullgrid')
+    fullgrid_ind[:,1] = mod.(fullgrid_ind[:,1], grid[1]) .+ 1
+    fullgrid_ind[:,2] = mod.(fullgrid_ind[:,2], grid[2]) .+ 1
+    fullgrid_ind[:,3] = mod.(fullgrid_ind[:,3], grid[3]) .+ 1
+    
+    grid_ind = zeros(Int64, nk, 3)
+    
+    fg_float= fullgrid' ./ (repeat(grid', prod(grid)))
+    
+    kpts = zeros(nk, 3)
+    kweights = zeros(nk)
+
+    unq = unique(gridmap)
+    kdict = Dict()
+    counter = 0
+    for i = 1:prod(grid)
+#        println("i $i $(gridmap[i]) ")
+        if !(gridmap[i]  in keys(kdict))
+#            println("add")
+            counter += 1
+            kdict[gridmap[i]] = counter
+            kpts[counter,:] = fg_float[gridmap[i],:]
+            grid_ind[counter,:] = fullgrid_ind[i,:]
+        end
+        kweights[kdict[gridmap[i]]] += 1
+    end
+    if counter != nk
+        println("warning, issue with k-points symmetry $counter $nk")
+    end
+    kweights = kweights / sum(kweights)*2
+
+    return nk, grid_ind, kpts, kweights
+    
+end
 
 
 

@@ -30,6 +30,7 @@ using ..TB:types_energy
 using ..TB:myfft
 using ..TB:calc_energy_charge_fft_band
 using ..TB:calc_energy_charge_fft_band2
+using ..TB:calc_energy_charge_fft_band2_sym
 using ..TB:calc_energy_charge_fft
 using ..TB:myfft_R_to_K
 using ..TB:ewald_energy
@@ -54,6 +55,7 @@ using ..CrystalMod:get_grid
 using SpecialFunctions
 using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:eV
+using ..Symmetry:get_kgrid_sym
 
 export scf_energy
 
@@ -71,14 +73,14 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
 
     #println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
     #println("asdf ", tbc.eden, ", tc ", tot_charge)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
-    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose)
+    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym)
     return t
     
 end
@@ -86,7 +88,7 @@ end
 """
     function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
@@ -249,11 +251,21 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     nk = prod(grid)
     
+    if use_sym
+        nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+    end
+                                              
+
+    
     if verbose
         println()
         println("Parameters:")
         println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix $mixing_mode , grid = $grid, nspin=$nspin")
-        println("nk $nk: $grid")        
+        if use_sym
+            println("nk $nk: $grid ; nk_red: $nk_red")
+        else
+            println("nk $nk: $grid")
+        end            
         println()
     end
 
@@ -275,8 +287,13 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     
 
     
-    VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
-    VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
+    if use_sym
+        VECTS = zeros(Complex{Float64}, nspin, nk_red, tbc.tb.nwan, tbc.tb.nwan)
+        VALS = zeros(Float64, nspin, nk_red, tbc.tb.nwan)
+    else
+        VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
+        VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
+    end
                   
     energy_old = 1e12
     delta_energy_old = 1e14
@@ -411,10 +428,16 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         nwan = tbc.tb.nwan
         
 
-        VECTS_w = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
-        SK_w = zeros(Complex{thetype}, nwan, nwan, nk)
-        DEN_w = zeros(Complex{thetype}, nwan, nwan, nk)
-
+        if use_sym
+            VECTS_w = zeros(Complex{thetype}, nwan, nwan, nk_red, nspin)
+            SK_w = zeros(Complex{thetype}, nwan, nwan, nk_red)
+            DEN_w = zeros(Complex{thetype}, nwan, nwan, nk_red)
+        else
+            VECTS_w = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
+            SK_w = zeros(Complex{thetype}, nwan, nwan, nk)
+            DEN_w = zeros(Complex{thetype}, nwan, nwan, nk)
+        end
+        
         delta_dq = ones(tbc.crys.nat)*1000.0
         delta_dq2 = ones(tbc.crys.nat)*1000.0
         
@@ -479,17 +502,29 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("en2")
 
 #            println("mix $mixA dq_in   ", round.(dq; digits=3))
-            
-            energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
 
-            println("e_den_NEW ", e_den_NEW)
+            
+            if use_sym
+                energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
+            else
+                energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
+            end                
+            
+            #println("energy_band $energy_band $energy_band_sym $(energy_band - energy_band_sym)")
+            #println("e_den_NEW $e_den_NEW $e_den_NEW_sym ")
+            #println("e_den_NEW ", e_den_NEW)
             
 #            println("energy band ", energy_band)
             
 #            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))
 #            println(" e_den_NEW ", e_den_NEW)
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
-#            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
+            #h1NEW_sym, dqNEW_sym = get_h1(tbc, e_den_NEW_sym)
+#            println("dqNEW $dqNEW      $dqNEW_sym    $(sum(e_den_NEW)) $(sum(e_den_NEW_sym))")
+#            println()
+#            println(e_den_NEW_sym)
+#            println()
+            #            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
 
             delta_dq[:] = dqNEW - dq
 

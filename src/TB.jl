@@ -2294,7 +2294,7 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
             energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
             occ = gaussian.(VALS.-efermi, smearing)
 
-            println("nelec $nelec efermi $efermi sum(occ) $(sum(occ)/nk)")
+#            println("nelec $nelec efermi $efermi sum(occ) $(sum(occ)/nk)")
             
             max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
             energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
@@ -3810,7 +3810,7 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
 
     energy = 0.5*sum(pot)
     energy += background_charge_correction * sum(delta_q)^2
-    println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
+    #println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 
@@ -4244,6 +4244,239 @@ function get_formation_energy(energy, c::crystal)
     return get_formation_energy(energy, c.stypes)
 
 end
+
+
+
+
+
+function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
+
+    #println("begin")
+    begin
+        thetype=typeof(real(sk3[1,1,1,1,1]))
+
+        #     println("size ", size(hk3))
+        nwan = size(sk3)[1]
+        nspin = size(hk3)[3]
+        nk = prod(size(hk3)[end-2:end])
+        if ismissing(VECTS)
+            VECTS = zeros(Complex{thetype}, nwan, nwan, nk_red, nspin)
+        end
+        if ismissing(SK)
+            SK = zeros(Complex{thetype}, nwan, nwan, nk_red)
+        end
+        if ismissing(DEN)
+            DEN = zeros(Complex{thetype}, nwan, nwan, nk_red)
+        end
+
+        rDEN = zeros(thetype, nwan, nwan, nk_red)
+        iDEN = zeros(thetype, nwan, nwan, nk_red)
+        rv = zeros(thetype, nwan, nwan, nk_red)
+        iv = zeros(thetype, nwan, nwan, nk_red)
+        
+        
+        if true
+
+            
+            grid = size(sk3)[3:5]
+            #    print("calc_energy_charge_fft_band grid $grid")
+            nk = prod(grid)
+            nwan = size(hk3)[1]
+
+            if !ismissing(h1spin)
+                nspin = 2
+            else
+                nspin = size(hk3)[3]
+            end
+
+            nspin_ham = size(hk3)[3]
+
+
+            VALS = zeros(Float64, nk_red, nwan, nspin)
+            VALS0 = zeros(Float64, nk_red,nwan, nspin)
+            #         c=0
+
+            thetype=typeof(real(sk3[1,1,1,1,1]))
+            #         sk = zeros(Complex{thetype}, nwan, nwan)
+            #         hk = zeros(Complex{thetype}, nwan, nwan)
+            #         hk0 = zeros(Complex{thetype}, nwan, nwan)
+
+
+            #         VECTS = zeros(Complex{thetype}, nk, nspin, nwan, nwan)
+            #         SK = zeros(Complex{thetype}, nk, nwan, nwan)
+
+            error_flag = false
+
+            if ismissing(h1)
+                h1 = zeros(nwan,nwan)
+            else
+                h1 = 0.5*(h1 + h1')
+            end
+            if ismissing(h1spin)
+                h1spin = zeros(2,nwan,nwan)# , zeros(nwan,nwan)]
+            else
+                h1spin[1,:,:] .= 0.5*(h1spin[1,:,:] + h1spin[1,:,:]')
+                h1spin[2,:,:] .= 0.5*(h1spin[2,:,:] + h1spin[2,:,:]')
+            end
+            
+        end
+    end
+
+    
+    go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
+
+    begin
+
+        if nelec > 1e-10
+            energy, efermi = band_energy(VALS, kweights, nelec, smearing, returnef=true)
+            occ = gaussian.(VALS.-efermi, smearing)
+
+            #println("nelec $nelec efermi $efermi sum(occ) $(sum(occ .* kweights)/2.0)   sym")
+            
+            max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
+            energy_smear = smearing_energy(VALS, kweights, efermi, smearing)
+
+            energy0 = sum(occ .* VALS0 .* kweights) 
+
+            energy0 += energy_smear * nspin#
+        else
+
+            energy_smear = 0.0
+            energy0 = 0.0
+            efermi = minimum(VALS)
+            occ = zeros(size(VALS))
+            
+        end
+        
+            
+        #         println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
+        
+    end
+
+    #println("nelec $nelec")
+    
+    if nelec > 1e-10
+        chargeden = go_charge15_sym(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
+    else
+        chargeden = zeros(nspin, nwan)
+    end
+    
+    if nspin == 2
+        energy0 = energy0 / 2.0
+    end
+    
+    return energy0, efermi, chargeden, VECTS, VALS, error_flag
+
+
+end 
+
+function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red, grid_ind)
+
+    hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    vals = zeros(Complex{Float64}, size(h1)[1], nthreads())
+    vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+
+#    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    
+    @inbounds @fastmath @threads for c = 1:nk_red
+        id = threadid()
+        k1,k2,k3 = grid_ind[c,:]
+        
+        #k3 = mod(c-1 , grid[3])+1
+        #k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+        #k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+        
+        sk[:,:,id] .= (@view sk3[:,:,k1,k2,k3]) 
+        #sk[:,:,id] .= 0.5*( (@view sk[:,:,id]) .+ (@view sk[:,:,id])')
+        SK[:,:,c] .= (@view sk[:,:,id])
+
+        #=
+        sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')
+        SK[:,:,c] .= sk
+        =#
+        
+        for spin = 1:nspin
+            spin_ind = min(spin, nspin_ham)
+            
+            #            hk0[:,:,id] .= ( (@view hk3[:,:,spin_ind, k1,k2,k3]) )
+            #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
+            #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
+            
+            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+            #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
+            
+            try
+                #hermH[:,:] = (@view hk[:,:,id][:,:])
+                #hermS[:,:] = (@view sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+
+                #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
+            catch err
+                typeof(err) == InterruptException && rethrow(err)
+                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+            end
+            
+            if maximum(abs.(imag.(vals))) > 1e-10
+                println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                println("s ", eigvals(sk[:,:,id])[:,:])
+                error_flag = true
+            end
+            
+            VALS[c,:, spin] .= real.(vals[:,id])
+            #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
+            VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
+            VECTS[:,:, c, spin] .= vects[:,:,id]
+            
+        end
+    end
+
+end
+
+function go_charge15_sym(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, grid_ind,kweights )
+
+    nw = size(S)[1]
+    #    nk = size(S)[3]
+
+    d = zeros(Complex{Float64}, nw,nw)
+    charge = zeros(nspin, nw)
+
+
+    for spin = 1:nspin
+        rv[:,:,:] .= real.(VECTS[:,:,:,spin])
+        iv[:,:,:] .= imag.(VECTS[:,:,:,spin])    
+
+        rDEN .= 0.0
+        iDEN .= 0.0
+        @tturbo  for n = 1:max_occ 
+            for k = 1:nk_red
+                for b = 1:nw
+                    for a = 1:nw
+                        #DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[b,n,k,spin])
+
+                        #                        DEN[a,b,k] += occ[k,n,spin].*  (real(VECTS[a,n,k,spin]) - im * imag(VECTS[a,n,k,spin])) .*(real(VECTS[b,n,k,spin]) + im * imag(VECTS[b,n,k,spin]))
+
+#                        DEN[a,b,k] += occ[k,n,spin].*  ( real(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + real(VECTS[a,n,k,spin])*im * imag(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*im*imag(VECTS[b,n,k,spin]))
+
+                        rDEN[a,b,k] += kweights[k]*occ[k,n,spin]*(rv[a,n,k]*rv[b,n,k] + iv[a,n,k]*iv[b,n,k])
+                        iDEN[a,b,k] += kweights[k]*occ[k,n,spin]*(rv[a,n,k]*iv[b,n,k] - iv[a,n,k]*rv[b,n,k])
+                        
+                        #DEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k,spin]*rv[b,n,k,spin]-iv[b,n,k,spin]*iv[a,n,k,spin])
+
+                    end
+                end
+            end
+        end
+#        println("size rDEN $(size(rDEN)) i $(size(iDEN)) s $(size(S)) d $(size(d))")
+        d .= sum((rDEN+iDEN*im) .* S, dims=3)[:,:]
+        #        d .= sum(DEN .* S, dims=3)[:,:]
+        charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
+    end
+    return charge/2.0
+end
+
 
 
 include("Magnetic.jl")

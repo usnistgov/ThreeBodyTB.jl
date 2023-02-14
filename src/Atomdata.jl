@@ -717,6 +717,77 @@ for key in keys(formation_energy_ref)
     formation_energy_ref[Symbol(key)] = formation_energy_ref[key]
 end
 
+uniform_charge_interaction = Dict()
+
+uniform_charge_interaction["Ag"] = 38.310153143079404
+uniform_charge_interaction["Al"] = 69.53875176349263
+uniform_charge_interaction["As"] = 42.96491449117802
+uniform_charge_interaction["Au"] = 51.54313345395868
+uniform_charge_interaction["B"] = 31.67806974751363
+uniform_charge_interaction["Ba"] = 110.94293672198735
+uniform_charge_interaction["Be"] = 39.66769227244565
+uniform_charge_interaction["Bi"] = 60.519733167038495
+uniform_charge_interaction["Br"] = 33.972862553072986
+uniform_charge_interaction["C"] = 22.554204966541853
+uniform_charge_interaction["Ca"] = 79.88161303932928
+uniform_charge_interaction["Cd"] = 27.243392121805506
+uniform_charge_interaction["Cl"] = 28.073087881572704
+uniform_charge_interaction["Co"] = 48.404727791142065
+uniform_charge_interaction["Cr"] = 58.85999616067147
+uniform_charge_interaction["Cs"] = 92.09592113912022
+uniform_charge_interaction["Cu"] = 41.28642572413147
+uniform_charge_interaction["F"] = 13.201050666905376
+uniform_charge_interaction["Fe"] = 50.08582557117798
+uniform_charge_interaction["Ga"] = 68.61957358902693
+uniform_charge_interaction["Ge"] = 53.30596917632973
+uniform_charge_interaction["H"] = 15.98284139878575
+uniform_charge_interaction["Hf"] = 46.32241180717395
+uniform_charge_interaction["Hg"] = 35.250161680624885
+uniform_charge_interaction["I"] = 44.281209646787325
+uniform_charge_interaction["In"] = 81.18454008713215
+uniform_charge_interaction["Ir"] = 45.681809369817145
+uniform_charge_interaction["K"] = 169.11330767215395
+uniform_charge_interaction["La"] = 58.489958212440584
+uniform_charge_interaction["Li"] = 110.39973925501434
+uniform_charge_interaction["Mg"] = 56.47982657466192
+uniform_charge_interaction["Mn"] = 58.36051811091408
+uniform_charge_interaction["Mo"] = 64.88848927653254
+uniform_charge_interaction["N"] = 18.08587495431751
+uniform_charge_interaction["Na"] = 113.07850319921458
+uniform_charge_interaction["Nb"] = 59.13668546526235
+uniform_charge_interaction["Ni"] = 32.53854000344224
+uniform_charge_interaction["O"] = 15.840846789698194
+uniform_charge_interaction["Os"] = 41.95667285600896
+uniform_charge_interaction["P"] = 37.62893566906966
+uniform_charge_interaction["Pb"] = 69.57488241616173
+uniform_charge_interaction["Pd"] = 30.917719237489063
+uniform_charge_interaction["Pt"] = 49.878946738957936
+uniform_charge_interaction["Rb"] = 175.68301925820725
+uniform_charge_interaction["Re"] = 39.454394055607494
+uniform_charge_interaction["Rh"] = 33.624568250984225
+uniform_charge_interaction["Ru"] = 43.21782247694471
+uniform_charge_interaction["S"] = 31.52168516233331
+uniform_charge_interaction["Sb"] = 53.57035746826563
+uniform_charge_interaction["Sc"] = 64.09718724388468
+uniform_charge_interaction["Se"] = 37.61487209021021
+uniform_charge_interaction["Si"] = 50.39668679265433
+uniform_charge_interaction["Sn"] = 66.00485498129952
+uniform_charge_interaction["Sr"] = 88.96833058714125
+uniform_charge_interaction["Ta"] = 41.28841531411757
+uniform_charge_interaction["Tc"] = 58.97914500930391
+uniform_charge_interaction["Te"] = 49.13003327153007
+uniform_charge_interaction["Ti"] = 54.2629071530874
+uniform_charge_interaction["Tl"] = 84.83719206652508
+uniform_charge_interaction["V"] = 56.271489278186074
+uniform_charge_interaction["W"] = 37.87941801127756
+uniform_charge_interaction["Y"] = 47.67378245368359
+uniform_charge_interaction["Zn"] = 25.690232234331415
+uniform_charge_interaction["Zr"] = 47.98040111573924
+
+
+for key in keys(uniform_charge_interaction)
+    uniform_charge_interaction[Symbol(key)] = uniform_charge_interaction[key]
+end
 
 
 end #ends module

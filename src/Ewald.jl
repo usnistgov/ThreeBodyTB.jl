@@ -17,6 +17,7 @@ Electrostatics
 
 #include("Atomdata.jl")
 using ..Atomdata:atoms
+using ..Atomdata:uniform_charge_interaction
 
 using LinearAlgebra
 using ..CrystalMod:crystal
@@ -85,7 +86,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     end
     kappa = Float64(kappa)
 
-    println("kappa ", kappa)
+#    println("kappa ", kappa)
     
     if noU
         println("noU - FOR TESTING")
@@ -140,7 +141,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 #    wait(self)
 #    wait(rs)
     
-    if true #for debugging
+    if false #for debugging
         println("gamma_rs")
         println(gamma_rs)
         println("gamma_k")
@@ -159,14 +160,38 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #rydberg units
     e2 = 2.0
 
-    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U*0.0) + gamma_onsiteU*0.0
+    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
 
+
+    
+    #interaction of net charge with uniform background
+    background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
+
+    gamma_bc = zeros(T, crys.nat, crys.nat)
+    for i = 1:crys.nat
+        for j = 1:crys.nat
+            if i == j
+                gamma_bc[i,j] += background_charge_correction
+            else
+                gamma_bc[i,j] += 2.0*background_charge_correction
+            end                
+        end
+    end
+
+    gamma_tot += gamma_bc*2.0
+
+    background_charge_correction = 0.0
+    for t = crys.stypes
+        background_charge_correction += uniform_charge_interaction[t]
+    end
+    background_charge_correction = background_charge_correction / abs(det(crys.A))
+        
+
+    
     if onlyU #for debugging
         gamma_tot = gamma_onsiteU
     end
 
-    #interaction of net charge with uniform background
-    background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     
     

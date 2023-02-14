@@ -617,7 +617,8 @@ Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_
 function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("get_energy_force_stress_fft")
-
+    do_scf = true
+    
     FloatX = Float32
     #FloatX = Float64
     ct = deepcopy(tbc.crys)
@@ -677,7 +678,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false)
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false, use_sym=false)
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
@@ -967,6 +968,8 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
 
 #    println("get_energy_force_stress_fft")
 
+    do_scf = true
+    
     #FloatX = Float32
     FloatX = Float64
     ct = deepcopy(tbc.crys)
@@ -1026,7 +1029,7 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false)
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false, use_sym=false)
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
@@ -1409,5 +1412,6 @@ function psi_gradH_psi3(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DEN
     end
 end
 
+include("Force_Stress_sym.jl")
 
 end #end module
