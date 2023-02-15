@@ -719,6 +719,10 @@ end
 
 uniform_charge_interaction = Dict()
 
+uniform_charge_interaction["Hx" ] = 0.0
+uniform_charge_interaction["X"] = 0.0
+uniform_charge_interaction["Xa"] = 0.0
+
 uniform_charge_interaction["Ag"] = 38.310153143079404
 uniform_charge_interaction["Al"] = 69.53875176349263
 uniform_charge_interaction["As"] = 42.96491449117802

@@ -51,11 +51,14 @@ using ..CalcTB:calc_tb_LV
 #using ..CalcTB:calc_tb_lowmem
 using ..TB:get_magmom
 using ..CrystalMod:get_grid
+using ..CrystalMod:orbital_index
 
 using SpecialFunctions
 using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:eV
 using ..Symmetry:get_kgrid_sym
+using ..Symmetry:get_symmetry
+using ..Symmetry:symmetrize_charge_den
 
 export scf_energy
 
@@ -191,6 +194,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     if verbose
         println("Do SCF")
+        println()
     end
 
     tot_charge = 0.0
@@ -235,6 +239,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         else
             println("Initial ΔQ: ", (round.(dq; digits=3)))
         end
+        println()
     end
 
 #else
@@ -253,6 +258,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     
     if use_sym
         nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+        ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+        sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys, verbose=verbose);
     end
                                               
 
@@ -509,6 +516,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             else
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
+
+            if use_sym
+                for spin =1:nspin
+                    e_den_NEW[spin,:] = symmetrize_charge_den(tbc.crys, e_den_NEW[spin,:] , SS, atom_trans, orb2ind)
+                end
+            end
             
             #println("energy_band $energy_band $energy_band_sym $(energy_band - energy_band_sym)")
             #println("e_den_NEW $e_den_NEW $e_den_NEW_sym ")

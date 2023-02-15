@@ -2,10 +2,30 @@
 
 module Symmetry
 
+using Base.Threads
 using Spglib
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys
 using ..CrystalMod:get_grid
+using LoopVectorization
+
+
+vz2 = 0.25*sqrt(5/pi) * (3*[0 0 0; 0 0 0; 0 0 1] - [1 0 0; 0 1 0; 0 0 1])
+vxz = 0.5*sqrt(15/pi) * [0 0 1; 0 0 0; 1 0 0]
+vyz = 0.5*sqrt(15/pi) * [0 0 0; 0 0 1; 0 1 0]
+vx2_y2 = 0.5*sqrt(15/pi) * [1 0 0; 0 -1 0; 0 0 0]
+vxy = 0.5*sqrt(15/pi) * [0 1 0; 1 0 0; 0 0 0]
+
+const    Vz2 = vz2 / sqrt(sum(vz2.*vz2))
+const    Vxz = vxz / sqrt(sum(vxz.*vxz))
+const    Vyz = vyz / sqrt(sum(vyz.*vyz))
+const    Vx2_y2 = vx2_y2 / sqrt(sum(vx2_y2.*vx2_y2))
+const    Vxy = vxy / sqrt(sum(vxy.*vxy))
+
+const    Vz = [0 0 1.0]
+const    Vx = [1.0 0 0]
+const    Vy = [0 1.0 0]
+
 
 spg_sym = Dict()
 spg_sym[1] = "P1"
@@ -264,7 +284,36 @@ function get_symmetry(c::crystal; verbose=true, sym_prec = 5e-4, magmoms=missing
         println("Point group   $(dat.pointgroup_symbol)")
     end
 
-    return dat.spacegroup_number, dat
+    SS = dat.rotations
+    TT = dat.translations
+    nsym = dat.n_operations
+
+    atom_trans = zeros(Int64, c.nat, nsym)
+    coords = mod.(c.coords, 1.0)
+    cnew = zeros(1,3)
+    for a = 1:c.nat
+        for isym in 1:nsym
+            S = @view SS[:,:,isym]
+            T = @view TT[:,isym]
+            cnew[1,:] = mod.((@view coords[a,:])' * S + T', 1.0)
+            smin = 100000.0
+            ind = a 
+            for b = 1:c.nat
+                s = 0.0
+                for ii = 1:3
+                    s += min(abs(cnew[1,ii] - coords[b,ii]), abs(abs(cnew[1,ii] - coords[b,ii]) - 1), abs( abs(cnew[1,ii] - coords[b,ii]) + 1))
+                end
+                if s < smin
+                    ind = b
+                    smin = s
+                end
+            end
+            atom_trans[a,isym] = ind #argmin( @view sum(abs.(repeat(cnew, c.nat) - coords), dims=2)[:])
+        end
+    end
+
+    
+    return dat.spacegroup_number, dat, SS, TT, atom_trans
 
 end
 
@@ -976,6 +1025,7 @@ function get_kgrid_sym(c::crystal; grid=missing,  sym_prec=5e-4)
     
 end
 
+
 function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 
     if size(vector,1) != c.nat || size(vector,2) != 3
@@ -983,16 +1033,19 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
         println(c)
         return vector
     end
-    
-    coords = [c.coords[i,:] for i in 1:c.nat]
-    cell = Spglib.Cell(c.A', coords, c.types)
-    dat = Spglib.get_dataset(cell, sym_prec)
-    
-    SS = dat.rotations
-    TT = dat.translations
-    nsym = dat.n_operations
 
-    atom_trans = zeros(Int64, c.nat, nsym)
+    sg_num,  dat, SS, TT, atom_trans = get_symmetry(c, verbose=false, sym_prec=sym_prec)
+    nsym = size(SS)[3]
+    
+    #coords = [c.coords[i,:] for i in 1:c.nat]
+    #cell = Spglib.Cell(c.A', coords, c.types)
+    #dat = Spglib.get_dataset(cell, sym_prec)
+    
+    #SS = dat.rotations
+    #TT = dat.translations
+    #nsym = dat.n_operations
+
+#=    atom_trans = zeros(Int64, c.nat, nsym)
     coords = mod.(c.coords, 1.0)
     cnew = zeros(1,3)
     for a = 1:c.nat
@@ -1015,7 +1068,7 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
             atom_trans[a,isym] = ind #argmin( @view sum(abs.(repeat(cnew, c.nat) - coords), dims=2)[:])
         end
     end
-
+=#
     if false
         for isym in 1:nsym
             S = SS[:,:,isym]
@@ -1048,7 +1101,7 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 #    println(vnew)
     
     snew = zeros(3,3)
-    tensor_crys = inv(c.A) * tensor * inv(c.A)
+    tensor_crys = inv(c.A)' * tensor * inv(c.A)
     for isym = 1:nsym
         S = @view SS[:,:,isym]
         for i = 1:3
@@ -1064,8 +1117,148 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 
     
     
-    return (vnew / nsym) * c.A, c.A*(snew / nsym)*c.A
+    return (vnew / nsym) * c.A, c.A'*(snew / nsym)*c.A
     
 end
+
+function symmetrize_charge_den(crys::crystal, v, SS, atom_trans, orb2ind )
+
+    nsym = size(SS)[3]
+
+    vnew = zeros(size(v)[1], nthreads())
+
+    workspace = zeros(5, nthreads())
+    
+    @threads for a = 1:crys.nat
+        id = threadid()
+        inds_a = orb2ind[a]
+        for isym = 1:nsym
+            S = @view SS[:,:,isym]
+            b = atom_trans[a,isym]
+
+            inds_b = orb2ind[b]
+            symmetrize_orbs!(v[inds_a], S, vnew, inds_b,id, workspace,crys.A)
+            #vnew[inds_b,id] 
+            
+        end
+        
+    end
+#    println(vnew)
+    #    vnew[:,1] = v
+#    return sum(vnew, dims=2)
+    return sum(vnew, dims=2) / nsym
+    
+end
+
+function symmetrize_orbs!(v_sec, S, vnew, inds_b, id, workspace, A)
+#    println("sum(v_sec) ", sum(v_sec))
+    if length(v_sec) == 1
+        vnew[inds_b, id] += symmetrize_charge_s(v[1:1], S)
+    elseif length(v_sec) == 4
+        #println("vsec 4 ")
+        vnew[inds_b[1], id] += symmetrize_charge_s(v_sec[1:1], S)[1]
+        vnew[inds_b[2:4], id] += symmetrize_charge_p(v_sec[2:4], S, A)
+
+#        tt1 = symmetrize_charge_s(v_sec[1:1], S)[1]
+#        tt2 = symmetrize_charge_p(v_sec[2:4], S, A)
+#        println("sum(t) ", sum(tt1)+sum(tt2))    
+#        println(v_sec)
+#        println(tt1)
+#        println(tt2)
+#        println("-----------")
+    elseif length(v_sec) == 9
+        vnew[inds_b[1], id] += symmetrize_charge_s(v_sec[1:1], S)[1]
+        symmetrize_charge_d(v_sec[2:6], S, id, workspace, A)
+        vnew[inds_b[2:6], id] += @view workspace[:,id]
+        vnew[inds_b[7:9], id] += symmetrize_charge_p(v_sec[7:9], S, A) #depends on ordering being fixed.
+
+        #symmetrize_charge_d(v_sec[2:6], S, id, workspace)
+    else
+        println("error symmetrize_orbs length(v_sec) $(length(v_sec)) ≠ 1,4, or 9")
+        vnew[inds_b, id] += v_sec
+    end
+end
+
+
+function symmetrize_charge_s(v, S)
+    #trivial. my favorite type of transformation :)
+
+    return v
+
+end
+
+
+function symmetrize_charge_p(v, S, A)
+
+
+    # pz px py
+
+    #density is pz^2, px^2 py^2
+
+    
+#    v05 = abs.(v).^0.5
+
+#    println("vp $v")
+    
+    vR = abs(v[1])^0.5 * Vz + abs(v[2])^0.5*Vx  + abs(v[3])^0.5 * Vy 
+
+    vR = vR * inv(A)
+    
+    vR_new = vR*S
+    
+    vR_new = vR_new*A
+    
+
+    vnew = zeros(3)
+    vnew[1] = sum(vR_new .* Vz)^2
+    vnew[2] = sum(vR_new .* Vx)^2
+    vnew[3] = sum(vR_new .* Vy)^2
+
+#    println("vnewp $vnew")
+    
+    return vnew
+
+end
+
+
+function symmetrize_charge_d(v, S, id, workspace, A)
+
+    # :s
+    # pz px py
+    # dz2 dxz dyz dx2_y2 dxy
+
+    # note: density is squared wfc!!!!
+    
+    
+    #v05 = abs.(v).^0.5
+    
+    vR = abs(v[1])^0.5 * Vz2 + abs(v[2])^0.5*Vxz  + abs(v[3])^0.5 * Vyz + abs(v[4])^0.5*Vx2_y2 + abs(v[5])^0.5 * Vxy
+
+    vR = inv(A)' * vR * inv(A)
+    
+    vR_new = zeros(3,3)
+    #vR_new .= 0.0
+    @turbo for i = 1:3
+        for j = 1:3
+            for k = 1:3
+                for l = 1:3
+                    vR_new[i,j] += S[k,i]*S[l,j]*vR[k,l]
+                end
+            end
+        end
+    end
+    
+    vR_new =  A' * vR_new * A
+    
+    #vnew = zeros(5)
+    workspace[1,id] = sum(vR_new .* Vz2)^2
+    workspace[2,id] = sum(vR_new .* Vxz)^2
+    workspace[3,id] = sum(vR_new .* Vyz)^2
+    workspace[4,id] = sum(vR_new .* Vx2_y2)^2
+    workspace[5,id] = sum(vR_new .* Vxy)^2
+
+    
+end
+
 
 end #end module

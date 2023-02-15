@@ -82,7 +82,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     if ismissing(kappa)
 #        kappa_default = 0.25
         kappa = estimate_best_kappa(crys.A)
-#        println("kappa $kappa")
+        #println("kappa $kappa")
     end
     kappa = Float64(kappa)
 
@@ -173,12 +173,12 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
             if i == j
                 gamma_bc[i,j] += background_charge_correction
             else
-                gamma_bc[i,j] += 2.0*background_charge_correction
+                gamma_bc[i,j] += background_charge_correction
             end                
         end
     end
 
-    gamma_tot += gamma_bc*2.0
+    gamma_tot += gamma_bc *2.0
 
     background_charge_correction = 0.0
     for t = crys.stypes
