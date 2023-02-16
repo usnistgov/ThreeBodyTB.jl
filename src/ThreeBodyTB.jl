@@ -325,9 +325,9 @@ Calculate energy, force, and stress for a crystal.
 - `smearing=0.01`: Gaussian smearing temperature, in Ryd. Usually can leave as default.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false)
     
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=false, repel=repel)
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym)
 
     if ismissing(database)
         database = ManageDatabase.database_cached
@@ -335,8 +335,11 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
 
     println()
     println("Calculate Force, Stress")
-    
-    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
+    if use_sym
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
+    else
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)        
+    end
 
     println("done")
     println("----")
@@ -366,7 +369,7 @@ calculation. Assumes SCF already done!
 returns energy, force, stress, tight_binding_crystal_object
 
 """
-function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.01, grid = missing, do_scf=false, repel=true)
+function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.01, grid = missing, do_scf=false, repel=true, use_sym=true)
     
     if ismissing(database)
         ManageDatabase.prepare_database(tbc.crys)
@@ -375,9 +378,13 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
 
     println()
     println("Calculate Force, Stress (no scf)")
-    
-    energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
 
+    if use_sym
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
+    else
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
+    end
+    
     println("done")
     println("----")
     println()
@@ -455,9 +462,9 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true, use_sym=true)
 
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym)
 
 end
 
@@ -467,9 +474,9 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing, use_sym=true)
 
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym)
     println()
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )
     println()

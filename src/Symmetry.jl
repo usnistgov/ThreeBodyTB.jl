@@ -1083,7 +1083,8 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 
     vnew = zeros(size(vector))
 
-    vector_crys = vector * inv(c.A)
+    vector_crys = vector * c.A'
+    
 
 #    println("vector_crys")
 #    println(vector_crys)
@@ -1091,8 +1092,9 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
     for a = 1:c.nat
         for isym = 1:nsym
             S = @view SS[:,:,isym]
-#            println(size((@view vector[atom_trans[a,isym],:])' * S))
-            t = ((vector_crys[atom_trans[a,isym],:])' * S)'
+#            println(size((@view vector[atom_trans[a,isym],:])))
+#            println(size(S))
+            t = ((S*vector_crys[atom_trans[a,isym],:]))
             vnew[a,:] += t
         end
     end
@@ -1117,7 +1119,7 @@ function symmetrize_vector_tensor(vector,tensor, c::crystal; sym_prec = 5e-4)
 
     
     
-    return (vnew / nsym) * c.A, c.A'*(snew / nsym)*c.A
+    return (vnew / nsym)*inv(c.A)' , c.A'*(snew / nsym)*c.A
     
 end
 
@@ -1153,7 +1155,7 @@ end
 function symmetrize_orbs!(v_sec, S, vnew, inds_b, id, workspace, A)
 #    println("sum(v_sec) ", sum(v_sec))
     if length(v_sec) == 1
-        vnew[inds_b, id] += symmetrize_charge_s(v[1:1], S)
+        vnew[inds_b[1], id] += symmetrize_charge_s(v_sec[1:1], S)[1]
     elseif length(v_sec) == 4
         #println("vsec 4 ")
         vnew[inds_b[1], id] += symmetrize_charge_s(v_sec[1:1], S)[1]

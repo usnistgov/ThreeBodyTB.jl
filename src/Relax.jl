@@ -1,8 +1,8 @@
 module Relax
 
 using ..SCF:scf_energy
-using ..Force_Stress:get_energy_force_stress_fft
-using ..Force_Stress:get_energy_force_stress_fft_LV
+#using ..Force_Stress:get_energy_force_stress_fft
+using ..Force_Stress:get_energy_force_stress_fft_LV_sym
 using ..Force_Stress:safe_mode_energy
 using ..CrystalMod:get_grid
 using ..CrystalMod:crystal
@@ -207,7 +207,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         
         energy_global=energy_tot
 
-        energy_tmp,  f_cart, stress =  get_energy_force_stress_fft_LV(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+        energy_tmp,  f_cart, stress =  get_energy_force_stress_fft_LV_sym(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
 
         
 

@@ -21,6 +21,7 @@ include("test_makescf.jl")
 include("test_atomicproj.jl")
 include("test_wan.jl")
 include("test_sym.jl")
+include("test_force_sym.jl")
 #include("test_examples.jl")
 
 delete!(ENV, "GKSwstype") #undo magic to avoid side effects
