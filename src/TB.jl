@@ -4345,6 +4345,8 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
         iDEN = zeros(thetype, nwan, nwan, nk_red)
         rv = zeros(thetype, nwan, nwan, nk_red)
         iv = zeros(thetype, nwan, nwan, nk_red)
+
+        HK = zeros(Complex{thetype},nspin, size(h1)[1], size(h1)[1],nk_red)
         
         
         if true
@@ -4437,7 +4439,7 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
         energy0 = energy0 / 2.0
     end
     
-    return energy0, efermi, chargeden, VECTS, VALS, error_flag
+    return energy0, efermi, chargeden, VECTS, VALS, error_flag #, denmat, HK
 
 
 end 
@@ -4452,6 +4454,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+
     
     @inbounds @fastmath @threads for c = 1:nk_red
         id = threadid()
@@ -4478,6 +4481,8 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
             
             hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+
+#            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
             
             try
@@ -4515,6 +4520,8 @@ function go_charge15_sym(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_
     d = zeros(Complex{Float64}, nw,nw)
     charge = zeros(nspin, nw)
 
+#    denmat = zeros(Complex{Float64}, nspin, nw, nw, nk_red)
+
 
     for spin = 1:nspin
         rv[:,:,:] .= real.(VECTS[:,:,:,spin])
@@ -4541,12 +4548,20 @@ function go_charge15_sym(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_
                 end
             end
         end
+#        for k = 1:nk_red
+#            #            denmat[spin,:,:,k] = rDEN[:,:,k] + im*iDEN[:,:,k]
+#            for n = 1:max_occ
+#                denmat[spin,:,:,k] += occ[k,n,spin]*VECTS[:,n,k,spin] * VECTS[:,n,k,spin]'
+#            end
+#        end
+
+        
 #        println("size rDEN $(size(rDEN)) i $(size(iDEN)) s $(size(S)) d $(size(d))")
         d .= sum((rDEN+iDEN*im) .* S, dims=3)[:,:]
         #        d .= sum(DEN .* S, dims=3)[:,:]
         charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
     end
-    return charge/2.0
+    return charge/2.0 #, denmat/2.0
 end
 
 

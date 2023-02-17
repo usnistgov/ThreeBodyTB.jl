@@ -72,7 +72,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `conv_thr` convergence threshold in Ryd.
 - `iters` maximum iterations for first attempt
 - `mix=-1.0` default is choose mixing for you. Otherwise, set between `0.0` and `1.0`
-- `mixing_mode=:pulay` default using Pulay mixing (DIIS). Any other input uses simple mixing.
+- `mixing_mode=:DIIS` default using Pulay mixing (DIIS). Any other input uses simple mixing.
 - `verbose=true` verbosity level.
 
 """
@@ -91,11 +91,15 @@ end
 """
     function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:DIIS, verbose=true, nspin=1, tot_charge=missing, use_sym=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
+    if mixing_mode == :diis
+        mixing_mode = :DIIS
+    end
+    
     #println("before before ", tbc.eden)
     
     if !ismissing(tot_charge)
@@ -141,8 +145,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #        mixing_mode = :simple
     end
 
+    if mixing_mode == :DIIS && mix < 0.0
+        mix = 1.0
+    end
+    
 
-    if mixing_mode != :pulay && mixing_mode != :kfg
+    if mixing_mode != :pulay  &&  mixing_mode != :DIIS
         mixing_mode = :simple
         if mix < 0
 
@@ -317,7 +325,6 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #    println("dq start", round.(dq; digits=2))
 
-    use_kfg = false
 
     h1, dq = get_h1(tbc, e_den)
 
@@ -362,12 +369,19 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     return
 =#
-    
+
+#    DenMat = []
+#    HK = []    
+
     function innnerloop(mixA, smearingA, e_denA, conv_thrA, ITERS)
 #        println("innnerloop $mixA $ITERS")
         #main SCF loop
         convA = false
+
+        println("INNER")
         
+        rho_in = []
+        rho_out = []        
         if mixing_mode == :pulay
             n1in = copy(e_denA[:])
             n2in = copy(e_denA[:])
@@ -412,10 +426,6 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             n_pulay = zeros(size(e_denA[:]))
         end
 
-        if mixing_mode == :kfg
-            Qin = zeros(3,tbc.crys.nat)
-            Qout = zeros(3,tbc.crys.nat)
-        end
         
         delta_eden = 0.0
 
@@ -450,6 +460,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         
         for iter = 1:ITERS
 
+#            println("iter $iter")
+            
             if false
                 println("ΔQ: ", (round.(dq; digits=3)))
                 if magnetic 
@@ -467,26 +479,13 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #            println("e_denA", e_denA)
 
-            if mixing_mode == :kfg && use_kfg
-                h1 = get_h1_dq(tbc, Qpropose)
-                dq = Qpropose
-            else
-                h1, dq = get_h1(tbc, e_denA)
-            end
+            h1, dq = get_h1(tbc, e_denA)
 
 
 #            println("h1 ")
 #            println(h1)
             
                 
-            if mixing_mode == :kfg
-                for i = 1:(size(Qin,1)-1)
-                    Qin[i,:] = Qin[i+1,:]
-                end
-#                println("size dq ", size(dq))
-#                println("size Qin ", size(Qin))
-                Qin[end,:] = dq
-            end
             
             if magnetic 
 #                h1up, h1dn = get_spin_h1(tbc, e_denA)
@@ -510,81 +509,47 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #            println("mix $mixA dq_in   ", round.(dq; digits=3))
 
-            
+#            println("iter $iter add rho_in")
+            push!(rho_in, e_denA)
+#            println("iter $iter add rho_in $(length(rho_in))")            
             if use_sym
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
+
+#                push!(DenMat, denmat)
+#                push!(HK, hk)
+
+#                DIIS(min(iter, 5), HK, SK_w, DenMat, nk_red, grid_ind, kweights)
+                
             else
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
+            
             if use_sym
                 for spin =1:nspin
                     e_den_NEW[spin,:] = symmetrize_charge_den(tbc.crys, e_den_NEW[spin,:] , SS, atom_trans, orb2ind)
                 end
             end
-            
-            #println("energy_band $energy_band $energy_band_sym $(energy_band - energy_band_sym)")
-            #println("e_den_NEW $e_den_NEW $e_den_NEW_sym ")
-            #println("e_den_NEW ", e_den_NEW)
-            
-#            println("energy band ", energy_band)
-            
-#            println("check ", energy_band2 - energy_band , " , " , sum(abs.(e_den_NEW  - e_den_NEW2)))
-#            println(" e_den_NEW ", e_den_NEW)
+
+            push!(rho_out, e_den_NEW)
+
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
-            #h1NEW_sym, dqNEW_sym = get_h1(tbc, e_den_NEW_sym)
-#            println("dqNEW $dqNEW      $dqNEW_sym    $(sum(e_den_NEW)) $(sum(e_den_NEW_sym))")
-#            println()
-#            println(e_den_NEW_sym)
-#            println()
-            #            println("mix $mixA dq_out  ", round.(dqNEW; digits=3))
 
             delta_dq[:] = dqNEW - dq
 
-            if mixing_mode == :kfg
-                for i = 1:(size(Qout,1)-1)
-                    Qout[i,:] = Qout[i+1,:]
-                end
-                Qout[end,:] = dqNEW
-            end
-            
-
-#            println("e_den_NEW")
-#            println(round.(e_den_NEW[1,:], digits=3))
-#            if magnetic
-#                println(round.(e_den_NEW[2,:], digits=3))                
-#            end
-#            catch BadOverlap
-#                println("caught bad overlap")
-#                energy_tot = -999.0
-#                error_flag=true
-#                break
-#            end
 
             if error_flag == true
                 println("error_flag $error_flag")
                 break
             end
 
-            #if iter == 1
-            #    e_denA[:] = 0.95 * e_den_NEW[:] .+ 0.05 * e_denA[:]
-            #end
-            
-#            println("N ", e_den_NEW)
-
-#            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
 
             delta_eden_old = deepcopy(delta_eden)
 
-#            println("size e_den_NEW $(size(e_den_NEW)) e_denA $(size(e_denA))")
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
-
-#            println("eden_NEW ", round.(e_den_NEW , digits=4))
-#            println("edenA    ", round.(e_denA , digits=4))
-
-            
             energy_charge, pot = ewald_energy(tbc, dq)
+
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
                 magmom_old = deepcopy(magmom)
@@ -594,14 +559,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             end
 
 
-#            println("energy_magnetic $energy_magnetic")
-#            println("energy_charge $energy_charge")
-#            println("etypes $etypes")
-#            println("energy_band $energy_band")
-
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
-
-#            println("energy $energy_tot types $etypes band $energy_band charge $energy_charge magnetic $energy_magnetic")
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
             if iter == 2 && maximum(delta_dq) > 1.0
@@ -609,7 +567,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
                 mixA = max(mixA * 0.8, 0.0001)
                 nreduce += 1
-                if nreduce > 5 
+                #println("nreduce $nreduce")
+                if nreduce > 10 
                     #if nreduce > 3 && mixing_mode == :pulay
                     if mixing_mode != :simple
                         println("switch to :simple")
@@ -671,8 +630,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                     end
                 end 
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
-                use_kfg = false
-            elseif iter <= 3
+            elseif iter <= 2
                 if iter == 1
                     if extend
                         mixA_temp = 0.02
@@ -693,8 +651,16 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 end
 
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp ) 
-                use_kfg = false
- 
+
+
+            elseif mixing_mode == :DIIS
+                if nreduce > 8
+                    mixA = 0.5
+                else
+                    mixA = 1.0
+                end
+                e_denA = DIIS(min(iter, n_diis), nwan, nspin, rho_in, rho_out, mixA)
+                
             elseif mixing_mode == :pulay
 
 #                R1 = n1out - n1in
@@ -754,7 +720,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #                    e_denA[1,:]  = (1 - mixA) * e_denA[1,:] + mixA * n_pulay[1:tbc.tb.nwan]
 #                    e_denA[2,:]  = (1 - mixA) * e_denA[2,:] + mixA * n_pulay[(tbc.tb.nwan+1):end]
                 end                    
-                use_kfg = false
+
 
 #               e_denA = (1 - mixA) * 
 
@@ -774,45 +740,6 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #                n_pulay[:] = e_denA * c[1,1] + e_den_NEW * c[2,1]
 #                e_denA = (1 - mixA) * e_denA + mixA * n_pulay 
-            elseif mixing_mode == :kfg
-
-                #println("mixing_mode == kfg")
-                use_kfg = true
-                
-                dQ = (Qin - Qout).^2
-                Qpropose = zeros(tbc.crys.nat)
-
-#                println("dQ")
-#                println(dQ)
-                
-                for i = 1:tbc.crys.nat
-                    m = [ones(size(Qin[:,i])) Qin[:,i] Qin[:,i].^2]
-                    try
-                        c = m \ dQ[:,i]
-                        if c[3] > 0.0
-                            Qpropose[i] = -c[2] / (2*c[3])
-                        else
-                            Qpropose[i] = Qout[end,i]
-                        end
-                    catch
-                        Qpropose[i] = Qout[end,i]
-                    end
-                end
-
-#                println("Qin")
-#                println(Qin)
-#                println("Qout")
-#                println(Qout)
-#                println("Qpropose unnorm")
-#                println(Qpropose)
-#                println("norm er ", sum(Qpropose)/tbc.crys.nat)
-                Qpropose = Qpropose .- sum(Qpropose)/tbc.crys.nat
-#                println("Qpropose norm")
-#                println(Qpropose)
-              
-                Qpropose = (1 - mixA) * Qin[end,:] + mixA*Qpropose*0.25 + mixA*Qout[end,:]*0.75
-                #println("Qpropose ", Qpropose, " mix ", mixA, " dq ", Qin[end,:] - Qpropose, " sum ", sum(Qpropose))
-                
             end
             
             
@@ -905,24 +832,24 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         end
     end
 
-    if mixing_mode == :kfg
-#        println("try kfg")
-        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
+    
+    if mixing_mode == :DIIS
+
+        n_diis = 15
         
+        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
 #        if conv == false
 #            println("kfg NO  converge")
 #        else
 #            println("kfg YES converge")
-#        end            
-        
-        if true && conv == false 
-            println("kfg mix no convergence, switch to simple mixing")
+#        end
+        if conv == false
             mixing_mode = :simple
             e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-            mix = 0.01
+            mix = 0.05
         end
-    end
-    
+
+    end        
 
     
     if mixing_mode == :simple
@@ -946,12 +873,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
 
     tbc.eden = e_den #save charge density!!!!!  side effect!!!!!
-    if use_kfg
-        h1= get_h1_dq(tbc, Qpropose)
-        dq = Qpropose
-    else
-        h1, dq = get_h1(tbc, e_den)
-    end
+    h1, dq = get_h1(tbc, e_den)
+
     tbc.tb.h1 = h1     #moar side effect
     tbc.tb.scf = true  #just double checking
     
@@ -1507,59 +1430,51 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
 
 end
 
-#=
-function asdf(tbc::tb_crys; smearing=0.01, grid = missing)
-   """
-        this function removes the scf effects from the tight-binding elements
-        if you then do an scf solution to the new tbc, you should get the old tbc back.
-    """
+
+function DIIS(N, nwan, nspin, rho_in, rho_out, mix)
 
 
-    hk3, sk3 = myfft_R_to_K(tbc, grid)
-
-
-    grid = size(hk3)[3:5]
-
-    energy_band_orig , efermi, e_den, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing)
-
-    h1, dq = get_h1(tbc, e_den)
-
-    dq = zeros(size(dq))
-    h1 = zeros(size(h1))
-
-
-    ctemp = tbc.crys
-#    ctemp.coords *= -1.0
-
-    ham_r, S_r, r_dict, ind_arr = myfft(ctemp, true, grid, [],hk3, sk3)
-    
-
-#
-#    for i = 1:size(S_r)[3]
-#        S_r[:,:,i] = S_r[:,:,i]'
-#        ham_r[:,:,i] = ham_r[:,:,i]'
- #   end       
-
-        
-    tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=missing )
-
-
-    #with charge density
-    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=false, gamma = tbc.gamma)
-
-
-    if true
-        println("test")
-        hk3_A, sk3_A = myfft_R_to_K(tbc_new, grid)
-
-        println("hk3 diff ", sum(abs.(hk3_A - hk3)))
-        println("sk3 diff ", sum(abs.(sk3_A - sk3)))
+    DR = zeros(N, nwan*nspin)
+#    println("size DR $(size(DR))")
+    M = length(rho_in)
+#    println("N $N M $M  x  $(M-N+1) ")
+    for i = M-N+1:M
+#        println("i $i  | $(i+M-N)")
+        DR[i-M+N,:] = rho_in[i] - rho_out[i]
     end
 
+    B = zeros(N+1, N+1)
 
-    return tbc_new
+    for i = 1:N
+        for j = 1:N
+            B[i,j] = DR[i,:]'*DR[j,:]
+        end
+    end
+    B[end,:] .= 1.0
+    B[:, end] .= 1.0
+    B[end,end] = 0.0
+
+    R = zeros(N+1)
+    R[end] = 1.0
+    
+    c = zeros(N)
+    try
+        c = B \ R
+    catch
+        c .= 1/N
+    end
+
+    rho_new = zeros(nspin, nwan)
+    for i = M-N+1:M  
+        rho_new += c[i-M+N]*rho_out[i]
+    end
+
+#    return rho_new * (mix) + rho_in[end] * (1 - mix)
+    return rho_new
+    
 end
-=#
+
+
 
 end #end module
 
