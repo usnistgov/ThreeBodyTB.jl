@@ -184,7 +184,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     for t = crys.stypes
         background_charge_correction += uniform_charge_interaction[t]
     end
-    background_charge_correction = background_charge_correction / abs(det(crys.A)) / crys.nat
+    background_charge_correction = 0.0*background_charge_correction / abs(det(crys.A)) / crys.nat
         
 
     
