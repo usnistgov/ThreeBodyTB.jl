@@ -118,7 +118,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
             #prepare eigenvectors / values
             error_flag = false
             if do_scf
-                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-9, nspin=nspin, verbose=false)
+                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false)
             else
                 energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
             end
@@ -1029,7 +1029,7 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false, use_sym=false)
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym=false)
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)

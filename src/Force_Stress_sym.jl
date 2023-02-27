@@ -1,4 +1,5 @@
 using ..Symmetry:get_kgrid_sym
+using ..Symmetry:symmetrize_vector_tensor
 
 ##############################################################################################################
 """
@@ -32,7 +33,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
     nk = size(kgrid)[1]
 
     nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
-    println("nk $nk nk_red $nk_red")
+#    println("nk $nk nk_red $nk_red")
     
 #    println("get_energy_force_stress_fft2")
     
@@ -76,7 +77,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-8, nspin=nspin, verbose=false, use_sym = true)
+                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
@@ -204,7 +205,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                 DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
 
                 go_denmat_sym!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_conj, tbc, nk_red, grid_ind, kweights )
-                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
+#                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
             end            
 
             #println("FIND")
@@ -247,14 +248,24 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         end
 
     end
-    println()
+#    println()
         
     x, stress = reshape_vec(garr, ct.nat)
     f_cart = -1.0 * x
     f_cart = f_cart * inv(ct.A)' / nspin
     stress = -stress / abs(det(ct.A)) /nspin
 
-    println(f_cart)
+#    println("before ")
+#    println(f_cart)
+#    println()
+#    println(stress)
+
+
+    #important if there is symmetry
+    f_cart,stress = symmetrize_vector_tensor(f_cart,stress, ct)
+    
+    
+#    println(f_cart)
     
     #neaten
     for i = 1:3
@@ -381,3 +392,5 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
         VALS0[:,spin] = VALS0_t[:]
     end
 end
+
+
