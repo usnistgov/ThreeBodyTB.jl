@@ -97,7 +97,7 @@ end
     - `scf::Bool` equal to `true` if requires self-consistency (usually `true` for fit `tb`, `false` for direct from DFT)
     - `h1::Array{T,3}` Has the term determined by scf calculations, if calculated already.
     """
-mutable struct tb{T}
+struct tb{T}
 
     #    H::Array{Complex{Float64},3}
     H::Array{Complex{T},4}    
@@ -110,7 +110,7 @@ mutable struct tb{T}
     #    S::Array{Complex{Float64},3}
     S::Array{Complex{T},3}    
     scf::Bool
-    scfspin::Bool
+    scfspin::Array{Bool,1}
     h1::Array{T,2} #scf term
     h1spin::Array{T,3} #scf term
 end
@@ -121,7 +121,7 @@ Base.show(io::IO, h::tb) = begin
     nr=h.nr
     nonorth = h.nonorth
     scf = h.scf
-    scfspin = h.scfspin
+    scfspin = h.scfspin[1]
     nspin=h.nspin
     println(io, "tight binding real space object; nwan = $nwan, nr = $nr, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, nspin = $nspin" )
     println(io)
@@ -146,7 +146,7 @@ end
     - `efermi::Float64` Fermi energy in Ryd, if calculated.
     - `nspin::Int64` number of spins (2=magnetic)
     """
-mutable struct tb_crys{T}
+struct tb_crys{T}
 
     tb::tb
     crys::crystal
@@ -157,8 +157,8 @@ mutable struct tb_crys{T}
     background_charge_correction::T
     eden::Array{Float64,2}
     within_fit::Bool
-    energy::Float64
-    efermi::Float64
+    energy::Array{Float64,1}
+    efermi::Array{Float64,1}
     nspin::Int64
 end
 
@@ -175,10 +175,10 @@ Base.show(io::IO, x::tb_crys) = begin
     if abs(nval - x.nelec) > 1e-10
         println("tot_charge: $(nval-x.nelec)")
     end
-    println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin)
-    println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
-    println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
-    println("efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
+    println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin[1])
+    println(io, "calculated energy: ", round(convert_energy(x.energy[1])*1000)/1000, " $global_energy_units")
+    println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy[1], x.crys)), digits=3), " $global_energy_units")
+    println("efermi  : ", round(convert_energy(x.efermi[1])*1000)/1000, " $global_energy_units")
     dq = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2
@@ -227,7 +227,7 @@ mutable struct tb_k{T}
     nonorth::Bool
     Sk::Array{Complex{T},3}    
     scf::Bool
-    scfspin::Bool
+    scfspin::Array{Bool,1}
     h1::Array{T,2} #scf term
     h1spin::Array{T,3} #scf term
     grid::Array{Int64,1}
@@ -243,7 +243,7 @@ Base.show(io::IO, h::tb_k) = begin
     scf = h.scf
     grid = h.grid
     nspin = h.nspin
-    scfspin = h.scfspin
+    scfspin = h.scfspin[1]
     println(io, "tight binding k-space object; nwan = $nwan, nk = $nk, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, grid = $grid, nspin = $nspin" )
     println(io)
     
@@ -795,8 +795,8 @@ function write_tb_crys(filename, tbc::tb_crys)
     addelement!(root, "background_charge_correction", string(tbc.background_charge_correction))
     addelement!(root, "eden", arr2str(tbc.eden))
 
-    addelement!(root, "efermi", string(tbc.energy))
-    addelement!(root, "energy", string(tbc.efermi))
+    addelement!(root, "efermi", string(tbc.energy[1]))
+    addelement!(root, "energy", string(tbc.efermi[1]))
 
     
     tightbinding = ElementNode("tightbinding")
@@ -811,7 +811,7 @@ function write_tb_crys(filename, tbc::tb_crys)
 
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
-    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
+    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin[1]))
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
     
     function makestr(H,S, nonorth, ind_arr)
@@ -918,7 +918,7 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(tightbinding, "k_dict",string(tbc.tb.k_dict))
 
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
-    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
+    addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin[1]))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
 
@@ -1009,7 +1009,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         end
     end
 
-    if ismissing(gamma) 
+    println("gamma")
+    @time if ismissing(gamma) 
         #        println("ismissing gamma")
         gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
@@ -1021,7 +1022,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #    println("type eden " , typeof(eden))
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
-    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin)
+    @time tt = tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, [tb_energy], [fermi_energy], nspin)
+    return tt
 end
 
 """
@@ -1107,7 +1109,7 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
     end
     println("size H 2 ", size(H))
 
-    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, scfspin, h1, h1spin)
+    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, [scfspin], h1, h1spin)
 end
 
 """
@@ -1153,7 +1155,7 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
     #    println("T ", T)
     #    println("S ", size(S), " " , typeof(S))
     #    println("size h1 ", size(h1), "  ", typeof(h1))
-    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,scfspin, h1, h1spin)
+    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,[scfspin], h1, h1spin)
 end
 
 
@@ -1221,7 +1223,7 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,
     println(typeof(h1))
     println(typeof(grid))
     =#
-    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, h1spin, grid)
+    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, [scfspin], h1, h1spin, grid)
 end
 
 
@@ -1243,12 +1245,13 @@ end
     """
 function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
 
-    r_dict = make_rdict(ind_arr)
+    @time r_dict = make_rdict(ind_arr)
     
     nw=size(H,2)
     if nw != size(H,3) 
         exit("error in make_tb ", size(H))
     end
+
     nr=size(H,4)
     nspin=size(H,1)
 
@@ -1276,8 +1279,9 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
         scfspin = true
     end
 
-    
-    return tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin)
+    println("main")
+    @time tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, [scfspin], h1, h1spin)
+    return tt
 end
 
 
@@ -1307,7 +1311,7 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
     hk3_orth = zeros(Complex{Float64}, 1, nw, nw, grid[1], grid[2], grid[3])
 
     nspin = tbc.nspin
-    if tbc.tb.scfspin
+    if tbc.tb.scfspin[1]
         nspin = 2
     end
     
@@ -1331,7 +1335,7 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
                     if tbc.nspin == 2
                         hk= hk3[:,:,spin,k1,k2,k3]
                         hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)                        
-                    elseif tbc.tb.scfspin
+                    elseif tbc.tb.scfspin[1]
                         hk= hk3[:,:,1,k1,k2,k3]
                         hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
                     else
@@ -1540,7 +1544,7 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
         scf = h.scf
     end
 
-    if spin == 2 && h.nspin == 1 && h.tb.scfspin == false
+    if spin == 2 && h.nspin == 1 && h.tb.scfspin[1] == false
         println("ERROR, asking for spin 2 from nsp ham")
     end
 
@@ -1609,7 +1613,7 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
         hk[:,:] = hk0[:,:]
     end
 
-    if h.scfspin
+    if h.scfspin[1]
         hk += 0.5 * sk .* (h.h1spin[spin,:,:] + h.h1spin[spin,:,:]')
     end
 
@@ -1701,7 +1705,7 @@ function Hk(hk,sk, h::tb, kpoint; spin=1)
     if h.scf
         hk .+= sk .* h.h1
     end
-    if h.scfspin
+    if h.scfspin[1]
         hk .+= sk .* h.h1spin[spin,:,:]
     end
 
@@ -1812,7 +1816,7 @@ function calc_bands(h, kpoints::Array{Float64,2})
 
     #    println("vals time")
 
-    if h.scfspin == true
+    if h.scfspin[1] == true
         nspin = 2
     else
         nspin = h.nspin
@@ -1978,7 +1982,7 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
 
     etypes = types_energy(tbc.crys)
 
-    if tbc.nspin == 2 || tbc.tb.scfspin == true
+    if tbc.nspin == 2 || tbc.tb.scfspin[1] == true
         nspin = 2
     else
         nspin = 1
@@ -2830,7 +2834,7 @@ function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
         echarge = 0.0
     end
 
-    if tbc.nspin == 2 || tbc.tb.scfspin
+    if tbc.nspin == 2 || tbc.tb.scfspin[1]
         #         h1up, h1dn = get_spin_h1(tbc)
         #         h1spin = [h1up, h1dn]
         h1spin = get_spin_h1(tbc)
@@ -2842,7 +2846,7 @@ function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
 
 
     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
-    tbc.efermi = efermi
+    tbc.efermi[1] = efermi
     tbc.eden = chargeden
     #println("energy comps $eband $etypes $echarge $emag")
     energy = eband + etypes + echarge + emag
@@ -2871,7 +2875,7 @@ function dumb_cd(tbc; grid=missing, smearing=0.01)
     else
         h1 = missing
     end
-    if tbc.tb.scfspin == true
+    if tbc.tb.scfspin[1] == true
         h1spin = tbc.tb.h1spin
     else
         h1spin = missing
@@ -3007,7 +3011,7 @@ function calc_energy(h::tb_crys, kgrid; smearing=0.01, returnk=false)
         energy_charge = 0.0
     end
 
-    if h.tb.scfspin
+    if h.tb.scfspin[1]
         energy_mag = magnetic_energy(h)
     else
         energy_mag = 0.0
@@ -3162,7 +3166,7 @@ function renormalize_tb(d::dftout, h::tb)
 
     println("original band energy ", band_en)
 
-    etot_dft = d.energy
+    etot_dft = d.energy[1]
 
     atomization_energy = etot_dft - etotal_atoms
 
@@ -4174,7 +4178,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
         #        h1 = missing
         echarge = 0.0
     end
-    if tbcK.tb.scfspin
+    if tbcK.tb.scfspin[1]
         emag = magnetic_energy(tbcK)
     else
         emag = 0.0

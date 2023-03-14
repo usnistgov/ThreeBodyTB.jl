@@ -136,7 +136,7 @@ function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5
         println("WARNING - you have to do scf_energy before plotting to get accurate results")
     end
     if ismissing(efermi)
-        efermi = h.efermi
+        efermi = h.efermi[1]
     end
     plot_bandstr(h.tb; kpath=kpath, names = names, npts=npts, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
     
@@ -181,7 +181,7 @@ function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=30, efermi
     end
     
     energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
-    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=tbc.efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
+    p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=tbc.efermi[1], color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
 
 
     return tbc, p
@@ -999,7 +999,7 @@ function band_summary(tbc::tb_crys; kpts=missing, kweights=missing, kgrid=missin
         kpts, kweights = make_kgrid(kgrid)
     end
     
-    return band_summary(tbc, kpts, kweights, tbc.efermi)
+    return band_summary(tbc, kpts, kweights, tbc.efermi[1])
 end
 
 """

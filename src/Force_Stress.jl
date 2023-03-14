@@ -129,7 +129,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         end
 
         h1, dq = get_h1(tbc)
-        if tbc.nspin == 2 || tbc.tb.scfspin
+        if tbc.nspin == 2 || tbc.tb.scfspin[1]
             println("get_spin_h1")
             h1spin = get_spin_h1(tbc)
         else
@@ -229,7 +229,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
                 if scf
                     hk0t = hk0t + h1 .* sk
                 end
-                if tbc.tb.scfspin || tbc.tb.nspin == 2
+                if tbc.tb.scfspin[1] || tbc.tb.nspin == 2
                     hk0t +=  sk .* h1spin[spin, :,:]
                 end
 
@@ -250,7 +250,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         else
             eewald = 0.0
         end
-        if tbc.tb.scfspin
+        if tbc.tb.scfspin[1]
             energy_magnetic = magnetic_energy(tbc)
         else
             energy_magnetic = 0.0
@@ -1247,21 +1247,26 @@ function go_denmat!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_co
     end
 end
 
-function ham(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, size_ret)
+function ham(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, size_ret, nwan, nr)
     begin
         T=typeof(x[1])
         
-
+        Hdual = zeros(T, nwan, nwan, nr)
+        Sdual = zeros(T, nwan, nwan, nr)
+        
         x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
         A = FloatX.(ct.A) * (I(3) + x_r_strain)
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
         #                gamma_dual=zeros(T, ct.nat,ct.nat)
         
-        tbc_dual = calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST)
+        #        tbc_dual = calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, Hin=Hdual, Sin=Sdual, retmat=true)
+        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual)
         begin
             ret = zeros(T, size_ret * 2 + 1)
-            ret[1:size_ret] = real.(tbc_dual.tb.H[1,:,:,:][nz_arr])
-            ret[size_ret+1:size_ret*2] = real.(tbc_dual.tb.S[nz_arr])
+#            ret[1:size_ret] = real.(tbc_dual.tb.H[1,:,:,:][nz_arr])
+#            ret[size_ret+1:size_ret*2] = real.(tbc_dual.tb.S[nz_arr])
+            ret[1:size_ret] = real.(Hdual[:,:,:][nz_arr])
+            ret[size_ret+1:size_ret*2] = real.(Sdual[nz_arr])
         end
     end
     return ret
@@ -1298,8 +1303,34 @@ function forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
             #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
             
             for na = 1:tbc.tb.nwan
-                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
-                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+#                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+#                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+                sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+            end
+        end
+    end
+
+    
+end
+
+function forloops2!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
+
+            
+    for c in 1:size(tbc.tb.ind_arr)[1] #@threads 
+        
+        ind = tbc.tb.ind_arr[c,:]
+        new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
+        @tturbo for nb = 1:tbc.tb.nwan
+
+            #hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
+            #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
+            
+            for na = 1:tbc.tb.nwan
+#                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+#                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+                sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
             end
         end
     end

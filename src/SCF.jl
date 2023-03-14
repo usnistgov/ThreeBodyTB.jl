@@ -76,7 +76,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
 
     #println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
@@ -99,7 +99,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     if mixing_mode == :diis
         mixing_mode = :DIIS
     end
-    
+
+
+    #println("mixing mode $mixing_mode")
     #println("before before ", tbc.eden)
     
     if !ismissing(tot_charge)
@@ -872,16 +874,16 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         error_flag = true
     end
 
-    tbc.eden = e_den #save charge density!!!!!  side effect!!!!!
+    tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
     h1, dq = get_h1(tbc, e_den)
 
-    tbc.tb.h1 = h1     #moar side effect
-    tbc.tb.scf = true  #just double checking
+    tbc.tb.h1[:,:] = h1     #moar side effect
+#    tbc.tb.scf = true  #just double checking
     
     if magnetic
         h1spin = get_spin_h1(tbc, e_den)
-        tbc.tb.h1spin = h1spin
-        tbc.tb.scfspin = true
+        tbc.tb.h1spin[:,:] = h1spin
+        tbc.tb.scfspin[1] = [true]
     end
     println("ΔQ = ", round.(dq, digits=2))
     if nspin == 2
@@ -889,8 +891,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
     println()
 
-    tbc.efermi=efermi
-    tbc.energy=energy_tot
+    tbc.efermi[1]=efermi
+    tbc.energy[1]=energy_tot
 
     V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
 
@@ -1145,9 +1147,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.scf = true
     tbcK_new.tb.scf = true
     if tbcK.nspin == 2
-        tbcK_new.tb.scfspin = true
+        tbcK_new.tb.scfspin[1] = true
     else
-        tbcK_new.tb.scfspin = false
+        tbcK_new.tb.scfspin[1] = false
     end
 
     tbcK_new.tb.h1spin = h1spin
@@ -1188,9 +1190,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.scf = true
     tbcK_new.tb.scf = true
     if tbcK.nspin == 2
-        tbcK_new.tb.scfspin = true
+        tbcK_new.tb.scfspin[1] = true
     else
-        tbcK_new.tb.scfspin = false
+        tbcK_new.tb.scfspin[1] = false
     end
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)

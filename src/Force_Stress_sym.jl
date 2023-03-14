@@ -143,11 +143,15 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                     g_ew = ForwardDiff.jacobian(FN_ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
                 end
             end
-#            println("done ew")
-#            println("ham")
+            #println("done ew")
+            #println("ham")
             HAM = begin
 
-                FN_ham = x->ham(x,ct,database,dontcheck, repel, DIST, nz_arr, FloatX, size_ret)
+                
+#                Hdual = zeros(ForwardDiff.Dual{FloatX}, tbc.tb.nwan, tbc.tb.nwan, tbc.tb.nr)
+#                Sdual = zeros(ForwardDiff.Dual{FloatX}, tbc.tb.nwan, tbc.tb.nwan, tbc.tb.nr)
+                
+                FN_ham = x->ham(x,ct,database,dontcheck, repel, DIST, nz_arr, FloatX, size_ret, tbc.tb.nwan, tbc.tb.nr)
                 
                 chunksize=min(15, 3*ct.nat + 6)
                 cfg = ForwardDiff.JacobianConfig(FN_ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
@@ -178,26 +182,41 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         println("Calculate Force / Stress")
         @time begin
         
-            hr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
-            sr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
-            hk_g = similar(hr_g)
-            sk_g = similar(sr_g)
-            
-            
-            garr =zeros(Float64, 3*ct.nat+6)
+            #println("mem")
+            begin
+#                hr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
+#                sr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
 
-            #        pVECTS = permutedims(Complex{FloatX}.(VECTS), [2,3,1])
-            pVECTS = permutedims(Complex{FloatX}.(VECTS), [3,4,1,2])
-            pVECTS_conj = conj.(pVECTS)
+                hr_g_r = zeros(eltype(g),    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                sr_g_r = zeros(eltype(g),    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                
+                hr_g = zeros(Complex{eltype(g)},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                sr_g = zeros(Complex{eltype(g)},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+
+#                hk_g = similar(hr_g)
+#                sk_g = similar(sr_g)
+                
+
+                sk_g_r = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                sk_g_i = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                hk_g_r = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                hk_g_i = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+
+                
+                garr =zeros(Float64, 3*ct.nat+6)
+
+                #        pVECTS = permutedims(Complex{FloatX}.(VECTS), [2,3,1])
+                pVECTS = permutedims(Complex{FloatX}.(VECTS), [3,4,1,2])
+                pVECTS_conj = conj.(pVECTS)
 
 
-            #        hk_g_temp = deepcopy(hk_g)
-            
-            #VALS0 = zeros(FloatX,  prod(grid), tbc.tb.nwan, nspin)
-            VALS0 = zeros(FloatX,  nk_red, nspin)
-            
-            OCCS = Float32.(OCCS)
-
+                #        hk_g_temp = deepcopy(hk_g)
+                
+                #VALS0 = zeros(FloatX,  prod(grid), tbc.tb.nwan, nspin)
+                VALS0 = zeros(FloatX,  nk_red, nspin)
+                
+                OCCS = Float32.(OCCS)
+            end
             #println("denmat")
             begin
                 
@@ -206,6 +225,14 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 
                 go_denmat_sym!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_conj, tbc, nk_red, grid_ind, kweights )
 #                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
+
+                DENMAT_r = real(DENMAT)
+                DENMAT_i = imag(DENMAT)
+                DENMAT_V_r = real(DENMAT_V)
+                DENMAT_V_i = imag(DENMAT_V)
+
+
+
             end            
 
             #println("FIND")
@@ -215,25 +242,36 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                 
                 hr_g .= 0.0
                 sr_g .= 0.0
+                hr_g_r .= 0.0
+                sr_g_r .= 0.0
 
 
-                forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
+                #println("forl")
+                #                @time forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
+                begin
+                    forloops2!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
+                    hr_g[:] .= hr_g_r[:]
+                    sr_g[:] .= sr_g_r[:]
+                end
                 
-                
+                #println("fft ", size(hr_g))
                 begin 
 
                     h = @spawn begin
-                        hk_g .= fft(hr_g, [3,4,5])
+                        #   hk_g .= fft(hr_g, [1,2,3])
+                        fft!(hr_g, [1,2,3])
                     end
                     s = @spawn begin 
-                        sk_g .= fft(sr_g, [3,4,5])
+                        #fft!(sr_g, [3,4,5])
+                        fft!(sr_g, [1,2,3])
                     end
 
                     wait(h)
                     wait(s)
                 end
 
-                psi_gradH_psi3_sym(VALS0, hk_g, sk_g, Complex{FloatX}.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT, DENMAT_V, nk_red, grid_ind, kweights)            
+                #                println("psi")
+                psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)            
 
                 
                 garr[FIND] = sum(VALS0) 
@@ -366,7 +404,7 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
        # hk_g_temp = zeros(eltype(hk_g), nwan, nwan, nk_red)
 
         if scf
-            @inbounds @fastmath for a1 = 1:nwan
+            @inbounds @fastmath @threads for a1 = 1:nwan
                 for a2 = 1:nwan
                     for k = 1:nk_red
                         g1,g2,g3 = grid_ind[k,:]
@@ -376,11 +414,11 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
             end
         end
         
-        @inbounds @fastmath for a1 = 1:nwan
+        @inbounds @fastmath @threads for c = 1:nk_red
+                    k1,k2,k3=grid_ind[c,:]
+        for a1 = 1:nwan
             for a2 = 1:nwan
                 #c=0
-                for c = 1:nk_red
-                    k1,k2,k3=grid_ind[c,:]
                     #                @threads for k1 = 1:grid[1]
 #                    for k2 = 1:grid[2]
 #                        for k3 = 1:grid[3]
@@ -389,6 +427,117 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
                 end
             end
         end
+        VALS0[:,spin] = VALS0_t[:]
+    end
+end
+
+
+function psi_gradH_psi3_sym2(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)
+
+    
+    nspin = size(VALS0)[end]
+    nwan1, nwan2, G1, G2, G3 = size(hk_g)
+    #println("typeof(VALS0) ", typeof(VALS0), " size ", size(VALS0))
+    VALS0_t = zeros(nk_red)
+
+#    println("mem")
+    begin
+#        sk_g_r[:] = real(sk_g)
+#        sk_g_i[:] = imag(sk_g)
+#        hk_g_r[:] = real(hk_g)
+        #        hk_g_i[:] = imag(hk_g)
+        @inbounds @fastmath @threads  for a1 = 1:nwan
+            for a2 = 1:nwan
+                for k = 1:nk_red
+                    g1 = grid_ind[k,1]
+                    g2 = grid_ind[k,2]
+                    g3 = grid_ind[k,3]
+                    
+                    sk_g_r[g1,g2,g3,a2,a1] = real(sk_g[g1,g2,g3,a2,a1])
+                    sk_g_i[g1,g2,g3,a2,a1] = imag(sk_g[g1,g2,g3,a2,a1])
+                    hk_g_r[g1,g2,g3,a2,a1] = real(hk_g[g1,g2,g3,a2,a1])
+                    hk_g_i[g1,g2,g3,a2,a1] = imag(hk_g[g1,g2,g3,a2,a1])
+                end        
+            end
+        end
+    end
+    for spin = 1:nspin
+
+        #@time hk_g_temp = deepcopy(hk_g)
+       # hk_g_temp = zeros(eltype(hk_g), nwan, nwan, nk_red)
+
+#=        @time if scf
+            @inbounds @fastmath @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    for k = 1:nk_red
+                        g1,g2,g3 = grid_ind[k,:]
+                        hk_g[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) .* ( sk_g[g1,g2,g3,a2,a1])
+                    end
+                end
+            end
+        end
+        =#
+        #=
+        @time if scf
+            @inbounds @fastmath @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    hk_g[:,:,:,a2,a1] += (h1[a2,a1] + h1spin[spin,a2,a1]) .* (@view sk_g[:,:,:,a2,a1])
+                end
+            end
+        end
+=#
+
+#        println("typeof  ", [typeof(h1), typeof(h1spin), typeof(sk_g_r)])
+        if scf
+            @tturbo for a1 = 1:nwan
+                for a2 = 1:nwan
+                    for k = 1:nk_red
+                        g1 = grid_ind[k,1]
+                        g2 = grid_ind[k,2]
+                        g3 = grid_ind[k,3]
+
+#                        sk_g_r[g1,g2,g3,a2,a1] = real(sk_g)
+#                        sk_g_i[g1,g2,g3,a2,a1] = imag(sk_g)
+#                        hk_g_r[g1,g2,g3,a2,a1] = real(hk_g)
+#                        hk_g_i[g1,g2,g3,a2,a1] = imag(hk_g)
+
+                        
+                        hk_g_r[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) * ( sk_g_r[g1,g2,g3,a2,a1])
+                        hk_g_i[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) * ( sk_g_i[g1,g2,g3,a2,a1])
+                    end
+                end
+            end
+        end
+
+        @tturbo for c = 1:nk_red
+            k1=grid_ind[c,1]
+            k2=grid_ind[c,2]
+            k3=grid_ind[c,3]
+            for a1 = 1:nwan
+                for a2 = 1:nwan
+                    #VALS0_t[c] += real( (DENMAT[a1,a2,c, spin]) * (hk_g[k1,k2,k3,a2,a1]) - (DENMAT_V[a1,a2,c, spin]) * (sk_g[k1,k2,k3,a2,a1]))
+                    
+                    VALS0_t[c] += DENMAT_r[a1,a2,c, spin] * hk_g_r[k1,k2,k3,a2,a1] - DENMAT_i[a1,a2,c, spin] * hk_g_i[k1,k2,k3,a2,a1]    - (DENMAT_V_r[a1,a2,c, spin] * sk_g_r[k1,k2,k3,a2,a1] - DENMAT_V_i[a1,a2,c, spin] * sk_g_i[k1,k2,k3,a2,a1])
+                end
+            end
+        end
+
+        
+        
+#=        @time @inbounds @fastmath @threads for c = 1:nk_red
+                    k1,k2,k3=grid_ind[c,:]
+        for a1 = 1:nwan
+            for a2 = 1:nwan
+                #c=0
+                    #                @threads for k1 = 1:grid[1]
+#                    for k2 = 1:grid[2]
+#                        for k3 = 1:grid[3]
+#                            c = (k1-1)*grid[2]*grid[3] + (k2-1)*grid[3] + k3
+                    VALS0_t[c] += real( (DENMAT[a1,a2,c, spin]) * (hk_g[k1,k2,k3,a2,a1]) - (DENMAT_V[a1,a2,c, spin]) * (sk_g[k1,k2,k3,a2,a1]))
+                end
+            end
+        end
+=#
         VALS0[:,spin] = VALS0_t[:]
     end
 end
