@@ -380,7 +380,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         #main SCF loop
         convA = false
 
-        println("INNER")
+#        println("INNER")
         
         rho_in = []
         rho_out = []        
