@@ -7238,7 +7238,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
 
 
 #        verbose=true
@@ -7537,7 +7537,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         sym_arr_TH = zeros(var_type, 3, nthreads())
         sym_arrS_TH = zeros(var_type, 3, nthreads())
 
-    end 
+        end
+        #; println("end")
         
 
             
@@ -7562,6 +7563,11 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         cham = R_keep_ab[c,7]
                         a1 = R_keep_ab[c,2]
                         a2 = R_keep_ab[c,3]
+
+                        if atom > 0 && !(a1 == atom || a2 == atom)
+                            continue
+                        end
+#                        println("atom $atom a1 $a1 a2 $a2")
                         rind1 = ind_arr[cham,1:3]
 
                         t1 = types_arr[a1]
@@ -7683,6 +7689,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         a1 = array_ind3[counter,1]
                         a2 = array_ind3[counter,2]
                         a3 = array_ind3[counter,3]
+
+                        if atom > 0 && !(a1 == atom || a2 == atom || a3 == atom)
+                            continue
+                        end
 
                         
                         t1s = crys.stypes[a1]

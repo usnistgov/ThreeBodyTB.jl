@@ -281,9 +281,12 @@ A3=     0.00000  0.00000  10.00000
 H    0.00000  0.00000  0.00000
 ```
 """
-function makecrys(A,coords,types; units=missing)
-    T = typeof(A[1,1])
-
+function makecrys(A,coords,types; units=missing, type=missing)
+    if ismissing(type)
+        T = typeof(A[1,1])
+    else
+        T = type
+    end
 
     
     if !ismissing(units)
