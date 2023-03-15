@@ -1009,8 +1009,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         end
     end
 
-    println("gamma")
-    @time if ismissing(gamma) 
+    #println("gamma")
+    if ismissing(gamma) 
         #        println("ismissing gamma")
         gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
@@ -1022,8 +1022,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #    println("type eden " , typeof(eden))
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
-    @time tt = tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, [tb_energy], [fermi_energy], nspin)
-    return tt
+    
+    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, [tb_energy], [fermi_energy], nspin)
 end
 
 """
@@ -1245,7 +1245,7 @@ end
     """
 function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
 
-    @time r_dict = make_rdict(ind_arr)
+    r_dict = make_rdict(ind_arr)
     
     nw=size(H,2)
     if nw != size(H,3) 
@@ -1279,8 +1279,8 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
         scfspin = true
     end
 
-    println("main")
-    @time tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, [scfspin], h1, h1spin)
+#    println("main")
+    tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, [scfspin], h1, h1spin)
     return tt
 end
 
