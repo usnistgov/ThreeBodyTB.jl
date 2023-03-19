@@ -129,7 +129,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         end
 
         h1, dq = get_h1(tbc)
-        if tbc.nspin == 2 || tbc.tb.scfspin[1]
+        if tbc.nspin == 2 || tbc.tb.scfspin
             println("get_spin_h1")
             h1spin = get_spin_h1(tbc)
         else
@@ -229,7 +229,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
                 if scf
                     hk0t = hk0t + h1 .* sk
                 end
-                if tbc.tb.scfspin[1] || tbc.tb.nspin == 2
+                if tbc.tb.scfspin || tbc.tb.nspin == 2
                     hk0t +=  sk .* h1spin[spin, :,:]
                 end
 
@@ -250,7 +250,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         else
             eewald = 0.0
         end
-        if tbc.tb.scfspin[1]
+        if tbc.tb.scfspin
             energy_magnetic = magnetic_energy(tbc)
         else
             energy_magnetic = 0.0
@@ -339,7 +339,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         cart1 = crys1.coords * crys1.A
         cart1[ind1, ind2] += step
 
-        crys1.coords = cart1 * inv(crys1.A)
+        crys1.coords[:,:] = cart1 * inv(crys1.A)
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
@@ -350,7 +350,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         cart2 = crys2.coords * crys2.A
         cart2[ind1, ind2] -= step
 
-        crys2.coords = cart2 * inv(crys2.A)
+        crys2.coords[:,:] = cart2 * inv(crys2.A)
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
@@ -370,7 +370,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         strain[ind1,ind2] = step
         strain[ind2,ind1] = step
        
-        crys1.A = crys1.A *(I(3) + strain)
+        crys1.A[:,:] = crys1.A *(I(3) + strain)
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
@@ -382,7 +382,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         strain[ind1,ind2] = -step
         strain[ind2,ind1] = -step
        
-        crys2.A = crys2.A *(I(3) + strain)
+        crys2.A[:,:] = crys2.A *(I(3) + strain)
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
@@ -555,36 +555,44 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
 
     At = (crys.A)'
     #println("loop ")
-    for a1 = 1:crys.nat
+    nkeep_ab = size(R_keep_ab)[1]
+    T = eltype(crys.A)
+    ENERGY = ones(T, nthreads())
+    @threads for c = 1:nkeep_ab
+        id = threadid()
+        cind = R_keep_ab[c,1]
+        a1 = R_keep_ab[c,2]
+        a2 = R_keep_ab[c,3]
         t1 = crys.stypes[a1]
-        for a2 = 1:crys.nat
-            t2 = crys.stypes[a2]
-            dmin = database[(t1,t2)].min_dist * 0.979
-            for c = 1:nkeep
-                cind = R_keep_ab[c,1]
+        t2 = crys.stypes[a2]        
+        dmin = database[(t1,t2)].min_dist * 0.979
+        #    @time for a1 = 1:crys.nat
 
-                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+#        for a2 = 1:crys.nat
+
+#            for c = 1:nkeep
+#                cind = R_keep_ab[c,1]
+
+        dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
                 
                 #                if dist_arr[a1,a2,cind,1] < dmin*2 && dist_arr[a1,a2,cind,1] > 1e-7
-                if dist_a < dmin*2.5 && dist_a > 1e-7
-                    energy += 0.1/dist_a
-                end
+        if dist_a < dmin*2.5 && dist_a > 1e-7
+            ENERGY[id] += 0.1/dist_a
+        end
 
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.01999 && dist_arr[a1,a2,cind,1] > 1e-7
                 #                if dist_arr[a1,a2,cind,1] < dmin*1.02 && dist_arr[a1,a2,cind,1] > 1e-7
-                if dist_a < dmin*1.02 && dist_a > 1e-7
-                    tooshort = true
-                    #                    energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
-                    energy += 0.05 * (dist_a - dmin)^2 + 0.5 * abs(dist_a - dmin)
-                    if var_type == Float64 && warned[a1] == false
-                        println("WARNING, SAFE MODE $a1 $t1 $a2 $t2 $c ", dist_a)
-                        warned[a1] = true
-                    end
-                end
+        if dist_a < dmin*1.02 && dist_a > 1e-7
+            tooshort = true
+            #                    energy += 0.02 * (dist_arr[a1,a2,cind,1] - dmin)^2 + 0.3 * abs(dist_arr[a1,a2,cind,1] - dmin)
+            ENERGY[id] += 0.05 * (dist_a - dmin)^2 + 0.5 * abs(dist_a - dmin)
+            if var_type == Float64 && warned[a1] == false
+                println("WARNING, SAFE MODE $a1 $t1 $a2 $t2 $c ", dist_a)
+                warned[a1] = true
             end
         end
     end
-
+    energy = sum(ENERGY)
 #    println("if")
     if tooshort
         println("WARNING, safe mode activated, minimum distances < fitting data * 0.98")
@@ -1099,7 +1107,7 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
 #            println("ham")
             HAM = begin
 
-                FN_ham = x->ham(x,ct,database,dontcheck, repel, DIST, nz_arr, FloatX, size_ret)
+                FN_ham = x->ham(x,ct,database,dontcheck, repel, DIST, nz_arr, FloatX, size_ret, tbc.tb.nwan, tbc.tb.nr)
                 
                 chunksize=min(15, 3*ct.nat + 6)
                 cfg = ForwardDiff.JacobianConfig(FN_ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
@@ -1303,10 +1311,10 @@ function forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
             #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
             
             for na = 1:tbc.tb.nwan
-#                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
-#                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
-                hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
-                sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+#                hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+#                sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
             end
         end
     end

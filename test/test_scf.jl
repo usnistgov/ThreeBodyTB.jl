@@ -82,7 +82,7 @@ function test_basics()
             @test sum(abs.(vals3[1] - vals[1])) < 0.05
 
             tb = deepcopy(tbc.tb)
-            ThreeBodyTB.TB.trim(tb)
+             tb = ThreeBodyTB.TB.trim(tb)
 
             vectsT, valsT, hamT, ST,eT =  Hk(tb, [0 0 0 ])
 

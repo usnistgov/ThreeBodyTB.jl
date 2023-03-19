@@ -82,10 +82,12 @@ function test1()
             H2 = zeros(2, size(H)[2], size(H)[3], size(H)[4])
             H2[1,:,:,:] = H
             H2[2,:,:,:] = H
-            tbcX.nspin = 2
-            tbcX.tb.nspin = 2
-            tbcX.tb.H = H2
-            tbcX.tb.scfspin = true
+#            tbcX.nspin = 2
+#            tbcX.tb.nspin = 2
+#            tbcX.tb.H = H2
+            #            tbcX.tb.scfspin = true
+            tbt = ThreeBodyTB.TB.make_tb(H2, tbcX.tb.ind_arr, tbcX.tb.S)
+            tbcX = ThreeBodyTB.TB.make_tb_crys(tbt, tbcX.crys, tbcX.nelec, tbcX.dftenergy, scf=tbcX.scf, eden = tbcX.eden, tb_energy=tbcX.energy[1])
 
             push!(tbc_list, tbcX)
         end

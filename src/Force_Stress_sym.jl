@@ -136,7 +136,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         @time begin
 
             #println("ew")
-            EW = begin
+            EW = @spawn begin
                 FN_ew = x->ew(x,ct,FloatX, dq)
                 if scf
                     cfg = ForwardDiff.JacobianConfig(FN_ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
@@ -175,6 +175,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 
         #return g
         
+        wait(EW)
         if scf
             g[end,:] = g_ew[1,:]
         end
@@ -551,14 +552,14 @@ function reshape_vec_SINGLE(x, at, nat; strain_mode=false)
     x_r = zeros(T, nat, 3)
     if at >= 1
         n = at
-        println("RV $n")
+        #println("RV $n")
         for j = 1:3
             x_r[n,j] = x[ j]
         end
     end
     
     x_r_strain = zeros(T, 3,3)
-    println("strain mode $strain_mode atom $at ", length(x))
+    #println("strain mode $strain_mode atom $at ", length(x))
     if length(x) == 6 && strain_mode
 
         x_r_strain[1,1] = x[1]
@@ -580,11 +581,11 @@ end
 
 
 function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, size_ret, nwan, nr, atom, memory)
-    println("HS atom $atom")
-    @time begin
+    #println("HS atom $atom")
+    begin
         T=typeof(x[1])
-        println("T ", T)
-        @time if T in keys(memory)
+        #println("T ", T)
+        if T in keys(memory)
             Hdual, Sdual, ret = memory[T]
             Hdual .= 0.0
             Sdual .= 0.0
@@ -599,7 +600,7 @@ function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, F
 #            Hdual = zeros(T, nwan, nwan, nr)
 #            Sdual = zeros(T, nwan, nwan, nr)
 #        end
-        @time if atom >= 1
+        if atom >= 1
             x_r, x_r_strain = reshape_vec_SINGLE(x, atom, ct.nat, strain_mode=false)
             A = FloatX.(ct.A) * (I(3))
         else
@@ -608,14 +609,14 @@ function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, F
         end
         
 
-        @time crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
-        @time calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = atom)
-        @time begin
+        crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
+        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = atom)
+        begin
             ret[1:size_ret] = Hdual
             ret[size_ret+1:size_ret*2] = Sdual
         end
     end
-    println("end HS")
+#    println("end HS")
     return ret
 end
 
@@ -669,6 +670,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
     kgrid, kweights = make_kgrid(grid)
     nk = size(kgrid)[1]
 
+    #println("grid sym")
     nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
 #    println("nk $nk nk_red $nk_red")
     
@@ -677,6 +679,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
     #println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database, DIST=DIST)
     
+    #println("main if")
     if tooshort ##########################
         println("safemode")
         function f(x :: Vector)
@@ -767,9 +770,9 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 
         g_ew = zeros(FloatX, 1, 3*ct.nat + 6)
         size_ret_full = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
-        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
+#        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
-        println("Calculate Jacobian of TB object")
+        println("(Pre-)Calculate Jacobian of TB object")
         @time begin
 
             #println("ew")
@@ -825,27 +828,27 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #        end
         size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
         println("Calculate Force / Stress")
-        @time begin
+        begin
         
             #println("mem")
             begin
 #                hr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
 #                sr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
 
-                hr_g_r = zeros(eltype(g),    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
-                sr_g_r = zeros(eltype(g),    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                hr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                sr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
                 
-                hr_g = zeros(Complex{eltype(g)},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
-                sr_g = zeros(Complex{eltype(g)},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                hr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                sr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
 
 #                hk_g = similar(hr_g)
 #                sk_g = similar(sr_g)
                 
 
-                sk_g_r = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                sk_g_i = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                hk_g_r = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                hk_g_i = zeros(eltype(g), grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                sk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                sk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                hk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                hk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
 
                 
                 garr =zeros(Float64, 3*ct.nat+6)
@@ -880,14 +883,14 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 
             end            
 
-            println("declare mem")
-            @time begin
+            #println("declare mem")
+            begin
                 gatom = zeros(FloatX,2*size_ret+1 ,3)
                 gstress = zeros(FloatX,2*size_ret+1 ,6)
             end
             for atom in 0:ct.nat
                 ATOM=atom
-                @time if atom >= 1
+                if atom >= 1
                     ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
                     g = gatom
                     find= 1:3
@@ -896,8 +899,8 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     g = gstress
                     find = 1:6
                 end                    
-                println("sum abs gz ", sum(abs.(g)))
-                @time for FIND in find
+                #println("sum abs gz ", sum(abs.(g)))
+                for FIND in find
 
                     
                     VALS0 .= 0.0
@@ -935,7 +938,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     #                println("psi")
                     psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)            
 
-                    println("atom $atom sum vals ", sum(VALS0))
+                    #println("atom $atom sum vals ", sum(VALS0))
                     if atom >= 1
                         garr[3*(atom-1) + FIND] += sum(VALS0) 
                     else
@@ -951,7 +954,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
         end #end begin
 
     end #ends else
-
+    #println("end else")
     #    println()
         
     x, stress = reshape_vec(garr, ct.nat)

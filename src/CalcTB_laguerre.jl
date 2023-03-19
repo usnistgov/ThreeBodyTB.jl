@@ -7806,6 +7806,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         else
             scf = false
         end
+        #println("make")
         tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
     end
     if verbose 

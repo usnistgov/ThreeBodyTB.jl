@@ -17,7 +17,9 @@ function test1()
             kappa = 4.0
             gamma_ij_tot_rs, bc = ThreeBodyTB.Ewald.electrostatics_getgamma(rs, kappa = kappa, noU=true)
 
-
+#            println(gamma_ij_tot_k1[1,2] - gamma_ij_tot_k1[1,1]," ", gamma_ij_tot_k2[1,2] - gamma_ij_tot_k2[1,1])
+#            println(sum( (gamma_ij_tot_k1[1,2] - gamma_ij_tot_k1[1,1]))," ", 2*1.76268)
+#            println(sum( (gamma_ij_tot_rs[1,2] - gamma_ij_tot_rs[1,1]))," ", 2*1.74757)
             @test  isapprox(gamma_ij_tot_k1[1,2] - gamma_ij_tot_k1[1,1], gamma_ij_tot_k2[1,2] - gamma_ij_tot_k2[1,1], rtol=1e-5) #do different kappa values agree?
             @test  isapprox(sum( (gamma_ij_tot_k1[1,2] - gamma_ij_tot_k1[1,1])), 2*1.76268, rtol = 1e-4) #madelung constant cscl
             @test  isapprox(sum( (gamma_ij_tot_rs[1,2] - gamma_ij_tot_rs[1,1])), 2*1.74757, rtol = 1e-4) #madelung constant nacl

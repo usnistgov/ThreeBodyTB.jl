@@ -35,6 +35,7 @@ using ..TB:calc_energy_charge_fft
 using ..TB:myfft_R_to_K
 using ..TB:ewald_energy
 using ..TB:magnetic_energy
+using ..TB:make_tb_crys
 
 using ..CrystalMod:orbital_index
 using ..TB:get_neutral_eden
@@ -874,7 +875,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         error_flag = true
     end
 
-    tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
+    if size(e_den) == size(tbc.eden)
+        tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
+    else #i don't think i need this option anymore
+        tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
+    end
+    
     h1, dq = get_h1(tbc, e_den)
 
     tbc.tb.h1[:,:] = h1     #moar side effect
@@ -882,8 +888,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     
     if magnetic
         h1spin = get_spin_h1(tbc, e_den)
-        tbc.tb.h1spin[:,:] = h1spin
-        tbc.tb.scfspin[1] = [true]
+        tbc.tb.h1spin[:,:,:] = h1spin
+        tbc.tb.scfspin = true
     end
     println("ΔQ = ", round.(dq, digits=2))
     if nspin == 2
@@ -891,8 +897,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     end
     println()
 
-    tbc.efermi[1]=efermi
-    tbc.energy[1]=energy_tot
+    tbc.efermi=efermi
+    tbc.energy=energy_tot
 
     V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
 
@@ -1147,9 +1153,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.scf = true
     tbcK_new.tb.scf = true
     if tbcK.nspin == 2
-        tbcK_new.tb.scfspin[1] = true
+        tbcK_new.tb.scfspin = true
     else
-        tbcK_new.tb.scfspin[1] = false
+        tbcK_new.tb.scfspin = false
     end
 
     tbcK_new.tb.h1spin = h1spin
@@ -1190,9 +1196,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.scf = true
     tbcK_new.tb.scf = true
     if tbcK.nspin == 2
-        tbcK_new.tb.scfspin[1] = true
+        tbcK_new.tb.scfspin = true
     else
-        tbcK_new.tb.scfspin[1] = false
+        tbcK_new.tb.scfspin = false
     end
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
