@@ -371,7 +371,8 @@ Cutoff distance for Hamiltonian calculation
 cutoff_dist = Dict()
 
 function get_cutoff(at1, at2)
-
+#    println("asdf")
+#    return [25.0, 20.0]
     if (at1,at2) in keys(cutoff_dist)
         return cutoff_dist[(at1,at2)]
     else
@@ -384,20 +385,22 @@ function get_cutoff(at1, at2)
  #       cutoff2X   = max(min(cutoff2X,   19.01), 15.01) #2body
  #       cutoff_onX = max(min(cutoff_onX, 18.01), 14.51) #onsite
 
-        cutoff2X    = (rad1 + rad2) / 2.0 * 6.5
-        cutoff_onX  = (rad1 + rad2) / 2.0 * 5.5
+        cutoff2X    = (rad1 + rad2) / 2.0 * 7.5
+        cutoff_onX  = (rad1 + rad2) / 2.0 * 7.0
 
-        cutoff2X   = max(min(cutoff2X,   18.51), 14.01) #2body
-        cutoff_onX = max(min(cutoff_onX, 17.51), 13.01) #onsite
+        cutoff2X   = max(min(cutoff2X,   21.01), 18.01) #2body
+        cutoff_onX = max(min(cutoff_onX, 20.51), 17.51) #onsite
 
         cutoff_dist[(at1,at2)] = [cutoff2X, cutoff_onX]
         cutoff_dist[(at2,at1)] = [cutoff2X, cutoff_onX]
         
-        return [cutoff2X, cutoff_onX]
+#        return [cutoff2X, cutoff_onX]
+        return [25.0, 20.0]
     end
 end
 
 function get_cutoff(at1, at2, at3)
+    #return 20.0
     if (at1,at2,at3) in keys(cutoff_dist)
         return cutoff_dist[(at1,at2,at3)]
     else
@@ -408,8 +411,8 @@ function get_cutoff(at1, at2, at3)
 #        cutoff3bX = minimum([rad1, rad2, rad3])*5.0
 #        cutoff3bX  = max(min(cutoff3bX,  13.51),  10.01) #3body
 
-        cutoff3bX = minimum([rad1, rad2, rad3])*4.5
-        cutoff3bX  = max(min(cutoff3bX,  12.01),  9.01) #3body
+        cutoff3bX = minimum([rad1, rad2, rad3])*7.0
+        cutoff3bX  = max(min(cutoff3bX,  20.01),  17.01) #3body
 
         cutoff_dist[(at1,at2,at3)] = cutoff3bX
         cutoff_dist[(at1,at3,at2)] = cutoff3bX

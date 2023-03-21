@@ -1009,6 +1009,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         end
     end
 
+    #println("gamma")
     if ismissing(gamma) 
         #        println("ismissing gamma")
         gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
@@ -1021,6 +1022,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #    println("type eden " , typeof(eden))
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
+    
     return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin)
 end
 
@@ -1249,6 +1251,7 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
     if nw != size(H,3) 
         exit("error in make_tb ", size(H))
     end
+
     nr=size(H,4)
     nspin=size(H,1)
 
@@ -1260,7 +1263,7 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
         error("make_tb size S doesn't match size H", size(S), size(H))
     end
     
-    vartype=typeof(H[1,1,1, 1])
+    vartype=typeof(real(H[1,1,1, 1]))
 
     if ismissing(h1)
         h1 =zeros(Float64, nw, nw)
@@ -1276,8 +1279,9 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
         scfspin = true
     end
 
-    
-    return tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin)
+#    println("main ", vartype)
+    tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin)
+    return tt
 end
 
 
@@ -2843,7 +2847,7 @@ function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
 
     eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
     tbc.efermi = efermi
-    tbc.eden = chargeden
+    tbc.eden[:,:] = chargeden[:,:]
     #println("energy comps $eband $etypes $echarge $emag")
     energy = eband + etypes + echarge + emag
 
@@ -3122,20 +3126,23 @@ function trim(h::tb, tol=0.0002)
         end
     end
     println("trim, out of ", h.nr, " keep $c")
+    println(size(h.H[:,:,:,keep]), size(h.ind_arr[keep,:]), size(h.S[:,:,keep]))
+    println(typeof(h.H[:,:,:,keep]), typeof(h.ind_arr[keep,:]), typeof(h.S[:,:,keep]))
+    return make_tb(h.H[:,:,:,keep], h.ind_arr[keep,:], h.S[:,:,keep], h1=h.h1, h1spin=h.h1spin)
+    
+#    h.H = h.H[:,:,:,keep]
+#    if h.nonorth
+#        h.S = h.S[:,:,keep]
+#    end
+#    h.nr = c
+#    h.ind_arr = h.ind_arr[keep,:]
 
-    h.H = h.H[:,:,:,keep]
-    if h.nonorth
-        h.S = h.S[:,:,keep]
-    end
-    h.nr = c
-    h.ind_arr = h.ind_arr[keep,:]
+#    h.r_dict = Dict()
+#    for i in 1:h.nr
+#        h.r_dict[copy(h.ind_arr[i,:])] = i
+#    end
 
-    h.r_dict = Dict()
-    for i in 1:h.nr
-        h.r_dict[copy(h.ind_arr[i,:])] = i
-    end
-
-
+    
 
 
 end    

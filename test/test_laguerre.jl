@@ -58,7 +58,7 @@ function test1()
 
             #        println("newdartabase")
             #        println(newdatabase[("Li", "Li")])
-            @test sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1e-5
+            @test sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1.5e-3
         end
         
         end

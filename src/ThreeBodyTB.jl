@@ -336,7 +336,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     println()
     println("Calculate Force, Stress")
     if use_sym
-        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
     else
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)        
     end
@@ -380,7 +380,7 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
     println("Calculate Force, Stress (no scf)")
 
     if use_sym
-        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
+        energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
     else
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
     end

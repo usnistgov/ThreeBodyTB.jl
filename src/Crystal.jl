@@ -65,7 +65,7 @@ H    0.50000  0.50000  0.50000
 - `types::Array{Symbol,1}` atomic names, but julia Symbols like `:H` or `:Zn`, for nominally faster internal evaluation.
 - `nat::Int64` number of atoms.
 """
-mutable struct crystal{T}
+struct crystal{T}
 
     A::Array{T,2}
     coords::Array{T,2}
@@ -281,9 +281,12 @@ A3=     0.00000  0.00000  10.00000
 H    0.00000  0.00000  0.00000
 ```
 """
-function makecrys(A,coords,types; units=missing)
-    T = typeof(A[1,1])
-
+function makecrys(A,coords,types; units=missing, type=missing)
+    if ismissing(type)
+        T = typeof(A[1,1])
+    else
+        T = type
+    end
 
     
     if !ismissing(units)

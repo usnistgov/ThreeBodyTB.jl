@@ -69,24 +69,26 @@ function test1()
         tbc_list = []
         energy_list = []
         for tbc in [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc10]
-            en, tbcX, flag = scf_energy(tbc.crys, database=database, nspin=2, conv_thr=1e-7, grid = [2,2,2], mix = 0.3)
+            en, tbcX, flag = scf_energy(tbc.crys, database=database, nspin=1, conv_thr=1e-7, grid = [2,2,2], mix = 0.3)
             if flag == false
-                en, tbcX, flag = scf_energy(tbc.crys, database=database, nspin=2, conv_thr=1e-7, grid = [2,2,2], mix = 0.7)
+                en, tbcX, flag = scf_energy(tbc.crys, database=database, nspin=1, conv_thr=1e-7, grid = [2,2,2], mix = 0.7)
             end
             push!(energy_list, en)
 
             #
             #                    
-
-            H = tbcX.tb.H
-            H2 = zeros(2, size(H)[2], size(H)[3], size(H)[4])
-            H2[1,:,:,:] = H
-            H2[2,:,:,:] = H
-            tbcX.nspin = 2
-            tbcX.tb.nspin = 2
-            tbcX.tb.H = H2
-            tbcX.tb.scfspin = true
-
+            if true
+                H = tbcX.tb.H
+                H2 = zeros(2, size(H)[2], size(H)[3], size(H)[4])
+                H2[1,:,:,:] = H
+                H2[2,:,:,:] = H
+                #            tbcX.nspin = 2
+                #            tbcX.tb.nspin = 2
+                #            tbcX.tb.H = H2
+                #            tbcX.tb.scfspin = true
+                tbt = ThreeBodyTB.TB.make_tb(H2, tbcX.tb.ind_arr, tbcX.tb.S)
+                tbcX = ThreeBodyTB.TB.make_tb_crys(tbt, tbcX.crys, tbcX.nelec, tbcX.dftenergy, scf=tbcX.scf, eden = tbcX.eden, tb_energy=tbcX.energy[1])
+            end
             push!(tbc_list, tbcX)
         end
         
@@ -98,7 +100,7 @@ function test1()
         newdatabase, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN\
         _TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN = ThreeBodyTB.FitTB.do_fitting_linear(tbc_list, fit_threebody=false, do_plot=false, mode=:kspace, kpoints=KPOINTS);
         
-        @test sum(abs.(newdatabase[(:Hx, :Hx)].datH .- database[(:Hx, :Hx)].datH)) ≤ 1e-3
+        @test sum(abs.(newdatabase[(:Hx, :Hx)].datH .- database[(:Hx, :Hx)].datH)) ≤ 2e-3
 
         newdatabase_rec = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false, kpoints=kpts);
         

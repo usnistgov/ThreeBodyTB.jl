@@ -35,6 +35,7 @@ using ..TB:calc_energy_charge_fft
 using ..TB:myfft_R_to_K
 using ..TB:ewald_energy
 using ..TB:magnetic_energy
+using ..TB:make_tb_crys
 
 using ..CrystalMod:orbital_index
 using ..TB:get_neutral_eden
@@ -76,7 +77,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
 
     #println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
@@ -99,7 +100,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     if mixing_mode == :diis
         mixing_mode = :DIIS
     end
-    
+
+
+    #println("mixing mode $mixing_mode")
     #println("before before ", tbc.eden)
     
     if !ismissing(tot_charge)
@@ -378,7 +381,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         #main SCF loop
         convA = false
 
-        println("INNER")
+#        println("INNER")
         
         rho_in = []
         rho_out = []        
@@ -872,15 +875,20 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         error_flag = true
     end
 
-    tbc.eden = e_den #save charge density!!!!!  side effect!!!!!
+    if size(e_den) == size(tbc.eden)
+        tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
+    else #i don't think i need this option anymore
+        tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
+    end
+    
     h1, dq = get_h1(tbc, e_den)
 
-    tbc.tb.h1 = h1     #moar side effect
-    tbc.tb.scf = true  #just double checking
+    tbc.tb.h1[:,:] = h1     #moar side effect
+#    tbc.tb.scf = true  #just double checking
     
     if magnetic
         h1spin = get_spin_h1(tbc, e_den)
-        tbc.tb.h1spin = h1spin
+        tbc.tb.h1spin[:,:,:] = h1spin
         tbc.tb.scfspin = true
     end
     println("ΔQ = ", round.(dq, digits=2))
