@@ -7444,18 +7444,23 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             for c2 = 1:types_counter
                 t1 = types_dict_reverse[c1]
                 t2 = types_dict_reverse[c2]
-                coef = database[(t1,t2)]
-                indH, indS, inH, inS = coef.inds_int[[t1,t2]]
-                DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
-                DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
-                DAT_IND_ARR[c1,c2,1,:,:,1] = inH
-                DAT_IND_ARR[c1,c2,2,:,:,1] = inS
-                DAT_ARR[c1,c2,1,1:coef.sizeH] = coef.datH
-                DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
-                indO, inO = coef.inds_int[[t1]]
-                DAT_IND_ARR_O[c1,c2,:,:,1] = inO
-                DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
-                
+                if (t1,t2) in keys(database)
+                    coef = database[(t1,t2)]
+                    indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+                    DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
+                    DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
+                    DAT_IND_ARR[c1,c2,1,:,:,1] = inH
+                    DAT_IND_ARR[c1,c2,2,:,:,1] = inS
+                    DAT_ARR[c1,c2,1,1:coef.sizeH] = coef.datH
+                    DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
+                    indO, inO = coef.inds_int[[t1]]
+                    DAT_IND_ARR_O[c1,c2,:,:,1] = inO
+                    DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
+                else
+                    println("WARNING, ",(t1,t2), " database not found")
+                    within_fit = false
+                    push!(badlist, (t1,t2))
+                end
             end
         end
 
@@ -7480,6 +7485,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
                         else
                             println("WARNING, ",(t1,t2,t3), " database not found")
+                            within_fit = false
                             push!(badlist, (t1,t2,t3))
                         end
                     end
