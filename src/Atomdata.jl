@@ -394,8 +394,8 @@ function get_cutoff(at1, at2)
         cutoff_dist[(at1,at2)] = [cutoff2X, cutoff_onX]
         cutoff_dist[(at2,at1)] = [cutoff2X, cutoff_onX]
         
-#        return [cutoff2X, cutoff_onX]
-        return [25.0, 20.0]
+        return [cutoff2X, cutoff_onX]
+#        return [25.0, 20.0]
     end
 end
 

@@ -4,7 +4,7 @@
 
 
 
-####################### Wannier90 specific 
+
 """
     module SCF
 
@@ -571,7 +571,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 mixA = max(mixA * 0.8, 0.0001)
                 nreduce += 1
                 #println("nreduce $nreduce")
-                if nreduce > 10 
+                if nreduce > 100 
                     #if nreduce > 3 && mixing_mode == :pulay
                     if mixing_mode != :simple
                         println("switch to :simple")
@@ -657,11 +657,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 
             elseif mixing_mode == :DIIS
-                if nreduce > 8
-                    mixA = 0.5
-                else
-                    mixA = 1.0
-                end
+#                if nreduce > 8
+#                    mixA = 0.5
+#                else
+#                    mixA = 1.0
+#                end
                 e_denA = DIIS(min(iter, n_diis), nwan, nspin, rho_in, rho_out, mixA)
                 
             elseif mixing_mode == :pulay
@@ -777,7 +777,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
                 
                 
-#                println("mix $mixA dq   ", round.(dq; digits=3))
+                println("mix $mixA dq   ", round.(dq; digits=3))
 
 #                println(round.(e_denA[1,:], digits=3))
 #                if magnetic
@@ -863,7 +863,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #        end
         e_den_OLD = deepcopy(e_den)
 
-        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters*5)
+        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)
 
     end
 

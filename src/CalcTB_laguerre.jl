@@ -7249,9 +7249,9 @@ end
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
 
 
-#        verbose=true
-#    println("test")
-#    @time twobody(10)
+    #        verbose=true
+    #    println("test")
+    #    @time twobody(10)
 
     
     At = crys.A'
@@ -7287,7 +7287,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     if verbose println("distances") end
     begin
-    
+        
         use_dist_arr = true
         if !ismissing(DIST)
             use_dist_arr = false
@@ -7359,16 +7359,16 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
     
     begin
-            if ismissing(Hin)
-                H = zeros(var_type, nwan, nwan, nkeep)
-                S = zeros(var_type, nwan, nwan, nkeep)
-            else
-                H = Hin
-                S = Sin
-                H .= 0.0
-                S .= 0.0
-            end
+        if ismissing(Hin)
+            H = zeros(var_type, nwan, nwan, nkeep)
+            S = zeros(var_type, nwan, nwan, nkeep)
+        else
+            H = Hin
+            S = Sin
+            H .= 0.0
+            S .= 0.0
         end
+    end
     ind_arr = zeros(Int64, nkeep, 3)
     ind_arr[:,:] = R_keep[:,2:4]
 
@@ -7393,7 +7393,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             
             sorbs[a,co] = orb_num(s)
             sumorbs[a,co] = sumO + 1
-#            println("first ", [a1,t,s,sumO,o])
+            #            println("first ", [a1,t,s,sumO,o])
         end
     end
 
@@ -7412,150 +7412,153 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
         
         begin
-        
-        types_dict = Dict()
-        types_dict_reverse = Dict()
-        types_counter = 0
-        types_arr = zeros(Int64, crys.nat)
-        for a = 1:crys.nat
-            if !(crys.stypes[a]  in keys(types_dict))
-                types_counter += 1
-                types_dict[crys.stypes[a]] = types_counter
-                types_dict_reverse[types_counter] = crys.stypes[a]
+            
+            types_dict = Dict()
+            types_dict_reverse = Dict()
+            types_counter = 0
+            types_arr = zeros(Int64, crys.nat)
+            for a = 1:crys.nat
+                if !(crys.stypes[a]  in keys(types_dict))
+                    types_counter += 1
+                    types_dict[crys.stypes[a]] = types_counter
+                    types_dict_reverse[types_counter] = crys.stypes[a]
+                end
+                types_arr[a] = types_dict[crys.stypes[a]]
             end
-            types_arr[a] = types_dict[crys.stypes[a]]
-        end
-        
-        orbs_arr = zeros(Int64, crys.nat, 9, 3)
-        DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 33 )
-        DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 164)
+            
+            orbs_arr = zeros(Int64, crys.nat, 9, 3)
+            DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 33 )
+            DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 164)
 
-        DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
+            DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
 
 
-        cutoff_arr = zeros(crys.nat, crys.nat, 2)
-        cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
-        get_cutoff_pre = Dict()       
-        s = Set(crys.stypes)
-        for s1 in s
-            for s2 in s
-                get_cutoff_pre[(s1,s2)] = get_cutoff(s1,s2)[:] 
-                for s3 in s 
-                    get_cutoff_pre[(s1,s2,s3)] = get_cutoff(s1,s2,s3)[1] 
+            cutoff_arr = zeros(crys.nat, crys.nat, 2)
+            cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
+            get_cutoff_pre = Dict()       
+            s = Set(crys.stypes)
+            for s1 in s
+                for s2 in s
+                    get_cutoff_pre[(s1,s2)] = get_cutoff(s1,s2)[:] 
+                    for s3 in s 
+                        get_cutoff_pre[(s1,s2,s3)] = get_cutoff(s1,s2,s3)[1] 
+                    end
                 end
             end
-        end
-        
-        for a = 1:crys.nat
-            ta = crys.stypes[a]
-            for b = 1:crys.nat
-                tb = crys.stypes[b]            
-                cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
-                for c = 1:crys.nat
-                    tc = crys.stypes[c]            
-                    cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
+            
+            for a = 1:crys.nat
+                ta = crys.stypes[a]
+                for b = 1:crys.nat
+                    tb = crys.stypes[b]            
+                    cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
+                    for c = 1:crys.nat
+                        tc = crys.stypes[c]            
+                        cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
+                    end
                 end
             end
-        end
 
-        
-        for c1 = 1:types_counter
-            for c2 = 1:types_counter
-                t1 = types_dict_reverse[c1]
-                t2 = types_dict_reverse[c2]
-                if (t1,t2) in keys(database)
-                    coef = database[(t1,t2)]
-                    indH, indS, inH, inS = coef.inds_int[[t1,t2]]
-                    DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
-                    DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
-                    DAT_IND_ARR[c1,c2,1,:,:,1] = inH
-                    DAT_IND_ARR[c1,c2,2,:,:,1] = inS
-                    DAT_ARR[c1,c2,1,1:coef.sizeH] = coef.datH
-                    DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
-                    indO, inO = coef.inds_int[[t1]]
-                    DAT_IND_ARR_O[c1,c2,:,:,1] = inO
-                    DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
-                else
-                    println("WARNING, ",(t1,t2), " database not found")
-                    within_fit = false
-                    push!(badlist, (t1,t2))
-                end
-            end
-        end
-
-        if use_threebody || use_threebody_onsite
             badlist = Set()
             
-            DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
-            DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 224)
+            for c1 = 1:types_counter
+                for c2 = 1:types_counter
+                    t1 = types_dict_reverse[c1]
+                    t2 = types_dict_reverse[c2]
+                    if (t1,t2) in keys(database)
+                        coef = database[(t1,t2)]
+                        indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+                        DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
+                        DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
+                        DAT_IND_ARR[c1,c2,1,:,:,1] = inH
+                        DAT_IND_ARR[c1,c2,2,:,:,1] = inS
+                        DAT_ARR[c1,c2,1,1:coef.sizeH] = coef.datH
+                        DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
+                        indO, inO = coef.inds_int[[t1]]
+                        DAT_IND_ARR_O[c1,c2,:,:,1] = inO
+                        DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
+                    else
+                        println("WARNING, ",(t1,t2), " database not found")
+                        within_fit = false
+                        push!(badlist, (t1,t2))
+                        println("badlist ", badlist)
+                    end
+                end
+            end
+
+            if use_threebody || use_threebody_onsite
+                
+                DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
+                DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 224)
+
+                
+                for c1 = 1:types_counter
+                    t1 = types_dict_reverse[c1]
+                    for c2 = 1:types_counter
+                        t2 = types_dict_reverse[c2]
+                        for c3 = 1:types_counter
+                            t3 = types_dict_reverse[c3]
+                            if (t1,t2,t3) in keys(database)
+                                cdat = database[(t1,t2,t3)]
+                                (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+                                DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
+                                DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
+                                DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
+                            else
+                                println("WARNING, ",(t1,t2,t3), " database not found")
+                                within_fit = false
+                                push!(badlist, (t1,t2,t3))
+                                println("badlist ", badlist)
+                                
+                            end
+                        end
+                    end
+                end
+            end
+            if use_threebody_onsite
+                DAT_IND_ARR_onsite_3 = zeros(Int64, types_counter, types_counter, types_counter, 4, 33 )
+                #            DAT_ARR_onsite_3 = zeros(Float64, types_counter, types_counter, types_counter, 32)
+                for c1 = 1:types_counter
+                    t1 = types_dict_reverse[c1]
+                    for c2 = 1:types_counter
+                        t2 = types_dict_reverse[c2]
+                        for c3 = 1:types_counter
+                            t3 = types_dict_reverse[c3]
+                            if !((t1,t2,t3) in badlist)
+                                cdat = database[(t1,t2,t3)]
+                                (cindX, nindX) = cdat.inds_int[[t1,t2,t3,:O]]
+                                DAT_IND_ARR_onsite_3[c1,c2,c3,:,1] = nindX
+                                DAT_IND_ARR_onsite_3[c1,c2,c3,:,2:33] = cindX
+                                #                        DAT_ARR_onsite_3[c1,c2,c3, 1:length(cdat.datO)] = cdat.datH
+                            end
+                        end
+                    end
+                end
+            end
 
             
-            for c1 = 1:types_counter
-                t1 = types_dict_reverse[c1]
-                for c2 = 1:types_counter
-                    t2 = types_dict_reverse[c2]
-                    for c3 = 1:types_counter
-                        t3 = types_dict_reverse[c3]
-                        if (t1,t2,t3) in keys(database)
-                            cdat = database[(t1,t2,t3)]
-                            (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
-                            DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
-                            DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
-                            DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
-                        else
-                            println("WARNING, ",(t1,t2,t3), " database not found")
-                            within_fit = false
-                            push!(badlist, (t1,t2,t3))
-                        end
-                    end
+            for a = 1:crys.nat
+                t1 = crys.stypes[a]
+                for o1x = 1:norb[a]
+                    o1 = orbs[a,o1x]
+                    s1 = sorbs[a,o1x]
+                    sum1 = sumorbs[a,o1x]
+                    orbs_arr[a,o1x,1] = o1
+                    orbs_arr[a,o1x,2] = s1
+                    orbs_arr[a,o1x,3] = sum1
+                    #                println("$t1 norb[a] ", norb[a], ", orbs arr $a $o1x | $o1 $s1 $sum1")
                 end
             end
-        end
-        if use_threebody_onsite
-            DAT_IND_ARR_onsite_3 = zeros(Int64, types_counter, types_counter, types_counter, 4, 33 )
-#            DAT_ARR_onsite_3 = zeros(Float64, types_counter, types_counter, types_counter, 32)
-            for c1 = 1:types_counter
-                t1 = types_dict_reverse[c1]
-                for c2 = 1:types_counter
-                    t2 = types_dict_reverse[c2]
-                    for c3 = 1:types_counter
-                        t3 = types_dict_reverse[c3]
-                        if !((t1,t2,t3) in badlist)
-                            cdat = database[(t1,t2,t3)]
-                            (cindX, nindX) = cdat.inds_int[[t1,t2,t3,:O]]
-                            DAT_IND_ARR_onsite_3[c1,c2,c3,:,1] = nindX
-                            DAT_IND_ARR_onsite_3[c1,c2,c3,:,2:33] = cindX
-                            #                        DAT_ARR_onsite_3[c1,c2,c3, 1:length(cdat.datO)] = cdat.datH
-                        end
-                    end
-                end
-            end
-        end
-
-        
-        for a = 1:crys.nat
-            t1 = crys.stypes[a]
-            for o1x = 1:norb[a]
-                o1 = orbs[a,o1x]
-                s1 = sorbs[a,o1x]
-                sum1 = sumorbs[a,o1x]
-                orbs_arr[a,o1x,1] = o1
-                orbs_arr[a,o1x,2] = s1
-                orbs_arr[a,o1x,3] = sum1
-#                println("$t1 norb[a] ", norb[a], ", orbs arr $a $o1x | $o1 $s1 $sum1")
-            end
-        end
-        
-        lag_arr_TH = zeros(var_type, 6, nthreads())
-        lmn_arr_TH = zeros(var_type, 3, nthreads())
-        sym_arr_TH = zeros(var_type, 3, nthreads())
-        sym_arrS_TH = zeros(var_type, 3, nthreads())
+            
+            lag_arr_TH = zeros(var_type, 6, nthreads())
+            lmn_arr_TH = zeros(var_type, 3, nthreads())
+            sym_arr_TH = zeros(var_type, 3, nthreads())
+            sym_arrS_TH = zeros(var_type, 3, nthreads())
 
         end
         #; println("end")
         
 
-            
+        
         if verbose println("2body LV") end
 
 
@@ -7581,7 +7584,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         if atom > 0 && !(a1 == atom || a2 == atom)
                             continue
                         end
-#                        println("atom $atom a1 $a1 a2 $a2")
+                        #                        println("atom $atom a1 $a1 a2 $a2")
                         rind1 = ind_arr[cham,1:3]
 
                         t1 = types_arr[a1]
@@ -7600,8 +7603,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
                             cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
                         end
-                            
-                            
+                        
+                        
                         if dist_a <  1e-5    # true onsite
 
                             for o1x = 1:norb[a1]
@@ -7657,9 +7660,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             
             
             begin
-#                @time H_thread = zeros(var_type,   nwan, nwan,  nkeep,  nthreads() )
-#                @time H_thread3 = zeros(var_type,   nwan, nwan,  nthreads() )
-#                H_thread2 = zeros(var_type,   9, 9,  nthreads() )
+                #                @time H_thread = zeros(var_type,   nwan, nwan,  nkeep,  nthreads() )
+                #                @time H_thread3 = zeros(var_type,   nwan, nwan,  nthreads() )
+                #                H_thread2 = zeros(var_type,   9, 9,  nthreads() )
 
                 hh = zeros(var_type, nthreads(), 3,3)
 
@@ -7684,7 +7687,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 for  counter = 1: (size(array_ind3)[1]-1 ) #add threads back
                     if array_ind3[counter,1] != array_ind3[counter+1,1]
                         push!(meta_count, old:counter)
-#                        println("mc ", old:counter)
+                        #                        println("mc ", old:counter)
                         old = counter+1
                     end
                 end
@@ -7778,10 +7781,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         if use_threebody
                             laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
                             #$core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_arr1, sym_arr2, lmn13, lmn23)
-#                            println("cuth $cut_h ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000 )
+                            #                            println("cuth $cut_h ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000 )
                             core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn13, lmn23)
 
-                                
+                            
                             #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
                             #                        println("size ", size(H), size(H_thread2))
                             #                        println("x $a1 $a2 ", orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1], " " , orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1])
@@ -7812,10 +7815,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         end
     end
 
-        if retmat
-            #return H, S
-            return 
-        end
+    if retmat
+        #return H, S
+        return 
+    end
     if verbose println("make") end
     if true
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
@@ -7834,7 +7837,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         println()
     end
 
-        
+    
     return tbc
 
 end
