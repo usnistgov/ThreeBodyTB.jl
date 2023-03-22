@@ -878,13 +878,13 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     if size(e_den) == size(tbc.eden)
         tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
     else #i don't think i need this option anymore
-        tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
+        tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
     end
     
     h1, dq = get_h1(tbc, e_den)
 
     tbc.tb.h1[:,:] = h1     #moar side effect
-#    tbc.tb.scf = true  #just double checking
+    tbc.tb.scf = true  #just double checking
     
     if magnetic
         h1spin = get_spin_h1(tbc, e_den)
