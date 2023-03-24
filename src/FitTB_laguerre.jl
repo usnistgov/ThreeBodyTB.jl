@@ -4284,8 +4284,8 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
     return ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT
 
 end
-
-function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters_global = 2, weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, generate_new_structures = missing,  procs=1)
+#::Array{tb_crys_kspace, 1}
+function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, generate_new_structures = missing,  procs=1)
 
 
     #initial 
@@ -4456,7 +4456,7 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
             
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
-                dq = deepcopy(DQ[c,1:tbc.crys.nat])
+                dq = deepcopy(DQ_ref[c,1:tbc.crys.nat])
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
@@ -4907,6 +4907,9 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     println("prepare rec data 1")
     @time ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
     println("end prepare rec data 1")
+
+    DQ_ref = deepcopy(DQ)
+
     
     VALS_working = zeros(size(VALS))
     ENERGIES_working = zeros(size(ENERGIES))
@@ -5048,6 +5051,9 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
         println("prepare_rec_data")
         @time @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
         println("end rec data")
+
+        DQ_ref = deepcopy(DQ)
+
         VALS_working = zeros(size(VALS))
         ENERGIES_working = zeros(size(ENERGIES))
         OCCS_working = zeros(size(OCCS))
@@ -5090,7 +5096,8 @@ function do_fitting_recursive_ALL(list_of_tbcs::Array{tb_crys_kspace, 1}; niters
     println("DONE GLOBAL iter $niters_global ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")
         
     if passtest == false && !ismissing(generate_new_structures)
-            
+
+        println("gen database ", keys(database))
         dft_list_NEW, dname_list, passtest = generate_new_structures(database, procs=procs, ITER=niters_global)
         
         println("FINAL PASSTEST $passtest")

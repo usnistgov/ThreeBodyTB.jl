@@ -65,7 +65,7 @@ H    0.50000  0.50000  0.50000
 - `types::Array{Symbol,1}` atomic names, but julia Symbols like `:H` or `:Zn`, for nominally faster internal evaluation.
 - `nat::Int64` number of atoms.
 """
-struct crystal{T}
+mutable struct crystal{T}
 
     A::Array{T,2}
     coords::Array{T,2}
