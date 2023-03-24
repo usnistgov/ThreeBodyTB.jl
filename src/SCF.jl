@@ -568,10 +568,14 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             if iter == 2 && maximum(delta_dq) > 1.0
                 mixA = min(0.1, mixA * 0.5)
             elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
-                mixA = max(mixA * 0.8, 0.0001)
+
+                if mixing_mode != :DIIS || nreduce > 10
+                    mixA = max(mixA * 0.8, 0.0001)
+                end
+
                 nreduce += 1
                 #println("nreduce $nreduce")
-                if nreduce > 100 
+                if nreduce > 20
                     #if nreduce > 3 && mixing_mode == :pulay
                     if mixing_mode != :simple
                         println("switch to :simple")
@@ -595,7 +599,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             end
 
             if nkeep > 5
-                mixA = min(0.9, mixA*1.2)
+                mixA = min(1.0, mixA*1.2)
                 #                println("keep $mixA")
                 nkeep = 0
             end
