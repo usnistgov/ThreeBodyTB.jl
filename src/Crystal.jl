@@ -18,6 +18,7 @@ using ..ThreeBodyTB:convert_force
 using ..ThreeBodyTB:convert_stress
 using ..ThreeBodyTB:Ang
 
+using Plots
 
 export crystal
 export makecrys
@@ -25,6 +26,7 @@ export generate_supercell
 export generate_random_distortion
 export write_poscar
 export write_efs
+export plot
 
 #holds data
 """
@@ -1662,6 +1664,121 @@ function neaten_crys(c::crystal)
     A = neaten_lattice(A)
 
     return makecrys(A, coords, c.types)
+
+end
+
+#=
+function sphere(r, C;  n=100)   # r: radius; C: center [cx,cy,cz]
+          
+           u = range(-π, π; length = n)
+           v = range(0, π; length = n)
+           x = C[1] .+ r*cos.(u) * sin.(v)'
+           y = C[2] .+ r*sin.(u) * sin.(v)'
+           z = C[3] .+ r*ones(n) * cos.(v)'
+           return x, y, z
+end
+
+function cylinder(p0, p1; r=0.25,  n=100)   # r: radius; C: center [cx,cy,cz]
+
+    p0n = p0 / sqrt(sum(p0.^2))
+    p1n = p0 / sqrt(sum(p0.^2))
+
+    c = p0n * p1n'
+
+    vcross = [0 -p0n[3] p0n[2]; p0n[3] 0 -p0n[1]; -p0n[2] p0n[1] 0] * b'
+
+    R = I(3) + [0 -vcross[3] vcross[2]; vcross[3] 0 -vcross[1]; -vcross[2] vcross[1] 0] + v*v * 1 / (1+c)
+    
+
+    h = 1.0
+    len = sqrt((p1 - p0).^2)
+    u = range(0, 2pi, length=n)
+    
+    v1 = range(p0[1], p1[1], length=n)
+    v2 = range(p0[2], p1[2], length=n)
+    v3 = range(p0[3], p1[3], length=n)
+    
+    
+    
+    v = range(0, len, length=n)
+
+    
+    us = ones(n)*u'
+    vs = v*ones(n)'
+    #Surface parameterization
+    x = r*cos.(us)
+    y = r*sin.(us)
+    z = vs
+
+    
+    
+    return x, y, z
+end
+=#
+
+function plot(c::crystal; bondlength=4.0)
+
+    p = plot3d(legend=false)
+
+    z = [0.0,0.0,0.]
+    A1 = c.A[1,:]
+    A2 = c.A[2,:]
+    A3 = c.A[3,:]
+    
+    ap = [[z,A1], [z,A2], [z,A3], [A1, A1+A2], [A1,A1+A3], [A2, A2+A3], [A1+A2, A1+A2+A3], [A1+A3, A1+A2+A3], [A2+A3, A1+A2+A3], [A2, A1+A2], [A3, A1+A3], [A3, A2+A3]]
+
+    for pts in ap
+         plot3d!( [pts[1][1],pts[2][1]], [pts[1][2],pts[2][2]],[pts[1][3],pts[2][3]], color=:grey)
+    end
+    
+#    plot3d!( [0, c.A[2,1]], [0, c.A[2,2]], [0, c.A[2,3]], color="grey")
+#    plot3d!( [0, c.A[3,1]], [0, c.A[3,2]], [0, c.A[3,3]], color="grey")
+
+#    plot3d!( [c.A[1,1], c.A[1,2]], [0, c.A[1,2]], [0, c.A[1,3]], color="grey")
+#    plot3d!( [0, c.A[2,1]], [0, c.A[2,2]], [0, c.A[2,3]], color="grey")
+#    plot3d!( [0, c.A[3,1]], [0, c.A[3,2]], [0, c.A[3,3]], color="grey")
+    
+    mmin = min(0, minimum(c.A))
+    mmax = max(0, maximum(c.A))
+
+    xlims!(mmin - 0.5, mmax+0.5)
+    ylims!(mmin - 0.5, mmax+0.5)
+    zlims!(mmin - 0.5, mmax+0.5)
+    ccart = c.coords * c.A
+
+    count = 1
+    
+    for at1 in 1:c.nat
+        for at2 in at1+1:c.nat
+            if sqrt(sum((ccart[at1,:] - ccart[at2,:]).^2)) < bondlength
+                plot3d!([ccart[at1,1], ccart[at2,1]], [ccart[at1,2], ccart[at2,2]],[ccart[at1,3], ccart[at2,3]], color=:black, linewidth=2)
+                count+=1
+            end
+        end
+    end
+
+    COLORS = [:blue, :orange, :green, :red, :black, :yellow, :cyan, :white]
+
+    st = Set(c.types)
+
+    for (ind, s) in enumerate(st)
+        color = COLORS[mod1(ind, 8)]
+        println("s $s $color")
+        bitv  = (s .== c.types)
+        scatter3d!(ccart[bitv,1], ccart[bitv,2], ccart[bitv,3], markersize=8, color=color, showaxis=false, ticks=false, grid=false)
+    end
+    #    for at in 1:c.nat
+        
+        #        x,y,z = sphere(1.0, ccart[at,:];  n=n)
+        #        surface!(x,y,z, grid=false, showaxis=false, ticks=false)
+        #scatter!([x], [y], [z], markersize=2, edgecolor=false)
+#        count += 1
+#    end
+
+    
+    
+    
+    display(p)
 
 end
 
