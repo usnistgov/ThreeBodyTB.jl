@@ -7403,7 +7403,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
     nkeep_ab = size(R_keep_ab)[1]
 
-    a_exp =2.0
+
 
 
 
@@ -7673,9 +7673,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 lmn_arr_TH_2 = zeros(var_type, 3, nthreads())
                 lmn_arr_TH_3 = zeros(var_type, 3, nthreads())
 
-                lag_arr_TH = zeros(var_type, 2, nthreads())
-                lag_arr_TH = zeros(var_type, 2, nthreads())
-                lag_arr_TH = zeros(var_type, 2, nthreads())
+#                lag_arr_TH = zeros(var_type, 2, nthreads())
+#                lag_arr_TH = zeros(var_type, 2, nthreads())
+#                lag_arr_TH = zeros(var_type, 2, nthreads())
 
                 memory_TH = zeros(var_type, 8, nthreads())
             end

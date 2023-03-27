@@ -1298,8 +1298,8 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
             end
         end
 
-        println("get_cutoff_pre")
-        println(get_cutoff_pre)
+#        println("get_cutoff_pre")
+#        println(get_cutoff_pre)
         
         for a = 1:crys.nat
             ta = crys.stypes[a]
