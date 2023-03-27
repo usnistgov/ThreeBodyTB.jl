@@ -100,6 +100,8 @@ export write_hr_dat
 export set_units
 export set_bin_dirs
 
+using .CrystalMod:plot
+export plot
 
 #include("RunWannier90.jl")
 
@@ -121,6 +123,9 @@ include("compile.jl")
 export scf_energy
 export scf_energy_force_stress
 export relax_structure
+
+
+include("Classical.jl")
 
 #function amiworking()
 #    println("yes")

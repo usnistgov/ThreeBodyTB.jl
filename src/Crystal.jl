@@ -18,7 +18,8 @@ using ..ThreeBodyTB:convert_force
 using ..ThreeBodyTB:convert_stress
 using ..ThreeBodyTB:Ang
 
-using Plots
+import Plots
+import Plots:plot
 
 export crystal
 export makecrys
@@ -1716,9 +1717,9 @@ function cylinder(p0, p1; r=0.25,  n=100)   # r: radius; C: center [cx,cy,cz]
 end
 =#
 
-function plot(c::crystal; bondlength=4.0)
+function Plots.plot(c::crystal; bondlength=5.0)
 
-    p = plot3d(legend=false)
+    p = Plots.plot3d(legend=false, aspect_ratio=:equal)
 
     z = [0.0,0.0,0.]
     A1 = c.A[1,:]
@@ -1727,8 +1728,25 @@ function plot(c::crystal; bondlength=4.0)
     
     ap = [[z,A1], [z,A2], [z,A3], [A1, A1+A2], [A1,A1+A3], [A2, A2+A3], [A1+A2, A1+A2+A3], [A1+A3, A1+A2+A3], [A2+A3, A1+A2+A3], [A2, A1+A2], [A3, A1+A3], [A3, A2+A3]]
 
+    mmin = min(0, minimum(c.A))
+    mmax = max(0, maximum(c.A))
+    
     for pts in ap
-         plot3d!( [pts[1][1],pts[2][1]], [pts[1][2],pts[2][2]],[pts[1][3],pts[2][3]], color=:grey)
+        Plots.plot3d!( [pts[1][1],pts[2][1]], [pts[1][2],pts[2][2]],[pts[1][3],pts[2][3]], color=:grey)
+        mmin = min(mmin, pts[1][1])
+        mmin = min(mmin, pts[1][2])
+        mmin = min(mmin, pts[1][3])
+        mmin = min(mmin, pts[2][1])
+        mmin = min(mmin, pts[2][1])
+        mmin = min(mmin, pts[2][1])
+
+        mmax = max(mmax, pts[1][1])
+        mmax = max(mmax, pts[1][2])
+        mmax = max(mmax, pts[1][3])
+        mmax = max(mmax, pts[2][1])
+        mmax = max(mmax, pts[2][1])
+        mmax = max(mmax, pts[2][1])
+        
     end
     
 #    plot3d!( [0, c.A[2,1]], [0, c.A[2,2]], [0, c.A[2,3]], color="grey")
@@ -1738,12 +1756,11 @@ function plot(c::crystal; bondlength=4.0)
 #    plot3d!( [0, c.A[2,1]], [0, c.A[2,2]], [0, c.A[2,3]], color="grey")
 #    plot3d!( [0, c.A[3,1]], [0, c.A[3,2]], [0, c.A[3,3]], color="grey")
     
-    mmin = min(0, minimum(c.A))
-    mmax = max(0, maximum(c.A))
 
-    xlims!(mmin - 0.5, mmax+0.5)
-    ylims!(mmin - 0.5, mmax+0.5)
-    zlims!(mmin - 0.5, mmax+0.5)
+
+    Plots.xlims!(mmin - 2.5, mmax+2.5)
+    Plots.ylims!(mmin - 2.5, mmax+2.5)
+    Plots.zlims!(mmin - 2.5, mmax+2.5)
     ccart = c.coords * c.A
 
     count = 1
@@ -1751,7 +1768,7 @@ function plot(c::crystal; bondlength=4.0)
     for at1 in 1:c.nat
         for at2 in at1+1:c.nat
             if sqrt(sum((ccart[at1,:] - ccart[at2,:]).^2)) < bondlength
-                plot3d!([ccart[at1,1], ccart[at2,1]], [ccart[at1,2], ccart[at2,2]],[ccart[at1,3], ccart[at2,3]], color=:black, linewidth=2)
+                Plots.plot3d!([ccart[at1,1], ccart[at2,1]], [ccart[at1,2], ccart[at2,2]],[ccart[at1,3], ccart[at2,3]], color=:black, linewidth=2)
                 count+=1
             end
         end
@@ -1765,7 +1782,7 @@ function plot(c::crystal; bondlength=4.0)
         color = COLORS[mod1(ind, 8)]
         println("s $s $color")
         bitv  = (s .== c.types)
-        scatter3d!(ccart[bitv,1], ccart[bitv,2], ccart[bitv,3], markersize=8, color=color, showaxis=false, ticks=false, grid=false)
+        Plots.scatter3d!(ccart[bitv,1], ccart[bitv,2], ccart[bitv,3], markersize=8, color=color, showaxis=false, ticks=false, grid=false)
     end
     #    for at in 1:c.nat
         
