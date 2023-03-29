@@ -22,6 +22,8 @@ using SparseArrays
 using LoopVectorization
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
 using ..CalcTB:laguerre_fast!
+using ..CalcTB:calc_frontier_list
+using Suppressor
 
 #using Statistics
 
@@ -44,8 +46,9 @@ using Random
 
 
 const n_2body_cl = 6
-const n_3body_cl = 11
 const n_3body_cl_same = 7
+const n_3body_cl_pair = 13
+const n_3body_cl_diff = 20
 
 
 
@@ -53,6 +56,9 @@ using ..CrystalMod:cutoff2X
 using ..CrystalMod:cutoff3bX
 using ..CrystalMod:cutoff_onX
 using ..CrystalMod:cutoff_length
+
+using ..Force_Stress:reshape_vec
+using ..Atomdata:get_cutoff
 
 #const cutoff2X = 18.51 
 #const cutoff3bX = 13.01 
@@ -91,7 +97,6 @@ struct coefs_cl
     min_dist::Float64
     dist_frontier::Dict
     version::Int64
-    inds::Dict{Array{Symbol}, Array{Int64,1}}
 end
 
 
@@ -193,10 +198,6 @@ function read_coefs(filename, directory = missing)
 end
 
 
-function test(at_list, dim)
-    println( at_list)
-    println(dim)
-end
 
 """
     function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, maxmin_val_train=missing, dist_frontier=missing)
@@ -209,9 +210,21 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
 
     println("make coefs")
     if dim == 2
-        totH = 6
-    else
-        println("asdf")
+        totH = n_2body_cl
+    elseif dim == 3
+
+        totH = n_3body_cl_diff
+        #        t1,t2,t3 = at_list[:]
+#        if t1 == t2 && t2 == t3
+#            totH = n_3body_cl_same
+#        elseif t1 == t2 && t1 != t3 || t1 == t3 && t1 != t2 || t2 == t3 && t2 != t1
+#            totH = n_3body_cl_pair
+#        elseif t1 != t2 && t2 != t3 && t1 != t3
+#            totH = n_3body_cl_diff
+#        else
+#            println("something wrong make coefs cl $t1 t2 $t3 ", [ t1 == t2 && t2 == t3,t1 == t2 && t1 != t3 || t1 == t3 && t1 !##= t2 || t2 == t3 && t2 != t1,t1 != t2 && t2 != t3 && t1 != t3])
+#        end
+        
     end
     
     if ismissing(datH)
@@ -233,78 +246,93 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
                 dist_frontier2[Symbol.(key)] = dist_frontier[key]
             end
         end
-  end
+    end
 
 
     return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version)
     
-    
 end
     
-
-function get_cl_info(at_list::Set, dim)
-
-    at_list = Symbol.([i for i in at_set])
-    sort!(at_list)
-    inds_dict = Dict{Any, Array{Int64,1}}()
-    if dim == 2
-        if length(at_list) == 1
-            totH = n_2body_cl
-            inds_dict[(at_list[1], at_list[2])] = collect(1:totH)
-        elseif length(at_list) == 2
-            totH = n_2body_cl
-            inds_dict[(at_list[1], at_list[2])] = collect(1:totH)
-            inds_dict[(at_list[2], at_list[1])] = collect(1:totH)
-        else
-            println("$dim error length(at_list) == ", length(at_list))
-        end
-    elseif dim == 3
-        if length(at_list) == 1
-            totH = n_3body_cl_same
-            inds_dict[(at_list[1], at_list[1], at_list[1])] = collect(1:totH)
-        elseif length(at_list) == 2
-            permutations = [[at_list[1], at_list[2], at_list[2]],
-                            [at_list[2], at_list[1], at_list[2]],
-                            [at_list[2], at_list[2], at_list[1]],
-                            [at_list[1], at_list[1], at_list[2]],
-                            [at_list[1], at_list[2], at_list[1]],
-                            [at_list[2], at_list[1], at_list[1]]]
-            totH = 0
-#            for p in permutations
-#                inds_dict[
-
-            #inds_dict[(at_list[1], at_list[1], at_list[2])] = totH = n_3body_cl_same
-
-        elseif length(at_list) == 3
-            totH = n_3body_cl
-        else
-            println("$dim error length(at_list) == ", length(at_list))
-        end
-        
-    else
-        println("error get_cl_info dim $dim")
-    end
-
-    return totH, inds_dict
-    
-
-end
-
 
 Base.show(io::IO, d::coefs_cl) = begin
 
     println(io, "coeffs classical ", d.names)
-    println(io, "min dist ", d.min_dist)
+    if d.dim == 2
+        println(io, "min dist ", round.(d.min_dist, digits=4))
+    end
     println(io, "dist frontier ")
     for t in keys(d.dist_frontier)
-        println(io, t, "    ", d.dist_frontier[t])
+        println(io, t)
+        for temp in d.dist_frontier[t]
+            println(io,  round.(temp, digits=2))
+        end
     end
-
+    println(io)
+    println(io, "datH ", round.(d.datH[:], digits=3))
     println(io)
 end
 
+function atom_perm_to_dist_perm(perm)
 
-function get_fit_cl(CRYS; use_threebody=true)
+    d12 = sort([perm[1], perm[2]])
+    d13 = sort([perm[1], perm[3]])
+    d23 = sort([perm[2], perm[3]])
+
+    normal_order = [[1,2], [1,3], [2,3]]
+
+    new_order = [findfirst(x->x == normal_order[1], [d12,d13,d23]),
+                 findfirst(x->x == normal_order[2], [d12,d13,d23]),
+                 findfirst(x->x == normal_order[3], [d12,d13,d23])]
+
+    
+#    new_ind = Int64[]
+#    for n in new_order
+#        push!(findfirst(n, normal_order), new_ind)
+#    end
+
+    return new_order
+    
+    
+end
+
+
+function do_fit_cl(CRYS, EN; use_threebody=true,get_force=true)
+
+    V, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=true, get_force=get_force)
+    x = V \ EN
+
+    frontier = calc_frontier_list(CRYS)
+    database = Dict()
+
+    for ind in keys(ind_set)
+        if length(ind) == 2
+            t1,t2 = ind
+#            println("t1 t2 $t1 $t2 ind ", ind_set[ind])
+#            println("t1 t2 $t1 $t2 x   ", x[ind_set[ind]])
+            if (t1,t2) in keys(frontier)
+                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1, min_dist = frontier[(t1,t2)])
+            else
+                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1)
+            end                
+            database[ind] = c
+        elseif length(ind) == 3
+            t1,t2,t3 = ind
+            if (t1,t2,t3) in keys(frontier)
+                c = make_coefs_cl([t1, t2, t3], 3, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1)
+            else
+                c = make_coefs_cl([t1, t2, t3], 3, datH = x[ind_set[ind]], version = 1)
+            end
+            database[ind] = c
+            
+        else
+            println("something wrong do_fit_cl $ind")            
+        end
+            
+    end
+    return database
+end    
+
+function prepare_fit_cl(CRYS; use_threebody=true, get_force=true)
 
     types_dict = Dict()
     types_dict_reverse = Dict()
@@ -321,39 +349,190 @@ function get_fit_cl(CRYS; use_threebody=true)
                 push!(vars,[Set([s1,s2]),2])
                 if use_threebody
                     for s3 in st
-                        push!(vars,[Set([s1,s2]), 3])
+                        push!(vars,[Set([s1,s2,s3]), 3])
                     end
                 end
             end
         end
     end
+    println("vars ", vars)
+    
     vars_list = collect(vars)
     at_types = collect(at_types_set)
     ntot = 0
     at_ind = []
+
+    ind_set = Dict()
+
+    pattern = [ [1,1,1], #these are distances 12, 13, 23
+
+                [2,1,1],
+                [1,2,1],
+                [1,1,2],
+
+                [3,1,1],
+                [1,3,1],
+                [1,1,3],
+
+                [2,2,2],
+
+                [1,2,2],
+                [2,1,2],
+                [2,2,1], 
+
+                [0,1,1], 
+                [1,0,1], 
+                [1,1,0], 
+
+                [0,1,2], 
+                [0,2,1], 
+                [2,0,1], 
+                [1,0,2], 
+                [1,2,0], 
+                [2,1,0]]
+
+
+    
     for v in vars_list
+        println("v $v")
+        println()
         if v[2] == 2
-            ntot += 6
+            if length(v[1]) == 1
+                t1 = collect(v[1])[1]
+                t2 = t1
+            elseif length(v[1]) == 2
+                t1,t2 = collect(v[1])[1:2]
+            else
+                println("something wrong v length(v[1]) ", length(v[1]) )
+            end
+            ind_set[(t1,t2)] = collect(1:n_2body_cl) .+ ntot
+            ind_set[(t2,t1)] = collect(1:n_2body_cl) .+ ntot
+            ntot += n_2body_cl
+        elseif v[2] == 3
+         #   println("three ", v[1])            
+            if length(v[1]) == 1
+                t1 = collect(v[1])[1]
+                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7]
+                ntot += n_3body_cl_same
+                
+            elseif length(v[1]) == 2
+                t1,t2 = collect(v[1])[1:2]
+
+                #1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
+                ind_set[(t1,t2,t2)  ] = ntot .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,13,12,12,13,11,11] #3 special
+                ind_set[(t2,t1,t2)  ] = ntot .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
+                ind_set[(t2,t2,t1)  ] = ntot .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
+
+                ind_set[(t2,t1,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,11,12,12,11,13,13] #3 special
+                ind_set[(t1,t2,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
+                ind_set[(t1,t1,t2)  ] = ntot .+ n_3body_cl_pair .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
+                
+                            
+                ntot += n_3body_cl_pair * 2 #two possible pairs
+                            
+                
+                
+            elseif length(v[1]) == 3
+                ntot += n_3body_cl_diff
+                
+                t1,t2,t3 = collect(v[1])[1:3]
+                t123 = [t1,t2,t3]
+                ind_set[(t1,t2,t3)] = ntot .+ collect(1:20)
+                
+                PERM = [ [1,2,3],[2,1,3],[3,1,2],[3,2,1],[1,3,2],[2,3,1]] #atom permutations
+                for perm in PERM
+                    #
+                    dist_perm = atom_perm_to_dist_perm(perm)
+                    
+                    ind_set[ (t123[perm[1]], t123[perm[2]],t123[perm[3]])  ] = Int64[]
+                    for p in pattern
+                        pnew = p[dist_perm]
+                        ind = findfirst(x->x==pnew,pattern)
+                        push!(ind_set[ (t123[perm[1]], t123[perm[2]],t123[perm[3]])  ], ind)
+                    end
+                end
+                    
+                ntot += n_3body_cl_diff
+                    
+                    #                for p in pattern
+                    #                    
+                    #                ind_set[(t2,t1,t3)] = 
+                    
+            else
+                println("something wrong get_fit_cl v[2] == 3  $v")
+            end                
+        else
+                println("something wrong get_fit_cl $v")
+        end
+        println("ntot $ntot ")
+        
+    end
+
+    println("at_types $at_types")
+    println("ind_set")
+    println(ind_set)
+    println()
+    #return ntot, ind_set
+    
+        #    for (ind, crys) in enumerate(CRYS)
+        #        en = calc_energy_cl(crys, dat_vars=ones(ntot), at_types=at_types, vars_list= vars_list, use_threebody=use_threebody)
+        #        println("ind $ind en $en")
+        #    end
+        
+    V = zeros(length(CRYS), ntot)
+    for (ind, crys) in enumerate(CRYS)
+        println("ind crys")
+        println(crys)
+        begin
+            V[ind, :] = ForwardDiff.gradient(x->calc_energy_cl(crys, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody), ones(ntot) )
+            #V[ind, :] = ForwardDiff.gradient(x->efs(crys, x, at_types, ind_set,vars_list, use_threebody), ones(ntot))
         end
     end
 
-#    for (ind, crys) in enumerate(CRYS)
-#        en = calc_energy_cl(crys, dat_vars=ones(ntot), at_types=at_types, vars_list= vars_list, use_threebody=use_threebody)
-#        println("ind $ind en $en")
-#    end
-    
-    V = zeros(length(CRYS), ntot)
-    for (ind, crys) in enumerate(CRYS)
-        V[ind, :] = ForwardDiff.gradient(x->calc_energy_cl(crys, dat_vars=x, at_types=at_types, vars_list= vars_list, use_threebody=use_threebody), ones(ntot) )
-    end
 
-    return V
+    if get_force 
+        NAT = 0
+        for c in CRYS
+            NAT += c.nat
+        end
+        Vf = zeros(NAT*3, ntot)
+        Vs = zeros(length(CRYS) * 6, ntot)
+        
+        counter_f = 0
+        counter_s = 0
+        for (ind, crys) in enumerate(CRYS)
+            println("ind crys")
+            println(crys)
+            begin
+                ret = ForwardDiff.jacobian(x->efs(crys, x, at_types, ind_set,vars_list, use_threebody), ones(ntot) )
+                Vf[counter_f .+ (1:crys.nat*3),:] = ret[1:crys.nat*3,:]
+                Vs[counter_s .+ (1:6),:] = ret[(crys.nat*3+1):(crys.nat*3+6),:]
+                counter_f += 3*crys.nat
+                counter_s += 6
+            end
+        end
+    else
+        Vf = zeros(0, ntot)
+        Vs = zeros(0, ntot)
+    end        
+        
+    
+    return V, Vf, Vs, vars, at_types, ind_set
     
 end
 
+function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody)
+    var_type = eltype(dat_vars)
+    println("EFS ----------------------------------------------------------------------------------------")
+    #energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody)
+    energy, force, stress = energy_force_stress(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type)
+    #return energy 
+    v = vcat(force[:], [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
+    #    return v
+    #return energy 
+end
 
-
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=true, use_threebody=false)
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=true, use_threebody=true, ind_set=missing, var_type=missing)
 
 
     At = crys.A'
@@ -365,11 +544,10 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         println()
     end
 
-    if ismissing(dat_vars)
+    if ismissing(dat_vars) && ismissing(var_type)
         var_type=Float64
-    else
+    elseif ismissing(var_type)
         var_type = eltype(dat_vars)
-
     end
 
     if verbose  println("LV $var_type")  end
@@ -388,7 +566,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
 
         else
-            if (use_threebody ) && !ismissing(database)
+            if (use_threebody ) 
                 R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
 
@@ -424,6 +602,11 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         end
     end
 
+    nkeep=size(R_keep)[1]
+    ind_arr = zeros(Int64, nkeep, 3)
+    ind_arr[:,:] = R_keep[:,2:4]
+
+    
     if !ismissing(database)
         types_dict = Dict()
         types_dict_reverse = Dict()
@@ -459,8 +642,34 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         
     end
     
+    cutoff_arr = zeros(crys.nat, crys.nat, 2)
+    cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
+    get_cutoff_pre = Dict()       
+    s = Set(crys.stypes)
+    for s1 in s
+        for s2 in s
+            get_cutoff_pre[(s1,s2)] = get_cutoff(s1,s2)[:] 
+            for s3 in s 
+                get_cutoff_pre[(s1,s2,s3)] = get_cutoff(s1,s2,s3)[1] 
+            end
+        end
+    end
+    
+    for a = 1:crys.nat
+        ta = crys.stypes[a]
+        for b = 1:crys.nat
+            tb = crys.stypes[b]            
+            cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
+            for c = 1:crys.nat
+                tc = crys.stypes[c]            
+                cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
+            end
+        end
+    end
+
     
     DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
+    DAT_IND_ARR3 = zeros(var_type, types_counter, types_counter, types_counter, 1: max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff) )
 
     badlist = Set()
     
@@ -479,34 +688,73 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                     push!(badlist, (t1,t2))
                     println("badlist ", badlist)
                 end
+                if use_threebody
+                    for c3 = 1:types_counter
+                        t3 = types_dict_reverse[c3]
+                        if (t1,t2,t3) in keys(database)
+                            coef = database[(t1,t2,t3)]
+                            DAT_IND_ARR3[c1,c2,c3,1:coef.sizeH] = coef.datH[1:coef.sizeH]
+                        else
+                            println("WARNING, ",(t1,t2,t3), " database not found")
+                            within_fit = false
+                            push!(badlist, (t1,t2,t3))
+                            println("badlist ", badlist)
+                        end
+                    end
+                end
+                
             end
         end
     else
         counter = 0
         for v in vars_list
-            println("v $v")
-            for c1 = 1:types_counter
-                for c2 = 1:types_counter
-                    t1 = types_dict_reverse[c1]
-                    t2 = types_dict_reverse[c2]
-                    println("t1 $t1 t2 $t2 ", typeof(t1))
-                    if t1 in v[1] && t2 in v[1] && length(Set([t1,t2])) == length(v[1])
-                        DAT_IND_ARR[c1,c2,1:n_2body_cl] = dat_vars[counter.+(1:n_2body_cl)]
+            if v[2] == 2
+                for c1 = 1:types_counter
+                    for c2 = 1:types_counter
+                        t1 = types_dict_reverse[c1]
+                        t2 = types_dict_reverse[c2]
+                        ind = ind_set[(t1,t2)] 
+                        if t1 in v[1] && t2 in v[1] && length(Set([t1,t2])) == length(v[1])
+                            println("v $v")
+                            println("DAT_IND_ARR $c1 $c2 $n_2body_cl ", dat_vars[ind])
+                            println("ind $ind ", typeof(ind))
+                            println("dat_vars  $ind ", typeof(dat_vars[ind]))
+                            DAT_IND_ARR[c1,c2,1:n_2body_cl] = dat_vars[ind]
+                            println("after")
+                        end
                     end
                 end
+                counter += n_2body_cl
+            elseif v[2] == 3
+                for c1 = 1:types_counter
+                    for c2 = 1:types_counter
+                        for c3 = 1:types_counter
+                            t1 = types_dict_reverse[c1]
+                            t2 = types_dict_reverse[c2]
+                            t3 = types_dict_reverse[c3]
+                            if t1 in v[1] && t2 in v[1] && t3 in v[1] && length(Set([t1,t2,t3])) == length(v[1])
+                                ind = ind_set[(t1,t2,t3)] 
+                                DAT_IND_ARR3[c1,c2,c3,1:length(ind)] = dat_vars[ind]
+                            end
+                        end
+                    end
+                end
+                
+            else
+                println("something wrong energy_cl v $v ")
             end
-            counter += n_2body_cl
+            
         end
     end
-        
     println("DAT_IND_ARR")
     println(DAT_IND_ARR)
 
+    warned = false
     if verbose println("2body CL") end
 
     nkeep_ab = size(R_keep_ab)[1]
     
-    lag_arr_TH = zeros(var_type, 6, nthreads())
+    lag_arr_TH = zeros(var_type, n_2body_cl, nthreads())
     energy_2bdy_TH = zeros(var_type,nthreads())
     twobody_Cl = begin
         for c = 1:nkeep_ab
@@ -520,6 +768,14 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 
             t1 = types_arr[a1]
             t2 = types_arr[a2]
+
+            if (t1,t2) in badlist
+                if warned == false
+                    println("WARNING missing $( (t1,t2) ) ")
+                    warned = true
+                end
+                continue
+            end
             
             if use_dist_arr
                 dist_a = dist_arr[c,1]
@@ -535,11 +791,14 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             end
             
             laguerre_fast!(dist_a, lag_arr)
-            energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
+            energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a 
         end
         
     end
-        
+    
+    lag_arr3_TH = zeros(var_type, max(n_3body_cl_same, n_3body_cl_pair, n_3body_cl_diff), nthreads())
+    energy_3bdy_TH = zeros(var_type,nthreads())
+
     threebdy_LV = begin
         
         if use_threebody 
@@ -555,6 +814,9 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             push!(meta_count, old:size(array_ind3)[1])
             
             if verbose println("3body LV") end
+            println("asdf")
+            
+            println("meta_count $meta_count")
             
             for mc in meta_count #@threads 
                 for counter in mc
@@ -565,6 +827,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                     a2 = array_ind3[counter,2]
                     a3 = array_ind3[counter,3]
 
+                    println("a1 a2 a3 $a1 $a2 $a3 ", crys.stypes)
+
                     t1s = crys.stypes[a1]
                     t2s = crys.stypes[a2]
                     t3s = crys.stypes[a3]
@@ -574,6 +838,10 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                     t3 = types_arr[a3]
                     
                     if (t1,t2,t3) in badlist
+                        if warned == false
+                            println("WARNING missing $( (t1,t2,t3) ) ")
+                            warned = true
+                        end
                         continue
                     end
                     
@@ -589,101 +857,123 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                         dist13 = array_floats3[counter, 2]
                         dist23 = array_floats3[counter, 3]                    
 
-                        cut_h = array_floats3[counter,13]
+                        cut_h = array_floats3[counter,14]
                     else
                         dist12, _ = get_dist(a1,a2, rind1, crys, At)
                         dist13, _ = get_dist(a1,a3, rind2, crys, At)
-                        dist23, _= get_dist(a2,a3, -rind1+rind2, crys, At)
+                        dist23, _ = get_dist(a2,a3, -rind1+rind2, crys, At)
                         
                         cutoff3 = cutoff_arr3[a1,a2,a3]
 
-                        cut_ab = cutoff_fn_fast(dist12, cutoffZZ - cutoff_length, cutoff3)
+                        cut_ab = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
                         cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
                         cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
                         
                         cut_h = cut_ab*cut_ac*cut_bc
                         
                     end
-
+                    lag_arr3 = lag_arr3_TH[:,id]
+                    ntot = laguerre_fast_threebdy_cl!(dist12,dist13,dist23, t1,t2,t3, lag_arr3)
+                    energy_3bdy_TH[id] += core_3_cl(t1,t2,t3,ntot,lag_arr3,DAT_IND_ARR3, var_type) * cut_h * 100.0
                     
-
-                    memory = memory_TH[:,id]
-
-                    
-                    if use_threebody
-                        laguerre_fast_threebdy_classical!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
-                        core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn13, lmn23)
-                        
-                        
-                        #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
-                        #                        println("size ", size(H), size(H_thread2))
-                        #                        println("x $a1 $a2 ", orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1], " " , orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1])
-
-                        #    H[orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1],orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1], cind1] += @view H_thread2[1:norb[a1],1:norb[a2],1]
-
-                    end
-                    
-
-                    if use_threebody_onsite
-                        laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory)
-                        #core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
-
-                        #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
-
-                        core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
-                    end
                 end
             end
-            #H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
-
-            #           for id = 1:nthreads()
-            #                println("id $id ", sum(H_thread[:,:,:,id]))
-            #                println(H_thread[:,:,1,id])
-            #                println()
-            #            end
         end
     end
 
-    if retmat
-        #return H, S
-        return 
-    end
-    if verbose println("make") end
-    if true
-        #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
-        #println("maketb")
-        tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S)
-        if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
-            scf = database["scf"]
+    return sum(energy_2bdy_TH) + sum(energy_3bdy_TH)
+    
+    
+end
+
+function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set)
+    T=eltype(x)
+
+    x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
+    A = FloatX.(ct.A) * (I(3) + x_r_strain)
+    crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
+
+    energy = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=false, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set )
+    
+
+end
+
+function energy_force_stress(crys::crystal;  database=missing, verbose=true, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64)
+
+    if false
+    if ismissing(DIST)
+        if use_threebody
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X,cutoff3bX,var_type=var_type, return_floats=false)
+            DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
         else
-            scf = false
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X,0.0,var_type=var_type, return_floats=false)
+            DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
         end
-        #println("make")
-        tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+    else
+        R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
     end
-    if verbose 
-        println("-----")
-        println()
     end
+#    energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody)
+#    return energy
 
 
-    return tbc
+#    energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, DIST=missing)
+#    return energy
+    #    energy = calc_energy_cl(crys,  database=missing,  DIST=missing, verbose=false,  use_threebody=use_threebody,  dat_vars=dat_vars, at_types=at_types)
+
+    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set)
+
+    energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
+#    return energy_test
+#    println("energy $energy energy_test $energy_test")
+                         
+    chunksize=min(15, 3*crys.nat + 6)
+    cfg = ForwardDiff.GradientConfig(FN_ham, zeros(var_type, 3*crys.nat + 6), ForwardDiff.Chunk{chunksize}())
+#    println("jacham")
+#    println("typeof ", typeof(zeros(Float64, 3*crys.nat + 6)))
+    
+    garr = ForwardDiff.gradient(FN_ham, zeros(var_type, 3*crys.nat + 6) , cfg ) 
+
+    x, stress = reshape_vec(garr, crys.nat)
+    f_cart = -1.0 * x
+    f_cart = f_cart * inv(crys.A)' 
+    stress = -stress / abs(det(crys.A)) 
+
+    #neaten                                                                                                                                                                                                              
+    for i = 1:3
+	for j = 1:3
+            if abs(stress[i,j]) < 1e-9
+                stress[i,j] = 0.0
+            end
+        end
+    end
+    for i = 1:crys.nat
+        for j = 1:3
+            if abs(f_cart[i,j]) < 1e-7
+                f_cart[i,j] = 0.0
+            end
+        end
+    end
+
+    
+    return energy_test, f_cart, stress
+
 
 end
 
-function laguerre_fast_cl!(dist, memory)
-
-    a=2.2
-    ad = a*dist
-    expa=exp.(-0.5*ad)
-    memory[1] = 1.0 * expa
-    memory[2] = (1.0 .- ad) .* expa
-    memory[3]= 0.5*(ad.^2 .- 4.0*ad .+ 2) .* expa
-    memory[4] = 1.0/6.0*(-ad.^3 .+ 9.0*ad.^2 .- 18.0*ad .+ 6.0) .* expa
-    memory[5] = 1.0/24.0*(ad.^4 .- 16.0 * ad.^3 .+ 72.0*ad.^2 .- 96.0*ad .+ 24.0) .* expa
-    memory[6] = 1.0/120*(-ad.^5 .+ 25*ad.^4 .- 200 * ad.^3 .+ 600.0*ad.^2 .- 600.0*ad .+ 120.0) .* expa
-
-end
+#function laguerre_fast_cl!(dist, memory)
+#
+#    a=2.2
+#    ad = a*dist
+#    expa=exp.(-0.5*ad)
+#    memory[1] = 1.0 * expa
+#    memory[2] = (1.0 .- ad) .* expa
+#    memory[3] = 0.5*(ad.^2 .- 4.0*ad .+ 2) .* expa
+#    memory[4] = 1.0/6.0*(-ad.^3 .+ 9.0*ad.^2 .- 18.0*ad .+ 6.0) .* expa
+#    memory[5] = 1.0/24.0*(ad.^4 .- 16.0 * ad.^3 .+ 72.0*ad.^2 .- 96.0*ad .+ 24.0) .* expa
+#    memory[6] = 1.0/120*(-ad.^5 .+ 25*ad.^4 .- 200 * ad.^3 .+ 600.0*ad.^2 .- 600.0*ad .+ 120.0) .* expa
+#
+#end
 
 
 function core_cl(t1, t2, lag_arr, DAT_ARR, var_type )
@@ -694,210 +984,97 @@ function core_cl(t1, t2, lag_arr, DAT_ARR, var_type )
     return energy
 end
 
-function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2)
-
-#    sym_dat1[1] = 1.0
-#    sym_dat1[2] = 0.0
-#    sym_dat1[3] = 0.0
-
-#    sym_dat2[1] = 1.0
-#    sym_dat2[2] = 0.0
-#    sym_dat2[3] = 0.0
-    
-    
-    @inbounds @simd    for o2x = 1:norb[a1]
-        o2 = orbs_arr[a1,o2x,1]
-        s2 = orbs_arr[a1,o2x,2]
-        sum2 = orbs_arr[a1,o2x,3]
-        for o1x = 1:norb[a1]
-
-#            sym_dat1[1] = 1.0
-#            sym_dat2[1] = 1.0
-
-            o1 = orbs_arr[a1,o1x,1]
-            s1 = orbs_arr[a1,o1x,2]
-            sum1 = orbs_arr[a1,o1x,3]
-
-#            println("t1 $t2 t2 $t2 sum1 $sum1 sum2 $sum2 s1 $s1 s2 $s2 o1 $o1 o2 $o2 o1x $o1x o2x $o2x")
-
-            
-            nind = DAT_IND_ARR_O[t1,t2,sum1,sum2,1]
-            #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-            
-
-            temp1 = 0.0
-            if o1x == o2x
-                for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp1 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
-                end
-            end
-
-            temp2 = 0.0
-            if sum1 != sum2
-                for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
-                end
-                temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
-            end
-
-            if (sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3)
-                for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+5]  ]
-                end
-                temp2 = temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
-
-            end
-
-            H[ o1, o2, c_zero] += (temp1 + temp2)  * cut_on
-
-            
-        end
+function core_3_cl(t1, t2, t3,ntot,lag_arr, DAT_ARR3, var_type )
+    energy = zero(var_type)
+    for n = 1:ntot
+        energy +=  lag_arr[n]*DAT_ARR3[t1,t2,t3,n]
     end
+    return energy
 end
 
-function core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id, sym_dat1, sym_dat2, lmn31, lmn32)
+function laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, memory)
 
-    @inbounds @simd for o2x = 1:norb[a2]
-        o2 = orbs_arr[a2,o2x,1]
-        s2 = orbs_arr[a2,o2x,2]
-        sum2 = orbs_arr[a2,o2x,3]
+    a=2.2
 
-        sym32 = symmetry_factor_int(s2,1,lmn32, one ) 
+    ad_1 = a*dist_1
+    expa_1 =exp.(-0.5*ad_1) 
 
-        for o1x = 1:norb[a1]
-
-            o1 = orbs_arr[a1,o1x,1]
-            s1 = orbs_arr[a1,o1x,2]
-            sum1 = orbs_arr[a1,o1x,3]
-
-            
-            sym31 = symmetry_factor_int(s1,1,lmn31, one )    
-
-                      
-            temp = 0.0
-            for i = 1:DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1]
-                temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1+i]]
-            end
-            H_thread[o1,o2,cind1,id] += temp * sym31*sym32*10^3 * cut_h
-            #temp = temp * sym31*sym32*10^3 * cut_h
-            
-        end
-    end
-            
-end
-
-function core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, sym_dat1, sym_dat2, lmn31, lmn32)
-
-#            println("cut_h $cut_h")
+    L_A_0 = 1.0
+    L_A_1 = expa_1
+    L_A_2 = (1.0 .- ad_1)*expa_1
+    L_A_3 = 0.5*(ad_1.^2 .- 4.0*ad_1 .+ 2.0) * expa_1
     
-    @inbounds @simd for o2x = 1:norb[a2]
-        o2 = orbs_arr[a2,o2x,1]
-        s2 = orbs_arr[a2,o2x,2]
-        sum2 = orbs_arr[a2,o2x,3]
+    ad_2 = a*dist_2
+    expa_2 =exp.(-0.5*ad_2) 
 
-        sym32 = symmetry_factor_int(s2,1,lmn32, one ) 
-
-        for o1x = 1:norb[a1]
-
-            o1 = orbs_arr[a1,o1x,1]
-            s1 = orbs_arr[a1,o1x,2]
-            sum1 = orbs_arr[a1,o1x,3]
-
-            
-            sym31 = symmetry_factor_int(s1,1,lmn31, one )    
-
-                      
-            temp = 0.0
-            for i = 1:DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1]
-                temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1+i]]
-            end
-            #if abs(temp * sym31*sym32*10^3 * cut_h) > 1e-100
-#                println("add $o1 $o2 $cind1 ", temp * sym31*sym32*10^3 * cut_h)
-                H_thread[o1,o2,cind1] += temp * sym31*sym32*10^3 * cut_h
-           # end
-            #println("add $o1 $o2 $cind1   ", temp * sym31*sym32*10^3 * cut_h)
-            
-            #temp = temp * sym31*sym32*10^3 * cut_h
-            
-        end
-    end
-            
-end
-
-function core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_dat1, sym_dat2, lmn31, lmn32)
-    H_thread .= 0.0
-    for o2x = 1:norb[a2]
-        id = threadid()
-        o2 = orbs_arr[a2,o2x,1]
-        s2 = orbs_arr[a2,o2x,2]
-        sum2 = orbs_arr[a2,o2x,3]
-
-        sym32 = symmetry_factor_int(s2,1,lmn32, one ) 
-
-        @simd for o1x = 1:norb[a1]
-
-            o1 = orbs_arr[a1,o1x,1]
-            s1 = orbs_arr[a1,o1x,2]
-            sum1 = orbs_arr[a1,o1x,3]
-
-            
-            sym31 = symmetry_factor_int(s1,1,lmn31, one )    
-
-                      
-            temp = 0.0
-            for i = 1:DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1]
-                temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1+i]]
-            end
-            H_thread[o1x,o2x,1] += temp * sym31*sym32*10^3 * cut_h
-            #temp = temp * sym31*sym32*10^3 * cut_h
-            
-        end
-    end
+    L_B_0 = 1.0
+    L_B_1 = expa_2
+    L_B_2 = (1.0 .- ad_2)*expa_2
+    L_B_3 = 0.5*(ad_2.^2 .- 4.0*ad_2 .+ 2.0) * expa_2
     
-end
+    ad_3 = a*dist_3
+    expa_3 =exp.(-0.5*ad_3) 
 
-function core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
-
-    #@inbounds @fastmath @simd     
-    @inbounds @simd for o1x = 1:norb[a1]
-
-        o1 = orbs_arr[a1,o1x,1]
-        s1 = orbs_arr[a1,o1x,2]
-        sum1 = orbs_arr[a1,o1x,3]
-        
-        
-        temp = 0.0
-        for i = 1:DAT_IND_ARR_onsite_3[t1,t2,t3, sum1,1 ]
-            temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_onsite_3[t1,t2,t3, sum1, 1+i]]
-        end
-#            println(DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1], ", $a1 $a2 $a3 | $o1x $o2x | temp $temp | sum(mem) ", sum(memory), " sum DAT_ARR " , sum(DAT_ARR_3[t1,t2,t3,sum1, sum2, :]))
-#        println("$a1 $o1 o  $(temp *10^3 * cut_o)   $cut_o")
-        H_thread[o1,o1,c_zero,id] += temp *10^3 * cut_o
-    end
+    L_C_0 = 1.0
+    L_C_1 = expa_3
+    L_C_2 = (1.0 .- ad_3)*expa_3
+    L_C_3 = 0.5*(ad_3.^2 .- 4.0*ad_3 .+ 2.0) * expa_3
     
-end
 
-function core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread)
-
-    #@inbounds @fastmath @simd     
-    @inbounds @simd for o1x = 1:norb[a1]
-
-        o1 = orbs_arr[a1,o1x,1]
-        s1 = orbs_arr[a1,o1x,2]
-        sum1 = orbs_arr[a1,o1x,3]
-        
-        
-        temp = 0.0
-        for i = 1:DAT_IND_ARR_onsite_3[t1,t2,t3, sum1,1 ]
-            temp += memory[i] * DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_onsite_3[t1,t2,t3, sum1, 1+i]]
-        end
-#            println(DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1], ", $a1 $a2 $a3 | $o1x $o2x | temp $temp | sum(mem) ", sum(memory), " sum DAT_ARR " , sum(DAT_ARR_3[t1,t2,t3,sum1, sum2, :]))
-#        if abs(temp *10^3 * cut_o) > 1e-7
-#            println("$a1 $o1 o  $(temp *10^3 * cut_o)   $cut_o")
-            H_thread[o1,o1,c_zero] += temp *10^3 * cut_o
-        #        end
-    end
+#    e3 = expa_1 * expa_2 * expa_3
     
+#    if t1==t2 && t1 == t3 #all same
+#        memory[1] = L_A_1 * L_B_1 * L_C_1
+#        memory[2] = (L_A_2 * L_B_1 * L_C_1 + L_A_1 * L_B_2 * L_C_1 + L_A_1 * L_B_1 * L_C_2)
+#        memory[3] = (L_A_3 * L_B_1 * L_C_1 + L_A_1 * L_B_3 * L_C_1 + L_A_1 * L_B_1 * L_C_3)
+#        memory[4] = (L_A_2 * L_B_2 * L_C_2)
+#        memory[5] = (L_A_1 * L_B_2 * L_C_2 + L_A_2 * L_B_1 * L_C_2 + L_A_2 * L_B_2 * L_C_1)
+#        memory[6] = (L_A_0 * L_B_1 * L_C_1 + L_A_1 * L_B_0 * L_C_1 + L_A_1 * L_B_1 * L_C_0)
+#        memory[7] = (L_A_0 * L_B_1 * L_C_2 +
+#                     L_A_0 * L_B_2 * L_C_1 +
+#                     L_A_2 * L_B_0 * L_C_1 +
+#                     L_A_1 * L_B_0 * L_C_2 +
+#                     L_A_1 * L_B_2 * L_C_0 +
+#                     L_A_2 * L_B_1 * L_C_0)
+#        return 7
+#
+#        elseif t1 == t2
+#        
+#    elseif t1 != t2 && t1 != t3 && t1 != t2
+
+    memory[1] = L_A_1 * L_B_1 * L_C_1 #1       #a
+
+    memory[2] = L_A_2 * L_B_1 * L_C_1 #2-4  #b
+    memory[3] = L_A_1 * L_B_2 * L_C_1       #b
+    memory[4] = L_A_1 * L_B_1 * L_C_2       #c
+    
+    memory[5] = L_A_3 * L_B_1 * L_C_1 #5-7  #d
+    memory[6] = L_A_1 * L_B_3 * L_C_1       #d
+    memory[7] = L_A_1 * L_B_1 * L_C_3       #e
+ 
+    memory[8] = L_A_2 * L_B_2 * L_C_2 #8    #f
+
+    memory[9] = L_A_1 * L_B_2 * L_C_2 #9-11  #g
+    memory[10] = L_A_2 * L_B_1 * L_C_2      #g
+    memory[11] = L_A_2 * L_B_2 * L_C_1      #h
+
+    memory[12] = L_A_0 * L_B_1 * L_C_1 #12-14  #j
+    memory[13] = L_A_1 * L_B_0 * L_C_1         #j
+    memory[14] = L_A_1 * L_B_1 * L_C_0         #i
+
+    memory[15] = L_A_0 * L_B_1 * L_C_2 #15-20  #k 
+    memory[16] = L_A_0 * L_B_2 * L_C_1         #l
+    memory[17] = L_A_2 * L_B_0 * L_C_1         #l
+    memory[18] = L_A_1 * L_B_0 * L_C_2         #k
+    memory[19] = L_A_1 * L_B_2 * L_C_0         #m
+    memory[20] = L_A_2 * L_B_1 * L_C_0         #m
+
+#    memory[2:20] .= 0.0
+    
+    return 20
+#    end
+
+
 end
 
 

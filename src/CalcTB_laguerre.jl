@@ -1385,7 +1385,7 @@ Base.show(io::IO, d::coefs) = begin
             println(io, key, ": " , d.datH[i])
         end
     end
-    println(io, "min dist ", d.min_dist)
+    println(io, "min dist ", round(d.min_dist, digits=4))
     println(io, "dist frontier ")
     for t in keys(d.dist_frontier)
         println(io, t, "    ", d.dist_frontier[t])
@@ -2821,7 +2821,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
         dist, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
 
-        
+        println("dist $dist")
         
         if dist > 6.0
             continue
@@ -2872,7 +2872,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                 if frontier[(t1,t2)] > dist && dist > 0.1
                     frontier[(t1,t2)] = dist
                 end
-            else
+            elseif dist > 0.1
                 frontier[(t1,t2)] = dist
             end
         end
