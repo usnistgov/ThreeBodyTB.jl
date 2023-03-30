@@ -25,6 +25,16 @@ function  get_dist(a1,a2,Rvec, crys, At)
     
 end
 
+function  get_dist_only(a1,a2,Rvec, crys, At)
+    
+#    v = At*( (@view crys.coords[a1,:])  - (@view crys.coords[a2,:]) + Rvec)
+#    dist = norm(v)
+#    
+#    return dist, v./(dist + 1e-30)
+    return norm(At*( (@view crys.coords[a1,:])  - (@view crys.coords[a2,:]) + Rvec))
+    
+end
+
 
 """
     function distances_etc(crys, cutoff, cutoff2=missing)
@@ -1556,7 +1566,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
                 end
             end
         end
-        println("D3 NZ $counter xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+#        println("D3 NZ $counter xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         begin
             dist3_nonzero = zeros(var_type, counter,3+3*3+2)
             nz_ind3 = zeros(UInt16 ,counter,5)

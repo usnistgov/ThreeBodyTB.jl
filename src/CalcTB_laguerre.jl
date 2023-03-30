@@ -2821,7 +2821,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
         dist, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
 
-        println("dist $dist")
+#        println("dist $dist")
         
         if dist > 6.0
             continue
