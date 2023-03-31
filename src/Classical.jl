@@ -528,8 +528,8 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
             if length(v[1]) == 1
                 println("elemental")
                 t1 = collect(v[1])[1]
-                #                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8, 9,9,9,9,9,9]
-                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,4,4,4]
+                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8, 9,9,9,9,9,9]
+                #ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,4,4,4]
                 ntot += n_3body_cl_same
                 
             elseif length(v[1]) == 2
