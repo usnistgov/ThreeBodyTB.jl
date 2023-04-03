@@ -552,6 +552,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
             energy_charge, pot = ewald_energy(tbc, dq)
+            
 
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
@@ -561,7 +562,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
 
-
+#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic")            
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
@@ -781,7 +782,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
                 
                 
-                println("mix $mixA dq   ", round.(dq; digits=3))
+#                println("mix $mixA dq   ", round.(dq; digits=3))
 
 #                println(round.(e_denA[1,:], digits=3))
 #                if magnetic

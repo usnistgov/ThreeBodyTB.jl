@@ -1763,17 +1763,22 @@ function Plots.plot(c::crystal; bondlength=5.0)
     Plots.zlims!(mmin - 2.5, mmax+2.5)
     ccart = c.coords * c.A
 
-    count = 1
-    
-    for at1 in 1:c.nat
-        for at2 in at1+1:c.nat
-            if sqrt(sum((ccart[at1,:] - ccart[at2,:]).^2)) < bondlength
-                Plots.plot3d!([ccart[at1,1], ccart[at2,1]], [ccart[at1,2], ccart[at2,2]],[ccart[at1,3], ccart[at2,3]], color=:black, linewidth=2)
-                count+=1
+    for bl = [bondlength, 5,5.5,6]
+        count = 0
+        
+        for at1 in 1:c.nat
+            for at2 in at1+1:c.nat
+                if sqrt(sum((ccart[at1,:] - ccart[at2,:]).^2)) < bl
+                    Plots.plot3d!([ccart[at1,1], ccart[at2,1]], [ccart[at1,2], ccart[at2,2]],[ccart[at1,3], ccart[at2,3]], color=:darkviolet, linewidth=1, alpha = 0.8)
+                    count+=1
+                end
             end
         end
+        if count > 0
+            break
+        end
     end
-
+    
     COLORS = [:blue, :orange, :green, :red, :black, :yellow, :cyan, :white]
 
     st = Set(c.types)
@@ -1782,7 +1787,7 @@ function Plots.plot(c::crystal; bondlength=5.0)
         color = COLORS[mod1(ind, 8)]
         println("s $s $color")
         bitv  = (s .== c.types)
-        Plots.scatter3d!(ccart[bitv,1], ccart[bitv,2], ccart[bitv,3], markersize=8, color=color, showaxis=false, ticks=false, grid=false)
+        Plots.scatter3d!(ccart[bitv,1], ccart[bitv,2], ccart[bitv,3], markersize=4, color=color, showaxis=false, ticks=false, grid=false, alpha = 0.7)
     end
     #    for at in 1:c.nat
         

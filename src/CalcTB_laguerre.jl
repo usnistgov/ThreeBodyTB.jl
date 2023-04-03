@@ -4350,7 +4350,7 @@ end
 
 function laguerre_fast!(dist, memory)
 
-    a=2.2
+    a=2.0
     ad = a*dist
     expa=exp.(-0.5*ad)
     memory[1] = 1.0 * expa
@@ -4366,10 +4366,10 @@ end
 
 function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory)
 
-    a=2.2
+    a=2.0
 
     ad_0 = a*dist_0
-    expa_0 =exp.(-0.5*ad_0) * 10.0
+    expa_0 =exp.(-0.5*ad_0) #* 10.0
 
     ad_a = a*dist_a
     expa_a =exp.(-0.5*ad_a)
@@ -4408,10 +4408,10 @@ end
 
 function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memory)
 
-    a=2.2
+    a=2.0
 
     ad_0 = a*dist_b
-    expa_0 =exp.(-0.5*ad_0) * 10.0
+    expa_0 =exp.(-0.5*ad_0) #* 10.0
 
     ad_a = a*dist_0
     expa_a =exp.(-0.5*ad_a)
@@ -4444,7 +4444,7 @@ Calculate laguerre polynomials up to order `nmax`
 """
 function laguerre(dist, ind=missing; nmax=6, memory=missing)
 
-    a=2.2
+    a=2.0
 
 
 #    a=3.0
@@ -4568,7 +4568,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 
-            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            #            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
 
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
@@ -4589,12 +4590,18 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 
             #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
 
-            V[1] = d1[1].*d2[1].*d3[1] *10.0
-            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])*10.0
-            V[3] = d1[1].*d2[1].*d3[2]*10.0
+#            V[1] = d1[1].*d2[1].*d3[1] *10.0
+#            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])*10.0
+#            V[3] = d1[1].*d2[1].*d3[2]*10.0
+#            V[4] = d1[1].*d2[1]
+#            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+
+            V[1] = d1[1].*d2[1].*d3[1] 
+            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
+            V[3] = d1[1].*d2[1].*d3[2]
             V[4] = d1[1].*d2[1]
             V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-                
+            
 
             
 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
@@ -4607,7 +4614,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]*10.0]
+            #            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]*10.0]
+                        V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
 
         else
@@ -4629,7 +4637,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
 
             V[1] = d1[1].*d2[1]
-            V[2] = d1[1].*d2[1].*d3[1]*10.0
+            #            V[2] = d1[1].*d2[1].*d3[1]*10.0
+            V[2] = d1[1].*d2[1].*d3[1]
             
 #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
             
@@ -4668,7 +4677,8 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 
-            V = [d1[:,1].*d2[:,1].*d3[:,1]*10.0 (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1])*10.0 d1[:,1].*d2[:,1].*d3[:,2]*10.0 d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            #            V = [d1[:,1].*d2[:,1].*d3[:,1]*10.0 (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1])*10.0 d1[:,1].*d2[:,1].*d3[:,2]*10.0 d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
 
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
@@ -4689,12 +4699,18 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
 
             #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
 
-            V[1] = d1[1].*d2[1].*d3[1] * 10.0
-            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) * 10.0
-            V[3] = d1[1].*d2[1].*d3[2] * 10.0
+#            V[1] = d1[1].*d2[1].*d3[1] * 10.0
+#            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) * 10.0
+#            V[3] = d1[1].*d2[1].*d3[2] * 10.0
+#            V[4] = d1[1].*d2[1]
+#            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+
+            V[1] = d1[1].*d2[1].*d3[1] 
+            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) 
+            V[3] = d1[1].*d2[1].*d3[2] 
             V[4] = d1[1].*d2[1]
             V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-                
+            
 
             
 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
@@ -4707,7 +4723,8 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1] * 10.0]
+            #            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1] * 10.0]
+            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1] ]
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
 
         else
@@ -4729,7 +4746,8 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
 #            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
 
             V[1] = d1[1].*d2[1]
-            V[2] = d1[1].*d2[1].*d3[1] * 10.0
+            #            V[2] = d1[1].*d2[1].*d3[1] * 10.0
+            V[2] = d1[1].*d2[1].*d3[1] 
             
 #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
             
@@ -4848,7 +4866,8 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
 
 #    return 0.0
 
-    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) * 10.0
+    #    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) * 10.0
+    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
     a = laguerre(dist1,missing, nmax=1, memory=memory1)
     b = laguerre(dist2,missing, nmax=1, memory=memory2)
 
@@ -4990,7 +5009,8 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
 
     if triple
         if  false
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1] * 10.0]
+            #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1] * 10.0]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1] ]
         else
             if ismissing(memoryV)
                 memoryV=zeros(typeof(zero[1]), n_3body_triple)
@@ -4998,7 +5018,8 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
             memoryV[1] =  a[1].*b[1]
             memoryV[2] =  a[1].*b[2]
             memoryV[3] =  a[2].*b[1]
-            memoryV[4] =  zero[1].*a[1].*b[1] * 10.0
+            #            memoryV[4] =  zero[1].*a[1].*b[1] * 10.0
+            memoryV[4] =  zero[1].*a[1].*b[1] 
         end
 
         
@@ -5010,7 +5031,8 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) zero[:,2].*(a[:,1].*b[:,1])   ]
 
 #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  ]
-            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  10.0*zero[:,1].*a[:,1].*b[:,1]  10.0*zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  10.0*zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1])  ]
+#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  10.0*zero[:,1].*a[:,1].*b[:,1]  10.0*zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  10.0*zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1])  ]
+            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1])  ]
             #Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
 #            Vt = [a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
             V = Vt
@@ -5025,12 +5047,15 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
                 end
                 memoryV[1] = a[1].*b[1]
                 memoryV[2] =  (a[1].*b[2]+a[2].*b[1])
-                memoryV[3] =  10.0*zero[1].*a[1].*b[1]
+            #                memoryV[3] =  10.0*zero[1].*a[1].*b[1]
+            memoryV[3] =  zero[1].*a[1].*b[1]
 
 
-               memoryV[4] = 10.0*zero[2].*a[1].*b[1]   
+            #               memoryV[4] = 10.0*zero[2].*a[1].*b[1]
+            memoryV[4] = zero[2].*a[1].*b[1]   
                memoryV[5] = a[2].*b[2]  
-               memoryV[6] = 10.0*zero[1].*(a[1].*b[2]+ a[2].*b[1]) 
+            #               memoryV[6] = 10.0*zero[1].*(a[1].*b[2]+ a[2].*b[1])
+            memoryV[6] = zero[1].*(a[1].*b[2]+ a[2].*b[1]) 
 #               memoryV[7] = zero[1].*a[2].*b[2]
 #               println("mem ", memoryV)
 #                memoryV[3] =   a[2].*b[2] 
@@ -5049,7 +5074,8 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    10.0*zero[:,1].*a[:,1].*b[:,1]  10.0*zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   10.0*zero[:,1].*a[:,1].*b[:,2] 10.0*zero[:,1].*a[:,2].*b[:,1]  ]
+            #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    10.0*zero[:,1].*a[:,1].*b[:,1]  10.0*zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   10.0*zero[:,1].*a[:,1].*b[:,2] 10.0*zero[:,1].*a[:,2].*b[:,1]  ]
+            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
 
 #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
             V = Vt
@@ -5063,13 +5089,17 @@ function three_body_H_lag(zero,a,b, same_atom, triple, ind=missing; memory0=miss
                 memoryV[1] =  a[1].*b[1]
                 memoryV[2] =  a[1].*b[2]
                 memoryV[3] =  a[2].*b[1]
-                memoryV[4] =  10.0*zero[1].*a[1].*b[1]
+            #memoryV[4] =  10.0*zero[1].*a[1].*b[1]
+            memoryV[4] =  zero[1].*a[1].*b[1]
 
-                memoryV[5] =  10.0*zero[2].*a[1].*b[1]
+            #                memoryV[5] =  10.0*zero[2].*a[1].*b[1]
+                            memoryV[5] =  zero[2].*a[1].*b[1]
                 memoryV[6] =  a[2].*b[2]
 
-                memoryV[7] =  10.0*zero[1].*a[1].*b[2]
-                memoryV[8] =  10.0*zero[1].*a[2].*b[1]
+#                memoryV[7] =  10.0*zero[1].*a[1].*b[2]
+#                memoryV[8] =  10.0*zero[1].*a[2].*b[1]
+                memoryV[7] =  zero[1].*a[1].*b[2]
+                memoryV[8] =  zero[1].*a[2].*b[1]
                 
 
 #                memoryV[6] =  
@@ -7626,11 +7656,11 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             
                         else #normal case
                             
-                            
+
                             laguerre_fast!(dist_a, lag_arr)
-                            
                             core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS)
                             core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS)
+                            
                         end
                         
                     end
@@ -7695,125 +7725,125 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 
                 if verbose println("3body LV") end
                 
-                for mc in meta_count #@threads 
-                    for counter in mc
-                        #@time for  counter = 1: (size(array_ind3)[1] ) #add threads back
-                        
-                        id = threadid()
+                #                for mc in meta_count #@threads 
+                #                    for counter in mc
+                @time for  counter = 1: (size(array_ind3)[1] ) #add threads back
+                    
+                    id = threadid()
 
 
-                        
-                        a1 = array_ind3[counter,1]
-                        a2 = array_ind3[counter,2]
-                        a3 = array_ind3[counter,3]
+                    
+                    a1 = array_ind3[counter,1]
+                    a2 = array_ind3[counter,2]
+                    a3 = array_ind3[counter,3]
 
-                        if atom > 0 && !(a1 == atom || a2 == atom || a3 == atom)
-                            continue
+                    if atom > 0 && !(a1 == atom || a2 == atom || a3 == atom)
+                        continue
+                    end
+
+                    
+                    t1s = crys.stypes[a1]
+                    t2s = crys.stypes[a2]
+                    t3s = crys.stypes[a3]
+
+                    if !haskey(database, (t1s, t2s, t3s))
+                        continue
+                    end
+
+                    t1 = types_arr[a1]
+                    t2 = types_arr[a2]
+                    t3 = types_arr[a3]
+                    
+                    if (t1,t2,t3) in badlist
+                        continue
+                    end
+                    
+                    lmn12 = lmn_arr_TH_1[:,id]
+                    lmn13 = lmn_arr_TH_2[:,id]
+                    lmn23 = lmn_arr_TH_3[:,id]
+
+                    sym_arr1 = sym_arr_TH[:,id]
+                    sym_arr2 = sym_arrS_TH[:,id]
+                    
+
+                    cind1 = array_ind3[counter,4]
+                    cind2 = array_ind3[counter,5]
+
+                    rind1 = ind_arr[cind1,1:3]
+                    rind2 = ind_arr[cind2,1:3]
+
+                    
+                    if use_dist_arr
+                        dist12 = array_floats3[counter, 1]
+                        dist13 = array_floats3[counter, 2]
+                        dist23 = array_floats3[counter, 3]                    
+
+                        for i = 1:3
+                            lmn12[i] = array_floats3[counter, 3+i]
+                            lmn13[i] = array_floats3[counter, 6+i]
+                            lmn23[i] = array_floats3[counter, 9+i]
                         end
+                        cut_h = array_floats3[counter,13]
+                        cut_o = array_floats3[counter,14]
+                    else
+                        dist12, lmn12[:] = get_dist(a1,a2, rind1, crys, At)
+                        dist13, lmn13[:] = get_dist(a1,a3, rind2, crys, At)
+                        dist23, lmn23[:] = get_dist(a2,a3, -rind1+rind2, crys, At)
+                        
+                        cutoffZZ = cutoff_arr[a1,a2,1]
+                        cutoff3 = cutoff_arr3[a1,a2,a3]
+
+                        cut_ab = cutoff_fn_fast(dist12, cutoffZZ - cutoff_length, cutoffZZ)
+                        cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
+                        cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
+                        cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
+                        
+                        cut_h = cut_ab*cut_ac*cut_bc
+                        cut_o = cut_ab2*cut_ac*cut_bc   
+                        
+                    end
+
+#                    println("counter $counter $dist12 $dist13 $dist23 $cut_h $cut_o")
+
+                    memory = memory_TH[:,id]
+
+                    
+                    if use_threebody
+                        laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
+                        #$core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_arr1, sym_arr2, lmn13, lmn23)
+                        #                            println("cuth $cut_h ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000 )
+                        core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn13, lmn23)
 
                         
-                        t1s = crys.stypes[a1]
-                        t2s = crys.stypes[a2]
-                        t3s = crys.stypes[a3]
+                        #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
+                        #                        println("size ", size(H), size(H_thread2))
+                        #                        println("x $a1 $a2 ", orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1], " " , orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1])
 
-                        if !haskey(database, (t1s, t2s, t3s))
-                            continue
-                        end
+                        #    H[orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1],orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1], cind1] += @view H_thread2[1:norb[a1],1:norb[a2],1]
 
-                        t1 = types_arr[a1]
-                        t2 = types_arr[a2]
-                        t3 = types_arr[a3]
-                        
-                        if (t1,t2,t3) in badlist
-                            continue
-                        end
-                        
-                        lmn12 = lmn_arr_TH_1[:,id]
-                        lmn13 = lmn_arr_TH_2[:,id]
-                        lmn23 = lmn_arr_TH_3[:,id]
+                    end
+                    
 
-                        sym_arr1 = sym_arr_TH[:,id]
-                        sym_arr2 = sym_arrS_TH[:,id]
-                        
+                    if use_threebody_onsite
+                        laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory)
+                        #core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
 
-                        cind1 = array_ind3[counter,4]
-                        cind2 = array_ind3[counter,5]
+                        #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
 
-                        rind1 = ind_arr[cind1,1:3]
-                        rind2 = ind_arr[cind2,1:3]
-
-                        
-                        if use_dist_arr
-                            dist12 = array_floats3[counter, 1]
-                            dist13 = array_floats3[counter, 2]
-                            dist23 = array_floats3[counter, 3]                    
-
-                            for i = 1:3
-                                lmn12[i] = array_floats3[counter, 3+i]
-                                lmn13[i] = array_floats3[counter, 6+i]
-                                lmn23[i] = array_floats3[counter, 9+i]
-                            end
-                            cut_h = array_floats3[counter,13]
-                            cut_o = array_floats3[counter,14]
-                        else
-                            dist12, lmn12[:] = get_dist(a1,a2, rind1, crys, At)
-                            dist13, lmn13[:] = get_dist(a1,a3, rind2, crys, At)
-                            dist23, lmn23[:] = get_dist(a2,a3, -rind1+rind2, crys, At)
-                            
-                            cutoffZZ = cutoff_arr[a1,a2,1]
-                            cutoff3 = cutoff_arr3[a1,a2,a3]
-
-                            cut_ab = cutoff_fn_fast(dist12, cutoffZZ - cutoff_length, cutoffZZ)
-                            cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
-                            cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
-                            cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
-                            
-                            cut_h = cut_ab*cut_ac*cut_bc
-                            cut_o = cut_ab2*cut_ac*cut_bc   
-                            
-                        end
-
-                        
-
-                        memory = memory_TH[:,id]
-
-                        
-                        if use_threebody
-                            laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
-                            #$core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_arr1, sym_arr2, lmn13, lmn23)
-                            #                            println("cuth $cut_h ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000 )
-                            core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn13, lmn23)
-
-                            
-                            #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
-                            #                        println("size ", size(H), size(H_thread2))
-                            #                        println("x $a1 $a2 ", orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1], " " , orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1])
-
-                            #    H[orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1],orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1], cind1] += @view H_thread2[1:norb[a1],1:norb[a2],1]
-
-                        end
-                        
-
-                        if use_threebody_onsite
-                            laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory)
-                            #core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
-
-                            #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
-
-                            core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
-                        end
+                        core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
                     end
                 end
-                #H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
-
-                #           for id = 1:nthreads()
-                #                println("id $id ", sum(H_thread[:,:,:,id]))
-                #                println(H_thread[:,:,1,id])
-                #                println()
-                #            end
             end
+            #H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
+
+            #           for id = 1:nthreads()
+            #                println("id $id ", sum(H_thread[:,:,:,id]))
+            #                println(H_thread[:,:,1,id])
+            #                println()
+            #            end
         end
     end
+
 
     if retmat
         #return H, S
@@ -7950,6 +7980,9 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
 
             H[ o1, o2, c_zero] += (temp1 + temp2)  * cut_on
 
+            #if abs((temp1 + temp2)) > 1e-5
+            #    println("$c_zero, $a1, $a2, $t1, $t2, $(temp1 + temp2)   $cut_on")
+            #end
             
         end
     end
@@ -8093,7 +8126,7 @@ function core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND
         end
 #            println(DAT_IND_ARR_3[t1,t2,t3, sum1, sum2,1], ", $a1 $a2 $a3 | $o1x $o2x | temp $temp | sum(mem) ", sum(memory), " sum DAT_ARR " , sum(DAT_ARR_3[t1,t2,t3,sum1, sum2, :]))
 #        if abs(temp *10^3 * cut_o) > 1e-7
-#            println("$a1 $o1 o  $(temp *10^3 * cut_o)   $cut_o")
+#        println("$a1 $o1 o  $(temp *10^3 * cut_o)   $cut_o  memory $(memory[1])   $(DAT_ARR_3[t1,t2,t3, DAT_IND_ARR_onsite_3[t1,t2,t3, sum1, 1+1]])")
             H_thread[o1,o1,c_zero] += temp *10^3 * cut_o
         #        end
     end
