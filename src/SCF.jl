@@ -480,7 +480,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             dq_old2[:] = dq_old[:]
             dq_old[:] = dq[:]
 
-#            println("e_denA", e_denA)
+#            println(sum(e_denA) , " e_denA  before ", round.(e_denA, digits=4))
 
             h1, dq = get_h1(tbc, e_denA)
 
@@ -527,6 +527,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
+#            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=4))
             
             if use_sym
                 for spin =1:nspin
@@ -534,6 +535,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 end
             end
 
+#            println(sum(e_den_NEW), " e_den_NEW  after ", round.(e_den_NEW, digits=4))
+            
             push!(rho_out, e_den_NEW)
 
             h1NEW, dqNEW = get_h1(tbc, e_den_NEW)
@@ -784,7 +787,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 
 #                println("mix $mixA dq   ", round.(dq; digits=3))
 
-#                println(round.(e_denA[1,:], digits=3))
+#                println( sum(abs.( delta_dq )) ,"  x " , round.(e_denA[1,:], digits=3))
 #                if magnetic
 #                    println(round.(e_denA[2,:], digits=3))
 #                end

@@ -1182,7 +1182,7 @@ function symmetrize_orbs!(v_sec, S, vnew, inds_b, id, workspace, A)
 
         #symmetrize_charge_d(v_sec[2:6], S, id, workspace)
     else
-        println("error symmetrize_orbs length(v_sec) $(length(v_sec)) ≠ 1,4, or 9")
+        println("error symmetrize_orbs length(v_sec) $(length(v_sec)) ≠ 1,4,6, or 9")
         vnew[inds_b, id] += v_sec
     end
 end
@@ -1207,6 +1207,8 @@ function symmetrize_charge_p(v, S, A)
 #    v05 = abs.(v).^0.5
 
 #    println("vp $v")
+
+    vs = sum(v[1:3])
     
     vR = abs(v[1])^0.5 * Vz + abs(v[2])^0.5*Vx  + abs(v[3])^0.5 * Vy 
 
@@ -1222,6 +1224,8 @@ function symmetrize_charge_p(v, S, A)
     vnew[2] = sum(vR_new .* Vx)^2
     vnew[3] = sum(vR_new .* Vy)^2
 
+    vnew[1:3] = vnew[1:3] .- sum(vnew[1:3])/3 .+ vs / 3
+    
 #    println("vnewp $vnew")
     
     return vnew
@@ -1239,6 +1243,8 @@ function symmetrize_charge_d(v, S, id, workspace, A)
     
     
     #v05 = abs.(v).^0.5
+
+    vs = sum(v[1:5])
     
     vR = abs(v[1])^0.5 * Vz2 + abs(v[2])^0.5*Vxz  + abs(v[3])^0.5 * Vyz + abs(v[4])^0.5*Vx2_y2 + abs(v[5])^0.5 * Vxy
 
@@ -1265,6 +1271,7 @@ function symmetrize_charge_d(v, S, id, workspace, A)
     workspace[4,id] = sum(vR_new .* Vx2_y2)^2
     workspace[5,id] = sum(vR_new .* Vxy)^2
 
+    workspace[1:5,id] = workspace[1:5,id] .- sum(workspace[1:5,id])/5 .+ vs /5
     
 end
 

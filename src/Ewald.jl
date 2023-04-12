@@ -78,6 +78,10 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
 #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 0.0)
 
+#    println("EWALD")
+#    println(crys)
+#    println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+    
 #    println("estimate")
     if ismissing(kappa)
 #        kappa_default = 0.25
