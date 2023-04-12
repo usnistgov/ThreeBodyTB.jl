@@ -37,9 +37,9 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
     
 #    println("get_energy_force_stress_fft2")
     
-    #println("test safe get_energy_force_stress_fft")
+#    println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database, DIST=DIST)
-    
+#    println("tooshort $tooshort")
     if tooshort ##########################
         println("safemode")
         function f(x :: Vector)

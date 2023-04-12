@@ -190,12 +190,16 @@ function setup_proto_data()
     CalcD["graphene"] = ["$STRUCTDIR/fake_graphene.in", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
-    CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "2D", "nscf", false]
+    CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "scf", "nscf", false]
 
 
     CalcD["el_party"] =       ["$STRUCTDIR/dimer.in.small", "relax", "2Dxy", "el_party", "nscf", false]
     CalcD["bin_party"] =       ["$STRUCTDIR/binary/dimer.in.small", "relax", "2Dxy", "bin_party", "nscf", false]
     CalcD["tern_party"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "2Dxy", "tern_party", "nscf", false]
+
+    CalcD["fourAgraph"] =       ["$STRUCTDIR/fourAgraph.in", "relax", "2Dxy", "vol-mid", "scf", false]
+    CalcD["fourAsquare"] =       ["$STRUCTDIR/fourAsquare.in", "relax", "2Dxy", "vol-mid", "scf", false]
+    CalcD["fourAtet"] =       ["$STRUCTDIR/fourAtet.in", "relax", "2Dxy", "vol-mid", "scf", false]
 
 
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
@@ -212,8 +216,11 @@ function setup_proto_data()
 
     CalcD["bcc_tet"] = ["$STRUCTDIR/bcc_tet.in", "vc-relax", "all", "scf", "nscf", false]
 
+    CalcD["trimer"] =       ["$STRUCTDIR/atom_small.in", "none", "2Dxy", "coords_trimer", "nscf", false]
+    CalcD["trimerX"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerX", "scf", false]
+    CalcD["trimerY"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerY", "scf", false]
 
-    CalcD["trimer"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer", "nscf", false]
+#    CalcD["trimer"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer", "nscf", false]
     CalcD["trimer_dense"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer_dense", "nscf", false]
     CalcD["trimer2"] =       ["$STRUCTDIR/trimer.in2", "none", "2Dxy", "coords_trimer2", "nscf", false]
     CalcD["trimer3"] =       ["$STRUCTDIR/trimer.in3", "none", "2Dxy", "coords_trimer3", "nscf", false]
@@ -286,7 +293,7 @@ function setup_proto_data()
 
 
     CalcD["znse_shear"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "shear", "nscf", false]
-    CalcD["hbn"] = ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "2D", "nscf", false]
+    CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", " vc-relax", "2Dxy", "scf", "nscf", false]
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
 
@@ -297,7 +304,7 @@ function setup_proto_data()
 
 
     CalcD["dimer2_rev"] = ["$STRUCTDIR/binary/dimer_rev.in", "relax", "all", "coords", "nscf", false]
-    CalcD["square2"] = ["$STRUCTDIR/binary/square.in", "vc-relax", "2Dxy", "2D", "nscf", false]
+    CalcD["square2"] = ["$STRUCTDIR/binary/square.in", "vc-relax", "2Dxy", "scf", "nscf", false]
     CalcD["caf2"] = ["$STRUCTDIR/binary/POSCAR_caf2", "vc-relax", "all", "scf", "nscf", false]
 
     CalcD["co2"] = ["$STRUCTDIR/binary/co2.in", "relax", "all", "coords-small", "nscf", false]
@@ -305,12 +312,12 @@ function setup_proto_data()
 
     CalcD["square_ab2"] = ["$STRUCTDIR/binary/square_ab2.in", "vc-relax", "2Dxy", "2D", "nscf", false]
     CalcD["mgf2"] = ["$STRUCTDIR/binary/POSCAR_mgf2", "vc-relax", "all", "scf", "nscf", false]
-    CalcD["hcp_v2"] = ["$STRUCTDIR/binary/hcp.in2", "vc-relax", "all", "vol-mid", "nscf", false]
+    CalcD["hcp_v2"] = ["$STRUCTDIR/binary/hcp.in2", "vc-relax", "all", "vol", "nscf", false]
 
     CalcD["p2ca3"] = ["$STRUCTDIR/binary/POSCAR_p2ca3", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle.in", "relax", "all", "coords-small", "nscf", false]
-    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle2.in", "relax", "all", "coords-small", "nscf", false]
+    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle_r.in", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle_r2.in", "vc-relax", "all", "scf", "nscf", false]
 
 
     CalcD["beta_sn2"] = ["$STRUCTDIR/binary/beta_sn.in.up", "vc-relax", "all", "scf", "nscf", false]
@@ -527,12 +534,14 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "dimer_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense"]
+    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense"]
 
 
 
 
-    core_binary = [    "cscl",          "hbn",     "rocksalt",  "znse",     "dimer2", "dimer2_min", "tri2_min", "square2", "hcp_v2", "rocksalt_2lay", "cscl_layers", "fcc_12", "fcc_21", "bcc_13", "bcc_31", "rocksalt_dense", "znse_dense", "znseAABB"]
+    #core_binary = [   "dimer2",   "cscl",          "hbn",     "rocksalt",  "znse",      "dimer2_min", "tri2_min", "square2", "hcp_v2", "rocksalt_2lay", "cscl_layers", "fcc_12", "fcc_21", "bcc_13", "bcc_31", "rocksalt_dense", "znse_dense", "znseAABB"]
+
+    core_binary = [ "rocksalt", "cscl", "znse",  "hbn", "square2", "rocksalt_2lay", "hcp_v2", "dimer2", "line_bin"]
 
     A0 = [   "as_orth",    "ga_tet",    "ge_wurtz",    "pb_r3m",    "beta_sn",   "ga",    "bi",    "te",    "in",    "i2",    "li_p6mmm",    "hcp_shape",   "n" ] #"bcc_tet.in",  same as POSCAR_ga_tet   #"as_221",  is simple cubic
     
@@ -659,7 +668,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "2D-oxygen"
             ncalc = 4
         elseif newst == "vol-dense"
-            ncalc = length( [0.8 0.83 0.87 ])
+            ncalc = length( [ 0.87 ])
         elseif newst == "vol-verydense"
             ncalc = length( [0.77 0.82 0.75 0.70 0.65 0.60 0.55 0.50])
         elseif newst == "vol-big"
@@ -680,7 +689,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "shape"
             ncalc = length( [-0.06 -0.03 0.03 0.06])
         elseif newst == "coords"
-            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
         elseif newst == "el_party"
             ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
         elseif newst == "bin_party"
@@ -931,7 +941,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
 
             elseif newst == "vol-dense"
-                for x in [0.8 0.83 0.87 ]
+                for x in [ 0.87 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1209,14 +1219,68 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
 
             elseif newst == "coords_trimer"
-                a = min_dimer_dist_dict[T1]
+                a = min_dimer_dist_dict[(T1,T1)]
+                c = makecrys([12 0 0; 0 12 0; 0 0 12]*1.0, [0 0 0; 0 0 a/12; a/12 0 0], [T1, T1, T1])
                 for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
-                    c = deepcopy(cnew)
-                    c.A[1,1] = a / (0.4^2 + 0.2^2)^0.5 * x
-                    c.A[2,2] = a * 1.5 * x
-                    c.A[3,3] = a / 0.4 * x
+                    push!(torun, deepcopy(c*x))
+                end
+                c = makecrys([12 0 0; 0 12 0; 0 0 12]*1.0, [0 0 0; a/24 0 a/12; a/12 0 0], [T1, T1, T1])
+                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+                    push!(torun, deepcopy(c*x))
+                end
+            elseif newst == "coords_trimerY"
+#                a = min_dimer_dist_dict[(T1,T1)]
+                a = -1.0*cnew.A[3,3] * (cnew.coords[1,3] - cnew.coords[2,3] - 1)  / 20.0
+                for y = [0.83, 0.85, 0.90]
+                    b = a *y
+                    c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b], [T1, T1])
                     push!(torun, deepcopy(c))
                 end
+                for y = [0.85, 0.90]
+                    b = a *y
+                    push!(torun, deepcopy(c))
+                    for x in [0.85, 0.90]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; a*x 0 0], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+
+                    for x in [0.85, 0.90]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; sqrt(3)/2*a*x 0 a/2*x], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+
+                    for x in [0.85, 0.90]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; 0 0 b+a*x], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+                end
+            elseif newst == "coords_trimerX"
+#                a = min_dimer_dist_dict[(T1,T1)]
+                a = -1.0*cnew.A[3,3] * (cnew.coords[1,3] - cnew.coords[2,3] - 1)  / 20.0
+                for y = [0.90, 0.95, 1.0, 1.1, 1.2, 1.4, 1.6, 2.0, 2.5]
+                    b = a *y
+                    c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b], [T1, T1])
+                    push!(torun, deepcopy(c))
+                end
+                for y = [0.95, 1.0, 1.1]
+                    b = a *y
+                    push!(torun, deepcopy(c))
+                    for x in [0.95, 1.0, 1.1, 1.3]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; a*x 0 0], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+
+                    for x in [0.95, 1.0, 1.1, 1.3]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; sqrt(3)/2*a*x 0 a/2*x], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+
+                    for x in [0.95, 1.0, 1.1, 1.3]
+                        c = makecrys([20 0 0; 0 14 0; 0 0 20]*1.0, [0 0 0; 0 0 b; 0 0 b+a*x], [T1, T1, T1])
+                        push!(torun, deepcopy(c))
+                    end
+                end
+
             elseif newst == "coords_trimer3"
                 a = min_dimer_dist_dict[T1]
                 for x in [1.15, 1.2, 1.25, 1.3, 1.35]
@@ -1256,7 +1320,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
 
             elseif newst == "coords"
-                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
                     c = deepcopy(cnew)
                     c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))
@@ -2256,10 +2321,10 @@ function oxidation_guess(atom1, atom2)
     #special configurations
 
 
-    if atom1 in ["B"] &&  atom2 in ["H", "Li", "Na", "K", "Rb", "Cs", "Be", "Mg", "Ca", "Sr", "Ba", "Y", "La", "Sc", "Tl", "In", "Ga"]
+    if atom1 in ["B"] #&&  atom2 in ["H", "Li", "Na", "K", "Rb", "Cs", "Be", "Mg", "Ca", "Sr", "Ba", "Y", "La", "Sc", "Tl", "In", "Ga", "Si", "Ge", "C"]
         push!(keep, [atom2, atom1, "cab6"])
     end
-    if atom2 in ["B"] &&  atom1 in ["H", "Li", "Na", "K", "Rb", "Cs", "Be", "Mg", "Ca", "Sr", "Ba", "Y", "La", "Sc", "Tl", "In", "Ga"]
+    if atom2 in ["B"] #&&  atom1 in ["H", "Li", "Na", "K", "Rb", "Cs", "Be", "Mg", "Ca", "Sr", "Ba", "Y", "La", "Sc", "Tl", "In", "Ga", "Si", "Ge", "C"]
         push!(keep, [atom1, atom2, "cab6"])
     end 
 
@@ -2320,18 +2385,18 @@ function oxidation_guess(atom1, atom2)
         push!(keep, [atom2, atom1, "ca1pd5"])
     end 
 
-    if atom1 in ["B", "Al", "Ga", "In", "Tl", "Sc", "Y", "La", "Sb", "Bi", "Co", "Fe", "Ni", "Mn", "Cr", "Ti", "V"] &&  atom2 in ["F"]
+    if atom1 in ["B", "Al", "Ga", "In", "Tl", "Sc", "Y", "La", "Sb", "Bi", "Co", "Fe", "Ni", "Mn", "Cr", "Ti", "V", "Co"] &&  atom2 in ["F"]
         push!(keep, [atom1, atom2, "a2f6"])
     end 
-    if atom2 in ["B", "Al", "Ga", "In", "Tl", "Sc", "Y", "La", "Sb", "Bi", "Co", "Fe", "Ni", "Mn", "Cr", "Ti", "V"] &&  atom1 in ["F"]
+    if atom2 in ["B", "Al", "Ga", "In", "Tl", "Sc", "Y", "La", "Sb", "Bi", "Co", "Fe", "Ni", "Mn", "Cr", "Ti", "V", "Co" ] &&  atom1 in ["F"]
         push!(keep, [atom2, atom1, "a2f6"])
     end 
 
-    if atom1 in ["Cr", "Mo", "W", "Mn", "Tc", "Re", "Ru", "S", "Se", "Te"] &&  atom2 in ["F"]
+    if atom1 in ["Fe", "Mn", "Co", "V", "Cr", "Mo", "W", "Mn", "Tc", "Re", "Ru", "Os", "Se", "Te"] &&  atom2 in ["F"]
         push!(keep, [atom1, atom2, "a1f6"])
         push!(keep, [atom1, atom2, "mof6"])
     end 
-    if atom2 in ["Cr", "Mo", "W", "Mn", "Tc", "Re", "Ru", "Os", "S", "Se", "Te"] &&  atom1 in ["F"]
+    if atom2 in ["Fe", "Mn", "Co", "V", "Cr", "Mo", "W", "Mn", "Tc", "Re", "Ru", "Os", "Se", "Te"] &&  atom1 in ["F"]
         push!(keep, [atom2, atom1, "a1f6"])
         push!(keep, [atom2, atom1, "mof6"])
     end 
@@ -2416,15 +2481,15 @@ function oxidation_guess(atom1, atom2)
         push!(keep, [atom2, atom1, "sif4"])
         push!(keep, [atom2, atom1, "gei4_mol"])
     end 
-
-    if atom1 in anions && !(atom2 in anions)
-        push!(keep, [atom2, atom1, "bcc_5lay"])
-        push!(keep, [atom2, atom1, "fcc_5lay"])
-    end
-    if atom2 in anions && !(atom1 in anions)
-        push!(keep, [atom1, atom2, "bcc_5lay"])
-        push!(keep, [atom1, atom2, "fcc_5lay"])
-    end
+#
+#    if atom1 in anions && !(atom2 in anions)
+#        push!(keep, [atom2, atom1, "bcc_5lay"])
+#        push!(keep, [atom2, atom1, "fcc_5lay"])
+#    end
+#    if atom2 in anions && !(atom1 in anions)
+#        push!(keep, [atom1, atom2, "bcc_5lay"])
+#        push!(keep, [atom1, atom2, "fcc_5lay"])
+#    end
 
     if atom1 in ["Re", "Tc", "Ru", "Os", "Rh", "Ir", "Pd", "Pt", "Ag", "Au", "Ni"] && atom2 in ["Te", "Se", "S", "Be", "B"]
         push!(keep, [atom1, atom2, "pd3s"])

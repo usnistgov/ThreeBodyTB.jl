@@ -645,7 +645,18 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     flush(stdout)
     sleep(0.001)
 
-    @time ch = X_Hnew_BIG \ Float32.(Y_Hnew_BIG  - Xc_Hnew_BIG)
+
+    l = size(X_Hnew_BIG)[1]
+    if l > 2e6
+        frac = 2e6 / l
+        println("randsubseq $frac")
+        rind = randsubseq( 1:l, frac)
+    else
+        rind = 1:l
+    end
+    
+    
+    @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     flush(stdout)
@@ -4456,7 +4467,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
-                dq = deepcopy(DQ_ref[c,1:tbc.crys.nat])
+                dq = deepcopy(DQ[c,1:tbc.crys.nat])
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
@@ -4842,6 +4853,14 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         println("make database")
 
         database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
+
+        if update_all == false
+            for key in keys(database)
+                if key in keys(starting_database)
+                    database[key] = starting_database[key]
+                end
+            end
+        end
 
         return database, chX, energy_error
 

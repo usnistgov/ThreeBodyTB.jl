@@ -1174,6 +1174,12 @@ function symmetrize_orbs!(v_sec, S, vnew, inds_b, id, workspace, A)
         vnew[inds_b[2:6], id] += @view workspace[:,id]
         vnew[inds_b[7:9], id] += symmetrize_charge_p(v_sec[7:9], S, A) #depends on ordering being fixed.
 
+    elseif length(v_sec) == 6
+        vnew[inds_b[1], id] += symmetrize_charge_s(v_sec[1:1], S)[1]
+        symmetrize_charge_d(v_sec[2:6], S, id, workspace, A)
+        vnew[inds_b[2:6], id] += @view workspace[:,id]
+
+
         #symmetrize_charge_d(v_sec[2:6], S, id, workspace)
     else
         println("error symmetrize_orbs length(v_sec) $(length(v_sec)) ≠ 1,4, or 9")
