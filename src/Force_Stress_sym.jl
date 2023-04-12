@@ -39,9 +39,12 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
     
     #println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database, DIST=DIST)
+
     
     if tooshort ##########################
         println("safemode")
+        println("tooshort $tooshort")
+        
         function f(x :: Vector)
             T=typeof(x[1])
             x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
@@ -170,12 +173,12 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 #            println("done ham")
             #println("wait")
 #            wait(HAM)
-#            wait(EW)
+            wait(EW)
         end
 
         #return g
         
-        wait(EW)
+#        wait(EW)
         if scf
             g[end,:] = g_ew[1,:]
         end
@@ -647,7 +650,7 @@ end
 
 function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
-#    println("get_energy_force_stress_fft")
+#    println("get_energy_force_stress_fft SINGLE")
 
     do_scf = true
     
@@ -678,10 +681,11 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
     
     #println("test safe get_energy_force_stress_fft")
     tooshort, energy_tot = safe_mode_energy(tbc.crys, database, DIST=DIST)
-    
+
     #println("main if")
     if tooshort ##########################
         println("safemode")
+        println("tooshort $tooshort SINGLE")        
         function f(x :: Vector)
             T=typeof(x[1])
             x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
