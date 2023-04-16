@@ -61,6 +61,8 @@ using ..Symmetry:get_kgrid_sym
 using ..Symmetry:get_symmetry
 using ..Symmetry:symmetrize_charge_den
 
+using ..Classical:calc_energy_cl
+
 export scf_energy
 
 """
@@ -77,14 +79,31 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true)
 
+
+    
+    if !do_tb && !do_classical
+        println("WARNING you set do_tb and do_classical both to false. returning zero energy")
+        return 0.0
+    end
+    
+    if !do_tb 
+        println("No tight binding, classical only")
+        if ismissing(database_classical)
+            println("WARNING, database_classical is missing, but you said classical only")
+            return 0.0
+        end
+        energy_cl, err_flag = calc_energy_cl(c, database=database_classical)
+        return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
+    end
+    
     #println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
     #println("asdf ", tbc.eden, ", tc ", tot_charge)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
-    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym)
+    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
     return t
     
 end
@@ -92,11 +111,24 @@ end
 """
     function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:DIIS, verbose=true, nspin=1, tot_charge=missing, use_sym=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:DIIS, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
+    println("DO CLASSICAL $do_classical")
+    if do_classical
+        if !ismissing(database_classical)
+            energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)
+            println("energy classical   $energy_classical ")
+        else
+            energy_classical = 0.0
+        end
+    else
+        energy_classical = 0.0
+    end
+
+    
     if mixing_mode == :diis
         mixing_mode = :DIIS
     end
@@ -565,8 +597,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
 
-#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic")            
-            energy_tot = etypes + energy_band + energy_charge + energy_magnetic
+#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+            energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
             if iter == 2 && maximum(delta_dq) > 1.0
@@ -877,6 +909,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #    conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, 200)
 
+
+    
     
     if conv == false
         println("WARNING !!!! NO convergence in $iters iters")

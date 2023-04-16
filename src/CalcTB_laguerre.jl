@@ -1848,7 +1848,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         end
     end
 
-    if verbose println("check_frountier") end
+    if verbose println("check_frontier") end
     if !ismissing(database) && check_frontier
         #    if false
         #        diststuff = (R_keep, R_keep_ab, dist_arr, c_zero, dmin_types, dmin_types3)
@@ -4348,9 +4348,9 @@ function calc_onsite(t1,s1,s2, database=missing)
     
 end
 
-function laguerre_fast!(dist, memory)
+function laguerre_fast!(dist, memory; a = 2.0)
 
-    a=2.0
+#    a=2.0
     ad = a*dist
     expa=exp.(-0.5*ad)
     memory[1] = 1.0 * expa

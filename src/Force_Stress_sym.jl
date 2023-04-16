@@ -647,6 +647,7 @@ end
 
 function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
+    
 #    println("get_energy_force_stress_fft")
 
     do_scf = true

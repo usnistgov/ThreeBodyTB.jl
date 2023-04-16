@@ -1,7 +1,7 @@
 """
     module Utility
 
-Some useful functions, mostly for converting stuff and loading files.
+Some useful functions, mostly for converting stuff and loading files and reshaping stuff.
 """
 module Utility
 
@@ -9,6 +9,114 @@ using Printf
 """
 Some useful functions
 """
+
+
+"""
+    function reshape_vec(x, nat; strain_mode=false)
+
+The force and relax algorithms from outside codes take in vectors, not `crystal` 's. So we have to reshape
+vectors to and from `crystals`
+"""    
+function reshape_vec(x, nat; strain_mode=false)
+#    println("RESHAPEVEC RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRr ", strain_mode)
+
+    T=typeof(x[1])
+    
+#    println("size x ", size(x))
+    x_r = zeros(T, nat, 3)
+    for n = 1:nat
+        for j = 1:3
+            x_r[n,j] = x[3*(n-1) + j]
+        end
+    end
+    
+    x_r_strain = zeros(T, 3,3)
+
+    if length(x) == 3*nat+6 && strain_mode
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[2,2] = x[3*nat+2]
+        x_r_strain[3,3] = x[3*nat+3]
+
+        x_r_strain[2,3] = 0.5*x[3*nat+4]
+        x_r_strain[3,2] = 0.5*x[3*nat+4]
+
+        x_r_strain[1,3] = 0.5*x[3*nat+5]
+        x_r_strain[3,1] = 0.5*x[3*nat+5]
+
+        x_r_strain[1,2] = 0.5*x[3*nat+6]
+        x_r_strain[2,1] = 0.5*x[3*nat+6]
+    elseif length(x) == 3*nat+6 
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[2,2] = x[3*nat+2]
+        x_r_strain[3,3] = x[3*nat+3]
+
+        x_r_strain[2,3] = x[3*nat+4]
+        x_r_strain[3,2] = x[3*nat+4]
+
+        x_r_strain[1,3] = x[3*nat+5]
+        x_r_strain[3,1] = x[3*nat+5]
+
+        x_r_strain[1,2] = x[3*nat+6]
+        x_r_strain[2,1] = x[3*nat+6]
+
+    elseif length(x) == 3*nat+9
+        x_r_strain[1,1] = x[3*nat+1]
+        x_r_strain[1,2] = x[3*nat+2]
+        x_r_strain[1,3] = x[3*nat+3]
+        x_r_strain[2,1] = x[3*nat+4]
+        x_r_strain[2,2] = x[3*nat+5]
+        x_r_strain[2,3] = x[3*nat+6]
+        x_r_strain[3,1] = x[3*nat+7]
+        x_r_strain[3,2] = x[3*nat+8]
+        x_r_strain[3,3] = x[3*nat+9]
+    else
+        println("I'm confusing about the length reshape_vec $nat ", length(x) )
+    end
+
+    return x_r, x_r_strain
+end
+
+"""
+    function inv_reshape_vec(x, strain, nat; strain_mode=true)
+
+The force and relax algorithms from outside codes take in vectors, not `crystal` 's. So we have to reshape
+vectors to and from `crystals`
+"""
+function inv_reshape_vec(x, strain, nat; strain_mode=true)
+    T=typeof(x[1])
+    if strain_mode
+        x_r = zeros(T, nat*3 + 6)
+    else
+        x_r = zeros(T, nat*3 + 9)
+    end
+
+    for n = 1:nat
+        for j = 1:3
+            x_r[3*(n-1) + j] = x[n,j] 
+        end
+    end
+    if strain_mode
+        x_r[3*nat + 1] = strain[1,1]
+        x_r[3*nat + 2] = strain[2,2]
+        x_r[3*nat + 3] = strain[3,3]
+        x_r[3*nat + 4] = (strain[2,3]+strain[3,2])
+        x_r[3*nat + 5] = (strain[1,3]+strain[3,1])
+        x_r[3*nat + 6] = (strain[1,2]+strain[2,1])
+    else
+        x_r[3*nat+1] = strain[1,1]  
+        x_r[3*nat+2] = strain[1,2]  
+        x_r[3*nat+3] = strain[1,3]  
+        x_r[3*nat+4] = strain[2,1]  
+        x_r[3*nat+5] = strain[2,2]  
+        x_r[3*nat+6] = strain[2,3]  
+        x_r[3*nat+7] = strain[3,1]  
+        x_r[3*nat+8] = strain[3,2]  
+        x_r[3*nat+9] = strain[3,3]  
+    end
+
+    return x_r
+end
+
 
 function cutoff_fn(num, min_c, max_c)
 

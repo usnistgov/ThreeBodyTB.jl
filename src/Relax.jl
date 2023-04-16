@@ -2,7 +2,7 @@ module Relax
 
 using ..SCF:scf_energy
 #using ..Force_Stress:get_energy_force_stress_fft
-using ..Force_Stress:get_energy_force_stress_fft_LV_sym
+using ..Force_Stress:get_energy_force_stress_fft_LV_sym_SINGLE
 using ..Force_Stress:safe_mode_energy
 using ..CrystalMod:get_grid
 using ..CrystalMod:crystal
@@ -14,14 +14,17 @@ using ..CalcTB:calc_tb_LV
 using ..Atomdata:atom_radius
 
 using LinearAlgebra
-using ..Force_Stress:inv_reshape_vec
-using ..Force_Stress:reshape_vec
+using ..Utility:inv_reshape_vec
+using ..Utility:reshape_vec
 
 ##using Optim
 using LineSearches
 using ..ManageDatabase:prepare_database
 using ..ManageDatabase:database_cached
 using ..MyOptim:conjgrad
+
+using ..Classical:calc_energy_cl
+using ..Classical:energy_force_stress_cl
 
 export relax_structure
 
@@ -33,25 +36,42 @@ export relax_structure
 
 Relax structure. Primary user function is relax_structure in ThreeBodyTB.jl, which calls this one.
 """
-function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true)
+function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true)
 
-    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
+#    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 
+    
+    
     if update_grid==false
         grid = get_grid(crys)
     end
 
+    if (!do_classical && !do_tb) || (!do_tb && ismissing(database_classical))
+        println("WARNING, no tb and no classical relax makes no sense")
+        return c, missing, 0.0, zeros(c.nat, 3), zeros(3,3)
+    end
+
+    
+
     eden = missing #starts off missing
 
+    error_flag = false
+    
     #do this ahead of first iteration, to get memory in correct place
-    tbc = calc_tb_LV(deepcopy(crys), database, verbose=false, repel=repel)
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false)
-
+    if do_tb
+        tbc = calc_tb_LV(deepcopy(crys), database, verbose=false, repel=repel)
+        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical )
+        eden = deepcopy(tbc.eden)
+    else
+        tbc = missing
+        eden = missing
+    end
+    
     if error_flag
         println("warning error computing scf in relax_structure, zeroth iteration")
     end
 
-    eden = deepcopy(tbc.eden)
+
 
     A0 = deepcopy(crys.A)
     strain = zeros(3,3)
@@ -105,39 +125,39 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #        println(crys_working)
 #        println()
 
-        
-        if crys_working == tbc.crys
-            #println("SKIP")
-            #we already have energy from calling grad, we don't need to call again.
-            return energy_global, true
+        if do_tb
+            if crys_working == tbc.crys
+                #println("SKIP")
+                #we already have energy from calling grad, we don't need to call again.
+                return energy_global, true
+            end
         end
-
+        
         #        println("FN crys")
 #        println(crys_working)
 #        println("before short ")
         
         tooshort, energy_short = safe_mode_energy(crys_working, database)
-        println("too short $tooshort   $energy_short")
         if tooshort
-
+            println("too short $tooshort   $energy_short")
             return energy_short, false
         end
 
 
 
-        if crys_working != tbc.crys
-#                println("yes calc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-#                println(crys_working)
-            tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
-        else
-#                println("nocalc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-#                println(crys_working)
-#                println(tbc.crys)
-                
+        if do_tb
+            if crys_working != tbc.crys
+                tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+            end
         end
-#            println(crys_working)
-        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7,nspin=nspin)
-        eden = deepcopy(tbcx.eden)
+
+        if do_tb
+            energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7,nspin=nspin,database_classical=database_classical, do_classical=do_classical   )
+            eden = deepcopy(tbcx.eden)
+        else
+            energy_tot, error_flag = calc_energy_cl(crys_working, database=database_classical)
+
+        end           
 
 #        println("fn $energy_tot fnffnfnfnffnfnfnfnfnfnfnfnfnfnfffffff")
 
@@ -185,16 +205,23 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 
 #        println("too short ", tooshort)
 
-        tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+        if do_tb
+            tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+        end
 
         #        if crys_working != tbc.crys && !tooshort
         if !tooshort        
 #            println("yes calc forces -----------------------------------------------------------------------------------------")
 #            println(crys_working)
 
-            energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6,nspin=nspin)
+            if do_tb
+                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6,nspin=nspin,database_classical=database_classical, do_classical=do_classical    )
+                eden = deepcopy(tbcx.eden)
 
-            eden = deepcopy(tbcx.eden)
+            else
+                energy_tot, error_flag  = calc_energy_cl(crys_working, database=database_classical)
+            end
+
 
             #        else
 #            println("no calc forces ------------------------------------------------------------------------------------------")
@@ -207,14 +234,25 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         
         energy_global=energy_tot
 
-        energy_tmp,  f_cart, stress =  get_energy_force_stress_fft_LV_sym(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
-
+        f_cart = zeros(crys_working.nat,3)
+        stress = zeros(3,3)
+        if do_tb
+            energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+            f_cart += f_cart_tb
+            stress += stress_tb
+        end
+        if do_classical && !ismissing(database_classical)
+            energy_tmp, f_cart_cl, stress_cl = energy_force_stress_cl(crys_working, database=database_classical)
+            f_cart += f_cart_cl
+            stress += stress_cl
+        end
+            
         
 
         #energy_tmp,  f_cart, stress =  get_energy_force_stress_fft(tbc, database; do_scf = true, smearing = smearing, grid = grid )
 
 
-        push!(CRYSTAL, deepcopy(tbc.crys))
+        push!(CRYSTAL, deepcopy(crys_working)) #correct?
         push!(FORCES, f_cart)
         
         f_cart_global = f_cart

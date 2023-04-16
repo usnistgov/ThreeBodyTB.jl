@@ -11,7 +11,13 @@ Create TB matrix sets from coefficients, or prepare to fit the coefficients.
 """
 module Classical
 
+using ..Utility:arr2str
+using ..Utility:str_w_spaces
+using ..Utility:parse_str_ARR_float
+using ..Utility:dict2str
+using ..Utility:str2tuplesdict
 
+using Random
 using LinearAlgebra
 using SpecialFunctions
 using GZip
@@ -23,6 +29,7 @@ using LoopVectorization
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
 using ..CalcTB:laguerre_fast!
 using ..CalcTB:calc_frontier_list
+using ..CalcTB:calc_frontier
 using Suppressor
 
 #using Statistics
@@ -43,17 +50,25 @@ using ..Utility:cutoff_fn_fast
 using ForwardDiff
 using ..CrystalMod:makecrys
 
+#using ..ThreeBodyTB:scf_energy_force_stress
+#using ..ThreeBodyTB:scf_energy
+
 using Random
 
 
 const n_2body_cl = 6
+
+const n_2body_em = 5
+
 #const n_3body_cl_same = 7
 #const n_3body_cl_pair = 13
 #const n_3body_cl_diff = 20
 
-const n_3body_cl_same = 9
+const n_3body_cl_same = 8
 const n_3body_cl_pair = 13
-const n_3body_cl_diff = 29
+const n_3body_cl_diff = 23
+
+
 
 #const n_3body_cl_same = 4
 #const n_3body_cl_pair = 13
@@ -67,7 +82,7 @@ using ..CrystalMod:cutoff_onX
 using ..CrystalMod:cutoff_length
 using ..CrystalMod:cutoff4X
 
-using ..Force_Stress:reshape_vec
+using ..Utility:reshape_vec
 using ..Atomdata:get_cutoff
 
 using ..DFToutMod:dftout
@@ -109,7 +124,9 @@ struct coefs_cl
     min_dist::Float64
     dist_frontier::Dict
     version::Int64
+    em::Bool
 end
+
 
 
 """
@@ -137,9 +154,10 @@ function write_coefs_cl(filename, co::coefs_cl; compress=true)
 
     addelement!(c, "names", str_w_spaces(co.names))
 #    addelement!(c, "orbs", str_w_spaces(co.orbs))
-    addelement!(c, "cutoff", string(co.cutoff))
+#    addelement!(c, "cutoff", string(co.cutoff))
     addelement!(c, "min_dist", string(co.min_dist))
     addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
+    addelement!(c, "em", string(co.em))
     
 
     if compress
@@ -160,7 +178,7 @@ end
 
 Read `coefs` from filename. Can read gzip directly.
 """
-function read_coefs(filename, directory = missing)
+function read_coefs_cl(filename, directory = missing)
     """
     read xml coefs object
     """
@@ -200,10 +218,23 @@ function read_coefs(filename, directory = missing)
     names = Set(String.(split(d["coefs"]["names"])))
     min_dist = parse(Float64, d["coefs"]["min_dist"])
     dist_frontier = str2tuplesdict(eval(d["coefs"]["dist_frontier"]))
+    em = parse(Bool, d["coefs"]["em"])
 
-    println("version $version")
+    version = parse(Int64, d["coefs"]["version"])
     
-    co = make_coefs_cl(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version)
+
+
+    println("read ----------------")
+    println("names $names")
+    println("dim $dim")
+    println("datH $datH")
+#    println("at_list, $at_list)")
+    println("min_dist $min_dist")
+    println("version $version")
+    println("em $em")
+    println("-")
+    
+    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em)
 
     return co
     
@@ -218,30 +249,33 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false)
 
     println("make coefs")
-    if dim == 2
-        totH = n_2body_cl
-    elseif dim == 3
-
-        totH = n_3body_cl_diff
-    elseif dim == 4
-        totH = 2
+    if em == true
+        totH = n_2body_em
     else
-        println("WARNING, make_coefs_cl only implemented up to 4")
-        toth = 0
-        #        t1,t2,t3 = at_list[:]
-#        if t1 == t2 && t2 == t3
-#            totH = n_3body_cl_same
-#        elseif t1 == t2 && t1 != t3 || t1 == t3 && t1 != t2 || t2 == t3 && t2 != t1
-#            totH = n_3body_cl_pair
-#        elseif t1 != t2 && t2 != t3 && t1 != t3
-#            totH = n_3body_cl_diff
-#        else
-#            println("something wrong make coefs cl $t1 t2 $t3 ", [ t1 == t2 && t2 == t3,t1 == t2 && t1 != t3 || t1 == t3 && t1 !##= t2 || t2 == t3 && t2 != t1,t1 != t2 && t2 != t3 && t1 != t3])
-#        end
-        
+        if dim == 2
+            totH = n_2body_cl
+        elseif dim == 3
+            totH = n_3body_cl_diff
+        elseif dim == 4
+            totH = 2
+        else
+            println("WARNING, make_coefs_cl only implemented up to 4")
+            toth = 0
+            #        t1,t2,t3 = at_list[:]
+            #        if t1 == t2 && t2 == t3
+            #            totH = n_3body_cl_same
+            #        elseif t1 == t2 && t1 != t3 || t1 == t3 && t1 != t2 || t2 == t3 && t2 != t1
+            #            totH = n_3body_cl_pair
+            #        elseif t1 != t2 && t2 != t3 && t1 != t3
+            #            totH = n_3body_cl_diff
+            #        else
+            #            println("something wrong make coefs cl $t1 t2 $t3 ", [ t1 == t2 && t2 == t3,t1 == t2 && t1 != t3 || t1 == t3 && t1 !##= t2 || t2 == t3 && t2 != t1,t1 != t2 && t2 != t3 && t1 != t3])
+            #        end
+            
+        end
     end
     
     if ismissing(datH)
@@ -265,15 +299,22 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
         end
     end
 
-
-    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version)
+    println("dim $dim")
+    println("datH $datH")
+    println("totH $totH")
+    println("at_list, $(Set(at_list))")
+    println("min_dist $min_dist")
+    println("version $version")
+    println("em $em")
+    println(typeof.([dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em]))
+    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em)
     
 end
     
 
 Base.show(io::IO, d::coefs_cl) = begin
 
-    println(io, "coeffs classical ", d.names)
+    println(io, "coeffs classical ", d.names, " embedding: ", d.em)
     if d.dim == 2
         println(io, "min dist ", round.(d.min_dist, digits=4))
     end
@@ -289,414 +330,17 @@ Base.show(io::IO, d::coefs_cl) = begin
     println(io)
 end
 
-function atom_perm_to_dist_perm(perm)
 
-    d12 = sort([perm[1], perm[2]])
-    d13 = sort([perm[1], perm[3]])
-    d23 = sort([perm[2], perm[3]])
 
-    normal_order = [[1,2], [1,3], [2,3]]
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
 
-    new_order = [findfirst(x->x == normal_order[1], [d12,d13,d23]),
-                 findfirst(x->x == normal_order[2], [d12,d13,d23]),
-                 findfirst(x->x == normal_order[3], [d12,d13,d23])]
-
+    no_errors = true
     
-#    new_ind = Int64[]
-#    for n in new_order
-#        push!(findfirst(n, normal_order), new_ind)
-#    end
+#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody")
+#    verbose=true
 
-    return new_order
+#    println("CRYS.nat ", crys.nat)
     
-    
-end
-
-
-function do_fit_cl(DFT::Array{Any,1}; use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database=missing, lambda = -1.0, use_fourbody=false, use_em = true)
-
-    if !use_energy && !use_force && !use_stress
-        println("everything is false")
-        return Dict()
-    end
-    
-    CRYS = crystal[]
-    if use_energy
-        ENERGIES = Float64[]
-    else
-        ENERGIES=missing
-    end
-    if use_force
-        FORCES = Float64[]
-    else
-        FORCES = missing
-    end
-    if use_stress
-        STRESSES = Float64[]
-    else
-        STRESSES = missing
-    end
-    
-    for dft in DFT
-        push!(CRYS, dft.crys)
-
-        #subtract old forces
-        if !ismissing(database)
-            energyT, forceT, stressT = energy_force_stress(dft.crys, database=database, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em)
-        else
-            energyT = 0.0
-            forceT = zeros(dft.crys.nat, 3)
-            stressT= zeros(3,3)
-        end
-        
-        if use_energy
-            ENERGIES = vcat(ENERGIES, [dft.atomize_energy/dft.crys.nat - energyT/dft.crys.nat])
-        end
-        if use_force
-            FORCES = vcat(FORCES, dft.forces[:] - forceT[:])
-        end
-        if use_stress
-            stress = dft.stress - stressT
-            STRESSES = vcat(STRESSES, [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
-        end
-    end
-    ENERGIES = ENERGIES * energy_weight
-
-    return do_fit_cl(CRYS, use_threebody=use_threebody, energy_weight = energy_weight, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database=database, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em)
-    
-end
-
-function do_fit_cl(CRYS::Array{crystal,1}; use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database=missing, lambda = -1.0, use_fourbody=false, use_em = true)
-
-    if !ismissing(FORCES) || !ismissing(STRESSES)
-        get_force=true
-    else
-        get_force = false
-    end
-
-    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database, use_fourbody=use_fourbody, use_em=use_em)
-
-    ntot = max(size(Ve)[2], size(Vf)[2], size(Vs)[2])
-    
-    if !ismissing(ENERGIES) && !ismissing(FORCES) && !ismissing(STRESSES)
-        println("Use energy, force and stress; energy weight $energy_weight")
-        Vtot = vcat(energy_weight*Ve,Vf,Vs)
-        Rtot = vcat(ENERGIES, FORCES, STRESSES)
-    elseif !ismissing(ENERGIES) && !ismissing(FORCES)
-        println("Use energy and force; energy weight $energy_weight")
-        Vtot = vcat(energy_weight*Ve,Vf)
-        Rtot = vcat(ENERGIES, FORCES)
-    elseif !ismissing(FORCES)
-        println("Use forces only")
-        Vtot = Vf
-        Rtot = FORCES
-    elseif !ismissing(ENERGIES)
-        println("Use energies only")
-        Vtot = Ve
-        Rtot = ENERGIES
-    else
-        println("something wrong do_fit_cl ", [ismissing(ENERGIES), ismissing(FORCES), ismissing(STRESSES)])
-        return Dict()
-    end
-
-    if lambda > 0
-        LAM = I(ntot) * lambda
-        Vtot = vcat(Vtot, LAM)
-        Rtot = vcat(Rtot, zeros(ntot))
-    end
-    
-    x = Vtot \ Rtot
-    
-    frontier = calc_frontier_list(CRYS)
-    if ismissing(database)
-        database = Dict()
-    end
-    println("put stuff in database")
-    for ind in keys(ind_set)
-        println("ind $ind")
-        if length(ind) == 2
-            t1,t2 = ind
-#            println("t1 t2 $t1 $t2 ind ", ind_set[ind])
-#            println("t1 t2 $t1 $t2 x   ", x[ind_set[ind]])
-            if (t1,t2) in keys(frontier)
-                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1, min_dist = frontier[(t1,t2)])
-            else
-                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1)
-            end                
-            database[ind] = c
-        elseif length(ind) == 3
-            t1,t2,t3 = ind
-            if (t1,t2,t3) in keys(frontier)
-                c = make_coefs_cl([t1, t2, t3], 3, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1)
-            else
-                c = make_coefs_cl([t1, t2, t3], 3, datH = x[ind_set[ind]], version = 1)
-            end
-            database[ind] = c
-
-        elseif length(ind) == 4
-            t1,t2,t3,t4 = ind
-            if (t1,t2,t3,t4) in keys(frontier)
-                c = make_coefs_cl([t1, t2, t3,t4], 4, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1)
-            else
-                c = make_coefs_cl([t1, t2, t3,t4], 4, datH = x[ind_set[ind]], version = 1)
-            end
-            database[ind] = c
-            
-        else
-            println("something wrong do_fit_cl $ind")            
-        end
-            
-    end
-
-    if use_em
-        database[:em] = x[1:8]
-    end
-
-    
-    return database
-end    
-
-function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true)
-
-    types_dict = Dict()
-    types_dict_reverse = Dict()
-    types_counter = 0
-
-
-    vars = Set()
-    at_types_set = Set()
-    for crys in CRYS
-        st = Set(crys.stypes)
-        for s1 in st
-            push!(at_types_set, s1)
-            for s2 in st
-                if !ismissing(database)
-                    if ! ( (s1,s2) in keys(database))
-                        push!(vars,[Set([s1,s2]),2])
-                    end 
-                else
-                    push!(vars,[Set([s1,s2]),2])
-                end
-                if use_threebody
-                    for s3 in st
-                        if !ismissing(database)
-                            if ! ( (s1,s2,s3) in keys(database))
-                                 push!(vars,[Set([s1,s2,s3]), 3])
-                            end
-                        else
-                            push!(vars,[Set([s1,s2,s3]), 3])
-                        end
-                        if use_fourbody
-                            for s4 in st
-                                if !ismissing(database)
-                                    if ! ( (s1,s2,s3,s4) in keys(database))
-                                        push!(vars,[Set([s1,s2,s3,s4]), 4])
-                                    end
-                                else
-                                    push!(vars,[Set([s1,s2,s3,s4]), 4])
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    println("vars ", vars)
-    
-    vars_list = collect(vars)
-    at_types = collect(at_types_set)
-    ntot = 0
-    if use_em
-        ntot = 8
-    end
-    at_ind = []
-
-    ind_set = Dict()
-
-    pattern = [ [1,1,1], #these are distances 12, 13, 23
-
-                [2,1,1],
-                [1,2,1],
-                [1,1,2],
-
-                [3,1,1],
-                [1,3,1],
-                [1,1,3],
-
-                [2,2,2],
-
-                [1,2,2],
-                [2,1,2],
-                [2,2,1], 
-
-                [0,1,1], 
-                [1,0,1], 
-                [1,1,0], 
-
-                [0,1,2], 
-                [0,2,1], 
-                [2,0,1], 
-                [1,0,2], 
-                [1,2,0], 
-                [2,1,0]]
-
-
-    
-    for v in vars_list
-        println("v $v")
-        println()
-        if v[2] == 2
-            if length(v[1]) == 1
-                t1 = collect(v[1])[1]
-                t2 = t1
-            elseif length(v[1]) == 2
-                t1,t2 = collect(v[1])[1:2]
-            else
-                println("something wrong v length(v[1]) ", length(v[1]) )
-            end
-            ind_set[(t1,t2)] = collect(1:n_2body_cl) .+ ntot
-            ind_set[(t2,t1)] = collect(1:n_2body_cl) .+ ntot
-            ntot += n_2body_cl
-        elseif v[2] == 3
-            println("three ", v[1])            
-            if length(v[1]) == 1
-                println("elemental")
-                t1 = collect(v[1])[1]
-                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8, 9,9,9,9,9,9]
-                #ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,4,4,4]
-                ntot += n_3body_cl_same
-                
-            elseif length(v[1]) == 2
-                t1,t2 = collect(v[1])[1:2]
-
-                #1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
-                ind_set[(t1,t2,t2)  ] = ntot .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,13,12,12,13,11,11] #3 special
-                ind_set[(t2,t1,t2)  ] = ntot .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
-                ind_set[(t2,t2,t1)  ] = ntot .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
-
-                ind_set[(t2,t1,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,11,12,12,11,13,13] #3 special
-                ind_set[(t1,t2,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
-                ind_set[(t1,t1,t2)  ] = ntot .+ n_3body_cl_pair .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
-                
-                            
-                ntot += n_3body_cl_pair * 2 #two possible pairs
-                            
-                
-                
-            elseif length(v[1]) == 3
-                ntot += n_3body_cl_diff
-                
-                t1,t2,t3 = collect(v[1])[1:3]
-                t123 = [t1,t2,t3]
-                ind_set[(t1,t2,t3)] = ntot .+ collect(1:20)
-                
-                PERM = [ [1,2,3],[2,1,3],[3,1,2],[3,2,1],[1,3,2],[2,3,1]] #atom permutations
-                for perm in PERM
-                    #
-                    dist_perm = atom_perm_to_dist_perm(perm)
-                    
-                    ind_set[ (t123[perm[1]], t123[perm[2]],t123[perm[3]])  ] = Int64[]
-                    for p in pattern
-                        pnew = p[dist_perm]
-                        ind = findfirst(x->x==pnew,pattern)
-                        push!(ind_set[ (t123[perm[1]], t123[perm[2]],t123[perm[3]])  ], ind)
-                    end
-                end
-                    
-                ntot += n_3body_cl_diff
-                    
-                    #                for p in pattern
-                    #                    
-                    #                ind_set[(t2,t1,t3)] = 
-                    
-            else
-                println("something wrong get_fit_cl v[2] == 3  $v")
-            end                
-        elseif v[2] == 4
-            println("four  ", v[1])            
-            t1 = collect(v[1])[1]
-            if length(v[1]) == 1
-                t1 = collect(v[1])[1]
-                println("elemental $t1")
-                ind_set[(t1,t1,t1,t1)] = ntot .+ [1,2]
-                ntot += 2
-            end            
-            
-        else
-                println("something wrong get_fit_cl $v")
-        end
-        println("ntot $ntot ")
-        
-    end
-
-    println("at_types $at_types")
-    println("ind_set")
-    println(ind_set)
-    println()
-    #return ntot, ind_set
-    
-        #    for (ind, crys) in enumerate(CRYS)
-        #        en = calc_energy_cl(crys, dat_vars=ones(ntot), at_types=at_types, vars_list= vars_list, use_threebody=use_threebody)
-        #        println("ind $ind en $en")
-        #    end
-        
-    V = zeros(length(CRYS), ntot)
-    for (ind, crys) in enumerate(CRYS)
-#        println("ind crys")
-#        println(crys)
-        begin
-            V[ind, :] = ForwardDiff.gradient(x->calc_energy_cl(crys, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, use_fourbody=use_fourbody, use_em = use_em), ones(ntot) ) / crys.nat
-            #V[ind, :] = ForwardDiff.gradient(x->efs(crys, x, at_types, ind_set,vars_list, use_threebody), ones(ntot))
-        end
-    end
-
-
-    if get_force 
-        NAT = 0
-        for c in CRYS
-            NAT += c.nat
-        end
-        Vf = zeros(NAT*3, ntot)
-        Vs = zeros(length(CRYS) * 6, ntot)
-        
-        counter_f = 0
-        counter_s = 0
-        for (ind, crys) in enumerate(CRYS)
-#            println("ind crys")
-#            println(crys)
-            begin
-                ret = ForwardDiff.jacobian(x->efs(crys, x, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em), ones(ntot) )
-                Vf[counter_f .+ (1:crys.nat*3),:] = ret[1:crys.nat*3,:]
-                Vs[counter_s .+ (1:6),:] = ret[(crys.nat*3+1):(crys.nat*3+6),:]
-                counter_f += 3*crys.nat
-                counter_s += 6
-            end
-        end
-    else
-        Vf = zeros(0, ntot)
-        Vs = zeros(0, ntot)
-    end        
-        
-    
-    return V, Vf, Vs, vars, at_types, ind_set
-    
-end
-
-function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em)
-    var_type = eltype(dat_vars)
-#    println("EFS ----------------------------------------------------------------------------------------")
-    #energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody)
-    energy, force, stress = energy_force_stress(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type, verbose=false, use_fourbody=use_fourbody, use_em = use_em)
-    #return energy 
-    v = vcat(force[:], [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
-    #    return v
-    #return energy 
-end
-
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true)
-
-
     At = crys.A'
     
     if verbose
@@ -720,7 +364,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     if verbose println("distances") end
-     begin
+    begin
         
         use_dist_arr = true
         if !ismissing(DIST)
@@ -777,12 +421,22 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         end
     end
 
+    if check_frontier
+        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
+        if vio_bool
+            no_errors = false
+        end
+        if check_only
+            return vio_bool
+        end
+    end
+    
     nkeep=size(R_keep)[1]
     ind_arr = zeros(Int64, nkeep, 3)
     ind_arr[:,:] = R_keep[:,2:4]
 
     if verbose; println("types stuff "); end
-     if !ismissing(database)
+    if !ismissing(database)
         types_dict = Dict()
         types_dict_reverse = Dict()
         types_counter = 0
@@ -859,8 +513,12 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 
     if verbose; println("setup database stuff"); end
     #println("ismissing database ", ismissing(database))
-     begin
+    begin
         DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
+        if use_em
+            DAT_EM_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_em )
+        end
+
         #        DAT_IND_ARR3 = zeros(var_type, types_counter, types_counter, types_counter, 1: max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff) )
          if use_threebody
              DAT_IND_ARR3 = zeros(var_type, max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff), types_counter, types_counter, types_counter )
@@ -870,19 +528,22 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
          end
         
         if !ismissing(database)
-            if use_em
-                if :em in keys(database)
-                    em = database[:em]
-                else
-                    if !turn_off_warn; println("WARNING, no embed key :em "); end
-                    use_em = false
-                end
-            end
+#            if use_em
+#                if :em in keys(database)
+#                    em = database[:em]                    
+#                else
+#                    if use_em
+#                        if !turn_off_warn; println("WARNING, no embed key :em "); end
+#                        use_em = false
+#                    end
+#                end
+#            end
 
             for c1 = 1:types_counter
                 for c2 = 1:types_counter
                     t1 = types_dict_reverse[c1]
                     t2 = types_dict_reverse[c2]
+
                     if (t1,t2) in keys(database)
                         coef = database[(t1,t2)]
                         DAT_IND_ARR[c1,c2,1:n_2body_cl] = coef.datH[:]
@@ -892,6 +553,13 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                         push!(badlist, (t1,t2))
                         if !turn_off_warn; println("badlist ", badlist); end
                     end
+
+                    if use_em
+                        if (t1,t2,:em) in keys(database)
+                            DAT_EM_ARR[c1,c2,1:n_2body_em] = database[(t1,t2, :em)].datH
+                        end
+                    end
+                    
                     if use_threebody
                         for c3 = 1:types_counter
                             t3 = types_dict_reverse[c3]
@@ -927,9 +595,6 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             end
         else
 
-            if use_em
-                em = dat_vars[1:9]
-            end
             for v in vars_list
                 if v[2] == 2
                     for c1 = 1:types_counter
@@ -947,6 +612,21 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                                 #                            println("after")
                                 end
                             end
+
+                            if use_em
+#                                println("use ------------------------------------------ $((t1,t2,:em)) ")
+#                                println(keys(ind_set), " " , (t1,t2,:em) in keys(ind_set))
+                                if (t1,t2,:em) in keys(ind_set)
+#                                    println("key")
+                                    ind = ind_set[(t1,t2,:em)] 
+#                                    println(v , " " , v[1])
+                                    if t1 in v[1] && t2 in v[1]
+                                        DAT_EM_ARR[c1,c2,1:n_2body_em] = dat_vars[ind]
+#                                        println("add $t1 $t2 xxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                                    end
+                                end
+                            end
+                            
                         end
                     end
 #                    counter += n_2body_cl
@@ -961,6 +641,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                                     if (t1,t2,t3) in keys(ind_set)
                                         ind = ind_set[(t1,t2,t3)] 
                                         #DAT_IND_ARR3[c1,c2,c3,1:length(ind)] = dat_vars[ind]
+#                                        println("dat_vars[ind] ", dat_vars[ind], " size ", size(DAT_IND_ARR3))
                                         DAT_IND_ARR3[1:length(ind), c1,c2,c3] = dat_vars[ind]
                                     end
                                 end
@@ -1005,9 +686,9 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     lag_arr_TH = zeros(var_type, n_2body_cl, nthreads())
     energy_2bdy_TH = zeros(var_type,nthreads())
 
-    rho = zeros(var_type, crys.nat)
-    rho2 = zeros(var_type, crys.nat)
-    rho3 = zeros(var_type, crys.nat)
+    rho = zeros(var_type, crys.nat, types_counter)
+    rho2 = zeros(var_type, crys.nat, types_counter)
+#    rho3 = zeros(var_type, crys.nat)
     if verbose println("2body CL") end
     twobody_Cl = begin
         for c = 1:nkeep_ab
@@ -1019,6 +700,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             a1 = R_keep_ab[c,2]
             a2 = R_keep_ab[c,3]
 
+#            println("$a1 $a2 types_arr $types_arr")
             t1 = types_arr[a1]
             t2 = types_arr[a2]
 
@@ -1044,11 +726,11 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                 continue
             end
             
-            laguerre_fast!(dist_a, lag_arr)
+            laguerre_fast!(dist_a, lag_arr, a=2.0)
             energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
-            rho[a1] += exp(-1.1*dist_a)
-            rho2[a1]+= (1.0 .- dist_a * 2.2)* exp(-1.1*dist_a)
-            rho3[a1] +=0.5*((dist_a * 2.2).^2 .- 4.0*dist_a * 2.2 .+ 2)*exp(-1.1*dist_a)
+            rho[a1,t2] += exp(-1.0*dist_a)
+            rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
+            #rho3[a1] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.1*dist_a)
         end
         
     end
@@ -1059,19 +741,27 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #            if var_type == Float64
 #                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
 #            end
-            energy_embed +=  em[1]*rho[a1]^2 + em[2]*rho[a1]^3
-            energy_embed +=  em[3]*rho2[a1]^2 + em[4]*rho2[a1]^3
-            energy_embed +=  em[5]*rho3[a1]^2 + em[6]*rho3[a1]^3
+            t1 = types_arr[a1]
+            for t=1:types_counter
+                em = DAT_EM_ARR[t1,t,1:n_2body_em]
+                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3
+                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3
+                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] 
+            end
+            #            energy_embed +=  em[5]*rho3[a1]^2 + em[6]*rho3[a1]^3
             
-            energy_embed +=  em[7]*rho[a1]*rho2[a1] + em[8]*rho2[a1]*rho3[a1]
+            #            energy_embed +=  em[7]*rho[a1]*rho2[a1] + em[8]*rho2[a1]*rho3[a1]
 
             
         end
     end
         
-    
-    lag_arr3_TH = zeros(var_type, max(n_3body_cl_same, n_3body_cl_pair, n_3body_cl_diff), nthreads())
-    energy_3bdy_TH = zeros(var_type,nthreads())
+
+    begin
+        lag_arr3_TH = zeros(var_type, max(n_3body_cl_same, n_3body_cl_pair, n_3body_cl_diff), nthreads())
+        energy_3bdy_TH = zeros(var_type,nthreads())
+    end
+            if verbose println("3body LV") end
 
     threebdy_LV = begin
         
@@ -1087,7 +777,6 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             end
             push!(meta_count, old:size(array_ind3)[1])
             
-            if verbose println("3body LV") end
             #            println("asdf")
             
             #println("meta_count $meta_count")
@@ -1161,6 +850,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     end
 
     energy_4bdy_TH = zeros(var_type,nthreads())
+    if verbose println("4body LV") end
+
     fourbody_LV = begin
         
         if use_fourbody
@@ -1175,7 +866,6 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             end
             push!(meta_count, old:size(array_ind4)[1])
             
-            if verbose println("3body LV") end
             #            println("asdf")
             
             #println("meta_count $meta_count")
@@ -1262,7 +952,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #        println(" energy comps  $(sum(energy_2bdy_TH))    $(sum(energy_3bdy_TH))    $(sum(energy_4bdy_TH))    $energy_embed")
 #    end
     
-    return sum(energy_2bdy_TH) + sum(energy_3bdy_TH) + sum(energy_4bdy_TH) + energy_embed
+    return sum(energy_2bdy_TH) + sum(energy_3bdy_TH) + sum(energy_4bdy_TH) + energy_embed, no_errors
     
     
 end
@@ -1274,12 +964,13 @@ function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, 
     A = FloatX.(ct.A) * (I(3) + x_r_strain)
     crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
 
-    energy = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em)
-    
+    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, check_frontier=false)
 
+    return energy
+    
 end
 
-function energy_force_stress(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true)
+function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true)
 
     if verbose; println("dist energy_force_stress");end
      if ismissing(DIST)
@@ -1310,7 +1001,7 @@ function energy_force_stress(crys::crystal;  database=missing, verbose=false, us
     FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)
 
     if verbose; println("energy test "); end
-     energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
+    energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
 
     #    return energy_test
 #    println("energy $energy energy_test $energy_test")
@@ -1387,32 +1078,32 @@ end
 function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, DAT_ARR3, var_type)
 
 #    println("a")
-    begin
-        a=2.2
+    @inbounds @fastmath begin
+        a=2.0
 
         ad_1 = a*dist_1
         expa_1 =exp.(-0.5*ad_1) 
 
         L_A_0 = 1.0
         L_A_1 = expa_1
-        L_A_2 = (1.0 .- ad_1)*expa_1
-        L_A_3 = 0.5*(ad_1.^2 .- 4.0*ad_1 .+ 2.0) * expa_1
+        L_A_2 = (1.0 .- ad_1).*expa_1
+        L_A_3 = 0.5*(ad_1.^2 .- 4.0*ad_1 .+ 2.0) .* expa_1
         
         ad_2 = a*dist_2
         expa_2 =exp.(-0.5*ad_2) 
 
         L_B_0 = 1.0
         L_B_1 = expa_2
-        L_B_2 = (1.0 .- ad_2)*expa_2
-        L_B_3 = 0.5*(ad_2.^2 .- 4.0*ad_2 .+ 2.0) * expa_2
+        L_B_2 = (1.0 .- ad_2).*expa_2
+        L_B_3 = 0.5*(ad_2.^2 .- 4.0*ad_2 .+ 2.0) .* expa_2
         
         ad_3 = a*dist_3
         expa_3 =exp.(-0.5*ad_3) 
 
         L_C_0 = 1.0
         L_C_1 = expa_3
-        L_C_2 = (1.0 .- ad_3)*expa_3
-        L_C_3 = 0.5*(ad_3.^2 .- 4.0*ad_3 .+ 2.0) * expa_3
+        L_C_2 = (1.0 .- ad_3).*expa_3
+        L_C_3 = 0.5*(ad_3.^2 .- 4.0*ad_3 .+ 2.0) .* expa_3
     end    
 
 #    e3 = expa_1 * expa_2 * expa_3
@@ -1485,12 +1176,12 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
         energy += DAT_ARR3[22,t1,t2,t3] * L_A_2 * L_B_0 * L_C_2         #m
         energy += DAT_ARR3[23,t1,t2,t3] * L_A_2 * L_B_2 * L_C_0         #m
 
-        energy += DAT_ARR3[24,t1,t2,t3] * L_A_0 * L_B_1 * L_C_3 #15-20  #k 
-        energy += DAT_ARR3[25,t1,t2,t3] * L_A_0 * L_B_3 * L_C_1         #l
-        energy += DAT_ARR3[26,t1,t2,t3] * L_A_3 * L_B_0 * L_C_1         #l
-        energy += DAT_ARR3[27,t1,t2,t3] * L_A_1 * L_B_0 * L_C_3         #k
-        energy += DAT_ARR3[28,t1,t2,t3] * L_A_1 * L_B_3 * L_C_0         #m
-        energy += DAT_ARR3[29,t1,t2,t3] * L_A_3 * L_B_1 * L_C_0         #m
+#        energy += DAT_ARR3[24,t1,t2,t3] * L_A_0 * L_B_1 * L_C_3 #15-20  #k 
+#        energy += DAT_ARR3[25,t1,t2,t3] * L_A_0 * L_B_3 * L_C_1         #l
+#        energy += DAT_ARR3[26,t1,t2,t3] * L_A_3 * L_B_0 * L_C_1         #l
+#        energy += DAT_ARR3[27,t1,t2,t3] * L_A_1 * L_B_0 * L_C_3         #k
+#        energy += DAT_ARR3[28,t1,t2,t3] * L_A_1 * L_B_3 * L_C_0         #m
+#        energy += DAT_ARR3[29,t1,t2,t3] * L_A_3 * L_B_1 * L_C_0         #m
         
     end
     
@@ -1534,7 +1225,7 @@ end
 
 function laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, memory)
 
-    a=2.2
+    a=2.0
 
     ad_1 = a*dist_1
     expa_1 =exp.(-0.5*ad_1) 
@@ -1634,7 +1325,7 @@ function core_4_cl_laguerre_fast_fourbdy_cl!(dist_1, dist_2, dist_3, dist_4, dis
 
 
     begin
-        a=2.5
+        a=2.0
 
         ad_1 = a*dist_1
         ad_2 = a*dist_2

@@ -65,7 +65,13 @@ include("CalcTB_laguerre.jl")
 
 include("ManageDatabase.jl")
 
+
+include("Classical.jl")
+
+using .Classical:energy_force_stress_cl
+
 include("SCF.jl")
+include("Force_Stress.jl")
 
 include("DOS.jl")
 using .DOS:dos
@@ -79,6 +85,7 @@ using .BandStruct:plot_compare_dft
 using .BandStruct:band_summary
 using .BandStruct:plot_bandstr_dos
 using .BandStruct:plot_bandstr_sym
+
 
 
 export Hk
@@ -107,7 +114,6 @@ export plot
 
 
 include("FitTB_laguerre.jl")
-include("Force_Stress.jl")
 
 
 
@@ -125,7 +131,6 @@ export scf_energy_force_stress
 export relax_structure
 
 
-include("Classical.jl")
 
 #function amiworking()
 #    println("yes")
@@ -264,7 +269,7 @@ Find the lowest energy atomic configuration of crystal `c`.
 - `conv_thr = 2e-3 `: Convergence threshold for gradient
 - `energy_conv_thr = 2e-4 `: Convergence threshold for energy in Ryd
 """
-function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true)
+function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true)
 
     if ismissing(database)
         ManageDatabase.prepare_database(c)
@@ -274,7 +279,7 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
         update_grid = false
     end
 
-    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel)
+    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel, do_tb=do_tb, database_classical=database_classical, do_classical=do_classical)
 
    
     println("Relax done")
@@ -330,7 +335,29 @@ Calculate energy, force, and stress for a crystal.
 - `smearing=0.01`: Gaussian smearing temperature, in Ryd. Usually can leave as default.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true)
+
+    #nothing case
+    if !do_tb && !do_classical
+        println("WARNING Nothing to do; do_tb=$do_tb do_classical=$do_classical")
+        return 0.0, zeros(c.nat, 3), zeros(3,3), missing
+    end
+
+    if do_classical
+        energy_cl, force_cl, stress_cl = energy_force_stress_cl(c, database=database_classical)
+    else
+        energy_cl=0.0
+        force_cl=zeros(c.nat, 3)
+        stress_cl=zeros(3,3)
+    end
+    
+    #classical only case
+    if !do_tb
+        if ismissing(database_classical)
+            println("WARNING ismissing database_classical")
+        end
+        return energy_cl, force_cl, stress_cl, missing
+    end
     
     energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym)
 
@@ -346,6 +373,12 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)        
     end
 
+    if do_classical
+        energy_tot += energy_cl
+        f_cart += force_cl
+        stress += stress_cl
+    end
+    
     println("done")
     println("----")
     println()
@@ -374,7 +407,9 @@ calculation. Assumes SCF already done!
 returns energy, force, stress, tight_binding_crystal_object
 
 """
-function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.01, grid = missing, do_scf=false, repel=true, use_sym=true)
+function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.01, grid = missing, do_scf=false, repel=true, use_sym=true,do_classical=true, database_classical=missing)
+
+    
     
     if ismissing(database)
         ManageDatabase.prepare_database(tbc.crys)
@@ -389,6 +424,15 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
     else
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
     end
+
+    if do_classical && !ismissing(database_classical)
+        energy_cl, force_cl, stress_cl = energy_force_stress_cl(tbc.crys, database=database_classical)
+        energy_tot += energy_cl
+        f_cart += force_cl
+        stress += stress_cl
+        
+    end
+
     
     println("done")
     println("----")
@@ -427,7 +471,7 @@ returns energy, tight-binding-crystal-object, error-flag
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge.
 - `mixing_mode = :DIIS`: default is DIIS (direct inversion of iterative subspace). Other options are :simple and :pulay (DIIS, old version), for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
 """
-function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true)
+function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -438,11 +482,14 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         println()
     end
 
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym)
+    
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb)
 
     conv_flag = !error_flag
-    if tbc.within_fit == false
-        conv_flag = false
+    if do_tb
+        if tbc.within_fit == false
+            conv_flag = false
+        end
     end
     if conv_flag == true
         println("scf_energy success, done")
@@ -467,9 +514,9 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true)
 
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb)
 
 end
 
@@ -479,7 +526,7 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true)
 
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym)
     println()
@@ -557,6 +604,9 @@ function get_twobody(t1::String,t2::String,orb1::String,orb2::String, R; databas
     return get_twobody(t1,t2,orb1, orb2, dist, lmn, database=database)
     
 end
+
+
+include("ClassicalFit.jl")
 
 
 end #end module
