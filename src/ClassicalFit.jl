@@ -117,32 +117,29 @@ function atom_perm_to_dist_perm(perm)
 end
 
 
-function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
+function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
 
     vtot = missing
     rtot = missing
     DFT = deepcopy(DFT_start)
 
     database =Dict()
-    
+    passtest = false
     for iter = 1:niters
 
         println("ITER $iter -----------------------------")
         database, vtot, rtot = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true)
 
-        DFT, passtest = GEN_FN(database, (subtract_scf), 4, iter )
-        println("typeof DFT "  , typeof(DFT))
-        println()
-        #DFT = vcat(DFT, DFT_new)
+        DFT, NAMES, passtest = GEN_FN(database, do_tb=(subtract_scf), procs=4, ITER=iter )
         println("passtest $passtest")
         if passtest
-            println("done")
+            println("passtest done")
             break
         end
         
     end
     
-    return database
+    return database, passtest
     
 end
 
