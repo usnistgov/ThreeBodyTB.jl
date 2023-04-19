@@ -65,7 +65,7 @@ const n_2body_em = 5
 #const n_3body_cl_diff = 20
 
 const n_3body_cl_same = 8
-const n_3body_cl_pair = 13
+const n_3body_cl_pair = 15
 const n_3body_cl_diff = 23
 
 

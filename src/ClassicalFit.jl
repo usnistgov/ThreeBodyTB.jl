@@ -503,7 +503,11 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
                 [2,0,1], 
                 [1,0,2], 
                 [1,2,0], 
-                [2,1,0]]
+                [2,1,0],
+
+                [0,2,2],
+                [2,0,2],
+                [2,2,0] ]
 
 
     
@@ -545,13 +549,13 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
                 t1,t2 = collect(v[1])[1:2]
 
                 #1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
-                ind_set[(t1,t2,t2)  ] = ntot .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,13,12,12,13,11,11] #3 special
-                ind_set[(t2,t1,t2)  ] = ntot .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
-                ind_set[(t2,t2,t1)  ] = ntot .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
+                ind_set[(t1,t2,t2)  ] = ntot .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,13,12,12,13,11,11,14,14,15] #3 special
+                ind_set[(t2,t1,t2)  ] = ntot .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12,14,15,14] #2 special
+                ind_set[(t2,t2,t1)  ] = ntot .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13,15,14,14] #1 special
 
-                ind_set[(t2,t1,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,11,12,12,11,13,13] #3 special
-                ind_set[(t1,t2,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12] #2 special
-                ind_set[(t1,t1,t2)  ] = ntot .+ n_3body_cl_pair .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13] #1 special
+                ind_set[(t2,t1,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9,10,11,12,12,11,13,13,14,14,15       ]  #3 special
+                ind_set[(t1,t2,t1)  ] = ntot .+ n_3body_cl_pair .+ [1, 2, 3, 2, 4, 5, 4, 6, 7, 8, 7, 9,10, 9,12,13,11,11,13,12,14,15,14       ] #2 special
+                ind_set[(t1,t1,t2)  ] = ntot .+ n_3body_cl_pair .+ [1, 3, 2, 2, 5, 4, 4, 6, 8, 7, 7,10, 9, 9,11,11,13,12,12,13,15,14,14       ] #1 special
                 
                             
                 ntot += n_3body_cl_pair * 2 #two possible pairs
