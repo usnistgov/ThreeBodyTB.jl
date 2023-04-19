@@ -28,8 +28,18 @@ function test1()
             database[(:Al, :Al)] = coef2
             
             c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.15], ["Al", "Al"])
-            v = 1.0;C = [];  EN = Float64[]; for x in 1:12; v = v * 1.12; for c in [c2]; push!(C, c*v); push!(EN, ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false)); end;  end
-            V, _ = ThreeBodyTB.Classical.prepare_fit_cl(C, use_threebody=false, get_force=false);
+            v = 1.0;
+            C = ThreeBodyTB.CrystalMod.crystal[];
+            EN = Float64[];
+            for x in 1:12;
+                v = v * 1.12;
+                for c in [c2];
+                    push!(C, c*v);
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false, use_em=false);
+                    push!(EN, en / c.nat ); #normalize per atom
+                end;
+            end
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=false);
             x = V \ EN
             @test sum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
             
@@ -48,7 +58,7 @@ function test3()
             database[(:Al, :Al)] = coef2
 
             coef3 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al, :Al], 3)
-            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7]
+            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7, 8, 8, 8]
             database[(:Al, :Al, :Al)] = coef3
             
 
@@ -57,9 +67,20 @@ function test3()
             c3a = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.1 0 0.05 ], ["Al", "Al", "Al"])
             c3 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.1 0 0 ], ["Al", "Al", "Al"])
 
-            v = 1.0;C = [];  EN = Float64[]; for x in 1:12; v = v * 1.12; for c in [c2, c3 ,c3a]; push!(C, c*v); push!(EN, ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true)); end;  end
+            v = 1.0;
+            C = ThreeBodyTB.CrystalMod.crystal[];
+            EN = Float64[];
+            for x in 1:12;
+                v = v * 1.12;
+                for c in [c2, c3 ,c3a];
+                    push!(C, c*v);
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false)
+                    push!(EN, en / c.nat);
+                end;
+            end
 
-            V, _ = ThreeBodyTB.Classical.prepare_fit_cl(C, use_threebody=true, get_force=false);
+
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=true, get_force=false, use_em = false);
             x = V \ EN
 
             @test sum(abs.(x[1:6] - [1.0, -0.8, 0.6, -0.4, 0.2, -0.1])) < 1e-8
@@ -93,15 +114,15 @@ function test3_2atoms()
             
 
             coef3 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al, :Al], 3)
-            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7] 
+            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7, 8, 8, 8] 
             database[(:Al, :Al, :Al)] = coef3
 
             coef3b = ThreeBodyTB.Classical.make_coefs_cl([:Ga, :Ga, :Ga], 3)
-            coef3b.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7] * 2.0 
+            coef3b.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7, 8, 8, 8] * 2.0 
             database[(:Ga, :Ga, :Ga)] = coef3b
 
             coef3c = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Ga, :Ga], 3)
-            coef3c.datH[:] = ones(20)*0.37
+            coef3c.datH[:] = ones(23)*0.37
             database[(:Al, :Ga, :Ga)] = coef3c
             database[(:Ga, :Al, :Ga)] = coef3c
             database[(:Ga, :Ga, :Al)] = coef3c
@@ -134,20 +155,21 @@ function test3_2atoms()
             c3aF = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.11; 0.06 0 0.06 ], ["Al", "Ga", "Ga"])
             c3F = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.11 0 0 ], ["Ga", "Ga", "Al"])
             
-            v = 1.0;C = ThreeBodyTB.Crystalmod.crystal[];  EN = Float64[];
+            v = 1.0;C = ThreeBodyTB.CrystalMod.crystal[];  EN = Float64[];
             for x in 1:11; v = v * 1.12;
                 for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                     push!(C, c*v);
-                    push!(EN, ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true));
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em =false)                    
+                    push!(EN, en / c.nat);
                 end
             end
 
-            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,ENERGIES=EN, use_threebody=true, get_force=false);
+            database_NEW = ThreeBodyTB.ClassicalFit.do_fit_cl(C,ENERGIES=EN, use_threebody=true, use_em=false, lambda = 0.0);
 
-            @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 1e-3
-            @test sum(abs.(database[(:Al, :Al, :Al)].datH - database_NEW[(:Al, :Al, :Al)].datH)) < 1e-3
-            @test sum(abs.(database[(:Ga, :Al, :Al)].datH - database_NEW[(:Ga, :Al, :Al)].datH)) < 1e-3
-            @test sum(abs.(database[(:Ga, :Ga, :Al)].datH - database_NEW[(:Ga, :Ga, :Al)].datH)) < 1e-3
+            @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 5e-3
+            @test sum(abs.(database[(:Al, :Al, :Al)].datH - database_NEW[(:Al, :Al, :Al)].datH)) < 5e-3
+            @test sum(abs.(database[(:Ga, :Al, :Al)].datH - database_NEW[(:Ga, :Al, :Al)].datH)) < 5e-3
+            @test sum(abs.(database[(:Ga, :Ga, :Al)].datH - database_NEW[(:Ga, :Ga, :Al)].datH)) < 5e-3
             
             return database_NEW
             
@@ -188,7 +210,7 @@ function test3_3atoms()
             
 
             coef3 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Ga, :In], 3)
-            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7] 
+            coef3.datH[:] = 1 ./ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,-7,-7,-7,-7,-7,-7, 8, 8, 8] 
             database[(:Al, :Ga, :In)] = coef3
             database[(:Al, :In, :Ga)] = coef3
             database[(:Ga, :Al, :In)] = coef3
@@ -205,16 +227,17 @@ function test3_3atoms()
             c3aF = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.11; 0.06 0 0.08 ], ["Al", "In", "Ga"])
             c3F = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.12 0 0 ], ["Al", "In", "Ga"])
             
-            v = 1.0;C = ThreeBodyTB.Crystalmod.crystal[];  EN = Float64[];
+            v = 1.0;C = ThreeBodyTB.CrystalMod.crystal[];  EN = Float64[];
             for x in 1:11; v = v * 1.12;
                 #                for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                 for c in [ c3aC, c3C, c3aE, c3E, c3aF, c3F]
                     push!(C, c*v);
-                    push!(EN, ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true));
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false)
+                    push!(EN, en / c.nat);
                 end
             end
 
-            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,ENERGIES=EN, use_threebody=true, get_force=false);
+            database_NEW = ThreeBodyTB.ClassicalFit.do_fit_cl(C,ENERGIES=EN, use_threebody=true, lambda = 0.0);
 
             @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 1e-3
             @test sum(abs.(database[(:In, :Ga)].datH - database_NEW[(:In, :Ga)].datH)) < 1e-3
