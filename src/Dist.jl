@@ -1378,7 +1378,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
             end
         end
 
-        @turbo  for r1 = eachindex(rf1) #1
+        @fastmath @inbounds @simd   for r1 = eachindex(rf1) #1
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat

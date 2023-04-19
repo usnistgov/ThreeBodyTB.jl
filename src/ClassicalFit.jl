@@ -155,7 +155,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     
     CRYS = crystal[]
     if use_energy
-        ENERGIES = Float64[]
+        ENERGIES = Float64[] #per atom
     else
         ENERGIES=missing
     end
@@ -219,9 +219,9 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     min_en = abs(minimum(DFT_energy))^1.5
     min_w = min_en * 0.4
     weights_train = (abs.(DFT_energy).^1.5 .+ min_w)/(min_en .+ min_w)
-    #weights_train = ones(length(CRYS))
+    weights_train = ones(length(CRYS))
     
-
+    #per atom
     ENERGIES = weights_train .* ENERGIES * energy_weight
 
     
@@ -231,6 +231,8 @@ end
 
 function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, return_mats=false, weights_train = missing)
 
+    #ENERGIES PER ATOM. 
+    
     println("CRYS version")
     
     if ismissing(weights_train)
@@ -325,6 +327,10 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         Vtot_lam = vcat(Vtot, LAM)
         Rtot_lam = vcat(Rtot, zeros(ntot))
         
+    else
+        Vtot_lam = deepcopy(Vtot)
+        Rtot_lam = deepcopy(Rtot)
+
         
     end
 
@@ -335,9 +341,9 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
 
     Vx = Vtot_lam*x
 
-    #for (v,r) in zip(Vx,Rtot_lam)
-    #    println("v $v   r $r                $(v-r)")
-    #end
+    for (v,r) in zip(Vx,Rtot_lam)
+        println("v $v   r $r                $(v-r)")
+    end
 
     
     frontier = calc_frontier_list(CRYS)
@@ -420,7 +426,7 @@ end
 
 
 function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = false)
-
+    println("prepare_fit_cl $use_threebody $use_em ")
     types_dict = Dict()
     types_dict_reverse = Dict()
     types_counter = 0

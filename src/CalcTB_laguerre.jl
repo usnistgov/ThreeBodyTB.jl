@@ -2934,7 +2934,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
                     if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
                         #                if typeof(frontier[(t1,t2,t3)]) == coefs
-                        if ismissing(frontier[(t1,t2,t3)].dist_frontier)
+                        if ismissing(frontier[(t1,t2,t3)].dist_frontier) || !( (t1,t2,t3) in keys(frontier[(t1,t2,t3)].dist_frontier))
                             continue
                         end
                         vals = frontier[(t1,t2,t3)].dist_frontier[(t1,t2,t3)]
