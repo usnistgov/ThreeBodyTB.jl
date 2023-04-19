@@ -160,7 +160,8 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
         step = min(-b/(2*a), 1.0)
 
         if isnan(step) || isinf(step)
-            step = 0.1
+            println("warning conjgrad isnan $(isnan(step)) isinf $(isinf(step)) , $step")
+            step = 0.01
         end
 
         #        println("else; step size ", step * step_size * 1.5, " x step $step step_size $step_size a $a b $b")

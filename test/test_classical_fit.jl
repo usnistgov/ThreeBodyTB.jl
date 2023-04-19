@@ -134,7 +134,7 @@ function test3_2atoms()
             c3aF = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.11; 0.06 0 0.06 ], ["Al", "Ga", "Ga"])
             c3F = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.11 0 0 ], ["Ga", "Ga", "Al"])
             
-            v = 1.0;C = [];  EN = Float64[];
+            v = 1.0;C = ThreeBodyTB.Crystalmod.crystal[];  EN = Float64[];
             for x in 1:11; v = v * 1.12;
                 for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                     push!(C, c*v);
@@ -142,7 +142,7 @@ function test3_2atoms()
                 end
             end
 
-            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,EN, use_threebody=true, get_force=false);
+            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,ENERGIES=EN, use_threebody=true, get_force=false);
 
             @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 1e-3
             @test sum(abs.(database[(:Al, :Al, :Al)].datH - database_NEW[(:Al, :Al, :Al)].datH)) < 1e-3
@@ -205,7 +205,7 @@ function test3_3atoms()
             c3aF = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.11; 0.06 0 0.08 ], ["Al", "In", "Ga"])
             c3F = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.10; 0.12 0 0 ], ["Al", "In", "Ga"])
             
-            v = 1.0;C = [];  EN = Float64[];
+            v = 1.0;C = ThreeBodyTB.Crystalmod.crystal[];  EN = Float64[];
             for x in 1:11; v = v * 1.12;
                 #                for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                 for c in [ c3aC, c3C, c3aE, c3E, c3aF, c3F]
@@ -214,7 +214,7 @@ function test3_3atoms()
                 end
             end
 
-            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,EN, use_threebody=true, get_force=false);
+            database_NEW = ThreeBodyTB.Classical.do_fit_cl(C,ENERGIES=EN, use_threebody=true, get_force=false);
 
             @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 1e-3
             @test sum(abs.(database[(:In, :Ga)].datH - database_NEW[(:In, :Ga)].datH)) < 1e-3
