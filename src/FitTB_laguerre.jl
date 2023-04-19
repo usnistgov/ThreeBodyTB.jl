@@ -4854,7 +4854,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
         database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
 
-        if update_all == false
+        if update_all == false && !ismissing(starting_database)
             for key in keys(database)
                 if key in keys(starting_database)
                     database[key] = starting_database[key]

@@ -292,7 +292,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             IND_TRAIN, IND_TEST = kfold(L, 5)
 
             
-            LAM = [2.5e-8, 1e-7,2.5e-7,1e-6, 2.5e-6, 1e-5, 2.5e-5, 1e-4, 2.5e-4, 1e-3,2.5e-3, 1e-2, 2.5e-2, 1e-1]
+            LAM = [2.5e-8, 1e-7,2.5e-7,1e-6, 2.5e-6, 1e-5, 2.5e-5, 1e-4, 2.5e-4, 1e-3,2.5e-3, 1e-2, 2.5e-2]
             ERR = zeros(length(LAM))
             
             for n = 1:5  #very simple cross-validation determination of lambda
