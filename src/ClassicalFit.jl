@@ -29,6 +29,8 @@ using LoopVectorization
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
 using ..CalcTB:laguerre_fast!
 using ..CalcTB:calc_frontier_list
+using ..CalcTB:calc_frontier
+
 
 using Suppressor
 
@@ -122,15 +124,19 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
     vtot = missing
     rtot = missing
     DFT = deepcopy(DFT_start)
+    
+    CRYS_tot = []
 
     database =Dict()
     passtest = false
     for iter = 1:niters
 
         println("ITER $iter -----------------------------")
-        database, vtot, rtot = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true)
+        database, vtot, rtot = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
 
         DFT, NAMES, passtest = GEN_FN(database, do_tb=(subtract_scf), procs=4, ITER=iter )
+
+
         println("passtest $passtest")
         if passtest
             println("passtest done")
@@ -138,13 +144,15 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
         end
         
     end
+
+    
     
     return database, passtest
     
 end
 
 
-function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, subtract_scf=false, return_mats = false)
+function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, subtract_scf=false, return_mats = false, CRYS_tot=missing)
 
     println("DFT version")
     
@@ -154,6 +162,10 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     end
     
     CRYS = crystal[]
+    if ismissing(CRYS_tot)
+        CRYS_tot = deepcopy(CRYS)
+    end
+
     if use_energy
         ENERGIES = Float64[] #per atom
     else
@@ -200,6 +212,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
         end
 
         push!(CRYS, dft.crys)
+        push!(CRYS_tot, dft.crys)
         push!(DFT_energy, dft.atomize_energy/dft.crys.nat) 
         if use_energy
             ENERGIES = vcat(ENERGIES, [dft.atomize_energy/dft.crys.nat - energyT/dft.crys.nat])
@@ -225,15 +238,19 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     ENERGIES = weights_train .* ENERGIES * energy_weight
 
     
-    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats)
+    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot)
     
 end
 
-function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, return_mats=false, weights_train = missing)
+function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, return_mats=false, weights_train = missing, CRYS_tot = missing)
 
     #ENERGIES PER ATOM. 
     
     println("CRYS version")
+
+    if ismissing(CRYS_tot)
+        CRYS_tot = deepcopy(CRYS)
+    end
     
     if ismissing(weights_train)
         weights_train = ones(length(CRYS))
@@ -341,17 +358,18 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
 
     Vx = Vtot_lam*x
 
-    for (v,r) in zip(Vx,Rtot_lam)
-        println("v $v   r $r                $(v-r)")
-    end
+#    for (v,r) in zip(Vx,Rtot_lam)
+#        println("v $v   r $r                $(v-r)")
+#    end
 
     
-    frontier = calc_frontier_list(CRYS)
     if ismissing(database_start)
         database = Dict()
     else
         database = deepcopy(database_start)
     end
+
+    frontier = calc_frontier_list(CRYS_tot)
     
     println("put stuff in database")
     for ind in keys(ind_set)
