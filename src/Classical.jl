@@ -59,6 +59,7 @@ using Random
 const n_2body_cl = 6
 
 const n_2body_em = 5
+#const n_2body_em = 12
 
 #const n_3body_cl_same = 7
 #const n_3body_cl_pair = 13
@@ -297,7 +298,7 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
         
         for key in keys(dist_frontier)
 #            println("key ", key, " at_list ", at_list)
-            if dim == length(key)
+            if dim == length(key) && Set(at_list) == Set(key)
                 dist_frontier2[key] = dist_frontier[key]
                 dist_frontier2[Symbol.(key)] = dist_frontier[key]
             end
@@ -1154,7 +1155,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 
     rho = zeros(var_type, crys.nat, types_counter)
     rho2 = zeros(var_type, crys.nat, types_counter)
-#    rho3 = zeros(var_type, crys.nat)
+#    rho3 = zeros(var_type, crys.nat, types_counter)
     if verbose println("2body CL") end
      twobody_Cl = begin
         for c = 1:nkeep_ab
@@ -1196,7 +1197,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
             rho[a1,t2] += exp(-1.0*dist_a)
             rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
-            #rho3[a1] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.1*dist_a)
+#            rho3[a1, t2] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.0*dist_a)
         end
         
     end
@@ -1211,11 +1212,14 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             t1 = types_arr[a1]
             for t=1:types_counter
                 em = DAT_EM_ARR[t1,t,1:n_2body_em]
-                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3
-                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3
-                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] 
+                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3  #+ em[6] * rho[a1,t]^1
+                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3  #+ em[7] * rho2[a1,t]^1
+                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] #+ em[6]*(rho[a1,t]*rho2[a1,t])^2
+
+#                energy_embed +=  em[6]*rho3[a1,t]^2 + em[7]*rho3[a1,t]^3  + em[12]* rho3[a1,t]^4
+#                energy_embed +=  em[8]*rho[a1,t]*rho3[a1,t] + em[9]*rho2[a1,t]*rho3[a1,t]
+                
             end
-            #            energy_embed +=  em[5]*rho3[a1]^2 + em[6]*rho3[a1]^3
             
             #            energy_embed +=  em[7]*rho[a1]*rho2[a1] + em[8]*rho2[a1]*rho3[a1]
 

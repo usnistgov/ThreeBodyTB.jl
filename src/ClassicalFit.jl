@@ -152,7 +152,7 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
 end
 
 
-function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, subtract_scf=false, return_mats = false, CRYS_tot=missing)
+function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing)
 
     println("DFT version")
     
@@ -186,13 +186,28 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     
     for dft in DFT
 
+        energyT = 0.0
+        forceT = zeros(dft.crys.nat, 3)
+        stressT= zeros(3,3)
+
+        
         #subtract old forces
         if !ismissing(database_start)
 
-            energyT, forceT, stressT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em)
+            energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
+            if flag == true
+                continue
+            end
+            energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
+            energyT += energyTT
+            forceT += forceTT
+            stressT += stressTT
             
-        elseif subtract_scf
-            energyT, tbc, flag = scf_energy(dft.crys, do_classical=false)
+        end
+            
+        
+        if subtract_scf
+            energyTT, tbc, flag = scf_energy(dft.crys, do_classical=false)
             if flag == false
                 println("skip -----------------------")
                 println(dft.crys)
@@ -200,15 +215,14 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
                 continue
             end
             if use_stress || use_force
-                energyT, forceT, stressT = scf_energy_force_stress(tbc, do_classical=true, database_classical=database_start)
+                energyTT, forceTT, stressTT = scf_energy_force_stress(tbc, do_classical=false)   #true, database_classical=database_start)
             else
-                forceT = zeros(dft.crys.nat, 3)
-                stressT= zeros(3,3)
-            end                
-        else
-            energyT = 0.0
-            forceT = zeros(dft.crys.nat, 3)
-            stressT= zeros(3,3)
+                forceTT = zeros(dft.crys.nat, 3)
+                stressTT = zeros(3,3)
+            end
+            energyT += energyTT
+            forceT += forceTT
+            stressT += stressTT
         end
 
         push!(CRYS, dft.crys)
@@ -216,7 +230,6 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
         push!(DFT_energy, dft.atomize_energy/dft.crys.nat) 
         if use_energy
             ENERGIES = vcat(ENERGIES, [dft.atomize_energy/dft.crys.nat - energyT/dft.crys.nat])
-
         end
         if use_force
             FORCES = vcat(FORCES, dft.forces[:] - forceT[:])
@@ -232,17 +245,19 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     min_en = abs(minimum(DFT_energy))^1.5
     min_w = min_en * 0.4
     weights_train = (abs.(DFT_energy).^1.5 .+ min_w)/(min_en .+ min_w)
-    weights_train = ones(length(CRYS))
+
+#    weights_train = ones(length(CRYS))
     
     #per atom
     ENERGIES = weights_train .* ENERGIES * energy_weight
 
+#    println("ENERGIES ", ENERGIES[1:5])
     
     return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot)
     
 end
 
-function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = false, return_mats=false, weights_train = missing, CRYS_tot = missing)
+function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing)
 
     #ENERGIES PER ATOM. 
     
@@ -358,9 +373,9 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
 
     Vx = Vtot_lam*x
 
-#    for (v,r) in zip(Vx,Rtot_lam)
-#        println("v $v   r $r                $(v-r)")
-#    end
+    for (v,r) in zip(Vx,Rtot_lam)
+        println("v $v   r $r                $(v-r)")
+    end
 
     
     if ismissing(database_start)
@@ -443,7 +458,7 @@ function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fou
 end
 
 
-function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = false)
+function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true)
     println("prepare_fit_cl $use_threebody $use_em ")
     types_dict = Dict()
     types_dict_reverse = Dict()
@@ -591,7 +606,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
                 
                 t1,t2,t3 = collect(v[1])[1:3]
                 t123 = [t1,t2,t3]
-                ind_set[(t1,t2,t3)] = ntot .+ collect(1:20)
+                ind_set[(t1,t2,t3)] = ntot .+ collect(1:n_3body_cl_diff)
                 
                 PERM = [ [1,2,3],[2,1,3],[3,1,2],[3,2,1],[1,3,2],[2,3,1]] #atom permutations
                 for perm in PERM
