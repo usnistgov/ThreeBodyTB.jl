@@ -132,7 +132,20 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
     for iter = 1:niters
 
         println("ITER $iter -----------------------------")
-        database, vtot, rtot = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+        database, vtot2, rtot2, BAD = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+        if length(BAD) > 0 
+            println("issue BAD ", BAD)
+            goodind = setdiff(1:length(DFT), BAD)
+            println("goodind ", goodind)
+            println("retry")
+            if length(goodind) == 0
+                continue
+            else
+                database, vtot2, rtot2, BAD = do_fit_cl(DFT[goodind], Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+            end
+        end
+        vtot = vtot2
+        rtot = rtot2
 
         DFT, NAMES, passtest = GEN_FN(database, do_tb=(subtract_scf), procs=4, ITER=iter )
 
@@ -262,6 +275,8 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     #ENERGIES PER ATOM. 
     
     println("CRYS version")
+    flush(stdout)
+    BAD = []
 
     if ismissing(CRYS_tot)
         CRYS_tot = deepcopy(CRYS)
@@ -371,13 +386,25 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     
     x = Vtot_lam \ Rtot_lam
 
-    Vx = Vtot_lam*x
+    #Vx = Vtot_lam*x
 
-    for (v,r) in zip(Vx,Rtot_lam)
-        println("v $v   r $r                $(v-r)")
+    if !ismissing(ENERGIES)
+        Vex = Ve*x
+        etemp = (ENERGIES ./ weights_train) /energy_weight
+
+        energy_error = abs.(Ve*x - etemp   )
+        println("i diff     REF    MODEL")
+        for i = 1:length(ENERGIES)
+            println("$i $(etemp[i] - Vex[i] )   $(ENERGIES[i])    $(Vex[i])")
+            if energy_error[i] > 0.08
+                push!(BAD, i)
+            end
+        end
+        println("--")
+        println("BAD ", BAD)
     end
-
     
+
     if ismissing(database_start)
         database = Dict()
     else
@@ -401,9 +428,12 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             database[ind] = c
         elseif length(ind) == 3 && ind[3] == :em
             t1,t2,em_var = ind
-
+            println("vars ", [t1,t2,em_var])
+            println("keys ", keys(frontier))
             if (t1,t2) in keys(frontier)
                 c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1, min_dist = frontier[(t1,t2)],  em=true)
+            else
+                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1, em=true)
             end
             database[ind] = c
             
@@ -442,7 +472,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     if return_mats == false
         return database
     else
-        return database, Vtot, Rtot
+        return database, Vtot, Rtot, BAD
     end
 end    
 
@@ -505,6 +535,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
         end
     end
     println("vars ", vars)
+    flush(stdout)
     
     vars_list = collect(vars)
     at_types = collect(at_types_set)
@@ -675,6 +706,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
 #        println("ind crys")
         #        println(crys)
         println("indE $ind")
+        flush(stdout)
         crysX = crys
 #        println(crys)
         begin
@@ -738,7 +770,8 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
         Vs = zeros(0, ntot)
     end        
         
-    
+    flush(stdout)
+
     return V, Vf, Vs, vars, at_types, ind_set
     
 end
