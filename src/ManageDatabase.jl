@@ -106,7 +106,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                     try
                         dat = read_coefs(f)
                         database_cached[(a1, a1)] = dat
-                        println("added to cache ", (a1, a1))
+#                        println("added to cache ", (a1, a1))
                         loaded=true
                     catch
                         println("WARNING - error loading $f")
@@ -137,7 +137,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                         #                    jldopen(f)                    
                         dat = read_coefs(f)
                         database_cached[(a1, a1, a1)] = dat
-                        println("added to cache ", (a1, a1, a1))
+#                        println("added to cache ", (a1, a1, a1))
                         loaded == true
                     catch
                         println("WARNING - error loading $f")
@@ -211,7 +211,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                         
                         database_cached[(a1, a2)] = dat
                         database_cached[(a2, a1)] = dat
-                        println("added to cache ", (a1, a2), " twobody ")
+#                        println("added to cache ", (a1, a2), " twobody ")
                         loaded = true
                     catch
                         println("WARNING - error loading binary file $f")
@@ -269,7 +269,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                         database_cached[(a1,a2,a2)] = dat
                         database_cached[(a2,a1,a2)] = dat
                         database_cached[(a2,a2,a1)] = dat
-                        println("added to cache ", (a1, a2), " threebody ")
+#                        println("added to cache ", (a1, a2), " threebody ")
                         loaded=true
                     catch
                         println(" MISSING FILE - WARNING loading binary 3body $f ")
@@ -315,7 +315,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                         database_cached[(a2,a3,a1)] = dat
                         database_cached[(a3,a1,a2)] = dat
                         database_cached[(a3,a2,a1)] = dat
-                        println("added to cache ", (a1, a2, a3), " threebody ")
+#                        println("added to cache ", (a1, a2, a3), " threebody ")
                         loaded=true
                     catch
                         println("failed to load $f")

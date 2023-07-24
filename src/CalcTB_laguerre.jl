@@ -309,7 +309,7 @@ function read_coefs(filename, directory = missing)
     if "version" in keys(d["coefs"])
         version = parse(Int64, d["coefs"]["version"])
     end
-    println("version $version")
+#    println("version $version")
     
     co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version)
 
@@ -328,7 +328,7 @@ See `coefs` to understand arguments.
 """
 function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3)
 
-    println("make coefs")
+#    println("make coefs")
 #    sort!(at_list)
 
     if version == 2 || version == 3
@@ -7653,7 +7653,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                                 
                                 if repel
-                                    H[o1, o1, id] += repel_vals[a1] * 0.1
+                                    H[o1, o1, c_zero] += repel_vals[a1] * 0.1
+                                    #println("add repel $a1 $o1 ", repel_vals[a1] * 0.1)
                                 end
                             end
                             

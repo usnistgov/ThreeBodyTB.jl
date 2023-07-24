@@ -271,6 +271,10 @@ Find the lowest energy atomic configuration of crystal `c`.
 """
 function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true)
 
+    if ismissing(database_classical)
+        do_classical=false
+    end
+        
     if ismissing(database)
         ManageDatabase.prepare_database(c)
         database = ManageDatabase.database_cached
@@ -343,6 +347,11 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         return 0.0, zeros(c.nat, 3), zeros(3,3), missing
     end
 
+    if ismissing(database_classical)
+        do_classical=false
+    end
+            
+    
     if do_classical
         energy_cl, force_cl, stress_cl = energy_force_stress_cl(c, database=database_classical)
     else
@@ -410,6 +419,10 @@ returns energy, force, stress, tight_binding_crystal_object
 function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.01, grid = missing, do_scf=false, repel=true, use_sym=true,do_classical=true, database_classical=missing)
 
     
+    if ismissing(database_classical)
+        do_classical=false
+    end
+        
     
     if ismissing(database)
         ManageDatabase.prepare_database(tbc.crys)
@@ -481,7 +494,11 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         database = ManageDatabase.database_cached
         println()
     end
-
+    
+    if ismissing(database_classical)
+        do_classical=false
+    end
+        
     
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb)
 
@@ -516,6 +533,11 @@ end
 """
 function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true)
 
+    if ismissing(database_classical)
+        do_classical=false
+    end
+        
+    
     return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb)
 
 end
@@ -528,6 +550,11 @@ end
 """
 function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true)
 
+    if ismissing(database_classical)
+        do_classical=false
+    end
+        
+    
     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym)
     println()
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )

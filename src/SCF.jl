@@ -116,8 +116,9 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 
-    println("DO CLASSICAL $do_classical")
     if do_classical
+        println("DO CLASSICAL $do_classical")
+        
         if !ismissing(database_classical)
             energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)
             println("energy classical   $energy_classical ")

@@ -2367,6 +2367,7 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
     begin
 
         if nelec > 1e-10
+#            println("VALS ", VALS[1,:,1])
             energy, efermi = band_energy(VALS, ones(nk), nelec, smearing, returnef=true)
             occ = gaussian.(VALS.-efermi, smearing)
 
@@ -4406,13 +4407,17 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
     
     go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
 
+#    println("VALS ", VALS)
+#    println("VALS0 ", VALS0)
+    
     begin
 
         if nelec > 1e-10
+#            println("VALS ", VALS[1,:,1])
             energy, efermi = band_energy(VALS, kweights, nelec, smearing, returnef=true)
             occ = gaussian.(VALS.-efermi, smearing)
 
-            #println("nelec $nelec efermi $efermi sum(occ) $(sum(occ .* kweights)/2.0)   sym")
+#            println("nelec $nelec efermi $efermi sum(occ) $(sum(occ .* kweights)/2.0)   sym")
             
             max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
             energy_smear = smearing_energy(VALS, kweights, efermi, smearing)
@@ -4487,7 +4492,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
             
-            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ 0.0*sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
 
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
@@ -4496,7 +4501,14 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
                 vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
-
+#                if c == 1
+#                    println()
+#                    println("hk ")
+#                    println(hk[:,:,id][:,:])
+#                    println()
+#                    println("vals ", vals[:,id])
+#                    println()
+#                end
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
             catch err
                 typeof(err) == InterruptException && rethrow(err)
@@ -4512,6 +4524,10 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
             VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
+#            if c == 1
+#                println("vals0 ", VALS0[c,:, spin])
+#                println()
+#            end
             VECTS[:,:, c, spin] .= vects[:,:,id]
             
         end
