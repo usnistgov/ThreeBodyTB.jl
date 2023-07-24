@@ -4492,7 +4492,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
             
-            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ 0.0*sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
 
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')

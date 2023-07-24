@@ -330,7 +330,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
     tbc0 = calc_tb_LV(crys, database, verbose=false, check_frontier=false, repel=repel)
 
-    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
+    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
 
     if stress_mode == false
@@ -345,7 +345,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
 
         crys2 = deepcopy(crys)
@@ -356,7 +356,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
         
         force = - (energy_tot1 - energy_tot2) / (2 * step)
 
@@ -376,7 +376,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
 
         crys2 = deepcopy(crys)
@@ -388,7 +388,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
         stress = -1.0* (energy_tot1 - energy_tot2) / (2 * step) / abs(det(crys.A))
 

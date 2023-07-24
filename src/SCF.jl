@@ -499,7 +499,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("iter $iter")
             
             if false
-                println("ΔQ: ", (round.(dq; digits=3)))
+                println("ΔQ: ", (round.(dq; digits=3)), " " , sum(dq))
                 if magnetic 
                     println("μB: ", round.(get_magmom(tbc.crys, e_denA), digits=3))
                 end
@@ -560,7 +560,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
-#            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=4))
+#            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=8))
             
             if use_sym
                 for spin =1:nspin
@@ -568,7 +568,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 end
             end
 
-#            println(sum(e_den_NEW), " e_den_NEW  after ", round.(e_den_NEW, digits=4))
+#            println(sum(e_den_NEW), " e_den_NEW  after ", round.(e_den_NEW, digits=8))
             
             push!(rho_out, e_den_NEW)
 

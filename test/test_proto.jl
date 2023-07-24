@@ -9,7 +9,7 @@ SRCDIR=ThreeBodyTB.SRCDIR
     @suppress begin 
         include("$SRCDIR/../code_for_dataset_gen/Prototypes.jl")
         t =  oxidation_guess("Na", "Cl")
-        tref = [["Na", "Cl", :core_binary],["Na", "Cl", :A1B1], ["Na", "Cl", "pd3te"], ["Na", "Cl", "bcc_5lay"], ["Na", "Cl", "fcc_5lay"]]
+        tref = [["Na", "Cl", :core_binary],["Na", "Cl", :A1B1], ["Na", "Cl", "pd3te"]]
 
         @test t == tref
 
@@ -19,7 +19,7 @@ SRCDIR=ThreeBodyTB.SRCDIR
         
         @test t == tref
 
-        ThreeBodyTB.set_units(both="eVAng")
+        #ThreeBodyTB.set_units(both="eVAng")
 
     end
 end

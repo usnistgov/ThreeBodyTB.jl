@@ -96,7 +96,7 @@ function test_nacl()
 
 #            tbc.scf = true
 
-            energy, efermi, e_den, dq, error_flag = ThreeBodyTB.SCF.scf_energy(tbc, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.005, iters = 1000)
+            energy, efermi, e_den, dq, error_flag = ThreeBodyTB.SCF.scf_energy(tbc, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.005, iters = 1000, use_sym=false, mixing_mode=:simple)
 
             #        println("energy $energy")
             #        println("efermi $efermi")
@@ -108,7 +108,7 @@ function test_nacl()
             
             tbc_noscf = ThreeBodyTB.CalcTB.calc_tb_fast(cscl, database, use_threebody=false, use_threebody_onsite=false)
 #            tbc_noscf.scf = false
-            energy_no, efermi_no, e_den_no, dq_no, error_flag = ThreeBodyTB.SCF.scf_energy(tbc_noscf, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.005, iters = 1000)
+            energy_no, efermi_no, e_den_no, dq_no, error_flag = ThreeBodyTB.SCF.scf_energy(tbc_noscf, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.005, iters = 1000, use_sym=false, mixing_mode=:simple)
 
             #        println("energy_no $energy_no")
             #        println("efermi_no $efermi_no")
@@ -117,8 +117,8 @@ function test_nacl()
 
 
             #        println("the actual DFT atomization  energy of this configuration is -0.13722807000000614")
-            #        println("energy_scf is $energy")
-            #        println("energy_noscf is $energy_no")
+            println("energy_scf is $energy")
+            println("energy_noscf is $energy_no")
 
             @test abs(-0.13722807000000614 - energy) < 5e-2
 
@@ -154,7 +154,7 @@ function test_nacl2()
 
 #            tbc.scf = true
 
-            energy, efermi, e_den, dq, error_flag = ThreeBodyTB.SCF.scf_energy(tbc, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.01, iters = 1000)
+            energy, efermi, e_den, dq, error_flag = ThreeBodyTB.SCF.scf_energy(tbc, mix=0.005, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.01, iters = 1000, use_sym=false, mixing_mode=:simple)
 
             #        println("energy $energy")
             #        println("efermi $efermi")
@@ -165,7 +165,7 @@ function test_nacl2()
             database["SCF"] = false
             tbc_noscf = ThreeBodyTB.CalcTB.calc_tb_fast(rs, database, use_threebody=false, use_threebody_onsite=false)
 #            tbc_noscf.scf = false
-            energy_no, efermi_no, e_den_no, dq_no, error_flag = ThreeBodyTB.SCF.scf_energy(tbc_noscf, mix=0.5, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.01, iters = 1000) #, mixing_mode=:simple)
+            energy_no, efermi_no, e_den_no, dq_no, error_flag = ThreeBodyTB.SCF.scf_energy(tbc_noscf, mix=0.5, grid=[1 1 1], conv_thr = 1e-8, smearing = 0.01, iters = 1000, mixing_mode=:simple)
 
             #        println("energy_no $energy_no")
             #        println("efermi_no $efermi_no")
@@ -174,8 +174,8 @@ function test_nacl2()
 
 
             #        println("the actual DFT atomization energy of this configuration is -0.23582715999999948")
-            #        println("energy_scf is $energy")
-            #        println("energy_noscf is $energy_no")
+                    println("energy_scf is $energy")
+                    println("energy_noscf is $energy_no")
 
             @test abs(-0.23582715999999948 - energy) < 6e-2
 

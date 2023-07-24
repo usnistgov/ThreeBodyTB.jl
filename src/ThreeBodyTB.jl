@@ -548,14 +548,14 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing)
 
     if ismissing(database_classical)
         do_classical=false
     end
         
     
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym, database_classical=database_classical)
     println()
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )
     println()
