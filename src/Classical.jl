@@ -230,15 +230,16 @@ function read_coefs_cl(filename, directory = missing)
     
 
 
-    println("read ----------------")
-    println("names $names")
-    println("dim $dim")
-    println("datH $datH")
+#    println("read ----------------")
+#    println("names $names")
+#    println("dim $dim")
+#    println("datH $datH")
 #    println("at_list, $at_list)")
-    println("min_dist $min_dist")
-    println("version $version")
-    println("em $em")
-    println("-")
+#    println("min_dist $min_dist")
+#    println("version $version")
+#    println("em $em")
+#    println("dist_frontier ", dist_frontier)
+#    println("-")
     
     co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em)
 
@@ -292,14 +293,15 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
         end
     end
 
-    
+    at_list = Symbol.(at_list)
     dist_frontier2 = Dict()
     if !ismissing(dist_frontier)
-        
+        println("not missing ")
         for key in keys(dist_frontier)
-#            println("key ", key, " at_list ", at_list)
+#            println("key ", key, " at_list ", at_list, " ", dim == length(key), " " , Set(at_list) == Set(key) )
+            #println([dim, length(key), Set(Symbol.(at_list)),Set(key)])
             if dim == length(key) && Set(at_list) == Set(key)
-                dist_frontier2[key] = dist_frontier[key]
+                dist_frontier2[String.(key)] = dist_frontier[key]
                 dist_frontier2[Symbol.(key)] = dist_frontier[key]
             end
         end

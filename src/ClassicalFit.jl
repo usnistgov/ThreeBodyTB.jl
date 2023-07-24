@@ -119,7 +119,7 @@ function atom_perm_to_dist_perm(perm)
 end
 
 
-function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
+function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
 
     vtot = missing
     rtot = missing
@@ -132,7 +132,7 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
     for iter = 1:niters
 
         println("ITER $iter -----------------------------")
-        database, vtot2, rtot2, BAD = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+        database, vtot2, rtot2, BAD = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
         if length(BAD) > 0 
             println("issue BAD ", BAD)
             goodind = setdiff(1:length(DFT), BAD)
@@ -141,7 +141,7 @@ function do_fit_cl_RECURSIVE(DFT_start::Array{Any,1}; GEN_FN=missing, procs=proc
             if length(goodind) == 0
                 continue
             else
-                database, vtot2, rtot2, BAD = do_fit_cl(DFT[goodind], Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=missing, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+                database, vtot2, rtot2, BAD = do_fit_cl(DFT[goodind], Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
             end
         end
         vtot = vtot2
@@ -168,6 +168,8 @@ end
 function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing)
 
     println("DFT version")
+    println("database_start ", database_start)
+
     
     if !use_energy && !use_force && !use_stress
         println("everything is false")
@@ -207,15 +209,27 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
         #subtract old forces
         if !ismissing(database_start)
 
+            println("subtract old forces, ", keys(database_start))
+
             energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
+
+#            println("dft")
+#            println(dft)
+            println("energyT, flag $energyT, $flag            ")
             if flag == true
                 continue
             end
             energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
-            energyT += energyTT
+            #energyT += energyTT (already added, former bug)
             forceT += forceTT
             stressT += stressTT
-            
+#            println("energyTT ", energyTT)
+#            println("forceTT")
+#            println(forceTT)
+#            println("stressTT")
+#            println(stressTT)
+#            println()
+
         end
             
         
@@ -243,6 +257,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
         push!(DFT_energy, dft.atomize_energy/dft.crys.nat) 
         if use_energy
             ENERGIES = vcat(ENERGIES, [dft.atomize_energy/dft.crys.nat - energyT/dft.crys.nat])
+            println("ENERGIES add $(dft.crys.nat)  ", [dft.atomize_energy/dft.crys.nat - energyT/dft.crys.nat, dft.atomize_energy/dft.crys.nat, energyT/dft.crys.nat])
         end
         if use_force
             FORCES = vcat(FORCES, dft.forces[:] - forceT[:])
@@ -338,29 +353,36 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             l = L ÷ 5
 
             #            println("L $L l $l")
-            IND_TRAIN, IND_TEST = kfold(L, 5)
 
             
-            LAM = [2.5e-8, 1e-7,2.5e-7,1e-6, 2.5e-6, 1e-5, 2.5e-5, 1e-4, 2.5e-4, 1e-3,2.5e-3, 1e-2, 2.5e-2]
+            LAM = [2.5e-8, 1e-7,2.5e-7,1e-6, 2.5e-6, 1e-5, 2.5e-5, 1e-4, 2.5e-4, 1e-3,2.5e-3, 1e-2, 2.5e-2, 1e-1, 2.5e-1, 1e0, 2.5e0,1e1]
             ERR = zeros(length(LAM))
-            
-            for n = 1:5  #very simple cross-validation determination of lambda
+            TOT_ERR = zeros(length(LAM))
 
-                ind_test = IND_TEST[n]
-                ind_train = IND_TRAIN[n]
-                #                r = randperm(L)
-#                ind_test = r[1:l]
-#                ind_train = r[l+1:end]
-                for (cind, lambda) = enumerate(LAM)
-                    V = vcat(Vtot[ind_train,:], I(ntot) * lambda)
-                    R = vcat(Rtot[ind_train], zeros(ntot))
-                    x = V \ R
-                    ERR[cind] += sum( (Vtot[ind_test,:]*x - Rtot[ind_test,:]).^2)
-#                    println("n $n $cind $cind $lambda ", sum( (Vtot[ind_test,:]*x - Rtot[ind_test,:]).^2))
+            niter=3
+            for iter = 1:niter
+                IND_TRAIN, IND_TEST = kfold(L, 5)
+                
+                for n = 1:5  #very simple cross-validation determination of lambda
+
+                    ind_test = IND_TEST[n]
+                    ind_train = IND_TRAIN[n]
+                    #                r = randperm(L)
+                    #                ind_test = r[1:l]
+                    #                ind_train = r[l+1:end]
+                    for (cind, lambda) = enumerate(LAM)
+                        V = vcat(Vtot[ind_train,:], I(ntot) * lambda)
+                        R = vcat(Rtot[ind_train], zeros(ntot))
+                        x = V \ R
+                        ERR[cind] += sum( (Vtot[ind_test,:]*x - Rtot[ind_test,:]).^2)
+                        TOT_ERR[cind] += sum(Rtot[ind_test,:].^2)
+                        #                    println("n $n $cind $cind $lambda ", sum( (Vtot[ind_test,:]*x - Rtot[ind_test,:]).^2))
+                    end
                 end
             end
-            for (l,e) in zip(LAM, ERR)
-                println("lam   $l  err   $e")
+
+            for (l,e, te) in zip(LAM, ERR, TOT_ERR)
+                println("lam   $l  err   $(e/niter)             $(te/niter)")
             end
             
 #            println("LAM $LAM")
@@ -386,6 +408,9 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     
     x = Vtot_lam \ Rtot_lam
 
+    
+    println("err_tot (in samp)  " , sum( (Vtot * x  - Rtot).^2), " vs ",  sum(Rtot.^2) )
+
     #Vx = Vtot_lam*x
 
     if !ismissing(ENERGIES)
@@ -395,7 +420,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         energy_error = abs.(Ve*x - etemp   )
         println("i diff     REF    MODEL")
         for i = 1:length(ENERGIES)
-            println("$i $(etemp[i] - Vex[i] )   $(ENERGIES[i])    $(Vex[i])")
+            println("$i $(etemp[i] - Vex[i] )   $(etemp[i])    $(Vex[i])")
             if energy_error[i] > 0.08
                 push!(BAD, i)
             end
@@ -597,6 +622,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
             ind_set[(t2,t1)] = collect(1:n_2body_cl) .+ ntot
             ntot += n_2body_cl
             if use_em
+                println("add em" , (t1,t2,:em))
                 ind_set[(t1,t2,:em)] = collect(1:n_2body_em) .+ ntot
                 ntot += n_2body_em
                 if t1 != t2
@@ -635,7 +661,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
             elseif length(v[1]) == 3
                 ntot += n_3body_cl_diff
                 
-                t1,t2,t3 = collect(v[1])[1:3]
+                t1,t2,t3 = sort(collect(v[1]))[1:3]
                 t123 = [t1,t2,t3]
                 ind_set[(t1,t2,t3)] = ntot .+ collect(1:n_3body_cl_diff)
                 
