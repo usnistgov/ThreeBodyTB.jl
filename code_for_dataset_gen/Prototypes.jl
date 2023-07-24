@@ -293,7 +293,7 @@ function setup_proto_data()
 
 
     CalcD["znse_shear"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "shear", "nscf", false]
-    CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", " vc-relax", "2Dxy", "scf", "nscf", false]
+    CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "scf", "nscf", false]
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
 
@@ -580,7 +580,7 @@ function setup_proto_data()
 
 end
 
-function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false, min_nscf = false)
+function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false, min_nscf = false, dft_only=false)
 
     TORUN = []
     for t in torun
@@ -755,18 +755,33 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             if magnetic
                 d="$dir/mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
                 #                d2="$dir/no_mag_$name"*"_vnscf_"*"$newst"*"_"*"$ncalc"        
-                if (isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")) # && ( isfile(d2*"/projham_K.xml") ||  isfile(d2*"/projham_K.xml.gz"))
-                    push!(already_done, d)
+                if dft_only
+                    if isdir(d*"/qe.save")
+                        push!(already_done, d)
+                    else
+                        push!(not_done, d)
+                    end
                 else
-                    push!(not_done, d)
+                    if (isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")) # && ( isfile(d2*"/projham_K.xml") ||  isfile(d2*"/projham_K.xml.gz"))
+                        push!(already_done, d)
+                    else
+                        push!(not_done, d)
+                    end
                 end
-
             else
                 d="$dir/$name"*"_vnscf_"*"$newst"*"_"*"$n"        
-                if isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")
-                    push!(already_done, d)
+                if dft_only
+                    if isdir(d*"/qe.save")
+                        push!(already_done, d)
+                    else
+                        push!(not_done, d)
+                    end
                 else
-                    push!(not_done, d)
+                    if isfile(d*"/projham_K.xml") ||  isfile(d*"/projham_K.xml.gz")
+                        push!(already_done, d)
+                    else
+                        push!(not_done, d)
+                    end
                 end
             end
         end
@@ -789,6 +804,13 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         else
             println("not done yet")
         end
+        
+        if dft_only
+            if isdir(d*"/qe.save")
+                continue
+            end
+        end
+
         #######################
 
 
@@ -1762,7 +1784,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     if calc_mode == "nscf"
 
                         try
-                            tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
+                            if !dft_only 
+                                tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
+                            end
                         catch err3
                             println("err3")
                             println(err3)
@@ -1774,8 +1798,10 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d2", tmpdir="$d2", wannier=false, code="QE", skip=true, cleanup=true, magnetic=false)
                         if calc_mode == "nscf"
                             try
-                                tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d2, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
-                            catch err3
+                                if !dft_only 
+                                    tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d2, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=only_kspace, min_nscf = min_nscf)
+                                end
+                                catch err3
                                 println("err3")
                                 println(err3)
                                 println("skip nscf $i ")##
