@@ -2859,7 +2859,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     repel_vals[a1] += repel_short_dist_fn(dist, d, lim) * 0.1
                     repel_vals[a2] += repel_short_dist_fn(dist, d, lim) * 0.1
 
-                    println("repel_2 ", repel_vals)
+#                    println("repel_2 ", repel_vals)
                 end
                 
             else
@@ -2984,7 +2984,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         repel_vals[a2] += rvals[3] * 0.1
                         repel_vals[a3] += rvals[3] * 0.1
 
-                        println("repel_3 ", repel_vals)
+#                        println("repel_3 ", repel_vals)
                         
                     end
                     
