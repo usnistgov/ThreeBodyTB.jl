@@ -288,6 +288,10 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
    
     println("Relax done")
 
+    println("energy $energy")
+    println("force ", force)
+    println("stress ", stress)
+    
 #    println("Calculate final energy")
 #
 #    energy_tot, tbc, conv_flag = scf_energy(cfinal; database=database, smearing=0.01, grid = missing)
@@ -302,9 +306,6 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy, cfinal)), digits=3) , " $global_energy_units/atom" )
     println()
 
-    energy = convert_energy(energy)
-    force = convert_force(force)
-    stress = convert_stress(stress)
 
     println()
     println("---------------------------------")
@@ -312,6 +313,11 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
     
     print_with_force_stress(cfinal, force, stress)
     println()
+
+    energy = convert_energy(energy)
+    force = convert_force(force)
+    stress = convert_stress(stress)
+
 
 
     
