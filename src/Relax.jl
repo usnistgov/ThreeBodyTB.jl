@@ -28,8 +28,8 @@ using ..Classical:energy_force_stress_cl
 
 export relax_structure
 
-using ..ThreeBodyTB:global_length_units
-using ..ThreeBodyTB:global_energy_units
+#using ..ThreeBodyTB:global_length_units
+#using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:set_units
 
 
@@ -43,10 +43,11 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 
     
-    old_units = [deepcopy(global_energy_units), deepcopy(global_length_units)]
-
-
+#    old_units = [deepcopy(global_energy_units), deepcopy(global_length_units)]
+    
+    old_units = set_units()
     set_units(both="atomic")
+#    set_units(both="atomic")
 
     
     if update_grid==false
@@ -431,7 +432,8 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     
 
     set_units(energy=old_units[1], length=old_units[2])
-
+    #global_energy_units = old_units[1]
+    #global_length_units = old_units[2]
     
     return cfinal, tbc, energy, f_cart_global, stress_global
 

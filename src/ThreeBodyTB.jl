@@ -116,28 +116,6 @@ export plot
 include("FitTB_laguerre.jl")
 
 
-
-
-
-include("MyOptim.jl")
-
-include("Relax.jl")
-using .CrystalMod:print_with_force_stress
-
-include("compile.jl")
-
-export scf_energy
-export scf_energy_force_stress
-export relax_structure
-
-
-
-#function amiworking()
-#    println("yes")
-#    pwd()
-#    println(pwd())
-#end
-
 """
     function set_units(;energy=missing, length=missing, both=missing)
 
@@ -197,6 +175,28 @@ function set_units(a=missing;energy=missing, length=missing, both=missing)
     return deepcopy(global_energy_units), deepcopy(global_length_units)
     
 end
+
+
+
+include("MyOptim.jl")
+
+include("Relax.jl")
+using .CrystalMod:print_with_force_stress
+
+include("compile.jl")
+
+export scf_energy
+export scf_energy_force_stress
+export relax_structure
+
+
+
+#function amiworking()
+#    println("yes")
+#    pwd()
+#    println(pwd())
+#end
+
 
 
 """
