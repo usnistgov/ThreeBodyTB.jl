@@ -2928,10 +2928,12 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
             #        end
 
             if test_frontier                 ##############
-                if dist > 5.25 || dist31 > 5.25 || dist32 > 5.25
+
+                if dist > 7.0 || dist31 > 7.0 || dist32 > 7.0
                     continue
                 end
-
+#                println("check $t1 $t2 $t3 $dist $dist31 $dist32")
+                
                 if haskey(frontier, (t1,t2,t3))
 
                     if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
@@ -2955,18 +2957,35 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
                             vio = false
                         end
-                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
-                            vio_lim = false
-                        end
+#                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
+#                            vio_lim = false
+                        #                        end
+                        
                     end
 
-                    if vio_lim == true
-                        #                    println("vio_lim true")
+#=                    vio = false
+                    vio_lim = false
+                    for f in vals
+
+                        if dist <= f[1]-1e-5 && dist31 <= f[2]-1e-5 && dist32 <= f[3]-1e-5
+                            vio = true
+                        end
+                        if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim)
+                            vio_lim = true
+                        end
+                    end
+=#
+
+
+                    
+#=                    if vio_lim == true
+                        
                         rsum = 10000000.0
                         rvals = zeros(var_type, 3)
                         for f in vals
                             if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
-                                #                            println("dist $dist $dist31 $dist32 " , f)
+#                                println("$lim dist $dist $dist31 $dist32 " , f, " ", dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim), " ", [dist <= f[1]*(1+lim) , dist31 <= f[2]*(1+lim) , dist32 <= f[3]*(1+lim)])
+
 
                                 rvals_t = [repel_short_dist_fn(dist, f[1], lim),repel_short_dist_fn(dist31, f[2], lim),repel_short_dist_fn(dist32, f[3], lim)]
                                 if sum(rvals_t) < rsum
@@ -2987,13 +3006,13 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 #                        println("repel_3 ", repel_vals)
                         
                     end
-                    
+  =#                  
 
                     
                     
                     if vio
                         threebody_test = false
-
+                        
                         need = true
                         for v in violation_list
                             if t1 == v[1] && t2 == v[2] && t3 == v[3] && abs(dist - v[4]) < 1e-5 && abs(dist31 - v[5]) < 1e-5 && abs(dist32 -v[6]) < 1e-5
@@ -6195,7 +6214,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
                 if key == Set(key2)
                     if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
                         println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors")
-                        println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                        println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist, "   key $key key2 $key2")
                         within_fit = false
                     end
                 end
@@ -6809,6 +6828,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         #    if false
         #println("check ---------------------------------")
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type)
+
         if vio_bool == false 
             within_fit = false
         end
@@ -7348,7 +7368,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     if key == Set(key2)
                         if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
                             println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors")
-                            println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                            println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist, "   key $key key2 $key2")
+                            #println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
                             within_fit = false
                         end
                     end
@@ -7368,8 +7389,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     if verbose println("check_frontier") end
     if !ismissing(database) && check_frontier
         #    if false
-        #println("check ---------------------------------")
+#        println("check ---------------------------------")
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
+#        println("repel ", repel_vals)
         if vio_bool == false 
             within_fit = false
         end
