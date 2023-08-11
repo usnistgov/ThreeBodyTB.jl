@@ -774,7 +774,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
         println("(Pre-)Calculate Jacobian of TB object")
-        @time begin
+        begin
 
             #println("ew")
             EW = begin
@@ -889,7 +889,9 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 gatom = zeros(FloatX,2*size_ret+1 ,3)
                 gstress = zeros(FloatX,2*size_ret+1 ,6)
             end
+            print("atom ")
             for atom in 0:ct.nat
+                print("$atom ")
                 ATOM=atom
                 if atom >= 1
                     ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
@@ -903,7 +905,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 #println("sum abs gz ", sum(abs.(g)))
                 for FIND in find
 
-                    
+                    #println("FIND $FIND")
                     VALS0 .= 0.0
                     
                     hr_g .= 0.0
@@ -921,6 +923,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     end
                     
                     #println("fft ", size(hr_g))
+                    #println("fft")
                     begin 
 
                         h = @spawn begin
@@ -936,10 +939,11 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                         wait(s)
                     end
 
-                    #                println("psi")
+                    #println("psi")
                     psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)            
 
                     #println("atom $atom sum vals ", sum(VALS0))
+                    #println("sum")
                     if atom >= 1
                         garr[3*(atom-1) + FIND] += sum(VALS0) 
                     else
@@ -948,6 +952,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     
                 end #end FIND
             end
+            println()            
             if scf
                 garr += g_ew[1,:][:]
             end
