@@ -627,7 +627,10 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             scf = false
         end
         
-        dontcheck = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+
+        dontcheck = dontcheck && sum_repel
+        
 #        println("dontcheck $dontcheck")
         
         function ham(x :: Vector)
@@ -978,7 +981,9 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
             scf = false
         end
         
-        dontcheck = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+
+        dontcheck = dontcheck && sum_repel
 #        println("dontcheck $dontcheck")
         
 

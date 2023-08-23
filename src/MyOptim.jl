@@ -3,7 +3,7 @@ module MyOptim
 using LinearAlgebra
 using Suppressor
 
-function conjgrad(fn, grad, x0; maxstep=2.0, niters=50, conv_thr = 1e-2, fn_conv = 1e-4, verbosity="low")
+function conjgrad(fn, grad, x0; maxstep=1.0, niters=50, conv_thr = 1e-2, fn_conv = 1e-4, verbosity="low")
 
     println()
     println("Conj Grad START")
@@ -29,7 +29,7 @@ function conjgrad(fn, grad, x0; maxstep=2.0, niters=50, conv_thr = 1e-2, fn_conv
 
     s = deepcopy(dx)
     
-    step_size = maxstep/10.0
+    step_size = maxstep/5.0
 
 #    println("CG RUN LS1")
 

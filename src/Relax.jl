@@ -405,7 +405,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #    println("fn ", fn(x0))
     
 
-    minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=5.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr, verbosity="low")
+    minvec, energy, grad = conjgrad(fn, grad, x0; maxstep=1.0, niters=nsteps, conv_thr = conv_thr, fn_conv = energy_conv_thr, verbosity="low")
 
 ##    end
 
@@ -556,7 +556,7 @@ function make_random_crystal(types; database=missing)
         
         crys = makecrys(A, c, types, units="Bohr")
         
-        within_fit = calc_tb_LV(crys*0.97, db, check_only=true)
+        within_fit, rsum = calc_tb_LV(crys*0.97, db, check_only=true)
         if within_fit
             return crys * 1.03
         end

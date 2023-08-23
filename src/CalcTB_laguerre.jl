@@ -155,6 +155,8 @@ struct coefs
 #    maxmin_val_train::Dict
     dist_frontier::Dict
     version::Int64
+    lim::Dict
+    repval::Dict
     
 end
 
@@ -224,7 +226,15 @@ function write_coefs(filename, co::coefs; compress=true)
 #    println("type ", typeof(co.maxmin_val_train))
     
 #    addelement!(c, "maxmin_val_train", dict2str(co.maxmin_val_train))
-    addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
+    if !isempty(co.dist_frontier)
+        addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
+    end
+    if !isempty(co.lim)
+        addelement!(c, "lim", dict2str(co.lim))
+    end
+    if !isempty(co.repval)
+        addelement!(c, "repval", dict2str(co.repval))
+    end
     
 
     if compress
@@ -303,15 +313,35 @@ function read_coefs(filename, directory = missing)
 #    println(d["coefs"]["maxmin_val_train"])
     
 #    maxmin_val_train = str2tuplesdict(d["coefs"]["maxmin_val_train"])
-    dist_frontier = str2tuplesdict(eval(d["coefs"]["dist_frontier"]))
 
+#    println("dist")
+#    println(d["coefs"]["dist_frontier"])
+#    println(eval(d["coefs"]["dist_frontier"]))
+#    println()
+    if haskey(d["coefs"], "dist_frontier")
+        dist_frontier = str2tuplesdict(eval(d["coefs"]["dist_frontier"]))
+    else
+        dist_frontier = missing
+    end
+    
     version = 1
     if "version" in keys(d["coefs"])
         version = parse(Int64, d["coefs"]["version"])
     end
 #    println("version $version")
-    
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version)
+
+    if haskey(d["coefs"], "lim")
+        lim = str2tuplesdict(eval(d["coefs"]["lim"]))
+    else
+        lim = missing
+    end
+    if haskey(d["coefs"], "repval")
+        repval = str2tuplesdict(eval(d["coefs"]["repval"]))
+    else
+        repval = missing
+    end
+        
+    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval)
 
     return co
     
@@ -326,7 +356,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -477,7 +507,64 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
 
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version)
+    if ismissing(lim)
+        lim = Dict()
+    end
+    if ismissing(repval)
+        repval = Dict()
+    end
+    
+    if dim == 2
+        at_arr = Symbol.([i for i in at_list])
+        if length(at_list) == 1
+            at_arr = [(at_arr[1], at_arr[1])]
+        else
+            at_arr = [(at_arr[1], at_arr[2]), (at_arr[2], at_arr[1])]
+        end
+
+        for a in at_arr
+            #println("a $a")
+            println(typeof(a))
+            if !haskey(lim, a)
+                lim[a] = 0.02
+            end
+            if !haskey(repval, a)
+                repval[a] = 0.01
+            end
+        end
+    elseif dim == 3
+        at_arr = Symbol.([i for i in at_list])
+        if length(at_list) == 1
+            at_arr = [(at_arr[1], at_arr[1], at_arr[1])]
+        elseif length(at_list) == 2
+            at_arr = [(at_arr[1], at_arr[1], at_arr[2]),
+                      (at_arr[1], at_arr[2], at_arr[1]),
+                      (at_arr[2], at_arr[1], at_arr[1]),
+                      (at_arr[1], at_arr[2], at_arr[2]),
+                      (at_arr[2], at_arr[1], at_arr[2]),
+                      (at_arr[2], at_arr[2], at_arr[1])]
+        elseif length(at_list) == 3
+            at_arr = [(at_arr[1], at_arr[2], at_arr[3]), 
+                      (at_arr[1], at_arr[3], at_arr[2]),
+                      (at_arr[2], at_arr[1], at_arr[3]),
+                      (at_arr[2], at_arr[3], at_arr[1]),
+                      (at_arr[3], at_arr[1], at_arr[2]),
+                      (at_arr[3], at_arr[2], at_arr[1]),
+                      ]
+        end
+
+        for a in at_arr
+            if !haskey(lim,a)
+                #println("add $a")
+                lim[a] = 0.04
+            end
+            if !haskey(repval,a)
+                repval[a] = 0.001
+            end
+        end
+    end
+    
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval)
 
 end
     
@@ -1862,7 +1949,7 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
     end
     
     if check_only==true
-        return within_fit
+        return within_fit, sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))
@@ -2398,7 +2485,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
         end
     end
     if check_only==true
-        return within_fit
+        return within_fit, sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))
@@ -2775,7 +2862,8 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
     end
 
     lim = 0.04
-    
+    repval = 0.001
+        
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     #use_threebody=true
 
@@ -2852,12 +2940,24 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     end
                 end
 
+                if frontier[(t1,t2)].lim[(t1,t2)] > -1e-12
+                    lim = frontier[(t1,t2)].lim[(t1,t2)]
+                else
+                    lim = 0.04
+                end
+
+                if frontier[(t1,t2)].repval[(t1,t2)] > -1e-12
+                    repval = frontier[(t1,t2)].repval[(t1,t2)]
+                else
+                    repval = 0.001
+                end
+                
                 if !ismissing(d) && dist < d*(1+lim) && dist > 0.1
 #                    println("type of repel_vals[a1] ", typeof(repel_vals[a1]))
 #                    println("type fo repel ", typeof(repel_short_dist_fn(dist, d, lim) * 0.1))
 
-                    repel_vals[a1] += repel_short_dist_fn(dist, d, lim) * 0.1
-                    repel_vals[a2] += repel_short_dist_fn(dist, d, lim) * 0.1
+                    repel_vals[a1] += repel_short_dist_fn(dist, d, lim) * repval
+                    repel_vals[a2] += repel_short_dist_fn(dist, d, lim) * repval
 
 #                    println("repel_2 ", repel_vals)
                 end
@@ -2936,6 +3036,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                 
                 if haskey(frontier, (t1,t2,t3))
 
+                   
                     if !isa(frontier[(t1,t2,t3)], Array) ####&& !ismissing(frontier[(t1,t2)])
                         #                if typeof(frontier[(t1,t2,t3)]) == coefs
                         if ismissing(frontier[(t1,t2,t3)].dist_frontier) || !( (t1,t2,t3) in keys(frontier[(t1,t2,t3)].dist_frontier))
@@ -2947,6 +3048,19 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         vals = frontier[(t1,t2,t3)]
                     end
 
+                    if frontier[(t1,t2,t3)].lim[(t1,t2,t3)] > -1e-12
+                        lim = frontier[(t1,t2,t3)].lim[(t1,t2,t3)]
+                    else
+                        lim = 0.04
+                    end
+
+                    if frontier[(t1,t2,t3)].repval[(t1,t2,t3)] > -1e-12
+                        repval = frontier[(t1,t2,t3)].repval[(t1,t2,t3)]
+                    else
+                        repval = 0.001
+                    end
+
+                    
                     vio = true
                     vio_lim = true
                     for f in vals
@@ -2957,9 +3071,9 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
                             vio = false
                         end
-#                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
-#                            vio_lim = false
-                        #                        end
+                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
+                            vio_lim = false
+                        end
                         
                     end
 
@@ -2978,7 +3092,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
 
 
                     
-#=                    if vio_lim == true
+                    if vio_lim == true
                         
                         rsum = 10000000.0
                         rvals = zeros(var_type, 3)
@@ -2994,19 +3108,19 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                                 end
                             end
                         end
-                        repel_vals[a1] += rvals[1] * 0.1
-                        repel_vals[a2] += rvals[1] * 0.1
+                        repel_vals[a1] += rvals[1] * repval
+                        repel_vals[a2] += rvals[1] * repval
                         
-                        repel_vals[a1] += rvals[2] * 0.1
-                        repel_vals[a3] += rvals[2] * 0.1
+                        repel_vals[a1] += rvals[2] * repval
+                        repel_vals[a3] += rvals[2] * repval
                         
-                        repel_vals[a2] += rvals[3] * 0.1
-                        repel_vals[a3] += rvals[3] * 0.1
+                        repel_vals[a2] += rvals[3] * repval
+                        repel_vals[a3] += rvals[3] * repval
 
 #                        println("repel_3 ", repel_vals)
                         
                     end
-  =#                  
+                    
 
                     
                     
@@ -6246,7 +6360,7 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
     
     
     if check_only==true
-        return within_fit
+        return within_fit, sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))
@@ -6839,7 +6953,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 #    println("repel_vals ", repel_vals)
     
     if check_only==true
-        return within_fit
+        return within_fit, sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))
@@ -7403,7 +7517,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     #    println("repel_vals ", repel_vals)
     
     if check_only==true
-        return within_fit
+        println("repel_vals ", repel_vals)
+        return within_fit, sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))
@@ -7754,7 +7869,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 
                 #                for mc in meta_count #@threads 
                 #                    for counter in mc
-                @time for  counter = 1: (size(array_ind3)[1] ) #add threads back
+                for  counter = 1: (size(array_ind3)[1] ) #add threads back
                     
                     id = threadid()
 
@@ -8140,7 +8255,7 @@ end
 function core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread)
 
     #@inbounds @fastmath @simd     
-    @inbounds @simd for o1x = 1:norb[a1]
+    @inbounds @fastmath @simd for o1x = 1:norb[a1]
 
         o1 = orbs_arr[a1,o1x,1]
         s1 = orbs_arr[a1,o1x,2]

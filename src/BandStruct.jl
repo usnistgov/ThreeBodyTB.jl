@@ -753,9 +753,12 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
     for t in tbc.crys.types
         atom = atoms[t]
         nsemi += atom.nsemicore
+        println("add $atom $(atom.nsemicore)")
     end
     nsemi = Int64(nsemi / 2)
 
+    println("nelec $nelec, nsemi = $(nsemi*2)")
+    
     efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
     

@@ -122,7 +122,8 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
             scf = false
         end
         
-        dontcheck = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        dontcheck = dontcheck && sum_repel
 #        println("dontcheck $dontcheck")
         
 
@@ -721,7 +722,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
                 else
 #                    println("calc_energy_charge_fft")
-                    energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
+                    energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing, repel=repel)
                 end
                 if error_flag
                     println("warning, trouble with eigenvectors/vals in initial step get_energy_force_stress")
@@ -763,8 +764,11 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
             scf = false
         end
         
-        dontcheck = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
-#        println("dontcheck $dontcheck")
+        dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        println("dc $dontcheck sum_repel $sum_repel")
+        dontcheck = dontcheck && sum_repel
+
+        println("dontcheck $dontcheck")
         
 
         chunksize=min(15, 3*ct.nat + 6)        

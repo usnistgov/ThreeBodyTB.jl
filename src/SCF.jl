@@ -98,7 +98,7 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
     end
     
-    #println("calc tb")
+    println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
     #println("asdf ", tbc.eden, ", tc ", tot_charge)
     #println("lowmem")
