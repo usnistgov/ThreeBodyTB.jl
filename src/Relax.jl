@@ -9,7 +9,7 @@ using ..CrystalMod:crystal
 using ..CrystalMod:print_with_force_stress
 using ..CrystalMod:makecrys
 using ..CrystalMod:write_axsf
-using ..CalcTB:calc_tb_lowmem2
+#using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_LV
 using ..Atomdata:atom_radius
 
