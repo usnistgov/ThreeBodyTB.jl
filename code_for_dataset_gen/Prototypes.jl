@@ -171,7 +171,7 @@ function setup_proto_data()
 
     CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "scf", "nscf", false]
 
-    CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "scf", "nscf", false]
+    CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2", "nscf", false]
     CalcD["line_rumple"] = ["$STRUCTDIR/line.in.rumple.up", "vc-relax", "z", "scf", "nscf", false]
 
 
@@ -534,7 +534,7 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense"]
+    core_mono = [     "sc", "atom",     "bcc",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line", "b6" ]
 
 
 
@@ -656,7 +656,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         if newst == "vol"
             ncalc = length([ 0.95 1.0 1.05])
         elseif newst == "vol2"
-            ncalc = length([ 0.95 1.0 ])
+            ncalc = length([ 0.90 0.95 1.0 ])
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
         elseif newst == "vol-mag"
@@ -917,7 +917,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "vol2"
-                for x in [ 0.95 1.0 ]
+                for x in [ 0.9 0.95 1.0 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
