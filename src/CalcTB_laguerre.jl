@@ -4935,7 +4935,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
             DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
 
-            RHO = zeros(Float64, crys.nat, 2, types_counter)
+            RHO = zeros(var_type, crys.nat, 2, types_counter)
 
             
             cutoff_arr = zeros(crys.nat, crys.nat, 2)
