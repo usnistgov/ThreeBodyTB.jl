@@ -8112,15 +8112,16 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
                 temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
             end
 
+            temp3 = 0.0
             if (sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3)
                 for n = 1:5 #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+5]  ]
+                    temp3 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+5]  ]
                 end
-                temp2 = temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
+                temp3 = temp3 * symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
 
             end
 
-            H[ o1, o2, c_zero] += (temp1 + temp2)  * cut_on
+            H[ o1, o2, c_zero] += (temp1 + temp2 + temp3)  * cut_on
 
             #if abs((temp1 + temp2)) > 1e-5
             #    println("$c_zero, $a1, $a2, $t1, $t2, $(temp1 + temp2)   $cut_on")
