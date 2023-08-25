@@ -357,7 +357,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=false)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=true)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -2372,7 +2372,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     at_set = Set((c, c2, c3))
                     if !haskey(threebody_arrays, at_set)
 #                        println("3bdy $at_set")
-                        coef = make_coefs(at_set, 3, use_eam=false)
+                        coef = make_coefs(at_set, 3, use_eam=true)
                         hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                        hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 
