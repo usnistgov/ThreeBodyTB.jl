@@ -4009,7 +4009,7 @@ end
 
 
 
-function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
+function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list, use_eam, lj_repel)
 
     NWAN_MAX = maximum(ind_BIG[:,3])
     SPIN_MAX= maximum(SPIN)
@@ -4929,7 +4929,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
     end
     println("end add data etc 1")
     println("prepare rec data 1")
-    @time ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list, use_eam=use_eam, lj_repel=lj_repel)
+    @time ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list, use_eam, lj_repel)
     println("end prepare rec data 1")
 
     DQ_ref = deepcopy(DQ)
@@ -5073,7 +5073,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
 
         println("prepare_rec_data")
-        @time @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list)
+        @time @suppress ENERGIES, WEIGHTS, OCCS, VALS, H1, DQ, E_DEN, H1spin, VALS0, ENERGY_SMEAR, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, NVAL, NAT =     prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_BIG, nk_max, fit_to_dft_eigs, scf, RW_PARAM, weights_list, use_eam, lj_repel)
         println("end rec data")
 
         DQ_ref = deepcopy(DQ)
