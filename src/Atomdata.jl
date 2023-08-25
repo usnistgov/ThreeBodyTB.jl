@@ -6,6 +6,7 @@ Holds the data for isolated atoms.
 module Atomdata
 using ..AtomicMod:makeatom
 using ..ThreeBodyTB:SRCDIR
+using ..Base.Threads
 #using ..Atomic:AtomicMod
 
 
@@ -819,6 +820,12 @@ uniform_charge_interaction["Zr"] = 47.98040111573924
 for key in keys(uniform_charge_interaction)
     uniform_charge_interaction[Symbol(key)] = uniform_charge_interaction[key]
 end
+
+#println("begin pair")
+dimer_dist_dict = Dict()
+dimer_energy_dict = Dict()
+include("Pairdata.jl")
+#println("end pair")
 
 
 end #ends module

@@ -54,22 +54,22 @@ function test1()
             database[(:Li, :Li)] = co
             
 
-            tbc0 = ThreeBodyTB.CalcTB.calc_tb_LV(c0, database, use_threebody=false);
+            tbc0 = ThreeBodyTB.CalcTB.calc_tb_LV(c0, database, use_threebody=false, use_threebody_onsite=false);
 
-            tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=false);
-            tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=false);
-            tbc3 = ThreeBodyTB.CalcTB.calc_tb_LV(c3, database, use_threebody=false);
-            tbc4 = ThreeBodyTB.CalcTB.calc_tb_LV(c4, database, use_threebody=false);
-            tbc4a = ThreeBodyTB.CalcTB.calc_tb_LV(c4a, database, use_threebody=false);
-            tbc4b = ThreeBodyTB.CalcTB.calc_tb_LV(c4b, database, use_threebody=false);
-            tbc4c = ThreeBodyTB.CalcTB.calc_tb_LV(c4c, database, use_threebody=false);
-            tbc4d = ThreeBodyTB.CalcTB.calc_tb_LV(c4d, database, use_threebody=false);
-            tbc5 = ThreeBodyTB.CalcTB.calc_tb_LV(c5, database, use_threebody=false);
-            tbc6 = ThreeBodyTB.CalcTB.calc_tb_LV(c6, database, use_threebody=false);
-            tbc7 = ThreeBodyTB.CalcTB.calc_tb_LV(c7, database, use_threebody=false);
-            tbc8 = ThreeBodyTB.CalcTB.calc_tb_LV(c8, database, use_threebody=false);
-            tbc9 = ThreeBodyTB.CalcTB.calc_tb_LV(c9, database, use_threebody=false);
-            tbc10 = ThreeBodyTB.CalcTB.calc_tb_LV(c10, database, use_threebody=false);
+            tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=false, use_threebody_onsite=false);
+            tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=false, use_threebody_onsite=false);
+            tbc3 = ThreeBodyTB.CalcTB.calc_tb_LV(c3, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4 = ThreeBodyTB.CalcTB.calc_tb_LV(c4, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4a = ThreeBodyTB.CalcTB.calc_tb_LV(c4a, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4b = ThreeBodyTB.CalcTB.calc_tb_LV(c4b, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4c = ThreeBodyTB.CalcTB.calc_tb_LV(c4c, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4d = ThreeBodyTB.CalcTB.calc_tb_LV(c4d, database, use_threebody=false, use_threebody_onsite=false);
+            tbc5 = ThreeBodyTB.CalcTB.calc_tb_LV(c5, database, use_threebody=false, use_threebody_onsite=false);
+            tbc6 = ThreeBodyTB.CalcTB.calc_tb_LV(c6, database, use_threebody=false, use_threebody_onsite=false);
+            tbc7 = ThreeBodyTB.CalcTB.calc_tb_LV(c7, database, use_threebody=false, use_threebody_onsite=false);
+            tbc8 = ThreeBodyTB.CalcTB.calc_tb_LV(c8, database, use_threebody=false, use_threebody_onsite=false);
+            tbc9 = ThreeBodyTB.CalcTB.calc_tb_LV(c9, database, use_threebody=false, use_threebody_onsite=false);
+            tbc10 = ThreeBodyTB.CalcTB.calc_tb_LV(c10, database, use_threebody=false, use_threebody_onsite=false);
             
             tbc_list = [tbc0, tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc10,tbc4a, tbc4b, tbc4c, tbc4d]
 

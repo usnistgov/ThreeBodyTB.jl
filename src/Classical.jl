@@ -91,6 +91,9 @@ using ..CrystalMod:cutoff4X
 using ..Utility:reshape_vec
 using ..Atomdata:get_cutoff
 
+using ..Atomdata:dimer_dist_dict
+using ..Atomdata:dimer_energy_dict
+
 using ..DFToutMod:dftout
 
 #const cutoff2X = 18.51 
@@ -801,7 +804,7 @@ end
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true, lj_repel = 0.05)
 
     no_errors = true
     
@@ -977,7 +980,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         end
     end
     
-
+    
     badlist = Set()
 
     if verbose; println("setup database stuff"); end

@@ -77,7 +77,8 @@ using Plots
 #include("Atomdata.jl")
 using ..Atomdata:atoms
 using ..Atomdata:get_cutoff
-
+using ..Atomdata:dimer_energy_dict
+using ..Atomdata:dimer_dist_dict
 
 #constants
 
@@ -2249,8 +2250,10 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, use_eam = false)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, use_eam = false, lj_repel=0.05)
 
+#    lj_repel=0.0
+    
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
 #    println()
@@ -2383,7 +2386,18 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     end
 
 
+    lj_sigma = zeros(crys.nat, crys.nat)
+    lj_eps = zeros(crys.nat, crys.nat)
+    for a1 in 1:crys.nat
+        for a2 in 1:crys.nat
+            s1 = crys.stypes[a1]
+            s2 = crys.stypes[a2]
+            lj_eps[a1,a2] = -dimer_energy_dict[s1,s2] / 2.0
+            lj_sigma[a1,a2] = dimer_dist_dict[s1,s2] / (2^(1/4))
+        end
+    end
 
+    
     hvec = zeros(var_type, nkeep*nwan*nwan)
     svec = zeros(var_type, nkeep*nwan*nwan)
     dist2 = zeros(var_type,  nkeep*nwan*nwan)
@@ -2562,6 +2576,17 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             at_set3 = Set((t1, t2, t3))
 
+            if use_threebody_onsite
+                lj_val = lj_repel * 8 * (lj_eps[a1,a2]+lj_eps[a1,a3]+lj_eps[a2,a3]) * ( (dist/lj_sigma[a1,a2] + dist31/lj_sigma[a1,a3] + dist32/lj_sigma[a2,a3])/2.0 )^(-8) * cut
+                lj_val += lj_repel * 8 * (lj_eps[a1,a2]+lj_eps[a1,a3] ) * ( (dist/lj_sigma[a1,a2] + dist31/lj_sigma[a1,a3])  )^(-8) * cut
+                for o1 = orb2ind[a1]
+                    ind = ind_conversion[(o1,o1,c_zero)]
+                    hvec[ind] -= lj_val
+                end
+                
+            end
+               
+            
             if use_threebody
 
                 for o1 = orb2ind[a1]
@@ -2683,8 +2708,16 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             if dist > 1e-5
                 RHO[a1,1,ct2] += lag_arr[1]*cut
                 RHO[a1,2,ct2] += lag_arr[2]*cut
-                println("add to rho $a1 ", [lag_arr[1]*cut, lag_arr[2]*cut])
+#                println("add to rho $a1 ", [lag_arr[1]*cut, lag_arr[2]*cut])
+                
+                lj_val = lj_repel * 4 * lj_eps[a1,a2] * (lj_sigma[a1,a2]/dist)^8 * cut
+                for o1 = orb2ind[a1]
+                    ind = ind_conversion[(o1,o1,c_zero)]
+                    hvec[ind] -= lj_val
+                end
+                
             end
+
             
             
             for o1 = orb2ind[a1]
@@ -2741,25 +2774,25 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         end
 
         if use_eam
-            println("add rho prepare")
+#            println("add rho prepare")
             for a = 1:crys.nat
                 t1 = crys.stypes[a]
-                println("rho $a ", RHO[a,1,1],  " ",  RHO[a,2,1])
+#                println("rho $a ", RHO[a,1,1],  " ",  RHO[a,2,1])
                 for t2n = 1:length(collect_types)
                     t2 = types_dict_reverse[t2n]
                     at_set = Set((t1,t2))
-                    println("at_set ", at_set)
+#                    println("at_set ", at_set)
                     coef = twobody_arrays[at_set][3]
 #                    println("coef ")
 #                    println(coef)
                     
                     io = coef.inds[[t2,:eam]]
-                    println("io ", io)
+#                    println("io ", io)
                     
                     for o1 = orb2ind[a]
 #                        o1 = orbs_arr[a,o1x,1]
                         ind = ind_conversion[(o1,o1,c_zero)]
-                        println("o1 $o1 ind $ind ")
+#                        println("o1 $o1 ind $ind ")
                         twobody_arrays[at_set][1][ind,io] +=  [RHO[a,1,t2n]^2, RHO[a,1,t2n]^3, RHO[a,2,t2n]^2, RHO[a,2,t2n]^3, RHO[a,1,t2n] * RHO[a,2,t2n]]
                     end
                 end
@@ -4700,8 +4733,9 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, lj_repel=0.05 )
 
+#    lj_repel=0.0
 
     #        verbose=true
     #    println("test")
@@ -4862,7 +4896,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
 
 
-
+    
 
 
     if !ismissing(database)
@@ -4882,6 +4916,18 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 end
                 types_arr[a] = types_dict[crys.stypes[a]]
             end
+
+            lj_sigma = zeros(crys.nat, crys.nat)
+            lj_eps = zeros(crys.nat, crys.nat)
+            for a1 in 1:crys.nat
+                for a2 in 1:crys.nat
+                    s1 = crys.stypes[a1]
+                    s2 = crys.stypes[a2]
+                    lj_eps[a1,a2] = -dimer_energy_dict[s1,s2] / 2.0
+                    lj_sigma[a1,a2] = dimer_dist_dict[s1,s2] / (2^(1/4))
+                end
+            end
+
             
             orbs_arr = zeros(Int64, crys.nat, 9, 3)
             DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 33 )
@@ -5092,6 +5138,13 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                             RHO[a1,1,t2] += lag_arr[1]*cut_on
                             RHO[a1,2,t2] += lag_arr[2]*cut_on
+
+                            #leonard jones 2 body repel
+                            lj_val = lj_repel * 4 * lj_eps[a1,a2] * (lj_sigma[a1,a2]/dist_a)^8 * cut_on
+                            for o1x = 1:norb[a1]
+                                o1 = orbs_arr[a1,o1x,1]
+                                H[o1, o1, c_zero] += lj_val
+                            end
                             
                             core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS)
                             core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS)
@@ -5103,9 +5156,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 end
             end
 
-            println("add rho")
+#            println("add rho")
             for a = 1:crys.nat
-                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
+#                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
                 t1 = crys.stypes[a]
                 for t2n = 1:types_counter
                     t2 = types_dict_reverse[t2n]
@@ -5126,6 +5179,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         end
 
 
+        
         
         
         #                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
@@ -5202,17 +5256,14 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     t2s = crys.stypes[a2]
                     t3s = crys.stypes[a3]
 
-                    if !haskey(database, (t1s, t2s, t3s))
-                        continue
-                    end
 
                     t1 = types_arr[a1]
                     t2 = types_arr[a2]
                     t3 = types_arr[a3]
+
+
                     
-                    if (t1,t2,t3) in badlist
-                        continue
-                    end
+
                     
                     lmn12 = lmn_arr_TH_1[:,id]
                     lmn13 = lmn_arr_TH_2[:,id]
@@ -5259,6 +5310,26 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         
                     end
 
+                    if use_threebody_onsite
+                        #leonard jones 3 body repel
+                        lj_val = lj_repel * 8 * (lj_eps[a1,a2]+lj_eps[a1,a3]+lj_eps[a2,a3]) * ( (dist12/lj_sigma[a1,a2] + dist13/lj_sigma[a1,a3] + dist23/lj_sigma[a2,a3])/2.0 )^(-8) * cut_h
+                        lj_val += lj_repel * 8 * (lj_eps[a1,a2]+lj_eps[a1,a3] ) * ( (dist12/lj_sigma[a1,a2] + dist13/lj_sigma[a1,a3])  )^(-8) * cut_h
+                        for o1x = 1:norb[a1]
+                            o1 = orbs_arr[a1,o1x,1]
+                            H[o1, o1, c_zero] += lj_val
+#                            println("add lj_val $a1 $lj_val")
+                        end
+                    end
+                    
+                    if (t1,t2,t3) in badlist
+                        continue
+                    end
+
+                    if !haskey(database, (t1s, t2s, t3s))
+                        continue
+                    end
+
+                    
 #                    println("counter $counter $dist12 $dist13 $dist23 $cut_h $cut_o")
 
                     memory = memory_TH[:,id]
@@ -5287,6 +5358,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
 
                         core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
+                        
+                        
+                        
                     end
                 end
             end
