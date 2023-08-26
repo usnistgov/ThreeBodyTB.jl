@@ -2250,9 +2250,11 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, use_eam = false, lj_repel=0.05)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, use_eam = true, lj_repel=0.05)
 
 #    lj_repel=0.0
+
+    println("LJ_REPEL $lj_repel calc_tb_prepare_fast use_eam $use_eam")
     
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
@@ -2372,7 +2374,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     at_set = Set((c, c2, c3))
                     if !haskey(threebody_arrays, at_set)
 #                        println("3bdy $at_set")
-                        coef = make_coefs(at_set, 3, use_eam=true)
+                        coef = make_coefs(at_set, 3, use_eam=use_eam)
                         hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                        hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 
@@ -2714,6 +2716,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 for o1 = orb2ind[a1]
                     ind = ind_conversion[(o1,o1,c_zero)]
                     hvec[ind] -= lj_val
+                    h_onsite[o1,o1] += lj_val
                 end
                 
             end
@@ -2743,7 +2746,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
                         (h,s) = calc_onsite(t1,s1,s2)
 
-                        h_onsite[o1,o2] = h
+                        h_onsite[o1,o2] += h
 
                         hvec[ind] = hvec[ind] - h
                         svec[ind] = svec[ind] - s
@@ -4735,6 +4738,8 @@ end
 
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, lj_repel=0.05 )
 
+    println("LJ_REPEL $lj_repel calc_tb_LV")
+    
 #    lj_repel=0.0
 
     #        verbose=true
@@ -5156,21 +5161,23 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 end
             end
 
-#            println("add rho")
+            println("add rho")
             for a = 1:crys.nat
-#                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
+                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
                 t1 = crys.stypes[a]
                 for t2n = 1:types_counter
                     t2 = types_dict_reverse[t2n]
                     if [t2,:eam] in keys(database[(t1,t2)].inds)
                         eam_ind = database[(t1,t2)].datH[database[(t1,t2)].inds[[t2,:eam]]]
-#                        println("rho a $a ", RHO[a,1,t2n]," ", RHO[a,2,t2n])
+                        println("rho a $a ", RHO[a,1,t2n]," ", RHO[a,2,t2n])
                         for o1x = 1:norb[a]
                             o1 = orbs_arr[a,o1x,1]
 
                             H[ o1, o1, c_zero] += ( eam_ind[1] * RHO[a,1,t2n]^2 + eam_ind[2] * RHO[a,1,t2n]^3)
                             H[ o1, o1, c_zero] += ( eam_ind[3] * RHO[a,2,t2n]^2 + eam_ind[4] * RHO[a,2,t2n]^3)
                             H[ o1, o1, c_zero] += ( eam_ind[5] * RHO[a,1,t2n] * RHO[a,2,t2n])
+
+                            println([( eam_ind[1] * RHO[a,1,t2n]^2 + eam_ind[2] * RHO[a,1,t2n]^3),  ( eam_ind[3] * RHO[a,2,t2n]^2 + eam_ind[4] * RHO[a,2,t2n]^3),  ( eam_ind[5] * RHO[a,1,t2n] * RHO[a,2,t2n])])
                         end
                     end
                 end

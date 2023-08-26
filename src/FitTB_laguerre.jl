@@ -111,7 +111,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     for (c, tbc) in enumerate(list_of_tbcs)
         println(typeof(tbc))
         if ismissing(tbc) || typeof(tbc) == tb_crys_kspace{Float64}
-            println("calc fake tbc")
+            println("calc fake tbc $lj_repel")
             tbc_fake = calc_tb_LV(tbc.crys, repel=false, lj_repel=lj_repel) #we calculate the fake tbc in order to take the fourier transform.
             if tbc.nspin == 2
                 s = size(tbc_fake.tb.H)
@@ -179,8 +179,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
             @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, use_eam=use_eam, lj_repel=lj_repel)
         end
 
-#        println("hvec")
-#        println(hvec)
+        println("hvec ", sum(abs.(hvec)), " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+
         #            println("INDVEC ", INDvec)
         
         #take into account prefit information
@@ -546,7 +546,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
         if !ismissing(kpoints)
 
-#            println("fourier space $spin")
+            println("fourier space $spin")
 
             if tbc.nspin == 1
             @time X_Hnew, X_Snew, Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[1], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=1)  #get kspace
@@ -618,9 +618,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     flush(stdout)
     sleep(0.001)
 
-    @time X_Snew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1], snum_new)
+    @time X_Snew_BIG = zeros(Float64, size(Xc_Hnew_BIG)[1], snum_new)
     @time for (c,S) in enumerate(X_Snew_BIG_list)
-        X_Snew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(S)
+        X_Snew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float64.(S)
         S = []
     end
 
@@ -628,7 +628,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("calc cs")
     flush(stdout)
     sleep(0.001)
-    @time cs = X_Snew_BIG \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)
+    @time cs = X_Snew_BIG \ Float64.(Y_Snew_BIG  - Xc_Snew_BIG)
     YS_new = X_Snew_BIG * cs
     println("error fit S cs , ", sum( (YS_new  - (Y_Snew_BIG  - Xc_Snew_BIG)).^2))
     flush(stdout)
@@ -640,9 +640,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("assign memory H ", [ size(Xc_Hnew_BIG)[1],hnum_new])
     flush(stdout)
     sleep(0.001)
-    @time X_Hnew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1],hnum_new)
+    @time X_Hnew_BIG = zeros(Float64, size(Xc_Hnew_BIG)[1],hnum_new)
     @time for (c,H) in enumerate(X_Hnew_BIG_list)
-        X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(H)
+        X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float64.(H)
         H = []
     end
     X_Hnew_BIG_list = []
@@ -661,7 +661,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     end
     
     
-    @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
+    @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     flush(stdout)
@@ -764,10 +764,10 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     #   rind = 1:l
 
-        @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)[rind]
+        @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)[rind]
 
 
-        #        @time cs = X_Snew_BIG[rind,:] \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
+        #        @time cs = X_Snew_BIG[rind,:] \ Float64.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
@@ -870,7 +870,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, use_eam=use_eam)
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, use_eam=true)
     println("make_database")
     if ismissing(starting_database)
         database = Dict()
@@ -1093,6 +1093,9 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
     nk = size(kpoints)[1]
 
     println("fs prepare $nw $nk")
+    println("h_on")
+    println(h_on)
+    println()
 #    println(tbc)
 #    flush(stdout)
 #    sleep(0.001)
@@ -1431,7 +1434,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_eam=true, lj_repel=0.05)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0; 0.25 0.25 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_eam=true, lj_repel=0.05)
 
     if !ismissing(dft_list)
         println("top")
@@ -1441,7 +1444,8 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
     end
 
-
+    println("KPOINTS")
+    println(KPOINTS)
     
 #    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
     
@@ -1454,7 +1458,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
             starting_database_t = starting_database
         end
 
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, use_eam=use_eam, lj_repel=lj_repel)
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
@@ -1472,7 +1476,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = prepare_data
 
+    println("lj_repel $lj_repel")
     println("AAAAAAAA ch_lin ", ch_lin)
+
+    sleep(5)
     
     println("keepind " , length(keepind), " " , sum(keepind))
     println(keepind)
@@ -2640,7 +2647,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println(good)
         println("make database")
 
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], use_eam=use_eam)
 
         return database, chX
 
@@ -5137,7 +5144,7 @@ end
 
 
 
-function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64},4} }, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, ind_BIG::Array{Int64, 2}, KPOINTS, SPIN::Array{Int64,1}, ENERGIES::Array{Float64,1},ENERGY_SMEAR::Array{Float64,1}, WEIGHTS::Array{Float64, 4}, KWEIGHTS, energy_weight::Float64, weights_list::Array{Float64, 1}, lambda::Float64 , scf::Bool, list_of_tbcs::Array{tb_crys_kspace,1}, DQ::Array{Float64, 2}, X_Hnew_BIG::Array{Float32,2}, Xc_Hnew_BIG::Array{Float64,1}, keep_bool::Bool, h_on, VALS0::Array{Float64, 4} ; leave_out=-1)
+function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64},4} }, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, ind_BIG::Array{Int64, 2}, KPOINTS, SPIN::Array{Int64,1}, ENERGIES::Array{Float64,1},ENERGY_SMEAR::Array{Float64,1}, WEIGHTS::Array{Float64, 4}, KWEIGHTS, energy_weight::Float64, weights_list::Array{Float64, 1}, lambda::Float64 , scf::Bool, list_of_tbcs::Array{tb_crys_kspace,1}, DQ::Array{Float64, 2}, X_Hnew_BIG::Array{Float64,2}, Xc_Hnew_BIG::Array{Float64,1}, keep_bool::Bool, h_on, VALS0::Array{Float64, 4} ; leave_out=-1)
     
 
     #        nlam = 0
