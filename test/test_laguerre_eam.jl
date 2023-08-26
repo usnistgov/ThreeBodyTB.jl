@@ -53,28 +53,29 @@ function test1()
             #            co.datH[co.inds[[:Li, :eam]]] .= 1.0
             database[(:Li, :Li)] = co
             
+            lj_repel=0.05
+            
+            tbc0 = ThreeBodyTB.CalcTB.calc_tb_LV(c0, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
 
-            tbc0 = ThreeBodyTB.CalcTB.calc_tb_LV(c0, database, use_threebody=false, use_threebody_onsite=false);
-
-            tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=false, use_threebody_onsite=false);
-            tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=false, use_threebody_onsite=false);
-            tbc3 = ThreeBodyTB.CalcTB.calc_tb_LV(c3, database, use_threebody=false, use_threebody_onsite=false);
-            tbc4 = ThreeBodyTB.CalcTB.calc_tb_LV(c4, database, use_threebody=false, use_threebody_onsite=false);
-            tbc4a = ThreeBodyTB.CalcTB.calc_tb_LV(c4a, database, use_threebody=false, use_threebody_onsite=false);
-            tbc4b = ThreeBodyTB.CalcTB.calc_tb_LV(c4b, database, use_threebody=false, use_threebody_onsite=false);
-            tbc4c = ThreeBodyTB.CalcTB.calc_tb_LV(c4c, database, use_threebody=false, use_threebody_onsite=false);
-            tbc4d = ThreeBodyTB.CalcTB.calc_tb_LV(c4d, database, use_threebody=false, use_threebody_onsite=false);
-            tbc5 = ThreeBodyTB.CalcTB.calc_tb_LV(c5, database, use_threebody=false, use_threebody_onsite=false);
-            tbc6 = ThreeBodyTB.CalcTB.calc_tb_LV(c6, database, use_threebody=false, use_threebody_onsite=false);
-            tbc7 = ThreeBodyTB.CalcTB.calc_tb_LV(c7, database, use_threebody=false, use_threebody_onsite=false);
-            tbc8 = ThreeBodyTB.CalcTB.calc_tb_LV(c8, database, use_threebody=false, use_threebody_onsite=false);
-            tbc9 = ThreeBodyTB.CalcTB.calc_tb_LV(c9, database, use_threebody=false, use_threebody_onsite=false);
-            tbc10 = ThreeBodyTB.CalcTB.calc_tb_LV(c10, database, use_threebody=false, use_threebody_onsite=false);
+            tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc3 = ThreeBodyTB.CalcTB.calc_tb_LV(c3, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc4 = ThreeBodyTB.CalcTB.calc_tb_LV(c4, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc4a = ThreeBodyTB.CalcTB.calc_tb_LV(c4a, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc4b = ThreeBodyTB.CalcTB.calc_tb_LV(c4b, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc4c = ThreeBodyTB.CalcTB.calc_tb_LV(c4c, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc4d = ThreeBodyTB.CalcTB.calc_tb_LV(c4d, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc5 = ThreeBodyTB.CalcTB.calc_tb_LV(c5, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc6 = ThreeBodyTB.CalcTB.calc_tb_LV(c6, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc7 = ThreeBodyTB.CalcTB.calc_tb_LV(c7, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc8 = ThreeBodyTB.CalcTB.calc_tb_LV(c8, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc9 = ThreeBodyTB.CalcTB.calc_tb_LV(c9, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
+            tbc10 = ThreeBodyTB.CalcTB.calc_tb_LV(c10, database, use_threebody=false, use_threebody_onsite=false, lj_repel=lj_repel);
             
             tbc_list = [tbc0, tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc10,tbc4a, tbc4b, tbc4c, tbc4d]
 
-            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, use_eam=true)
-#            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false)
+            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, use_eam=true, lj_repel=lj_repel)
+#            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, use_eam=true)
 
 
             #        println("newdartabase")
