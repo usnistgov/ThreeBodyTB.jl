@@ -2584,6 +2584,8 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 for o1 = orb2ind[a1]
                     ind = ind_conversion[(o1,o1,c_zero)]
                     hvec[ind] -= lj_val
+                    h_onsite[o1,o1] += lj_val
+                    
                 end
                 
             end
