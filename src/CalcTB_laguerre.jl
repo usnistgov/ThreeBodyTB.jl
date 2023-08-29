@@ -158,19 +158,24 @@ struct coefs
     version::Int64
     lim::Dict
     repval::Dict
-    
+
+    eam::Bool
+    lj_repel::Float64
+
 end
 
 function construct_coef_string(co)
     inds = co.inds
     st = String[]
-    for sym = [:H, :O, :S]
+    for sym = [:H, :O, :S, :eam]
         if sym == :H
             push!(st, "# Hopping Hamiltonian index\n")
         elseif sym == :O
             push!(st, "# Onsite Hamiltonian index\n")
         elseif sym == :S
             push!(st, "# Overlap (S) index\n")
+        elseif sym == :eam
+            push!(st, "# Embedded Atom Model (eam) terms index\n")
         end
         for k in keys(inds)
             if k[end] == sym
@@ -220,6 +225,10 @@ function write_coefs(filename, co::coefs; compress=true)
 #    addelement!(c, "orbs", str_w_spaces(co.orbs))
     addelement!(c, "cutoff", string(co.cutoff))
     addelement!(c, "min_dist", string(co.min_dist))
+
+    addelement!(c, "eam", string(co.eam))
+    addelement!(c, "lj_repel", string(co.lj_repel))
+
 #    addelement!(c, "maxmin_val_train", string(co.maxmin_val_train))
 #    addelement!(c, "dist_frontier", string(co.dist_frontier))
 
@@ -304,12 +313,30 @@ function read_coefs(filename, directory = missing)
         datS = Float64[]
     end
     
-#    addelement!(c, "inds", string(co.inds))
+
     
     names = Set(String.(split(d["coefs"]["names"])))
 #    orbs = Symbol.(split(d["coefs"]["orbs"]))
     cutoff = parse(Float64, d["coefs"]["cutoff"])
     min_dist = parse(Float64, d["coefs"]["min_dist"])
+
+
+    eam = false
+    if "eam" in keys(d["coefs"])
+        eam = parse(Bool, d["coefs"]["eam"])
+    end
+    lj_repel = 0.0
+    if "lj_repel" in keys(d["coefs"])
+        lj_repel = parse(Float64, d["coefs"]["lj_repel"])
+    end
+
+    if haskey( d["coefs"], "inds")
+        inds = d["coefs"]["inds"]
+        if occursin(":eam", inds)
+            eam=true
+        end
+    end
+
 
 #    println(d["coefs"]["maxmin_val_train"])
     
@@ -342,7 +369,7 @@ function read_coefs(filename, directory = missing)
         repval = missing
     end
         
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval)
+    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=eam, lj_repel=lj_repel)
 
     return co
     
@@ -357,7 +384,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=true)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=true, lj_repel=0.05)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -565,7 +592,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, lj_repel)
 
 end
     
@@ -1487,7 +1514,7 @@ Base.show(io::IO, d::coefs) = begin
     for t in keys(d.dist_frontier)
         println(io, t, "    ", d.dist_frontier[t])
     end
-
+    println(io, "eam: ", d.eam, " lj_repel: ", d.lj_repel)
     println(io)
 end
 
@@ -2333,7 +2360,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             if !haskey(twobody_arrays, at_set)
 
-                coef = make_coefs(at_set, 2, use_eam=use_eam)
+                coef = make_coefs(at_set, 2, use_eam=use_eam, lj_repel=lj_repel)
 
 #                println("2bdy $at_set")                
 #                println("atset ", at_set)
@@ -2374,7 +2401,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     at_set = Set((c, c2, c3))
                     if !haskey(threebody_arrays, at_set)
 #                        println("3bdy $at_set")
-                        coef = make_coefs(at_set, 3, use_eam=use_eam)
+                        coef = make_coefs(at_set, 3, use_eam=use_eam, lj_repel=lj_repel)
                         hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                        hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 
@@ -5163,15 +5190,15 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 end
             end
 
-            println("add rho")
+#            println("add rho")
             for a = 1:crys.nat
-                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
+#                println("add rho LV $a ",  RHO[a,1,1], " ",  RHO[a,2,1])
                 t1 = crys.stypes[a]
                 for t2n = 1:types_counter
                     t2 = types_dict_reverse[t2n]
                     if [t2,:eam] in keys(database[(t1,t2)].inds)
                         eam_ind = database[(t1,t2)].datH[database[(t1,t2)].inds[[t2,:eam]]]
-                        println("rho a $a ", RHO[a,1,t2n]," ", RHO[a,2,t2n])
+#                        println("rho a $a ", RHO[a,1,t2n]," ", RHO[a,2,t2n])
                         for o1x = 1:norb[a]
                             o1 = orbs_arr[a,o1x,1]
 
@@ -5179,7 +5206,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             H[ o1, o1, c_zero] += ( eam_ind[3] * RHO[a,2,t2n]^2 + eam_ind[4] * RHO[a,2,t2n]^3)
                             H[ o1, o1, c_zero] += ( eam_ind[5] * RHO[a,1,t2n] * RHO[a,2,t2n])
 
-                            println([( eam_ind[1] * RHO[a,1,t2n]^2 + eam_ind[2] * RHO[a,1,t2n]^3),  ( eam_ind[3] * RHO[a,2,t2n]^2 + eam_ind[4] * RHO[a,2,t2n]^3),  ( eam_ind[5] * RHO[a,1,t2n] * RHO[a,2,t2n])])
+#                            println([( eam_ind[1] * RHO[a,1,t2n]^2 + eam_ind[2] * RHO[a,1,t2n]^3),  ( eam_ind[3] * RHO[a,2,t2n]^2 + eam_ind[4] * RHO[a,2,t2n]^3),  ( eam_ind[5] * RHO[a,1,t2n] * RHO[a,2,t2n])])
                         end
                     end
                 end

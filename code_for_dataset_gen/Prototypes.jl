@@ -455,6 +455,14 @@ function setup_proto_data()
     CalcD["bcc_5lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_5lay", "vc-relax", "all", "scf", "nscf", false]
     CalcD["fcc_5lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_5lay", "vc-relax", "all", "scf", "nscf", false]
 
+    CalcD["bcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_3lay", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["fcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_3lay", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["sc_3lay"] = ["$STRUCTDIR/binary/POSCAR_sc_3lay", "vc-relax", "all", "scf", "nscf", false]
+
+    CalcD["bcc_3lay2"] = ["$STRUCTDIR/binary/POSCAR_bcc_3lay2", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["fcc_3lay2"] = ["$STRUCTDIR/binary/POSCAR_fcc_3lay2", "vc-relax", "all", "scf", "nscf", false]
+
+
 
     CalcD["k2n6"] = ["$STRUCTDIR/binary/POSCAR_k2n6", "vc-relax", "all", "scf", "nscf", false]
 
@@ -534,8 +542,8 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay",  "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line", "b6" ]
-
+    core_mono = [     "sc",     "bcc",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay", "bcc_3lay2", "fcc_3lay2", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line", "b6" ]
+#atom
 
 
 
