@@ -613,9 +613,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     flush(stdout)
     sleep(0.001)
 
-    @time X_Snew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1], snum_new)
+    @time X_Snew_BIG = zeros(Float64, size(Xc_Hnew_BIG)[1], snum_new)
     @time for (c,S) in enumerate(X_Snew_BIG_list)
-        X_Snew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(S)
+        X_Snew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float64.(S)
         S = []
     end
 
@@ -623,7 +623,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("calc cs")
     flush(stdout)
     sleep(0.001)
-    @time cs = X_Snew_BIG \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)
+    @time cs = X_Snew_BIG \ Float64.(Y_Snew_BIG  - Xc_Snew_BIG)
     YS_new = X_Snew_BIG * cs
     println("error fit S cs , ", sum( (YS_new  - (Y_Snew_BIG  - Xc_Snew_BIG)).^2))
     flush(stdout)
@@ -635,9 +635,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("assign memory H ", [ size(Xc_Hnew_BIG)[1],hnum_new])
     flush(stdout)
     sleep(0.001)
-    @time X_Hnew_BIG = zeros(Float32, size(Xc_Hnew_BIG)[1],hnum_new)
+    @time X_Hnew_BIG = zeros(Float64, size(Xc_Hnew_BIG)[1],hnum_new)
     @time for (c,H) in enumerate(X_Hnew_BIG_list)
-        X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float32.(H)
+        X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float64.(H)
         H = []
     end
     X_Hnew_BIG_list = []
@@ -656,7 +656,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     end
     
     
-    @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
+    @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     flush(stdout)
@@ -759,10 +759,10 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     #   rind = 1:l
 
-        @time ch = X_Hnew_BIG[rind,:] \ Float32.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)[rind]
+        @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)[rind]
 
 
-        #        @time cs = X_Snew_BIG[rind,:] \ Float32.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
+        #        @time cs = X_Snew_BIG[rind,:] \ Float64.(Y_Snew_BIG  - Xc_Snew_BIG)[rind]
 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
@@ -1426,7 +1426,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
 
     if !ismissing(dft_list)
         println("top")
@@ -5132,7 +5132,7 @@ end
 
 
 
-function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64},4} }, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, ind_BIG::Array{Int64, 2}, KPOINTS, SPIN::Array{Int64,1}, ENERGIES::Array{Float64,1},ENERGY_SMEAR::Array{Float64,1}, WEIGHTS::Array{Float64, 4}, KWEIGHTS, energy_weight::Float64, weights_list::Array{Float64, 1}, lambda::Float64 , scf::Bool, list_of_tbcs::Array{tb_crys_kspace,1}, DQ::Array{Float64, 2}, X_Hnew_BIG::Array{Float32,2}, Xc_Hnew_BIG::Array{Float64,1}, keep_bool::Bool, h_on, VALS0::Array{Float64, 4} ; leave_out=-1)
+function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64},4} }, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, ind_BIG::Array{Int64, 2}, KPOINTS, SPIN::Array{Int64,1}, ENERGIES::Array{Float64,1},ENERGY_SMEAR::Array{Float64,1}, WEIGHTS::Array{Float64, 4}, KWEIGHTS, energy_weight::Float64, weights_list::Array{Float64, 1}, lambda::Float64 , scf::Bool, list_of_tbcs, DQ::Array{Float64, 2}, X_Hnew_BIG::Array{Float64,2}, Xc_Hnew_BIG::Array{Float64,1}, keep_bool::Bool, h_on, VALS0::Array{Float64, 4} ; leave_out=-1, LAMBDA_vec = missing)
     
 
     #        nlam = 0
@@ -5317,11 +5317,13 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
     end
 
     if lambda > 1e-10
-        for ind3 = 1:nlam
+        for (cind, ind3) = enumerate(1:nlam)
             counter += 1
             NEWX[counter,ind3] = lambda
             push!(nonzero_ind, counter)
-
+            if !ismissing(LAMBDA_vec)
+                NEWY[counter] = LAMBDA_vec[cind] * lambda
+            end
         end
     end
 
@@ -5335,5 +5337,7 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
     return NEWX, NEWY, energy_counter
 
 end
+
+#include("FitTB_laguerre_system.jl")
 
 end
