@@ -98,7 +98,8 @@ const n_3body_triple = 4
 
 const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
-const n_3body_onsite_same = 5
+#const n_3body_onsite_same = 5
+const n_3body_onsite_same = 7
 
 
 
@@ -4566,6 +4567,9 @@ function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memor
         memory[4] = expa_ab 
         memory[5] = expa_ab * ( (1 - ad_a) + (1 - ad_b) )
 
+        memory[6] = expa_ab * ( (1 - ad_a) * (1 - ad_b) )
+        memory[7] = expa_ab * ( 0.5 * (ad_a.^2 .- 4.0*ad_a .+ 2)  + 0.5 * (ad_b.^2 .- 4.0*ad_b .+ 2) )
+
     else
         memory[1] = expa_ab
         memory[2] = expa_ab0
@@ -4689,9 +4693,9 @@ three body onsite.
 """
 function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing)
 
-    d1 = laguerre(dist1, missing, nmax=1)
-    d2 = laguerre(dist2, missing, nmax=1)
-    d3 = laguerre(dist3, missing, nmax=1)
+    d1 = laguerre(dist1, missing, nmax=2)
+    d2 = laguerre(dist2, missing, nmax=2)
+    d3 = laguerre(dist3, missing, nmax=2)
         
     
 
@@ -4706,7 +4710,7 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 
             #            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
-            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) d1[:,2].*d2[:,2] (d1[:,1].*d2[:,3] + d1[:,3].*d2[:,1])]
 
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
@@ -4738,7 +4742,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
             V[3] = d1[1].*d2[1].*d3[2]
             V[4] = d1[1].*d2[1]
             V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-            
+            V[6] =  d1[2].*d2[2] 
+            V[7] = d1[1].*d2[3] + d1[3].*d2[1]
 
             
 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
@@ -4815,7 +4820,7 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 
             #            V = [d1[:,1].*d2[:,1].*d3[:,1]*10.0 (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1])*10.0 d1[:,1].*d2[:,1].*d3[:,2]*10.0 d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
-            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1])  d1[:,2].*d2[:,2] (d1[:,1].*d2[:,3] + d1[:,3].*d2[:,1])]
 
 
 #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
@@ -4847,6 +4852,8 @@ function three_body_O_lag(d1,d2,d3, same_atom, ind=missing; memoryV = missing)
             V[3] = d1[1].*d2[1].*d3[2] 
             V[4] = d1[1].*d2[1]
             V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+            V[6] =  d1[2].*d2[2] 
+            V[7] = d1[1].*d2[3] + d1[3].*d2[1]
             
 
             
@@ -5030,22 +5037,12 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
 
     elseif same_atom
         if  isa(dist1, Array)
-#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) ]
-#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   ]
-#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]      ]
-#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) zero[:,2].*(a[:,1].*b[:,1])   ]
-
-#            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  ]
+            
             Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1])  ]
-            #Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
-#            Vt = [a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
             V = Vt
-#            println("V ", V)
+
         else 
-#           try
-#                Vt = [a[1].*b[1]  (a[1].*b[2]+a[2].*b[1])  a[2].*b[2] (a[1].*b[3]+ a[3].*b[1])  zero[1].*a[1].*b[1] zero[1].*(a[1].*b[2]+a[2].*b[1]) ]
-#                V = Vt
-#               println("case ")
+
                 if ismissing(memoryV)
                     memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
                 end
@@ -7518,7 +7515,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     
     if check_only==true
         println("repel_vals ", repel_vals)
-        return within_fit, sum(abs.(repel_vals)) < 1e-12
+        return within_fit,  sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))

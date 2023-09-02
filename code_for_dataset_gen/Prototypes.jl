@@ -203,6 +203,9 @@ function setup_proto_data()
 
 
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
+    CalcD["iso_hex"] =       ["$STRUCTDIR/iso_hex.in", "relax", "2Dxy", "hex", "nscf", false]
+    CalcD["line3"] =       ["$STRUCTDIR/line3.in", "relax", "2Dxy", "line3", "nscf", false]
+
     CalcD["dimer_short"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords-short", "nscf", false]
     CalcD["dimer_small"] = ["$STRUCTDIR/dimer_small.in", "relax", "2Dxy", "scf_small", "nscf", false]
     CalcD["dimer_super"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_super", "nscf", false]
@@ -297,7 +300,7 @@ function setup_proto_data()
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
 
 #    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
-    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
+    #CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
 
     CalcD["dimer2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min", "nscf", false]
     CalcD["tri2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min_tri", "nscf", false]
@@ -698,7 +701,14 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [-0.06 -0.03 0.03 0.06])
         elseif newst == "coords"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
-            ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 15
+        elseif newst == "hex"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 11
+        elseif newst == "line3"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 8
+
         elseif newst == "el_party"
             ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
         elseif newst == "bin_party"
@@ -1351,11 +1361,42 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
             elseif newst == "coords"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
-                for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [-0.2 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.24]
                     c = deepcopy(cnew)
-                    c.coords = c.coords * (1+x)
+                    #c.coords = c.coords * (1+x)
+                    c.A[3,3] = c.A[3,3]*(1+x)
                     push!(torun, deepcopy(c))
                 end
+            elseif newst == "hex"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [0.85, 0.9, 0.95, 1.0, 1.05, 1.2, 1.4]
+                    c = deepcopy(cnew)
+                    #c.coords = c.coords * (1+x)
+                    c.A[1:2,1:2] = c.A[1:2,1:2]*x
+                    push!(torun, deepcopy(c))
+                end
+                for x in [0.9, 0.95, 1.05]
+                    c = deepcopy(cnew)
+                    #c.coords = c.coords * (1+x)
+                    c.A[1,1:2] = c.A[1,1:2]*x
+                    push!(torun, deepcopy(c))
+                end
+                for x in [0.81]
+                    c = deepcopy(cnew)
+                    #c.coords = c.coords * (1+x)
+                    c.A[1:2,1:2] = c.A[1:2,1:2]*x
+                    push!(torun, deepcopy(c))
+                end
+
+            elseif newst == "line3"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [0.85, 0.9, 0.95, 1.0, 1.05, 1.2, 1.4, 0.81]
+                    c = deepcopy(cnew)
+                    #c.coords = c.coords * (1+x)
+                    c.A[3,3] = c.A[3,3]*x
+                    push!(torun, deepcopy(c))
+                end
+
 
             elseif newst == "el_party"
                 c = deepcopy(cnew)
