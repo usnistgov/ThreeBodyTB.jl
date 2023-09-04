@@ -5,6 +5,7 @@ Main Module
 """
 module ThreeBodyTB
 
+#println("eam2")
 
 include("GlobalUnits.jl")
 include("SetDir.jl")
