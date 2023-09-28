@@ -1292,7 +1292,7 @@ end
     Not currently a major part of program, but you can use if you want to
     interface with other codes.
     """
-function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=true, grid=missing)
+function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=true, grid=missing, orthogonalize=true)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -1302,9 +1302,11 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
         end
     end
 
-    println("grid: $grid")
-
-    hk3, sk3 = myfft_R_to_K(tbc, grid)
+    if verbose
+        println("grid: $grid")
+    end
+    
+    @time hk3, sk3 = myfft_R_to_K(tbc, grid)
 
 
     nw = size(hk3)[1]
@@ -1315,7 +1317,7 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
         nspin = 2
     end
     
-    for spin = 1:nspin
+    @time for spin = 1:nspin
         if nspin == 2
             if spin == 1
                 prepend = "up."
@@ -1334,13 +1336,25 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
                     sk = sk3[:,:,k1,k2,k3]
                     if tbc.nspin == 2
                         hk= hk3[:,:,spin,k1,k2,k3]
-                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)                        
+                        if orthogonalize
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                        else
+                            hk3_orth[1, :,:,k1,k2,k3] = hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1
+                        end
                     elseif tbc.tb.scfspin
                         hk= hk3[:,:,1,k1,k2,k3]
-                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                        if orthogonalize
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                        else
+                            hk3_orth[1, :,:,k1,k2,k3] = (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 )
+                        end                            
                     else
                         hk= hk3[:,:,1,k1,k2,k3]
-                        hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1) * (sk^-0.5)
+                        if orthogonalize
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1) * (sk^-0.5)
+                        else
+                            hk3_orth[1, :,:,k1,k2,k3] =  (hk + tbc.tb.h1) 
+                        end                            
                     end
                     
                     #                    println("asdf")
@@ -1352,11 +1366,16 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
 
         kpts, kweights = make_kgrid(grid)
 
-        ham_r, r_dict, ind_arr = myfft(tbc.crys, false, grid, kpts , hk3_orth)
-
+#        println("size(sk3) $(size(sk3)) size(hk3) $(size(hk3_orth))")
+        if orthogonalize
+            @time ham_r, r_dict, ind_arr = myfft(tbc.crys, false, grid, kpts , hk3_orth)
+        else
+            @time ham_r, S_r, r_dict, ind_arr = myfft(tbc.crys, true, grid, kpts , hk3_orth, sk3)
+        end
+            
         hr = open(fname, "w")
         nr = size(ind_arr)[1]
-        
+        println("start write $fname")
         write(hr, "written by ThreeBodyTB.jl - kfg\n")
         write(hr, "      $nw\n")
         write(hr, "      $nr\n")
@@ -1376,7 +1395,11 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
         for n = 1:nr
             for nw1 = 1:nw
                 for nw2 = 1:nw
-                    write(hr, "   $(ind_arr[n,1])   $(ind_arr[n,2])   $(ind_arr[n,3])   $nw1   $nw2   $(real(ham_r[1,nw1, nw2, n]))   $(imag(ham_r[1,nw1, nw2, n])) \n")
+                    if orthogonalize
+                        write(hr, "   $(ind_arr[n,1])   $(ind_arr[n,2])   $(ind_arr[n,3])   $nw1   $nw2   $(real(ham_r[1,nw1, nw2, n]))   $(imag(ham_r[1,nw1, nw2, n])) \n")
+                    else
+                        write(hr, "   $(ind_arr[n,1])   $(ind_arr[n,2])   $(ind_arr[n,3])   $nw1   $nw2   $(real(ham_r[1,nw1, nw2, n]))   $(imag(ham_r[1,nw1, nw2, n]))          $(real(S_r[nw1, nw2, n]))   $(imag(S_r[nw1, nw2, n]))  \n")
+                    end
                 end
             end
         end
@@ -3441,7 +3464,7 @@ end
      - `Sk` overlaps in k space
 
      """
-function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing)
+function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing, verbose=false)
 
     #     println("size ham_kS ", size(ham_kS))
     
@@ -3455,13 +3478,16 @@ function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing)
     #     nwan = size(ham_kS)[2]
     #     nks  = size(ham_kS)[4]
     
-    println("myfft $nspin $nwan $nks")
+    
     
     if length(size(ham_kS)) == 6 #we don't have to calculate, already in fft form
-        println("don't calc")
+        if verbose
+            println("don't calc")
+        end
         nspin = size(ham_kS)[1]
         nwan = size(ham_kS)[2]
         nks  = prod(size(ham_kS)[4:6])
+
 
         ham_k_fftw = ham_kS
         S_k_fftw = Sk
@@ -3490,11 +3516,15 @@ function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing)
                 end
             end
         end
-
-        println("ham_k_fftw ", size(ham_k_fftw))
+        if verbose
+            println("ham_k_fftw ", size(ham_k_fftw))
+        end
     end    
 
-
+    if verbose
+        println("myfft nspin $nspin nwan $nwan nks $nks")
+    end
+    
     #does the actual ifft
     hamR3 = ifft(ham_k_fftw, [4,5,6])
     if nonorth
@@ -3578,7 +3608,7 @@ end
      returns the R_grid, the integer version, and the symmetry factor of each point.
 
      """
-function get_sym_R(crys, grid, sss = 1.0)
+function get_sym_R(crys, grid, sss = 1.0, verbose=false)
 
 
     grid2 = [0,0,0]
@@ -3691,15 +3721,16 @@ function get_sym_R(crys, grid, sss = 1.0)
     end
 
 
-    for a = 1:crys.nat
-        for b = 1:crys.nat        
-            #            for i in 1:ngrid2
-            #                println("sym_R[$a,$b,$i] = ", sym_R[a,b,i], "  R= ", R_grid[i,:])                
-            #            end
-            println("SUM $a $b : ", sum(sym_R[a,b,:]))
+    if verbose
+        for a = 1:crys.nat
+            for b = 1:crys.nat        
+                #            for i in 1:ngrid2
+                #                println("sym_R[$a,$b,$i] = ", sym_R[a,b,i], "  R= ", R_grid[i,:])                
+                #            end
+                println("SUM $a $b : ", sum(sym_R[a,b,:]))
+            end
         end
     end
-
     keep = []
     nkeep = 0
     for i = 1:ngrid2 
@@ -3708,7 +3739,9 @@ function get_sym_R(crys, grid, sss = 1.0)
             nkeep += 1
         end
     end
-    println("nkeep : $nkeep")
+    if verbose
+        println("nkeep : $nkeep")
+    end
     R_grid = R_grid[keep,:]
     R_int_grid = R_int_grid[keep,:]
     sym_R = sym_R[:,:,keep]
