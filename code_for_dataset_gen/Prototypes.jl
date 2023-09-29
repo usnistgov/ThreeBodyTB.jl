@@ -296,8 +296,8 @@ function setup_proto_data()
     CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "scf", "nscf", false]
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
 
-#    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
-    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
+    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
+#    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
 
     CalcD["dimer2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min", "nscf", false]
     CalcD["tri2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min_tri", "nscf", false]
@@ -1909,6 +1909,10 @@ function structure_substitute(atom1, atom2, atom3)
                 for o in orders
                     to = temp[o]
                     for i in 1:size(summ)[1]
+                        nat = parse(summ[i,4], Int64)
+                        if nat > 6
+                            continue
+                        end
                         at = summ[i,5:7]
                         if to == at
                             #                            println(at, " ", orig[o])
@@ -1937,6 +1941,11 @@ function structure_substitute(atom1, atom2, atom3)
                     to = temp[o]
                     for i in 1:size(summ)[1]
                         at = summ[i,5:7]
+                        nat = parse(summ[i,4], Int64)
+                        if nat > 6
+                            continue
+                        end
+
                         if to == at
                             c = makecrys(String(summ[i,1]))
                             for (ind,t) in enumerate(c.types)
@@ -1981,6 +1990,10 @@ function structure_substitute(atom1, atom2, atom3)
                         to = temp[o]
                         for i in 1:size(summ)[1]
                             at = summ[i,5:7]
+                            nat = parse(summ[i,4], Int64)
+                            if nat > 6
+                                continue
+                            end
                             if to == at
                                 c = makecrys(String(summ[i,1]))
                                 for (ind,t) in enumerate(c.types)
