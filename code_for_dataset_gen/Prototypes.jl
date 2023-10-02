@@ -1909,7 +1909,8 @@ function structure_substitute(atom1, atom2, atom3)
                 for o in orders
                     to = temp[o]
                     for i in 1:size(summ)[1]
-                        nat = parse(summ[i,4], Int64)
+#                        nat = parse(Int64, summ[i,4])
+                        nat = summ[i,4]
                         if nat > 6
                             continue
                         end
