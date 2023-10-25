@@ -984,7 +984,7 @@ function band_summary(tbc, kpts, kweights, fermi=missing)
 
     bandwidth = vbm - minband
     
-    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth)
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy(fermi), convert_energy(cbm), convert_energy(vbm)
 
 end
 
