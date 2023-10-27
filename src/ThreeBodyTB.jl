@@ -76,6 +76,7 @@ include("Force_Stress.jl")
 
 include("DOS.jl")
 using .DOS:dos
+using .DOS:dos_realspace
 
 include("BandStruct.jl")
 
@@ -98,6 +99,7 @@ export plot_bandstr_dos
 export plot_bandstr_sym
 export read_tb_crys
 export dos
+export dos_realspace
 export write_tb_crys
 export band_summary
 

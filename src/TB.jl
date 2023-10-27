@@ -2001,7 +2001,7 @@ end
      `etot, efermi, vals, vects`
 
      """
-function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false, use_sym=false)
+function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
 
     etypes = types_energy(tbc.crys)
 
@@ -2035,12 +2035,28 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
         kweights = missing
     end
 
+    if abs(scissors_shift) > 1e-10
+        return_more_info = true
+    end
     
     ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin, use_sym=use_sym, nk_red=nk_red, grid_ind = grid_ind, kweights=kweights)
 
+    energy, efermi, vals, vects  = ret
 
-    if return_more_info
+    vals_old = deepcopy(vals)
+    vects_old = deepcopy(vects)
+    hk3 = deepcopy(hk3)
+    sk3 = deepcopy(sk3)
+    
+    if abs(scissors_shift) > 1e-10
+        println("apply scissors shift $scissors_shift (in ryd) to $scissors_shift_atoms")
         energy, efermi, vals, vects  = ret
+        vals, vects = apply_scissors_shift(efermi, vals, vects, scissors_shift, scissors_shift_atoms, tbc.crys, hk3, sk3, tbc.nspin, tbc.tb.h1, tbc.tb.h1spin) 
+        
+    end
+    
+    
+    if return_more_info
 
         #        println("PRE-precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
 
@@ -2050,6 +2066,70 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
     end
     return ret + etypes
 
+end
+
+function apply_scissors_shift(efermi, vals, vects, scissors_shift, scissors_shift_atoms, crys, hk3, sk3, nspin, h1, h1spin)
+
+    if length(scissors_shift_atoms) == 0
+        scissors_shift_atoms = Set(crys.stypes)
+    end
+    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+    scissors_shift_atoms = Symbol.(scissors_shift_atoms)    
+    orbs = []
+    for n = 1:size(hk3)[1]
+        at,t, orb = ind2orb[n]
+        if t in Symbol.(scissors_shift_atoms)
+            push!(orbs, n)
+        end
+    end
+    println("orbs ", size(orbs), orbs)
+    
+    nwan = size(hk3)[1]
+    Kx = size(hk3)[4]
+    Ky = size(hk3)[5]
+    Kz = size(hk3)[6]
+    orbs = setdiff(1:nwan, orbs)
+
+    kx=1
+    ky=1
+    kz=1
+    spin=1
+    c=1
+
+    for spin = 1:nspin
+        c=0
+        for kx in 1:Kx
+            for ky in 1:Ky
+                for kz in 1:Kz
+                    c+=1
+                    ind = vals[c,:,spin] .> efermi
+#                    println("ind $ind")
+                    hk = hk3[:,:,spin,kx,ky,kz]
+                    sk = sk3[:,:,kx,ky,kz]
+                    v = deepcopy(vects[c,spin,:,ind])
+#                    println("size(v), " , size(v))
+                    v[orbs,:] .= 0.0
+                    hk = hk + sk*v * v' * sk * scissors_shift 
+
+                    if !ismissing(h1)
+                        hk += 0.5*sk .* (h1+h1')
+                    end
+                    if nspin == 2
+                        hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
+                    end
+                    
+                    hk = 0.5*(hk + hk')
+                    valsnew, vectsnew= eigen(hk, sk)
+#                    println("valsnew ", valsnew)
+#                    println("vals    ", vals[c,:,spin])
+                    vals[c,:,spin] = valsnew
+                    vects[c,spin, :,:] = vectsnew
+                end
+            end
+        end
+    end                
+
+    return vals, vects
 end
 
 function go_sym(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thetype, nwan, nspin, spin_size, return_more_info)
