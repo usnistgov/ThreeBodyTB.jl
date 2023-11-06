@@ -22,8 +22,10 @@ using ..CrystalMod:orbital_index
 using ..TB:summarize_orb
 using ..TB:get_energy_electron_density_kspace
 using ..ThreeBodyTB:convert_energy
+using ..ThreeBodyTB:convert_length
 using ..ThreeBodyTB:convert_dos
 using ..ThreeBodyTB:global_energy_units
+using ..ThreeBodyTB:global_length_units
 using ..ThreeBodyTB:no_display
 using ..Symmetry:get_kgrid_sym
 
@@ -44,7 +46,15 @@ function get_projtype(tbc, ptype=missing)
     PROJ = []       
     pwan=[]
     
-    if ptype == :atomic || ptype == "atomic" || ptype == :atoms || ptype == "atoms" || ptype == :atom || ptype == "atom" || ptype == :Atomic || ptype == "Atomic"
+    if ptype == :all || ptype == :All || ptype == "All" || ptype == "all"
+        orblist = []
+        for n = 1:tbc.tb.nwan
+            at,t, orb = ind2orb[n]
+            push!(names, "$at $t $orb")
+            push!(PROJ, [n])
+            push!(pwan, 1)
+        end
+    elseif ptype == :atomic || ptype == "atomic" || ptype == :atoms || ptype == "atoms" || ptype == :atom || ptype == "atom" || ptype == :Atomic || ptype == "Atomic"
         for ti in Set(tbc.crys.stypes)
             
             proj_inds = Int64[]
@@ -230,7 +240,89 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
     
 end
             
-        
+
+function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+    if ismissing(width)
+        width= convert_length(3.0)
+    end
+    if ismissing(energy_lims)
+        energy_lims = convert_energy([-0.3, 0.3])
+    end
+    
+    colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+    colors = [colors; colors; colors]
+    atom_colors = Dict()
+    for c in colors
+        for s in Set(tbc.crys.stypes)
+            if !(s in keys(atom_colors))
+                atom_colors[s] = c
+                println("color $s $c ")
+                break
+            end
+        end
+    end
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+    
+    energies,DOS, pdos, names, proj = dos(tbc, grid=missing, smearing=smearing, npts=missing, do_display=false, use_sym=use_sym, proj_type=:all, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
+
+    pdos=sum(pdos, dims=[3])
+    c = tbc.crys
+    coords_cart = convert_length(c.coords[:,direction] * sqrt(sum(c.A[direction,:].^2)))
+
+
+    
+
+    dos_atom = zeros(length(energies), c.nat)
+    for n = 1:tbc.tb.nwan
+        at,t, orb = ind2orb[n]
+        dos_atom[:,at] += pdos[:,n]
+    end
+    dos_atoms_grid = zeros(energy_grid, c.nat)
+    #new_grid = collect(minimum(energies) : (maximum(energies)-minimum(energies)) / energy_grid: (maximum(energies)+1e-10))
+
+    println("grid width ",  (energy_lims[2]-energy_lims[1]) / energy_grid)
+    
+    new_grid = collect( energy_lims[1] : (energy_lims[2]-energy_lims[1]) / energy_grid: (energy_lims[2]+1e-10) )
+
+    println("size(new_grid), $(size(new_grid))")
+    for en = 1:energy_grid
+        ind = energies .> new_grid[en] .&& energies .<= new_grid[en+1]
+        dos_atoms_grid[en,:] = sum(dos_atom[ind,:], dims=[1])
+    end
+    max_den = maximum(dos_atom) * 1.0
+
+    rectangle(w, h, x, y) = Shape(x .+ [0,w,w,0], y .+ [0,0,h,h])
+
+    height = (energy_lims[2]-energy_lims[1]) / energy_grid
+    xmin = minimum(coords_cart) - width/2
+    xmax = maximum(coords_cart) + width/2
+
+    plot([xmin, xmax], [0.0, 0.0], linestyle=:dash, linewidth=1, color="grey", label="")
+    xlims!(xmin, xmax + width*2)
+    ylims!(energy_lims[1], energy_lims[2])
+
+    println([ minimum(coords_cart) - width,maximum(coords_cart) + width])
+    println([minimum(new_grid) - 0.01, maximum(new_grid) + 0.01])
+    
+    for at = 1:c.nat
+        for ind = 1:energy_grid
+            x = coords_cart[at] - width/2
+            plot!(rectangle(width, height, x, new_grid[ind] - height/2), opacity= dos_atoms_grid[ind, at] / max_den , color=atom_colors[c.stypes[at]], label="" )
+            #            println("plot $width, $height, $x, $(new_grid[ind] - height/2)")
+        end
+    end
+
+    for at = keys(atom_colors)
+        plot!(rectangle(0.0,0.0 , coords_cart[1] - width/2, new_grid[1] - height/2), color=atom_colors[at], label=String(at))
+    end
+
+    xlabel!("Atom positions ($global_length_units)",  guidefontsize=12)
+    display(ylabel!("Energy - Fermi ($global_energy_units)", guidefontsize=12))
+    return new_grid, dos_atoms_grid, coords_cart
+
+end
 
 function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)    
 
@@ -268,9 +360,9 @@ function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)
 end
             
     
-function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true)
+function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[])
 
-    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display)
+    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
     
 end
 
@@ -289,15 +381,16 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false)
+function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[])
 
+    println("proj_type $proj_type")
     if ismissing(grid)
         grid = get_grid(tbc.crys)
         grid = Int64.(round.(grid * 1.6))
         println("grid $grid")
     end
 
-    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true, use_sym=use_sym)
+    etot, efermi, vals, vects, hk3, sk3 = calc_energy_fft(tbc, grid=grid, smearing=smearing, return_more_info=true, use_sym=use_sym, scissors_shift= scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
 
     println("dos fermi $efermi xxxxxxxxxxxxx---------------")
     
@@ -333,19 +426,27 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
     end
         
     
-    if ismissing(proj_type) || !(  proj_type != "none"  ||  proj_type != :none)
+    if ismissing(proj_type)
         do_proj=true
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym, nk_red=nk_red, grid_ind=grid_ind, kweights = kweights)
         nproj = size(proj)[3]
-
+#        println("proj $proj names $names pwan $pwan")
         pdos = zeros(length(energies),nproj, nspin)
-
-    else
+        
+    elseif proj_type == "none" ||  proj_type == :none
         do_proj=false
         nproj=0
         pdos=missing
         names=missing
+    else
+        do_proj=true
+        proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym, nk_red=nk_red, grid_ind=grid_ind, kweights = kweights)
+        nproj = size(proj)[3]
+#        println("proj $proj names $names pwan $pwan")
+        pdos = zeros(length(energies),nproj, nspin)
     end
+
+
     
 
     KW = repeat(kweights, 1, tbc.tb.nwan)
@@ -408,6 +509,8 @@ function gaussian_dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_ty
 end
 
 
+
+
 function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
 
 
@@ -440,18 +543,26 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
     
     dos = zeros(length(energies), nspin)
 
-    if ismissing(proj_type) || !(  proj_type != "none"  || proj_type != :none)
+    if ismissing(proj_type)  
         do_proj=true
         proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
         nproj = size(proj)[3]
-
+        
         pdos = zeros(length(energies),nproj, nspin)
-
-    else
+        
+    elseif proj_type == "none" ||  proj_type == :none
         do_proj=false
         nproj=0
         pdos=missing
         names=missing
+    else
+        #    if ismissing(proj_type) || !(  proj_type != "none"  || proj_type != :none)
+        do_proj=true
+        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
+        nproj = size(proj)[3]
+        
+        pdos = zeros(length(energies),nproj, nspin)
+
     end
     
     W = repeat(tbcK.tb.kweights, 1, tbcK.tb.nwan)
