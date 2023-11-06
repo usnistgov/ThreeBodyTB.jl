@@ -1942,7 +1942,8 @@ function structure_substitute(atom1, atom2, atom3)
                     to = temp[o]
                     for i in 1:size(summ)[1]
                         at = summ[i,5:7]
-                        nat = parse(summ[i,4], Int64)
+                        nat = summ[i,4]
+#                        nat = parse(summ[i,4], Int64)
                         if nat > 6
                             continue
                         end
@@ -1991,7 +1992,8 @@ function structure_substitute(atom1, atom2, atom3)
                         to = temp[o]
                         for i in 1:size(summ)[1]
                             at = summ[i,5:7]
-                            nat = parse(summ[i,4], Int64)
+                            #nat = parse(summ[i,4], Int64)
+                            nat = summ[i,4]
                             if nat > 6
                                 continue
                             end
@@ -2086,9 +2088,9 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
 
         end
         n += 1
-        if n >= n2
-            break
-        end
+        #if n >= n2
+        #    break
+        #end
         push!(DONE_TYPES, sort(c.types))
     end
 
