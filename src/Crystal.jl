@@ -825,7 +825,10 @@ initial lattice vectors and look for the "best" cell.
 """
 function generate_optimum_supercell(c::crystal, dist)
 
-    dist = convert_length(dist)
+    #dist = convert_length(dist)
+    if global_length_units == "Å"
+        dist = dist / 0.529177210903
+    end
     
 
     check_list1 = [1,-1,2,-2]

@@ -5,7 +5,13 @@ Main Module
 """
 module ThreeBodyTB
 
-#println("eam2")
+println("develop3 branch")
+
+function get_ver()
+    println("develop3 branch")
+end
+
+get_ver()
 
 include("GlobalUnits.jl")
 include("SetDir.jl")
