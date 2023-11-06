@@ -1,7 +1,7 @@
 using ThreeBodyTB
 
 set_units(both="atomic")
-d = readdir("/home/kfg/codes/jarvis_test/tern_7_12")
+d = readdir("/home/kfg/codes/jarvis_test/tern_1_6")
 
 for line in d
 #    println(line)
@@ -9,7 +9,8 @@ for line in d
     #sp = split(line)
     #    sp2 = split(line, "/")
      #   println(sp)
-    c = makecrys("/home/kfg/codes/jarvis_test/tern_7_12/$line")
+    try
+    c = makecrys("/home/kfg/codes/jarvis_test/tern_1_6/$line")
         dict = Dict()
         for t in c.types
             if !(t in keys(dict))
@@ -24,8 +25,10 @@ for line in d
             st2 *= "$k "
         end
         
-        println("/home/kfg/codes/jarvis_test/tern_7_12/"*line ," ",  line, " " , st , " $(c.nat) " , st2)
-
+        println("/home/kfg/codes/jarvis_test/tern_1_6/"*line ," ",  line, " " , st , " $(c.nat) " , st2)
+catch
+#        println("skip $line")
+end
 #    cs = Set(c.stypes)
 #    for cc in cs
 #        ind = c.stypes .!= cc
