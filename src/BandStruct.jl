@@ -985,7 +985,6 @@ function band_summary(tbc, kpts, kweights, fermi=missing)
 
     bandwidth = vbm - minband
     
-<<<<<<< HEAD
     return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
 
 end
@@ -1012,9 +1011,6 @@ function band_summary(bs::bandstructure)
     for i = 1:bs.nks
         directgap = min(bs.eigs[i,nelec+1,1] - bs.eigs[i,nelec,1], directgap)
     end
-=======
-    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy(fermi), convert_energy(cbm), convert_energy(vbm)
->>>>>>> d17a2616aa5e310689b0be5eb562d46b69b6ad74
 
     indirectgap = cbm - vbm
 
