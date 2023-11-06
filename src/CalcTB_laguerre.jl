@@ -7518,7 +7518,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     
     if check_only==true
         println("repel_vals ", repel_vals)
-        return within_fit, sum(abs.(repel_vals)) < 1e-12
+        return within_fit , sum(abs.(repel_vals)) < 1e-12
     end
     
     nwan = length(keys(ind2orb))

@@ -131,6 +131,8 @@ struct coefs_cl
     dist_frontier::Dict
     version::Int64
     em::Bool
+    lim::Dict
+    repval::Dict
 end
 
 
@@ -164,6 +166,13 @@ function write_coefs_cl(filename, co::coefs_cl; compress=true)
     addelement!(c, "min_dist", string(co.min_dist))
     addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
     addelement!(c, "em", string(co.em))
+
+    if !isempty(co.lim)
+        addelement!(c, "lim", dict2str(co.lim))
+    end
+    if !isempty(co.repval)
+        addelement!(c, "repval", dict2str(co.repval))
+    end
     
 
     if compress
@@ -228,6 +237,16 @@ function read_coefs_cl(filename, directory = missing)
 
     version = parse(Int64, d["coefs"]["version"])
     
+    if haskey(d["coefs"], "lim")
+        lim = str2tuplesdict(eval(d["coefs"]["lim"]))
+    else
+        lim = missing
+    end
+    if haskey(d["coefs"], "repval")
+        repval = str2tuplesdict(eval(d["coefs"]["repval"]))
+    else
+        repval = missing
+    end
 
 
 #    println("read ----------------")
@@ -241,7 +260,7 @@ function read_coefs_cl(filename, directory = missing)
 #    println("dist_frontier ", dist_frontier)
 #    println("-")
     
-    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em)
+    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em, lim=lim, repval=repval)
 
     return co
     
@@ -256,16 +275,28 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=lim, repval=repval)
 
-    println("make coefs")
+    if ismissing(lim)
+        lim = Dict()
+    end
+    if ismissing(repval)
+        repval = Dict()
+    end
+
+
+    println("make coefs ", at_list, " ", typeof(at_list))
     if em == true
         totH = n_2body_em
     else
         if dim == 2
             totH = n_2body_cl
+
+            
         elseif dim == 3
             totH = n_3body_cl_diff
+
+            
         elseif dim == 4
             totH = 2
         else
@@ -306,7 +337,60 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
             end
         end
     end
+    println("dim $dim")
+    
+    if dim == 2
+        at_arr = Symbol.([i for i in at_list])
+        if length(at_list) == 1
+            at_arr = [(at_arr[1], at_arr[1])]
+        else
+            at_arr = [(at_arr[1], at_arr[2]), (at_arr[2], at_arr[1])]
+        end
 
+
+        for a in at_arr
+            #println("a $a")
+            println(typeof(a))
+            if !haskey(lim, a)
+                lim[a] = 0.02
+            end
+            if !haskey(repval, a)
+                repval[a] = 0.01
+            end
+        end
+    elseif dim == 3
+        at_arr = Symbol.([i for i in at_list])
+        if length(at_list) == 1
+            at_arr = [(at_arr[1], at_arr[1], at_arr[1])]
+        elseif length(at_list) == 2
+            at_arr = [(at_arr[1], at_arr[1], at_arr[2]),
+                      (at_arr[1], at_arr[2], at_arr[1]),
+                      (at_arr[2], at_arr[1], at_arr[1]),
+                      (at_arr[1], at_arr[2], at_arr[2]),
+                      (at_arr[2], at_arr[1], at_arr[2]),
+                      (at_arr[2], at_arr[2], at_arr[1])]
+        elseif length(at_list) == 3
+            at_arr = [(at_arr[1], at_arr[2], at_arr[3]), 
+                      (at_arr[1], at_arr[3], at_arr[2]),
+                      (at_arr[2], at_arr[1], at_arr[3]),
+                      (at_arr[2], at_arr[3], at_arr[1]),
+                      (at_arr[3], at_arr[1], at_arr[2]),
+                      (at_arr[3], at_arr[2], at_arr[1]),
+                      ]
+        end
+
+        for a in at_arr
+            if !haskey(lim,a)
+                #println("add $a")
+                lim[a] = 0.04
+            end
+            if !haskey(repval,a)
+                repval[a] = 0.001
+            end
+        end
+        
+    end
+    
     println("dim $dim")
     println("datH $datH")
     println("totH $totH")
@@ -315,7 +399,9 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
     println("version $version")
     println("em $em")
     println(typeof.([dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em]))
-    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em)
+    println("lim ", lim)
+    println("repval ", repval)
+    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em, lim, repval)
     
 end
     
