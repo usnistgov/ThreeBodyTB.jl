@@ -79,7 +79,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:DIIS, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true)
 
 
     
@@ -111,7 +111,7 @@ end
 """
     function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:DIIS, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
@@ -194,9 +194,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 mix = 0.05
             else
                 if tbc.crys.nat <= 10 
-                    mix = 0.5
+                    mix = 0.4
                 else
-                    mix = 0.3
+                    mix = 0.1
                 end
             end
         end

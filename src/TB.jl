@@ -4665,7 +4665,7 @@ function go_charge15_sym(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_
 
         rDEN .= 0.0
         iDEN .= 0.0
-        @tturbo  for n = 1:max_occ 
+        @tturbo for n = 1:max_occ  #tturbo
             for k = 1:nk_red
                 for b = 1:nw
                     for a = 1:nw
