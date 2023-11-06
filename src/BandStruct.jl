@@ -42,6 +42,7 @@ using ..ThreeBodyTB:convert_dos
 using ..ThreeBodyTB:global_energy_units
 
 using ..DFToutMod:dftout
+using ..DFToutMod:bandstructure
 
 using ..TB:find_vbm_cbm
 using ..TB:tb
@@ -951,8 +952,8 @@ function band_summary(tbc, kpts, kweights, fermi=missing)
         directgap = 0.0
         indirectgap = 0.0
         vbm = fermi
-
-        return directgap, indirectgap, :metal, convert_energy(vbm - minband)
+        cbm = fermi
+        return directgap, indirectgap, :metal, convert_energy(vbm - minband), convert_energy.([vbm, cbm])
         
     end
 
@@ -984,8 +985,49 @@ function band_summary(tbc, kpts, kweights, fermi=missing)
 
     bandwidth = vbm - minband
     
-    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy(fermi), convert_energy(cbm), convert_energy(vbm)
+<<<<<<< HEAD
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
 
+end
+
+function band_summary(dft::dftout)
+    return band_summary(dft.bandstruct)
+end
+
+function band_summary(bs::bandstructure)
+    println("bs $(bs.nelec)")
+    if abs(bs.nelec / 2.0) - round(bs.nelec/2.0) > 1e-5 && bs.nspin == 1
+        return 0.0, 0.0, :metal, convert_energy(bs.efermi - minimum(bs.eigs)), convert_energy([bs.efermi, bs.efermi])
+    end
+    println("asdf")
+    nelec = Int64(round(bs.nelec/2.0))
+
+    vbm = maximum(bs.eigs[:,nelec])
+    vbm = min(vbm, bs.efermi)
+
+    cbm = minimum(bs.eigs[:,nelec+1,1])
+    cbm = max(cbm, bs.efermi)
+    
+    directgap = 10000.0
+    for i = 1:bs.nks
+        directgap = min(bs.eigs[i,nelec+1,1] - bs.eigs[i,nelec,1], directgap)
+    end
+=======
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy(fermi), convert_energy(cbm), convert_energy(vbm)
+>>>>>>> d17a2616aa5e310689b0be5eb562d46b69b6ad74
+
+    indirectgap = cbm - vbm
+
+    if directgap - indirectgap > 1e-5
+        gaptype = :indirect
+    else
+        gaptype = :direct
+    end
+
+    bandwidth= bs.efermi - minimum(bs.eigs)
+    
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
+    
 end
 
 """
