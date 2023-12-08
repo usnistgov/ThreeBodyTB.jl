@@ -322,13 +322,14 @@ Finite differences force/stress, for testing.
 - `smearing = 0.01` smearing energy
 - `grid = missing` kpoint grid
 """
-function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1, repel=true)
+function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1, repel=true, tot_charge=0.0)
     if ismissing(grid)
         grid = get_grid(crys)
     end
 
 
-    tbc0 = calc_tb_LV(crys, database, verbose=false, check_frontier=false, repel=repel)
+    tbc0 = calc_tb_LV(crys, database, verbose=false, check_frontier=false, repel=repel, tot_charge=tot_charge)
+    tbc0.tot_charge=tot_charge
 
     energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
@@ -344,6 +345,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         crys1.coords[:,:] = cart1 * inv(crys1.A)
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
+        tbc1.tot_charge=tot_charge
 
         energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
@@ -355,6 +357,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         crys2.coords[:,:] = cart2 * inv(crys2.A)
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
+        tbc2.tot_charge=tot_charge
 
         energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
         
@@ -375,7 +378,8 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         crys1.A[:,:] = crys1.A *(I(3) + strain)
 
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
-
+        tbc1.tot_charge=tot_charge
+        
         energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 
 
@@ -387,6 +391,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         crys2.A[:,:] = crys2.A *(I(3) + strain)
 
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
+        tbc2.tot_charge=tot_charge
 
         energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
 

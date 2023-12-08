@@ -10,6 +10,7 @@ using Printf
 using ..Atomdata:atoms
 using ..Atomdata:atom_radius
 using ..Atomdata:cutoff_dist
+using ..Atomdata:charge_cell_missing_atom_correction
 using GZip
 
 using ..ThreeBodyTB:global_length_units
@@ -1805,6 +1806,40 @@ function Plots.plot(c::crystal; bondlength=5.0)
     
     display(p)
 
+end
+
+function correct_charged_cell_alignment(A, atom, charge)
+
+    return -charge_cell_missing_atom_correction[atom] / abs(det(A)) * charge
+    
+end
+
+function correct_charged_cell_alignment(crys::crystal, atom, charge)
+
+    return correct_charged_cell_alignment(crys.A, atom, charge)
+    
+end
+
+function correct_charged_cell_alignment(crys::crystal, atom::Array, charge)
+
+    tot = 0.0
+    for a in atom
+        tot +=  correct_charged_cell_alignment(crys.A, a, charge)
+    end
+
+    return tot
+    
+end
+
+function correct_charged_cell_alignment(A, atom::Array, charge)
+
+    tot = 0.0
+    for a in atom
+        tot +=  correct_charged_cell_alignment(A, a, charge)
+    end
+
+    return tot
+    
 end
 
 

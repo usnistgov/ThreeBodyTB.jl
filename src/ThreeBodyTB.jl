@@ -354,7 +354,7 @@ Calculate energy, force, and stress for a crystal.
 - `smearing=0.01`: Gaussian smearing temperature, in Ryd. Usually can leave as default.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0)
 
     #nothing case
     if !do_tb && !do_classical
@@ -383,7 +383,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         return energy_cl, force_cl, stress_cl, missing
     end
     
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym)
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge )
 
     if ismissing(database)
         database = ManageDatabase.database_cached

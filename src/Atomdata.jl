@@ -821,5 +821,77 @@ for key in keys(uniform_charge_interaction)
 end
 
 
+charge_cell_missing_atom_correction = Dict()
+
+charge_cell_missing_atom_correction[:Pd] = -168.92671637230535
+charge_cell_missing_atom_correction[:Si] = -91.55036555946837
+charge_cell_missing_atom_correction[:C] = -55.896033244992765
+charge_cell_missing_atom_correction[:P] = -103.95776438248137
+charge_cell_missing_atom_correction[:Nb] = -191.3399237479238
+charge_cell_missing_atom_correction[:Ag] = -174.2873079561533
+charge_cell_missing_atom_correction[:Ru] = -183.4218798417586
+charge_cell_missing_atom_correction[:Sb] = -198.6879473361243
+charge_cell_missing_atom_correction[:Cs] = -351.36302720116925
+charge_cell_missing_atom_correction[:Be] = -67.13673651273729
+charge_cell_missing_atom_correction[:Sr] = -199.7437330497633
+charge_cell_missing_atom_correction[:Ta] = -191.59282630492982
+charge_cell_missing_atom_correction[:Ga] = -136.0152818915231
+charge_cell_missing_atom_correction[:Te] = -170.39994093139438
+charge_cell_missing_atom_correction[:Y] = -198.78691753814763
+charge_cell_missing_atom_correction[:Ca] = -167.55460714796996
+charge_cell_missing_atom_correction[:K] = -132.67914052260346
+charge_cell_missing_atom_correction[:Au] = -161.85695821526042
+charge_cell_missing_atom_correction[:V] = -129.04174313461377
+charge_cell_missing_atom_correction[:Mo] = -186.1225875540679
+charge_cell_missing_atom_correction[:Br] = -137.73434984052653
+charge_cell_missing_atom_correction[:Zn] = -123.15039274112533
+charge_cell_missing_atom_correction[:Sc] = -144.3562640757325
+charge_cell_missing_atom_correction[:H] = -1.661491797117925
+charge_cell_missing_atom_correction[:Al] = -87.61758942691196
+charge_cell_missing_atom_correction[:S] = -104.65056475434635
+charge_cell_missing_atom_correction[:Ge] = -129.1265582463086
+charge_cell_missing_atom_correction[:Fe] = -121.38328628000616
+charge_cell_missing_atom_correction[:Mg] = -87.11896852547163
+charge_cell_missing_atom_correction[:La] = -258.0266635610349
+charge_cell_missing_atom_correction[:F] = -31.388447949899316
+charge_cell_missing_atom_correction[:W] = -197.67184899466008
+charge_cell_missing_atom_correction[:Li] = -29.96006505936571
+charge_cell_missing_atom_correction[:O] = -50.432203443169996
+charge_cell_missing_atom_correction[:B] = -40.413953830923546
+charge_cell_missing_atom_correction[:Mn] = -123.07825417841941
+charge_cell_missing_atom_correction[:Bi] = -226.53803481781503
+charge_cell_missing_atom_correction[:Re] = -198.16773268989152
+charge_cell_missing_atom_correction[:Hf] = -187.85894722765943
+charge_cell_missing_atom_correction[:Cl] = -110.397468716175
+charge_cell_missing_atom_correction[:In] = -171.32871450175256
+charge_cell_missing_atom_correction[:Rb] = -174.9038593623594
+charge_cell_missing_atom_correction[:Se] = -127.94293803471079
+charge_cell_missing_atom_correction[:Ba] = -265.8718908149852
+charge_cell_missing_atom_correction[:Rh] = -173.92787264076577
+charge_cell_missing_atom_correction[:Ti] = -135.74813855006224
+charge_cell_missing_atom_correction[:Zr] = -193.21195258311502
+charge_cell_missing_atom_correction[:Cr] = -123.91223903438349
+charge_cell_missing_atom_correction[:Cu] = -113.73983434308724
+charge_cell_missing_atom_correction[:Tc] = -184.14181325507982
+charge_cell_missing_atom_correction[:Tl] = -199.35081607327368
+charge_cell_missing_atom_correction[:Hg] = -173.79297301497067
+charge_cell_missing_atom_correction[:N] = -52.4780114451034
+charge_cell_missing_atom_correction[:Na] = -85.14784591827423
+charge_cell_missing_atom_correction[:Os] = -205.00868429234754
+charge_cell_missing_atom_correction[:Ni] = -117.87861929058786
+charge_cell_missing_atom_correction[:Co] = -118.59522369551942
+charge_cell_missing_atom_correction[:Pt] = -207.30206452442582
+charge_cell_missing_atom_correction[:Ir] = -204.84079856765692
+charge_cell_missing_atom_correction[:As] = -119.12034151508527
+charge_cell_missing_atom_correction[:Sn] = -185.16620918472654
+charge_cell_missing_atom_correction[:I] = -184.3185362503607
+charge_cell_missing_atom_correction[:Cd] = -160.68263723148868
+charge_cell_missing_atom_correction[:Pb] = -213.4433215490498
+
+for key in keys(uniform_charge_interaction)
+    uniform_charge_interaction[String(key)] = uniform_charge_interaction[key]
+end
+
+
 end #ends module
  
