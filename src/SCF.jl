@@ -82,7 +82,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true)
 
 
-    
+#    println("SCF.jl $tot_charge")
     if !do_tb && !do_classical
         println("WARNING you set do_tb and do_classical both to false. returning zero energy")
         return 0.0
@@ -98,9 +98,9 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
     end
     
-    println("calc tb")
+#    println("calc tb")
     tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
-    #println("asdf ", tbc.eden, ", tc ", tot_charge)
+#    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
@@ -115,7 +115,8 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
-
+#    println("SCF_ENERGY TOT ", tbc.tot_charge)
+    
     if do_classical
         println("DO CLASSICAL $do_classical")
         
@@ -137,6 +138,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     #println("mixing mode $mixing_mode")
     #println("before before ", tbc.eden)
+
+    if ismissing(tot_charge)
+        tot_charge=tbc.tot_charge
+    end
     
     if !ismissing(tot_charge)
         ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
@@ -494,9 +499,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         delta_dq = ones(tbc.crys.nat)*1000.0
         delta_dq2 = ones(tbc.crys.nat)*1000.0
         
+#        println("error_flag $error_flag")
         for iter = 1:ITERS
 
-#            println("iter $iter")
+#            println("iter $iter $error_flag")
             
             if false
                 println("ΔQ: ", (round.(dq; digits=3)), " " , sum(dq))
@@ -587,8 +593,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
+#            println("ewald dq $dq")
             energy_charge, pot = ewald_energy(tbc, dq)
-            
+#            println("energy_charge, $energy_charge")
 
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
@@ -928,6 +935,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     tbc.tb.h1[:,:] = h1     #moar side effect
     tbc.tb.scf = true  #just double checking
+    tbc.dq = dq #for convenience
+    tbc.tot_charge=-sum(dq) #for convenience
     
     if magnetic
         h1spin = get_spin_h1(tbc, e_den)
@@ -945,6 +954,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
 
+#    println("FINAL error_flag ", error_flag)
     
     return energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc
 

@@ -648,7 +648,7 @@ end
 
 function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
-    
+#    println("SINGLE tot", tbc.tot_charge)
 #    println("get_energy_force_stress_fft")
 
     do_scf = true
@@ -704,7 +704,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #        println("not too ")
         
         scf = database["scf"]
-#        println("scf ", scf)
+        println("SINGLE scf ", scf)
         if !(tooshort)
             if !ismissing(vv)
                 VECTS, VALS, efermi = vv
@@ -721,7 +721,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #                    println("do_scf")
                     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
                 else
-#                    println("calc_energy_charge_fft")
+                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing, repel=repel)
                 end
                 if error_flag
@@ -737,6 +737,8 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
             OCCS = gaussian.(VALS.-efermi, smearing)
         end
 #        println("sum OCCS get_energy_force_stress_fft ", sum(OCCS))
+
+
         
     #println("shrink")
         begin
@@ -765,10 +767,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
         end
         
         dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
-        println("dc $dontcheck sum_repel $sum_repel")
+#        println("dc $dontcheck sum_repel $sum_repel")
         dontcheck = dontcheck && sum_repel
 
-        println("dontcheck $dontcheck")
+#        println("dontcheck $dontcheck")
         
 
         chunksize=min(15, 3*ct.nat + 6)        
@@ -875,7 +877,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 
                 DENMAT = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
                 DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
-
+#                println("SUM OCCS ", sum(abs.(OCCS)))
                 go_denmat_sym!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_conj, tbc, nk_red, grid_ind, kweights )
 #                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
 
@@ -893,14 +895,15 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 gatom = zeros(FloatX,2*size_ret+1 ,3)
                 gstress = zeros(FloatX,2*size_ret+1 ,6)
             end
-            print("atom ")
+#            print("atom ")
             for atom in 0:ct.nat
-                print("$atom ")
+#                print("$atom ")
                 ATOM=atom
                 if atom >= 1
                     ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
                     g = gatom
                     find= 1:3
+#                    println("XXXXXXXXXXXX atom $atom ", sum(abs.(gatom)))
                 else
                     ForwardDiff.jacobian!(gstress, FN_ham, zeros(FloatX, 6) , cfg6 ) ::  Array{FloatX,2}
                     g = gstress
@@ -944,12 +947,16 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     end
 
                     #println("psi")
+#                    if atom >= 1
+#                        println("ATOM $atom $FIND ", sum(abs.(hr_g)), " ", sum(abs.(sr_g)), " " , sum(abs.(DENMAT_r)), " " , sum(abs.(DENMAT_V_r)))
+#                    end
                     psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)            
 
                     #println("atom $atom sum vals ", sum(VALS0))
                     #println("sum")
                     if atom >= 1
-                        garr[3*(atom-1) + FIND] += sum(VALS0) 
+                        garr[3*(atom-1) + FIND] += sum(VALS0)
+#                        println("ATOM END $atom $FIND ", sum(VALS0))
                     else
                         garr[3*(ct.nat) + FIND] += sum(VALS0) 
                     end
@@ -958,7 +965,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
             end
             println()            
             if scf
+                #println("IF SCF ", scf, " " , sum(abs.(g_ew[1,:][:])))
+                #println("ONLY EW")
                 garr += g_ew[1,:][:]
+                #garr = g_ew[1,:][:]
             end
                 
         end #end begin

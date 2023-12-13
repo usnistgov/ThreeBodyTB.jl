@@ -81,12 +81,14 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 #    println("EWALD")
 #    println(crys)
 #    println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+
+#    noU = true
     
 #    println("estimate")
     if ismissing(kappa)
 #        kappa_default = 0.25
         kappa = estimate_best_kappa(crys.A)
-        #println("kappa $kappa")
+        println("kappa $kappa")
     end
     kappa = Float64(kappa)
 
@@ -169,7 +171,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     
     #interaction of net charge with uniform background
-    background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
+    background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2) 
 
     gamma_bc = zeros(T, crys.nat, crys.nat)
     for i = 1:crys.nat
@@ -189,7 +191,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
         background_charge_correction += uniform_charge_interaction[t]
     end
     background_charge_correction = background_charge_correction / abs(det(crys.A)) / crys.nat
-        
+       
 
     
     if onlyU #for debugging
@@ -199,6 +201,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     
     
+    #   return gamma_tot, background_charge_correction
     return gamma_tot, background_charge_correction
 
 end
@@ -403,6 +406,9 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
         Uconst .= 300.0 #for debug
     end
 
+#    println("Uconst ")
+#    println(Uconst)
+    
     #    R = zeros(T,1, 3)
     R = zeros(T, 3)
     Ra = zeros(T, 3)

@@ -278,7 +278,7 @@ Find the lowest energy atomic configuration of crystal `c`.
 - `conv_thr = 2e-3 `: Convergence threshold for gradient
 - `energy_conv_thr = 2e-4 `: Convergence threshold for energy in Ryd
 """
-function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true)
+function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0)
 
     if ismissing(database_classical)
         do_classical=false
@@ -292,7 +292,7 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
         update_grid = false
     end
 
-    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel, do_tb=do_tb, database_classical=database_classical, do_classical=do_classical)
+    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel, do_tb=do_tb, database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge)
 
    
     println("Relax done")
@@ -382,20 +382,28 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         end
         return energy_cl, force_cl, stress_cl, missing
     end
-    
+#    println("tot_charge before 00000 ", tot_charge)
     energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge )
-
+#    println("tot charge 11111111111 ", tbc.tot_charge, " " , tbc.nelec)
+    
     if ismissing(database)
         database = ManageDatabase.database_cached
     end
 
+    #this is a compatibility issue, haven't programmed symmetry for NON-scf case.
+    if database["SCF"] == false
+        use_sym=false
+    end
+    
     println()
     println("Calculate Force, Stress")
     if use_sym
+        println("use sym")
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
     else
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)        
     end
+#    println("tot charge 22222222 ", tbc.tot_charge, " " , tbc.nelec)
 
     if do_classical
         energy_tot += energy_cl
@@ -416,6 +424,8 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     stress = convert_stress(stress)
 
     print_with_force_stress(c, f_cart, stress)
+
+#    println("tot charge 333333 ", tbc.tot_charge, " " , tbc.nelec)
     
     return energy_tot, f_cart, stress, tbc
 
@@ -563,7 +573,7 @@ end
 
     SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing, repel=true)
 
     if ismissing(database_classical)
         do_classical=false

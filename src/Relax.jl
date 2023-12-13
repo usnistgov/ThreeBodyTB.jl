@@ -38,7 +38,7 @@ using ..ThreeBodyTB:set_units
 
 Relax structure. Primary user function is relax_structure in ThreeBodyTB.jl, which calls this one.
 """
-function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true)
+function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0)
 
 #    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 
@@ -68,7 +68,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     #do this ahead of first iteration, to get memory in correct place
     if do_tb
         tbc = calc_tb_LV(deepcopy(crys), database, verbose=false, repel=repel)
-        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical )
+        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge )
         eden = deepcopy(tbc.eden)
     else
         tbc = missing
@@ -156,6 +156,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         if do_tb
             if crys_working != tbc.crys
                 tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+                tbc.tot_charge=tot_charge
             end
         end
 
@@ -215,6 +216,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 
         if do_tb
             tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+            tbc.tot_charge=tot_charge
         end
 
         #        if crys_working != tbc.crys && !tooshort
@@ -245,7 +247,12 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
         f_cart = zeros(crys_working.nat,3)
         stress = zeros(3,3)
         if do_tb
-            energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+            if database["SCF"] == true
+                energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+            else
+                energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+            end
+            
             f_cart += f_cart_tb
             stress += stress_tb
         end

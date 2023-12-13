@@ -7517,7 +7517,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     #    println("repel_vals ", repel_vals)
     
     if check_only==true
-        println("repel_vals ", repel_vals)
+#        println("repel_vals ", repel_vals)
         return within_fit , sum(abs.(repel_vals)) < 1e-12
     end
     
@@ -8002,7 +8002,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             scf = false
         end
         #println("make")
-        tbc = make_tb_crys(tb, crys, nval-tot_charge, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc.tot_charge = tot_charge
+        tbc.nelec = tbc.nelec - tot_charge
     end
     if verbose 
         println("-----")

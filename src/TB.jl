@@ -160,6 +160,8 @@ mutable struct tb_crys{T}
     energy::Float64
     efermi::Float64
     nspin::Int64
+    tot_charge::Float64
+    dq::Array{Float64,1}
 end
 
 
@@ -998,17 +1000,22 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
     if ismissing(eden)
-        if scf == false
-            eden = zeros(nspin,ham.nwan)
-        else
+#        if scf == false
+#            eden = zeros(nspin,ham.nwan)
+#        else
             eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
             bv = eden .> 1e-5
 #            println("eden $eden sum $(sum(eden)) nelec $nelec")
             eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0)/crys.nat
 #            println("new ", eden)
-        end
+ #       end
+#        println("start eden ", eden)
     end
 
+    dq = get_dq(crys, eden)
+    tot_charge = -sum(dq)
+    
+    
     #println("gamma")
     if ismissing(gamma) 
         #        println("ismissing gamma")
@@ -1023,7 +1030,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
     
-    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin)
+    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
 """
