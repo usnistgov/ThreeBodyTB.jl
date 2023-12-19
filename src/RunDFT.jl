@@ -613,7 +613,11 @@ function loadXML(savedir)
             nspin = 2
         end
         if "magnetization" in keys(d["espresso"]["output"])
-            mag_tot = parse(Float64, d["espresso"]["output"]["magnetization"]["total"])
+            if "total" in keys(d["espresso"]["output"]["magnetization"])
+                mag_tot = parse(Float64, d["espresso"]["output"]["magnetization"]["total"])
+            else
+                mat_tot = 0.0
+            end
             mag_abs = parse(Float64, d["espresso"]["output"]["magnetization"]["absolute"])
         end
     end
