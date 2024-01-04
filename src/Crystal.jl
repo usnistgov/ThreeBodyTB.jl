@@ -891,12 +891,16 @@ Helper function to search for optimum supercells
 """
 function gen(c, dist, check_list, check_list_small)
     
+    println("dist $dist")
     good_list = []
     A_new = zeros(3,3)
 
     vol = zeros(length(check_list)^3 * length(check_list_small)^6)
+    alength =  zeros(length(check_list)^3 * length(check_list_small)^6)
     counter = 0
     inds = zeros(Int64, length(check_list)^3 * length(check_list_small)^6, 9)
+    dist_sq = dist^2
+    
     @time for x1 in check_list
         for x2 in check_list_small
             for x3 in check_list_small
@@ -915,18 +919,19 @@ function gen(c, dist, check_list, check_list_small)
                                         if v < 1e-3
                                             continue
                                         end
-                                        if sum(A_new[1,:].^2) < dist
+                                        if sum(A_new[1,:].^2) < dist_sq
                                             continue
                                         end
-                                        if sum(A_new[2,:].^2) < dist
+                                        if sum(A_new[2,:].^2) < dist_sq
                                             continue
                                         end
-                                        if sum(A_new[3,:].^2) < dist
+                                        if sum(A_new[3,:].^2) < dist_sq
                                             continue
                                         end
                                         
                                         counter +=1
                                         vol[counter] = (det(A_new))
+                                        alength[counter] = sqrt(sum(A_new.^2))
                                         inds[counter, :] = [x1,x2,x3,y1,y2,y3,z1,z2,z3]
                                         
                                     end
@@ -943,13 +948,30 @@ function gen(c, dist, check_list, check_list_small)
     bv = vol .> 1e-3 #we only consider right handed cells, rest are redundant
     vol = vol[bv]
     inds = inds[bv,:]
-
+    alength = alength[bv]
     
     #find the smallest vol cells the meet requirements
-    perm = sortperm(vol)
+    perm = sortperm(vol + 0.0000001 * alength) #we use heuristic that best candidates will have short total lattice vector lengths in addition to small volumes
     good_vec = []
     good_vol = 1000000000.0
+    ctemp = makecrys([1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0], [0.0 0.0 0.0], [:Hx])
+    println("perm")
+    counter = 0
+
+    tried = Dict()
+    
     @time for p in perm
+
+        
+        key = Int64(round(vol[p]*10000000))
+        if ! (key in keys(tried))
+            tried[key] = 0
+        end
+#        println("key $key tried $(tried[key])")
+        if tried[key] > 301
+            continue
+        end
+            
         if vol[p] > good_vol + 1e-3
             break
         end
@@ -959,20 +981,26 @@ function gen(c, dist, check_list, check_list_small)
         A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
         A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
         A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
-        ctemp = makecrys(A_new, [0.0 0.0 0.0], [:Hx])
+        ctemp.A[:,:] = A_new[:,:]
         
         nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[2,2,2])
 
+        if length(nz_inds) > 1
+            tried[key] += 1
+        end
         
         if size(nz_inds)[1] == 1
-            nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[4,4,4])
+            nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[3,3,3])
             if size(nz_inds)[1] == 1
-                nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[7,7,7])
+                nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(ctemp, missing, 0.0, R=[6,6,6])
                 if size(nz_inds)[1] == 1
                     push!(good_list, p)
                     good_vol = vol[p]
                 end
             end
+        end
+        if length(good_list) > 300 #enough candidates
+            break
         end
     end
 
