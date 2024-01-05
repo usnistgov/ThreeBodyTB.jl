@@ -1871,6 +1871,126 @@ function correct_charged_cell_alignment(A, atom::Array, charge)
 end
 
 
+function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom = missing, sub_atom= missing, distortion_mag = 1.5, number_of_rand = 3, rand_dist = 5.1)
+
+
+    
+    if defect_type == :vacancy || defect_type == :vac
+
+        if ismissing(defect_atom )
+            println("we use first atom as defect type, otherwise specify defect_atom : ", c_start.stype)
+            defect_atom = c_start.stype
+        end
+
+        
+        ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        keep = (1:c_start.nat) .!= ind
+        c_pristine = makecrys(c_start.A, c_start.coords[keep,:], c_start.stypes[keep])
+        if distortion_mag < 1e-10
+            C = [deepcopy(c_pristine)]
+        else
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(c_start,6.0, 0.0,var_type=Float64, return_floats=true)
+            nkeep_ab = size(R_keep_ab)[1]
+            todistort = Set()
+            for c = 1:nkeep_ab
+                a1 = R_keep_ab[c,2]
+                a2 = R_keep_ab[c,3]
+                dist_a = dist_arr[c,1]
+                if dist_a <= rand_dist
+                    if a1 == ind 
+                        todistort = push!(todistort, a2)
+                    end
+                    if a2 == ind
+                        todistort = push!(todistort, a1)
+                    end
+                end
+            end
+
+            C = []
+            for counter = 1:number_of_rand
+
+                coords = deepcopy(c_start.coords)
+                for t in todistort
+                    coords[t,:] = (coords[[t],:] * c_start.A + (rand(1,3) .- 0.5) * distortion_mag) * inv(c_start.A)
+                end
+                    
+                c_temp = makecrys(c_start.A, coords[keep,:], c_start.stypes[keep])
+                push!(C, c_temp)
+                
+            end
+        end
+
+    elseif defect_type == :substitution || defect_type == :sub
+
+        if ismissing(defect_atom )
+            println("we use first atom as defect type, otherwise specify defect_atom : ", c_start.stypes[1])
+            defect_atom = c_start.stypes[1]
+        end
+        if ismissing(sub_atom )
+            x = findfirst(c_start.stypes .!= defect_atom)
+            if isnothing(x)
+                println("this calculation makes no sense, you shouldn't substitue an atom with the same atom and expect anything different")
+                x = 1
+            end
+            sub_atom = c_start.stypes[x]
+            println("we use second atom as substituation type, otherwise specify sub_atom : ", sub_atom)
+        end
+        
+        
+        ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        stypes = deepcopy(c_start.stypes)
+        stypes[ind] = sub_atom
+
+            
+        c_pristine = makecrys(c_start.A, c_start.coords[:,:], stypes)
+        if distortion_mag < 1e-10
+            C = [deepcopy(c_pristine)]
+        else
+            R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(c_start,6.0, 0.0,var_type=Float64, return_floats=true)
+            nkeep_ab = size(R_keep_ab)[1]
+            todistort = Set()
+            for c = 1:nkeep_ab
+                a1 = R_keep_ab[c,2]
+                a2 = R_keep_ab[c,3]
+                dist_a = dist_arr[c,1]
+                if dist_a <= rand_dist
+                    if a1 == ind 
+                        todistort = push!(todistort, a2)
+                    end
+                    if a2 == ind
+                        todistort = push!(todistort, a1)
+                    end
+                end
+            end
+
+            C = []
+            for counter = 1:number_of_rand
+
+                coords = deepcopy(c_start.coords)
+                for t in todistort
+                    coords[t,:] = (coords[[t],:] * c_start.A + (rand(1,3) .- 0.5) * distortion_mag) * inv(c_start.A)
+                end
+                    
+                c_temp = makecrys(c_start.A, coords[:,:], stypes)
+                push!(C, c_temp)
+                
+            end
+        end
+
+        
+    else
+
+        println("I didn't recognize  defect_type $defect_type, please try :vac or :sub")
+        return c_start, [c_start]
+        
+    end
+
+    
+    return c_pristine, C
+
+end
+
+
 end #end module
 
 #using .CrystalMod
