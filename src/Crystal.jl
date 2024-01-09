@@ -834,6 +834,7 @@ function generate_optimum_supercell(c::crystal, dist)
 
     check_list1 = [1,-1,2,-2]
     check_list2 = [0,1,-1,2,-2, 3,-3, 4, -4]
+    check_list3 = [0,1,-1,2,-2, 3,-3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]
     check_list_small = [0,1,-1, 2, -2]
 
     cutoff_dist[(:Hx, :Hx)] = [dist, dist]
@@ -843,11 +844,13 @@ function generate_optimum_supercell(c::crystal, dist)
     if length(good_list) == 0
         good_list, A_new = gen(c, dist, check_list2, check_list_small)
         if length(good_list) == 0
-            println("Sorry we did not find an appropriate cell.")
-            return false
+            good_list, A_new = gen(c, dist, check_list3, check_list_small)
+            if length(good_list) == 0
+                println("Sorry we did not find an appropriate cell.")
+                return false
+            end
         end
     end
-
     vol_factor = Int64(round(abs(det(A_new))/abs(det(c.A))))
     println("vol_factor ", vol_factor)
 
@@ -902,27 +905,27 @@ function gen(c, dist, check_list, check_list_small)
     dist_sq = dist^2
     
     @time for x1 in check_list
-        for x2 in check_list_small
-            for x3 in check_list_small
-                for y1 in check_list_small
+        for y1 in check_list_small
+            for z1 in check_list_small
+                A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
+                if sum(A_new[1,:].^2) < dist_sq
+                    continue
+                end
+                for x2 in check_list_small
                     for y2 in check_list
-                        for y3 in check_list_small
-                            for z1 in check_list_small
-                                for z2 in check_list_small
+                        for z2 in check_list_small
+                            A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
+                            if sum(A_new[2,:].^2) < dist_sq
+                                continue
+                            end
+                            for x3 in check_list_small
+                                for y3 in check_list_small
                                     for z3 in check_list
 #                                        println([x1 y1 z1 x2 y2 z2 x3 y3 z3])
-                                        A_new[1,:] = c.A[1,:] * x1 + c.A[2,:] * y1 + c.A[3,:] * z1
-                                        A_new[2,:] = c.A[1,:] * x2 + c.A[2,:] * y2 + c.A[3,:] * z2
                                         A_new[3,:] = c.A[1,:] * x3 + c.A[2,:] * y3 + c.A[3,:] * z3
 
                                         v = det(A_new)
                                         if v < 1e-3
-                                            continue
-                                        end
-                                        if sum(A_new[1,:].^2) < dist_sq
-                                            continue
-                                        end
-                                        if sum(A_new[2,:].^2) < dist_sq
                                             continue
                                         end
                                         if sum(A_new[3,:].^2) < dist_sq
@@ -1874,6 +1877,8 @@ end
 function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom = missing, sub_atom= missing, distortion_mag = 1.5, number_of_rand = 3, rand_dist = 5.1)
 
 
+    c_start = deepcopy(c_start)
+    c_start.coords = mod.(c_start.coords , 1.0)
     
     if defect_type == :vacancy || defect_type == :vac
 
@@ -1883,7 +1888,30 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         end
 
         
-        ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        stypes = deepcopy(c_start.stypes)
+        #old version ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        
+        #search for defect location closest to 0.5 0.5 0.5 in fractional coords
+        ind = 0
+        best_dist = 10000000000000000.0
+        for n = 1:c_start.nat
+            if c_start.stypes[n] == Symbol(defect_atom)
+                t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                if t < best_dist
+                    best_dist = t
+                    ind = n
+                end
+            end
+        end
+
+        if ind == 0
+            println("warning, we could not find the atom you wanted to remove: $defect_atom")
+            return
+        end
+        defect_location = c_start.coords[[ind],:]*c_start.A
+
+        
+
         keep = (1:c_start.nat) .!= ind
         c_pristine = makecrys(c_start.A, c_start.coords[keep,:], c_start.stypes[keep])
         if distortion_mag < 1e-10
@@ -1909,12 +1937,34 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
             C = []
             for counter = 1:number_of_rand
 
+                therand = rand(length(todistort)-1, 3)
+                therand = therand - repeat(sum(therand, dims=1) / (length(todistort)-1), length(todistort)-1)
+#                println("therand")
+#                println(therand)
+
+                
                 coords = deepcopy(c_start.coords)
+                x = 0
                 for t in todistort
-                    coords[t,:] = (coords[[t],:] * c_start.A + (rand(1,3) .- 0.5) * distortion_mag) * inv(c_start.A)
+                    if keep[t] == true
+                        x+=1
+                        coords[t,:] = (coords[[t],:] * c_start.A + therand[[x],:]  * distortion_mag) * inv(c_start.A)
+                        stypes[t] = :Hg #for testing
+
+                    end
                 end
-                    
-                c_temp = makecrys(c_start.A, coords[keep,:], c_start.stypes[keep])
+
+                
+#                coords = deepcopy(c_start.coords)
+#                for t in todistort
+#                    coords[t,:] = (coords[[t],:] * c_start.A + (rand(1,3) .- 0.5) * distortion_mag) * inv(c_start.A)
+#                end
+
+ #               println("sum start ", sum(c_start.coords[keep,:], dims=1))
+ #               coords = coords + repeat( (sum(c_start.coords[keep,:], dims=1)  - sum(coords[keep,:], dims=1)) / (c_start.nat-1), c_start.nat)
+ #               println("sum coords ", sum(coords[keep,:], dims=1))
+                
+                c_temp = makecrys(c_start.A, coords[keep,:], stypes[keep])
                 push!(C, c_temp)
                 
             end
@@ -1937,7 +1987,25 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         end
         
         
-        ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        #ind = findfirst(c_start.stypes .== Symbol(defect_atom))
+        ind = 0
+        best_dist = 10000000000000000.0
+        for n = 1:c_start.nat
+            if c_start.stypes[n] == Symbol(defect_atom)
+                t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                if t < best_dist
+                    best_dist = t
+                    ind = n
+                end
+            end
+        end
+        if ind == 0
+            println("warning, we could not find the atom you wanted to remove: $defect_atom")
+            return
+        end
+        defect_location = c_start.coords[[ind],:]*c_start.A
+
+        
         stypes = deepcopy(c_start.stypes)
         stypes[ind] = sub_atom
 
@@ -1966,11 +2034,22 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
             C = []
             for counter = 1:number_of_rand
 
+                therand = rand(length(todistort), 3)
+                therand = therand - repeat(sum(therand, dims=1) / (length(todistort)), length(todistort))
+#                println("sum therand , ", sum(therand, dims=1))
+
+                
                 coords = deepcopy(c_start.coords)
-                for t in todistort
-                    coords[t,:] = (coords[[t],:] * c_start.A + (rand(1,3) .- 0.5) * distortion_mag) * inv(c_start.A)
+                for (i,t) in enumerate(todistort)
+                    coords[t,:] = (coords[[t],:] * c_start.A + (therand[i,:]' ) * distortion_mag) * inv(c_start.A)
+
+                    #                    stypes[t] = :Hg #for testing
+
                 end
-                    
+                stypes[ind] = sub_atom
+
+
+                
                 c_temp = makecrys(c_start.A, coords[:,:], stypes)
                 push!(C, c_temp)
                 
@@ -1981,13 +2060,60 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
     else
 
         println("I didn't recognize  defect_type $defect_type, please try :vac or :sub")
-        return c_start, [c_start]
+        return c_start, [c_start], [0 0 0]
         
     end
 
     
-    return c_pristine, C
+    return c_pristine, C,         defect_location 
 
+end
+
+function merge_crystal(c_small, c_big, vacancy_location = missing)
+
+    A = deepcopy(c_big.A)
+    coords = deepcopy(c_big.coords)
+    cart = coords  * A
+    stypes = deepcopy(c_big.stypes)
+
+
+    small_cart = c_small.coords * c_small.A
+    
+    if !ismissing(vacancy_location)
+
+        todel = findmin(sum( (cart - repeat(vacancy_location, c_big.nat)).^2, dims=2))
+        println("todel ", todel)
+        coords = coords[ (1:c_big.nat) .!= todel, :]
+        stypes = stypes[ (1:c_big.nat) .!= todel]
+
+    end
+
+    for j in 1:c_small.nat
+
+        best_dist = 1000000000.0
+        best_match = 0
+        for at = 1:c_big.nat
+            for x = -3:3
+                for y = -3:3
+                    for z = -3:3
+                        d = sum( (cart[at,:] + ([x y z] * A)[:] - small_cart[j,:]).^2)
+                        if d < best_dist
+                            best_match = at
+                            best_dist = d
+                        end
+                    end
+                end
+            end
+        end
+#        match = sortperm(sum( (cart - repeat(small_cart[[j],:], c_big.nat)).^2, dims=2)[:])[1]
+#        println("match ", match  ,  " " , cart[[match], :], " ", small_cart[[j],:], " dist ", sum( (cart[[match], :] - small_cart[[j],:]).^2 )   )
+        coords[best_match, :] = mod.(small_cart[[j],:] * inv(A), 1.0)
+        stypes[best_match]  = c_small.stypes[j]
+    end
+
+    return makecrys(A, coords, stypes)
+
+    
 end
 
 
