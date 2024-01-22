@@ -1879,6 +1879,15 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
 
     c_start = deepcopy(c_start)
     c_start.coords = mod.(c_start.coords , 1.0)
+
+    defect_type = Symbol(defect_type)
+    if !ismissing(defect_atom)
+        defect_atom = Symbol(defect_atom)
+    end
+    if !ismissing(sub_atom)
+        sub_atom = Symbol(sub_atom)
+    end
+    
     
     if defect_type == :vacancy || defect_type == :vac
 
