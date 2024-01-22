@@ -7528,7 +7528,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     #    println("nkeep, $nkeep, nkeep2, $nkeep2")
     
 
-    
+    if verbose; println("memory"); end
     begin
         if ismissing(Hin)
             H = zeros(var_type, nwan, nwan, nkeep)

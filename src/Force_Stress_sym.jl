@@ -62,7 +62,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 #        println("not too ")
         
         scf = database["scf"]
-#        println("scf ", scf)
+        #        println("scf ", scf)
         if !(tooshort)
             if !ismissing(vv)
                 VECTS, VALS, efermi = vv
@@ -134,7 +134,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
         println("Calculate Jacobian of TB object")
-        @time begin
+        begin
 
             #println("ew")
             EW = @spawn begin
@@ -182,7 +182,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         end
         size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
         println("Calculate Force / Stress")
-        @time begin
+        begin
         
             #println("mem")
             begin
@@ -544,6 +544,142 @@ function psi_gradH_psi3_sym2(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid
     end
 end
 
+
+function psi_gradH_psi3_sym2_sparse(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i, DENMAT, DENMAT_V)
+
+    
+    nspin = size(VALS0)[end]
+    nwan1, nwan2, G1, G2, G3 = size(hk_g)
+    #println("typeof(VALS0) ", typeof(VALS0), " size ", size(VALS0))
+    VALS0_t = zeros(nk_red)
+
+#    println("mem")
+#=    @time begin
+#        sk_g_r[:] = real(sk_g)
+#        sk_g_i[:] = imag(sk_g)
+#        hk_g_r[:] = real(hk_g)
+        #        hk_g_i[:] = imag(hk_g)
+        @inbounds @fastmath @threads  for a1 = 1:nwan
+            for a2 = 1:nwan
+                for k = 1:nk_red
+                    g1 = grid_ind[k,1]
+                    g2 = grid_ind[k,2]
+                    g3 = grid_ind[k,3]
+                    
+                    sk_g_r[g1,g2,g3,a2,a1] = real(sk_g[g1,g2,g3,a2,a1])
+                    sk_g_i[g1,g2,g3,a2,a1] = imag(sk_g[g1,g2,g3,a2,a1])
+                    hk_g_r[g1,g2,g3,a2,a1] = real(hk_g[g1,g2,g3,a2,a1])
+                    hk_g_i[g1,g2,g3,a2,a1] = imag(hk_g[g1,g2,g3,a2,a1])
+                end        
+            end
+        end
+    end
+=#
+    for spin = 1:nspin
+
+        #@time hk_g_temp = deepcopy(hk_g)
+       # hk_g_temp = zeros(eltype(hk_g), nwan, nwan, nk_red)
+
+#=        @time if scf
+            @inbounds @fastmath @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    for k = 1:nk_red
+                        g1,g2,g3 = grid_ind[k,:]
+                        hk_g[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) .* ( sk_g[g1,g2,g3,a2,a1])
+                    end
+                end
+            end
+        end
+        =#
+        #=
+        @time if scf
+            @inbounds @fastmath @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    hk_g[:,:,:,a2,a1] += (h1[a2,a1] + h1spin[spin,a2,a1]) .* (@view sk_g[:,:,:,a2,a1])
+                end
+            end
+        end
+=#
+
+#        println("typeof  ", [typeof(h1), typeof(h1spin), typeof(sk_g_r)])
+#        println("scf")
+        if scf
+            @threads for a1 = 1:nwan
+                for a2 = 1:nwan
+                    for k = 1:nk_red
+                        g1 = grid_ind[k,1]
+                        g2 = grid_ind[k,2]
+                        g3 = grid_ind[k,3]
+                        if abs((sk_g[g1,g2,g3,a2,a1])) > 1e-10
+                            
+#                        sk_g_r[g1,g2,g3,a2,a1] = real(sk_g)
+#                        sk_g_i[g1,g2,g3,a2,a1] = imag(sk_g)
+#                        hk_g_r[g1,g2,g3,a2,a1] = real(hk_g)
+#                        hk_g_i[g1,g2,g3,a2,a1] = imag(hk_g)
+
+                            
+                            hk_g[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) * ( sk_g[g1,g2,g3,a2,a1])
+                        end
+                            #hk_g_i[g1,g2,g3,a2,a1] +=  (h1[a2,a1] + h1spin[spin,a2,a1]) * ( sk_g_i[g1,g2,g3,a2,a1])
+                    end
+                end
+            end
+        end
+
+#        println("main")
+#=        @time for a1 = 1:nwan
+            for a2 = 1:nwan
+                for c = 1:nk_red
+                    k1=grid_ind[c,1]
+                    k2=grid_ind[c,2]
+                    k3=grid_ind[c,3]
+
+                    if abs((hk_g[k1,k2,k3,a2,a1])) > 1e-10
+                        VALS0_t[c] += real( (DENMAT[a1,a2,c, spin]) * (hk_g[k1,k2,k3,a2,a1]) - (DENMAT_V[a1,a2,c, spin]) * (sk_g[k1,k2,k3,a2,a1]))                        
+                        #VALS0_t[c] += DENMAT_r[a1,a2,c, spin] * real(hk_g[k1,k2,k3,a2,a1]) - DENMAT_i[a1,a2,c, spin] * imag(hk_g_i[k1,k2,k3,a2,a1])    - (DENMAT_V_r[a1,a2,c, spin] * sk_g_r[k1,k2,k3,a2,a1] - DENMAT_V_i[a1,a2,c, spin] * sk_g_i[k1,k2,k3,a2,a1])
+                    end
+                end
+            end
+        end
+=#
+        VAL_threads = zeros(nk_red, nthreads())
+        @threads for a1 = 1:nwan
+            id = threadid()
+            for a2 = 1:nwan
+                for c = 1:nk_red
+                    k1=grid_ind[c,1]
+                    k2=grid_ind[c,2]
+                    k3=grid_ind[c,3]
+
+                    if abs((hk_g[k1,k2,k3,a2,a1])) > 1e-10
+                        VAL_threads[c, id] += real( (DENMAT[a1,a2,c, spin]) * (hk_g[k1,k2,k3,a2,a1]) - (DENMAT_V[a1,a2,c, spin]) * (sk_g[k1,k2,k3,a2,a1]))                        
+                        #VALS0_t[c] += DENMAT_r[a1,a2,c, spin] * real(hk_g[k1,k2,k3,a2,a1]) - DENMAT_i[a1,a2,c, spin] * imag(hk_g_i[k1,k2,k3,a2,a1])    - (DENMAT_V_r[a1,a2,c, spin] * sk_g_r[k1,k2,k3,a2,a1] - DENMAT_V_i[a1,a2,c, spin] * sk_g_i[k1,k2,k3,a2,a1])
+                    end
+                end
+            end
+        end
+        
+        
+        
+#=        @time @inbounds @fastmath @threads for c = 1:nk_red
+                    k1,k2,k3=grid_ind[c,:]
+        for a1 = 1:nwan
+            for a2 = 1:nwan
+                #c=0
+                    #                @threads for k1 = 1:grid[1]
+#                    for k2 = 1:grid[2]
+#                        for k3 = 1:grid[3]
+#                            c = (k1-1)*grid[2]*grid[3] + (k2-1)*grid[3] + k3
+                    VALS0_t[c] += real( (DENMAT[a1,a2,c, spin]) * (hk_g[k1,k2,k3,a2,a1]) - (DENMAT_V[a1,a2,c, spin]) * (sk_g[k1,k2,k3,a2,a1]))
+                end
+            end
+        end
+=#
+        #VALS0[:,spin] = VALS0_t[:]
+        VALS0[:,spin] = sum(VAL_threads, dims=2)
+    end
+end
+
 function reshape_vec_SINGLE(x, at, nat; strain_mode=false)
 #    println("RESHAPEVEC RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRr ", strain_mode)
 
@@ -582,36 +718,41 @@ end
 
 
 function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, size_ret, nwan, nr, atom, memory)
-    #println("HS atom $atom")
+#    println("HS atom $atom")
     begin
-        T=typeof(x[1])
-        #println("T ", T)
-        if T in keys(memory)
-            Hdual, Sdual, ret = memory[T]
-            Hdual .= 0.0
-            Sdual .= 0.0
-            ret .= 0.0
-        else
-            Hdual = zeros(T, nwan, nwan, nr)
-            Sdual = zeros(T, nwan, nwan, nr)
-            ret = zeros(T, size_ret * 2 + 1)
-            memory[T] = Hdual, Sdual,ret
-        end            
-#        @time begin
-#            Hdual = zeros(T, nwan, nwan, nr)
-#            Sdual = zeros(T, nwan, nwan, nr)
-#        end
-        if atom >= 1
-            x_r, x_r_strain = reshape_vec_SINGLE(x, atom, ct.nat, strain_mode=false)
-            A = FloatX.(ct.A) * (I(3))
-        else
-            x_r, x_r_strain = reshape_vec_SINGLE(x, -1, ct.nat, strain_mode=true)
-            A = FloatX.(ct.A) * (I(3) + x_r_strain)            
-        end
-        
-
+#        println("begin")
+        begin
+            T=typeof(x[1])
+            #println("T ", T)
+            if T in keys(memory)
+                Hdual, Sdual, ret = memory[T]
+                Hdual .= 0.0
+                Sdual .= 0.0
+                ret .= 0.0
+            else
+                Hdual = zeros(T, nwan, nwan, nr)
+                Sdual = zeros(T, nwan, nwan, nr)
+                ret = zeros(T, size_ret * 2 + 1)
+                memory[T] = Hdual, Sdual,ret
+            end            
+            #        @time begin
+            #            Hdual = zeros(T, nwan, nwan, nr)
+            #            Sdual = zeros(T, nwan, nwan, nr)
+            #        end
+            if atom >= 1
+                x_r, x_r_strain = reshape_vec_SINGLE(x, atom, ct.nat, strain_mode=false)
+                A = FloatX.(ct.A) * (I(3))
+            else
+                x_r, x_r_strain = reshape_vec_SINGLE(x, -1, ct.nat, strain_mode=true)
+                A = FloatX.(ct.A) * (I(3) + x_r_strain)            
+            end
+        end        
+        #println("dual")
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
+        #println("calc_tb_LV")
         calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = atom)
+        
+        #println("move_mem")
         begin
             ret[1:size_ret] = Hdual
             ret[size_ret+1:size_ret*2] = Sdual
@@ -624,12 +765,14 @@ end
 
 function forloops2_SINGLE!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
 
-            
+    c_nz = 0
+    c_tot = 0
     for c in 1:size(tbc.tb.ind_arr)[1] #@threads 
         
         ind = tbc.tb.ind_arr[c,:]
         new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
-        @tturbo for nb = 1:tbc.tb.nwan
+        #        @tturbo for nb = 1:tbc.tb.nwan
+        for nb = 1:tbc.tb.nwan
 
             #hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
             #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
@@ -639,10 +782,54 @@ function forloops2_SINGLE!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
 #                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
                 hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
                 sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                c_tot += 1
+                if abs(g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]) > 1e-10
+                    c_nz += 1
+                end
             end
         end
     end
+    println("c_nz $c_nz c_tot $c_tot $(c_nz / c_tot)")
+    
+end
 
+function forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
+
+#    c_nz = 0
+#    c_tot = 0
+    for c in 1:size(tbc.tb.ind_arr)[1] #@threads 
+        
+        ind = tbc.tb.ind_arr[c,:]
+        new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
+        @threads for nb = 1:tbc.tb.nwan
+            for na = 1:tbc.tb.nwan
+                if abs(g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]) > 1e-10
+                    hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+                    sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                end
+            end
+        end
+    end
+    
+    #    @tturbo for nb = 1:tbc.tb.nwan
+        #for nb = 1:tbc.tb.nwan
+
+            #hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
+            #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
+            
+     #       for na = 1:tbc.tb.nwan
+#                hr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+#                sr_g[na,nb,new_ind[1], new_ind[2], new_ind[3]] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+      #          hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+      #          sr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+#                c_tot += 1
+#                if abs(g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]) > 1e-10
+#                    c_nz += 1
+#                end
+       #     end
+       # end
+    #end
+#    println("c_nz $c_nz c_tot $c_tot $(c_nz / c_tot)")
     
 end
 
@@ -910,6 +1097,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     find = 1:6
                 end                    
                 #println("sum abs gz ", sum(abs.(g)))
+#                println("done atom; find")
                 for FIND in find
 
                     #println("FIND $FIND")
@@ -917,22 +1105,27 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     
                     hr_g .= 0.0
                     sr_g .= 0.0
-                    hr_g_r .= 0.0
-                    sr_g_r .= 0.0
+#                    hr_g_r .= 0.0
+#                    sr_g_r .= 0.0
 
 
-                    #println("forl")
+                #    println("forl")
                     #                @time forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
                     begin
-                        forloops2_SINGLE!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
-                        hr_g[:] .= hr_g_r[:]
-                        sr_g[:] .= sr_g_r[:]
+                    #    println("normal")
+                        #@time forloops2_SINGLE!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
+                    #    println("check")
+                        forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)                        
+#                        hr_g[:] .= hr_g_r[:]
+#                        sr_g[:] .= sr_g_r[:]
+
                     end
                     
                     #println("fft ", size(hr_g))
                     #println("fft")
-                    begin 
 
+                    begin 
+                        
                         h = @spawn begin
                             #   hk_g .= fft(hr_g, [1,2,3])
                             fft!(hr_g, [1,2,3])
@@ -946,11 +1139,13 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                         wait(s)
                     end
 
-                    #println("psi")
+#                    println("psi")
 #                    if atom >= 1
 #                        println("ATOM $atom $FIND ", sum(abs.(hr_g)), " ", sum(abs.(sr_g)), " " , sum(abs.(DENMAT_r)), " " , sum(abs.(DENMAT_V_r)))
 #                    end
-                    psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)            
+                    #@time psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)
+
+                    psi_gradH_psi3_sym2_sparse(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i, DENMAT, DENMAT_V)                                
 
                     #println("atom $atom sum vals ", sum(VALS0))
                     #println("sum")

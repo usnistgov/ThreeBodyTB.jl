@@ -879,7 +879,7 @@ function generate_optimum_supercell(c::crystal, dist)
 
     
     
-    cnew = makecrys(A_new, coords_new, types_new)
+    cnew = makecrys(A_new, coords_new, types_new, units=:Bohr)
 
     
      
@@ -1670,7 +1670,7 @@ function delete_atom(c::crystal, n)
     coords_new = c.coords[bv, :]
     types_new = c.types[bv]
 
-    return makecrys(c.A, coords_new, types_new)
+    return makecrys(c.A, coords_new, types_new, units=:Bohr)
     
 end
 
@@ -1686,7 +1686,7 @@ function add_atom(c::crystal, coord, type)
     
     types_new = vcat(c.types, String(type))
 
-    return makecrys(c.A, coords_new, types_new)
+    return makecrys(c.A, coords_new, types_new, units=:Bohr)
     
 end
 
@@ -1699,7 +1699,7 @@ function neaten_crys(c::crystal)
     A = neaten_lattice(A)
     A = neaten_lattice(A)
 
-    return makecrys(A, coords, c.types)
+    return makecrys(A, coords, c.types, units=:Bohr)
 
 end
 
@@ -1913,7 +1913,7 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         
 
         keep = (1:c_start.nat) .!= ind
-        c_pristine = makecrys(c_start.A, c_start.coords[keep,:], c_start.stypes[keep])
+        c_pristine = makecrys(c_start.A, c_start.coords[keep,:], c_start.stypes[keep], units=:Bohr)
         if distortion_mag < 1e-10
             C = [deepcopy(c_pristine)]
         else
@@ -1949,7 +1949,7 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
                     if keep[t] == true
                         x+=1
                         coords[t,:] = (coords[[t],:] * c_start.A + therand[[x],:]  * distortion_mag) * inv(c_start.A)
-                        stypes[t] = :Hg #for testing
+#                        stypes[t] = :Hg #for testing
 
                     end
                 end
@@ -1964,7 +1964,7 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
  #               coords = coords + repeat( (sum(c_start.coords[keep,:], dims=1)  - sum(coords[keep,:], dims=1)) / (c_start.nat-1), c_start.nat)
  #               println("sum coords ", sum(coords[keep,:], dims=1))
                 
-                c_temp = makecrys(c_start.A, coords[keep,:], stypes[keep])
+                c_temp = makecrys(c_start.A, coords[keep,:], stypes[keep],units=:Bohr)
                 push!(C, c_temp)
                 
             end
@@ -2010,7 +2010,7 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         stypes[ind] = sub_atom
 
             
-        c_pristine = makecrys(c_start.A, c_start.coords[:,:], stypes)
+        c_pristine = makecrys(c_start.A, c_start.coords[:,:], stypes,units=:Bohr)
         if distortion_mag < 1e-10
             C = [deepcopy(c_pristine)]
         else
@@ -2050,7 +2050,7 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
 
 
                 
-                c_temp = makecrys(c_start.A, coords[:,:], stypes)
+                c_temp = makecrys(c_start.A, coords[:,:], stypes,units=:Bohr)
                 push!(C, c_temp)
                 
             end
@@ -2111,7 +2111,7 @@ function merge_crystal(c_small, c_big, vacancy_location = missing)
         stypes[best_match]  = c_small.stypes[j]
     end
 
-    return makecrys(A, coords, stypes)
+    return makecrys(A, coords, stypes,units=:Bohr)
 
     
 end
