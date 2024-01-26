@@ -68,7 +68,11 @@ using ..ThreeBodyTB:no_display
 Plot a comparison between different tight binding objects `h1`, `h2`, and optionally `h3`. Options similar to `plot_bandstr` but more limited.
 
 """
-function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false,  align="vbm", spin=1)
+function plot_compare_tb(h1::tb_crys, h2::tb_crys; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=-1, efermi = missing, yrange=missing, plot_hk=false,  align="vbm", spin=1)
+    if npts == -1
+        npts = maximum(get_grid(h1.crys)) * 2
+    end
+    
     if ismissing(h3)
         plot_compare_tb(h1.tb, h2.tb, h3=missing, kpath=kpath, names = names, npts=npts, efermi = efermi, yrange=yrange, plot_hk=plot_hk, align=align, spin=spin)
     else
@@ -80,7 +84,8 @@ end
 """
     function plot_compare_tb(h1::tb, h2::tb; h3=missing)
 """
-function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=25, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+
     println("plot_compare_tb ")
     plot_bandstr(h1, kpath=kpath, names = names, npts=npts, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
     plot_bandstr(h2, kpath=kpath, names = names, npts=npts, efermi = efermi, color="yellow", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
@@ -91,9 +96,10 @@ function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5
 end
 
 
-function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=30, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=-1, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
     println("plot_compare_tb ")
 
+    
     kpath=h2.tb.K
 
     
@@ -128,8 +134,12 @@ Must do scf calculation before plotting.
 - `clear_pervious=true` - clears the plot before adding new stuff.
 - `do_display=true` - display the plot. If `false`, can be used with display-less nodes. You can still use `savefig` from `Plots` to produce saved images.
 """
-function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both)
+function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=-1, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both)
 
+    if npts == -1
+        npts = maximum(get_grid(h.crys)) * 2
+    end
+#    println("npts $npts")
 
     proj_inds = setup_proj(h.crys, h.tb.nwan, proj_types, proj_orbs, proj_nums)
 
@@ -167,13 +177,19 @@ Plots the band structure using a set of K-points determined by the
 space group. Will standardize the crystal structure and run the SCF 
 calculation automatically. Conventions similar to Setyawan and Curtarolo CMS 2010
 as well as the jarvis-tools package. Other options similar to `plot_bandstr`"""
-function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=30, efermi
+function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=-1, efermi
                           = missing, color="blue", MarkerSize=missing, yrange=missing,
                           plot_hk=false, align = "vbm", proj_types = missing, proj_orbs =
                           missing, proj_nums=missing, clear_previous=true, do_display=true,
                           color_spin = ["green", "orange"], spin = :both, nspin = 1,
                           database=missing)
-    
+
+
+    if npts == -1
+        npts = maximum(get_grid(c)) * 2
+    end
+#    println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+#    println("npts $npts")
     kpts, names, c_std = get_kpath_sym(c, sym_prec = sym_prec)
 
     if ismissing(database)
@@ -197,8 +213,15 @@ space group. This version takes in a tight-binding crystal object from a perviou
 If the crystal is in the standardized unit cell, then it will not repeat the SCF
 calculation, but otherwise it will.
 """
-function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=30, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
+function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=-1, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
 
+    if npts == -1
+        npts = maximum(get_grid(tbc.crys)) * 2
+    end
+#    println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy")
+#    println("npts $npts")
+
+    
     kpts, names, c_std = get_kpath_sym(tbc.crys, sym_prec = sym_prec)
             
     if sum(abs.(tbc.crys.A - c_std.A)) > 1e-5
@@ -235,7 +258,7 @@ See `plot_bandstr_sym` and `dos`
 """
 function plot_bandstr_dos(c::crystal;
                           sym_prec = 5e-4,
-                          npts=30,
+                          npts=-1,
                           efermi = missing,
                           color="blue",
                           MarkerSize=missing,
@@ -285,7 +308,7 @@ See `plot_bandstr_sym` and `dos`
 """
 function plot_bandstr_dos(tbc::tb_crys;
                           sym_prec = 5e-4,
-                          npts=30,
+                          npts=-1,
                           efermi = missing,
                           color="blue",
                           MarkerSize=missing,
@@ -303,7 +326,7 @@ function plot_bandstr_dos(tbc::tb_crys;
                           database=missing, smearing = 0.025)
     
     
-    tbc, p_band = plot_bandstr_sym(tbc;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database)
+    tbc, p_band = plot_bandstr_sym(tbc;  efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=false, color_spin = color_spin, spin = spin, sym_prec = sym_prec, database=database, npts=npts)
 
     ylimsX = ylims(p_band)
     
@@ -382,7 +405,7 @@ Construct a k_path for a band structure calculations. Very simple.
 - `names` names of kpoints like `["Γ", "X"]`
 - `npts` number of points between high-symmetry kpoints
 """
-function get_kpath(kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5], npts=30)
+function get_kpath(kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5], npts=20)
 
 #    println("get kpath")
 #    println(kpath)
@@ -432,7 +455,7 @@ end
 
 Plots using `tb`
 """
-function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=30, efermi = missing, color="blue",color_spin = ["green", "orange"], MarkerSize=missing, yrange=missing, plot_hk=false, align="vbm", proj_inds=missing, clear_previous=true, do_display=true, spin=:both)
+function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5], names = missing, npts=20, efermi = missing, color="blue",color_spin = ["green", "orange"], MarkerSize=missing, yrange=missing, plot_hk=false, align="vbm", proj_inds=missing, clear_previous=true, do_display=true, spin=:both)
 #function plot_bandstr( kpath; names = missing, npts=30, efermi = missing)
 
 
@@ -881,8 +904,11 @@ This function will run a new QE dft calculation and band structure calculation a
 
 Other options like the other plotting commands
 """
-function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=30, efermi = missing, yrange=missing, align="vbm", spin = 1, skip= true)
+function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0 0 ; 0 0 0; 0.5 0.0 0.5], names = missing, npts=-1, efermi = missing, yrange=missing, align="vbm", spin = 1, skip= true)
 
+    if npts == -1
+        npts = maximum(get_grid(tbc.crys)) * 2
+    end
 
     NK = size(kpath)[1]
 

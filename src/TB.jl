@@ -4725,7 +4725,7 @@ function align_potentials(tbc1, tbc2)
         tbc2 = ct
     end
     
-    best_dist, best_match = align_crystal(tbc1.crys, tbc2.crys)
+    best_dist, best_match, defect_loc = align_crystal(tbc1.crys, tbc2.crys)
 
     if tbc1.crys.nat == tbc2.crys.nat #substituation defect
         ind = findfirst(tbc1.crys.stypes[best_match] .!= tbc2.crys.stypes)
