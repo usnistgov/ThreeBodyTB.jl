@@ -42,6 +42,8 @@ using ..BandTools:gaussian
 using ..BandTools:smearing_energy
 
 using ..CrystalMod:get_grid
+using ..CrystalMod:get_dist
+using ..CrystalMod:align_crystal
 using ..Ewald:electrostatics_getgamma
 using ..CrystalMod:orbital_index
 
@@ -2046,8 +2048,9 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
         return_more_info = true
     end
     
-    ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=return_more_info, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin, use_sym=use_sym, nk_red=nk_red, grid_ind = grid_ind, kweights=kweights)
+    ret =  calc_energy_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=true, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin, use_sym=use_sym, nk_red=nk_red, grid_ind = grid_ind, kweights=kweights)
 
+#    println("ret ", ret)
     energy, efermi, vals, vects  = ret
 
     vals_old = deepcopy(vals)
@@ -2071,7 +2074,7 @@ function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_
         return etot, efermi, vals, vects, hk3, sk3
 
     end
-    return ret + etypes
+    return energy + etypes
 
 end
 
@@ -4708,6 +4711,50 @@ function go_charge15_sym(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_
 end
 
 
+
+function align_potentials(tbc1, tbc2)
+
+
+    if sum(abs.(tbc1.crys.A - tbc2.crys.A)) > 1e-6
+        println("WARNING, trying align_potentials with different unit cells probably will not work")
+    end
+    
+    if tbc1.crys.nat > tbc2.crys.nat
+        ct = deepcopy(tbc1)
+        tbc1 = deepcopy(tbc2)
+        tbc2 = ct
+    end
+    
+    best_dist, best_match = align_crystal(tbc1.crys, tbc2.crys)
+
+    if tbc1.crys.nat == tbc2.crys.nat #substituation defect
+        ind = findfirst(tbc1.crys.stypes[best_match] .!= tbc2.crys.stypes)
+        defect = tbc1.crys.coords[[ind],:] * tbc1.crys.A
+        dist1 = get_dist(defect, tbc1.crys)
+        dist2 = get_dist(defect, tbc2.crys)
+        
+        potential1 = tbc1.gamma * tbc1.dq
+        potential2 = tbc2.gamma * tbc2.dq
+
+        scatter(dist1, potential1, label="tbc1")
+        scatter!(dist2, potential2, label="tbc2")
+        xlabel!("distance from defect (bohr)")
+        ylabel!("potential (ryd)")
+
+        scatter(dist1, tbc1.dq, label="dq1")
+        scatter!(dist2, tbc2.dq, label="dq2")
+        
+        #cart1 = tbc1.crys.coords * tbc1.crys.A
+        #cart2 = tbc2.crys.coords * tbc2.crys.A
+#        scatter(tbc1.crys.coords[:,1] * sqrt(sum(tbc1.crys.A[1,:].^2)), potential1)
+#        scatter!(tbc2.crys.coords[:,1] * sqrt(sum(tbc2.crys.A[1,:].^2)), potential2)
+#        xlabel!("distance along a1 (bohr)")
+#        ylabel!("potential (ryd)")
+#        
+    end
+    
+    
+end
 
 include("Magnetic.jl")
 

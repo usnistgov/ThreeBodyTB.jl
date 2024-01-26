@@ -1874,7 +1874,7 @@ function correct_charged_cell_alignment(A, atom::Array, charge)
 end
 
 
-function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom = missing, sub_atom= missing, distortion_mag = 1.5, number_of_rand = 3, rand_dist = 5.1)
+function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom = missing, sub_atom= missing, distortion_mag = 1.5, number_of_rand = 3, rand_dist = 5.1, center_defect=false)
 
 
     c_start = deepcopy(c_start)
@@ -1892,8 +1892,8 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
     if defect_type == :vacancy || defect_type == :vac
 
         if ismissing(defect_atom )
-            println("we use first atom as defect type, otherwise specify defect_atom : ", c_start.stype)
-            defect_atom = c_start.stype
+            println("we use first atom as defect type, otherwise specify defect_atom : ", c_start.stypes)
+            defect_atom = c_start.stypes[1]
         end
 
         
@@ -1905,7 +1905,11 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         best_dist = 10000000000000000.0
         for n = 1:c_start.nat
             if c_start.stypes[n] == Symbol(defect_atom)
-                t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                if center_defect == true
+                    t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                else
+                    t = sum((c_start.coords[n,:] - [0.0,0.0,0.0]).^2)
+                end                    
                 if t < best_dist
                     best_dist = t
                     ind = n
@@ -2001,7 +2005,13 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
         best_dist = 10000000000000000.0
         for n = 1:c_start.nat
             if c_start.stypes[n] == Symbol(defect_atom)
-                t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+#                t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                if center_defect == true
+                    t = sum((c_start.coords[n,:] - [0.5,0.5,0.5]).^2)
+                else
+                    t = sum((c_start.coords[n,:] - [0.0,0.0,0.0]).^2)
+                end                    
+
                 if t < best_dist
                     best_dist = t
                     ind = n
@@ -2077,6 +2087,65 @@ function generate_defect_structure(c_start ; defect_type=:vacancy, defect_atom =
     return c_pristine, C,         defect_location 
 
 end
+
+function get_dist(cart, c)
+    dist = ones(c.nat) * 1000000000000.0
+    c_cart = c.coords*c.A
+    for at = 1:c.nat
+        for x = -2:2
+            for y = -2:2
+                for z = -2:2
+                    d = sum( ( c_cart[[at],:] + ([x y z] * c.A) - cart).^2)
+
+                    if d < dist[at]
+                        dist[at] = d
+                    end
+                end
+            end
+        end
+    end
+    return sqrt.(dist)
+end
+
+function align_crystal(c1, c2)
+
+    if sum(abs.(c1.A - c2.A)) > 1e-6
+        println("WARNING, trying align_crystal with different unit cells probably will not work")
+    end
+    
+    if c1.nat > c2.nat
+        ct = deepcopy(c1)
+        c1 = deepcopy(c2)
+        c2 = ct
+    end
+
+    c1cart = c1.coords * c1.A
+    c2cart = c2.coords * c2.A
+    
+    best_dist = ones(c2.nat) * 1000000000.0
+    best_match = zeros(Int64, c2.nat)
+    for j in 1:c2.nat
+
+        for at = 1:c1.nat
+            for x = -2:2
+                for y = -2:2
+                    for z = -2:2
+                        d = sum( (c2cart[j,:] + ([x y z] * c2.A)[:] - c1cart[at,:]).^2)
+                        if d < best_dist[j]
+                            best_match[j] = at
+                            best_dist[j] = d
+                        end
+                    end
+                end
+            end
+        end
+    end    
+
+    return sqrt.(best_dist), best_match
+
+end
+
+
 
 function merge_crystal(c_small, c_big, vacancy_location = missing)
 
