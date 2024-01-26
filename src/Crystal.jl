@@ -2141,9 +2141,18 @@ function align_crystal(c1, c2)
         end
     end    
 
-    worst_match = argmax(best_dist)
-    defect_location = c2.coords[worst_match,:]
-    
+    if c1.nat < c2.nat
+        worst_match = argmax(best_dist)
+        defect_location = c2.coords[worst_match,:]
+    elseif c1.nat == c2.nat
+        for (i, b) in enumerate(best_match)
+            if c1.stypes[i] != c2.stypes[b]
+                defect_location == c2.coords[b]
+                break
+            end
+        end
+    end
+        
     return sqrt.(best_dist), best_match, defect_location
 
 end
