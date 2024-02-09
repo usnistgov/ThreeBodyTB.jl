@@ -98,9 +98,10 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
     end
     
-#    println("calc tb")
-    tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
-#    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
+    println("calc tb")
+    @time tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
+    println("done calc tb")
+    #    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
@@ -335,8 +336,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     e_den = deepcopy(e_den0)
 
     etypes = types_energy(tbc.crys)
-#    println("fft time")
-    hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
+    println("fft time")
+    @time hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
 
     thetype=typeof(real(sk3[1,1,1,1,1]))
 
@@ -554,7 +555,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("iter $iter add rho_in")
             push!(rho_in, e_denA)
 #            println("iter $iter add rho_in $(length(rho_in))")            
-            if use_sym
+            println("calc_energy")
+            @time if use_sym
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
 
 #                push!(DenMat, denmat)

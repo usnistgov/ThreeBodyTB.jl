@@ -2,6 +2,8 @@ using Test
 using ThreeBodyTB
 using Suppressor
 
+set_units(both=:atomic)
+
 #basic loading
 
 #name of test directory
@@ -69,10 +71,15 @@ end
         ThreeBodyTB.CrystalMod.write_efs(c, 0.0, zeros(1,3), zeros(3,3), "$TESTDIR/qe.out")
         rm("$TESTDIR/qe.out")
         
+        c_pristine, C, defect_location = ThreeBodyTB.CrystalMod.generate_defect_structure(c2 ) #default defect is first atom vacancy, other things can be specified
+        @test c_pristine.nat + 1 == c2.nat
 
+        c_pristine, C, defect_location = ThreeBodyTB.CrystalMod.generate_defect_structure(c2, defect_type=:sub, sub_atom=:Na, defect_atom = :Li ) #substituation
+        @test c_pristine.nat  == c2.nat
+        @test c_pristine.stypes[1] == :Na
         
-        @test 1 == 1
-
+        c_opt = ThreeBodyTB.CrystalMod.generate_optimum_supercell(c, 19.9)
+        @test c_opt.nat == c2.nat
         
     end
 end

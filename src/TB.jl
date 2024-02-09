@@ -4527,8 +4527,9 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
         end
     end
 
-    
-    go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
+
+    println("go eig time")
+    @time go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
@@ -4563,8 +4564,9 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
     end
 
     #println("nelec $nelec")
-    
-    if nelec > 1e-10
+
+    println("chargeden")
+    @time if nelec > 1e-10
         chargeden = go_charge15_sym(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
     else
         chargeden = zeros(nspin, nwan)
