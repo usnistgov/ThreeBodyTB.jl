@@ -177,12 +177,12 @@ Base.show(io::IO, x::tb_crys) = begin
     println(io, "nelec: ", x.nelec, "; nspin (hoppings): ", x.nspin)
     ind2orb, orb2ind, etotal, nval = orbital_index(x.crys)
     if abs(nval - x.nelec) > 1e-10
-        println("tot_charge: $(nval-x.nelec)")
+        println(io,"tot_charge: $(nval-x.nelec)")
     end
     println(io, "within_fit: ", x.within_fit,"  ; scf: ", x.scf, "; scfspin: ", x.tb.scfspin)
     println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
     println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
-    println("efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
+    println(io,"efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
     dq = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2
@@ -4139,6 +4139,7 @@ function get_dq(tbc::tb_crys_kspace)
     return get_dq(tbc.crys, tbc.eden)
 end
 
+
 """
          function get_dq(tbc::tb_crys)
      """
@@ -4198,14 +4199,14 @@ end
 """
          function get_h1(tbc::tb_crys, chargeden::Array{Float64,1})
      """
-function get_h1(tbc::tb_crys, chargeden::Array{Float64,2})
+function get_h1(tbc, chargeden::Array{Float64,2})
 
     dq = get_dq(tbc.crys, chargeden)
     h1 = get_h1_dq(tbc,dq)
     return h1, dq
 end
                       
-function get_h1_dq(tbc::tb_crys, dq::Array{Float64,1})
+function get_h1_dq(tbc, dq::Array{Float64,1})
     
 
     gamma = tbc.gamma
@@ -4583,12 +4584,17 @@ end
 
 function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red, grid_ind)
 
-    hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
-    sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
-    #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
-    vals = zeros(Complex{Float64}, size(h1)[1], nthreads())
-    vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    max_num = nthreads()
 
+    println("assemble memory")
+    @time begin 
+        hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+        sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+        #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+        vals = zeros(Complex{Float64}, size(h1)[1], max_num)
+        vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+    end
+    
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
@@ -4625,7 +4631,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             try
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
-                vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+                @time vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
 #                if c == 1
 #                    println()
 #                    println("hk ")
@@ -4760,6 +4766,6 @@ end
 
 include("Magnetic.jl")
 
-
+include("TB_sparse.jl")
 
 end #end module

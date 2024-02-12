@@ -117,7 +117,9 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
 #    println("SCF_ENERGY TOT ", tbc.tot_charge)
-    
+
+    @time begin
+        
     if do_classical
         println("DO CLASSICAL $do_classical")
         
@@ -336,10 +338,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     e_den = deepcopy(e_den0)
 
     etypes = types_energy(tbc.crys)
-    println("fft time")
-    @time hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
 
-    thetype=typeof(real(sk3[1,1,1,1,1]))
+    thetype=typeof(real(tbc.tb.S[1]))
 
     
 
@@ -371,7 +371,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     h1, dq = get_h1(tbc, e_den)
 
     Qpropose = deepcopy(dq)
+    end
+    println("done begin")
+    println("fft time")
+    @time hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
 
+        
 #=
     nwan = tbc.tb.nwan
     VECTS_w = zeros(Complex{thetype}, nwan, nwan, nk, nspin)
@@ -506,7 +511,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("iter $iter $error_flag")
             
             if false
-                println("ΔQ: ", (round.(dq; digits=3)), " " , sum(dq))
+                println("ΔQ: ", (round.(dq; digits=5)), " " , sum(dq))
                 if magnetic 
                     println("μB: ", round.(get_magmom(tbc.crys, e_denA), digits=3))
                 end
@@ -524,7 +529,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
             h1, dq = get_h1(tbc, e_denA)
 
-
+#            println("new dq ", dq, " --------------------------------------------")
+            
 #            println("h1 ")
 #            println(h1)
             
@@ -557,6 +563,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("iter $iter add rho_in $(length(rho_in))")            
             println("calc_energy")
             @time if use_sym
+#                println("hk3 ", size(hk3), " " , typeof(hk3))
+#                println("sk3 ", size(sk3), " " , typeof(sk3))
+#                println("nelec ", tbc.nelec)
+
+                
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
 
 #                push!(DenMat, denmat)
@@ -568,6 +579,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
+#            println("e_den_NEW ", e_den_NEW, " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            
 #            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=8))
             
             if use_sym
@@ -814,7 +827,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             if iter == 1
 #                println("SCF CALC $iter energy   $energy_tot                                  $dq ")
                 @printf("SCF CALC %04i energy  % 10.8f    \n", iter, energy_tot*energy_units )
-#                println("dq   ", round.(dq; digits=3))
+#                println("dq   ", round.(dq; digits=5))
                 
             else
 #                println("SCF CALC $iter energy   $energy_tot   en_diff ", abs(energy_tot - energy_old), "   dq_diff:   $delta_eden    ")
@@ -870,92 +883,96 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #    conv, e_den = innnerloop(0.2, 0.1, e_den, 1e-4)
 #    println("e_den  $e_den")
 
-
-    if mixing_mode == :pulay
-#        println("time pulay")
-        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
-
-        if true && conv == false 
-            println("pulay mix no convergence, switch to simple mixing")
-            mixing_mode = :simple
-            e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-#            e_den = 0.5*(e_den + e_denS)
-            mix = 0.005
-
-        end
-    end
-
-    
-    if mixing_mode == :DIIS
-
-        n_diis = 15
+    @time begin
         
-        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
-#        if conv == false
-#            println("kfg NO  converge")
-#        else
-#            println("kfg YES converge")
-#        end
-        if conv == false
-            mixing_mode = :simple
-            e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-            mix = 0.05
+        if mixing_mode == :pulay
+            #        println("time pulay")
+            conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
+
+            if true && conv == false 
+                println("pulay mix no convergence, switch to simple mixing")
+                mixing_mode = :simple
+                e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+                #            e_den = 0.5*(e_den + e_denS)
+                mix = 0.005
+
+            end
         end
 
-    end        
+        
+        if mixing_mode == :DIIS
 
-    
-    if mixing_mode == :simple
-#        println("eden start")
-#        println(e_den[1,:])
-#        if magnetic
-#            println(e_den[2,:])
-#        end
-        e_den_OLD = deepcopy(e_den)
+            n_diis = 15
+            
+            conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)  #first step
+            #        if conv == false
+            #            println("kfg NO  converge")
+            #        else
+            #            println("kfg YES converge")
+            #        end
+            if conv == false
+                mixing_mode = :simple
+                e_den = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+                mix = 0.05
+            end
 
-        conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)
+        end        
 
+        
+        if mixing_mode == :simple
+            #        println("eden start")
+            #        println(e_den[1,:])
+            #        if magnetic
+            #            println(e_den[2,:])
+            #        end
+            e_den_OLD = deepcopy(e_den)
+
+            conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, iters)
+
+        end
     end
-
+    println("done inn")
 #    conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, 200)
 
-
+    @time begin 
     
-    
-    if conv == false
-        println("WARNING !!!! NO convergence in $iters iters")
-        error_flag = true
+        
+        if conv == false
+            println("WARNING !!!! NO convergence in $iters iters")
+            error_flag = true
+        end
+
+        if size(e_den) == size(tbc.eden)
+            tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
+        else #i don't think i need this option anymore
+            tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
+        end
+        
+        h1, dq = get_h1(tbc, e_den)
+
+        tbc.tb.h1[:,:] = h1     #moar side effect
+        tbc.tb.scf = true  #just double checking
+        tbc.dq = dq #for convenience
+        tbc.tot_charge=-sum(dq) #for convenience
+        
+        if magnetic
+            h1spin = get_spin_h1(tbc, e_den)
+            tbc.tb.h1spin[:,:,:] = h1spin
+            tbc.tb.scfspin = true
+        end
+        println("ΔQ = ", round.(dq, digits=2))
+        if nspin == 2
+            println("μB = ", round.(get_magmom(tbc), digits=2))
+        end
+        println()
+
+        tbc.efermi=efermi
+        tbc.energy=energy_tot
+
+        V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
     end
-
-    if size(e_den) == size(tbc.eden)
-        tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
-    else #i don't think i need this option anymore
-        tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
-    end
-    
-    h1, dq = get_h1(tbc, e_den)
-
-    tbc.tb.h1[:,:] = h1     #moar side effect
-    tbc.tb.scf = true  #just double checking
-    tbc.dq = dq #for convenience
-    tbc.tot_charge=-sum(dq) #for convenience
-    
-    if magnetic
-        h1spin = get_spin_h1(tbc, e_den)
-        tbc.tb.h1spin[:,:,:] = h1spin
-        tbc.tb.scfspin = true
-    end
-    println("ΔQ = ", round.(dq, digits=2))
-    if nspin == 2
-        println("μB = ", round.(get_magmom(tbc), digits=2))
-    end
-    println()
-
-    tbc.efermi=efermi
-    tbc.energy=energy_tot
-
-    V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
-
+    println("done wrap")
+        
 #    println("FINAL error_flag ", error_flag)
     
     return energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc
@@ -1538,6 +1555,7 @@ function DIIS(N, nwan, nspin, rho_in, rho_out, mix)
 end
 
 
+include("SCF_sparse.jl")
 
 end #end module
 

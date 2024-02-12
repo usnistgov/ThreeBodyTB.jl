@@ -1,5 +1,8 @@
 using SparseArrays
 
+using ..TB:make_tb_crys_sparse
+using ..TB:make_tb_sparse
+
 function core3b_sparse!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,IND, counter, sym_dat1, sym_dat2, lmn31, lmn32)
 
 #            println("cut_h $cut_h")
@@ -543,7 +546,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
                 CHAM = R_keep_ab[c,7]
                 counter_arr[CHAM] += norb[A1]*norb[A2]
             end
-            counter_arr[c_zero] += crys.nat * nkeep * 81  + nwan*2
+            counter_arr[c_zero] +=  nkeep_ab * 81  + nwan*2
             
             
             #                for k = 1:nkeep
@@ -643,6 +646,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
                         laguerre_fast!(dist_a, lag_arr)
                         core_sparse!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, Harr, Sarr, INDarr, counter_arr, lmn_arr, sym_arr, sym_arrS)
                         core_onsite_sparse!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, Harr, INDarr, counter_arr, lmn_arr, sym_arr, sym_arrS)
+
                         
                     end
                     
@@ -678,34 +682,40 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
     threebdy_LV = begin
 
-        println("nonsense3")
-        counter_arr .= 0
+        if use_threebody || use_threebody_onsite
+            println("nonsense3")
+            counter_arr .= 0
 
-        @time begin
-            println("loop")
-            @time for  counter = 1: (size(array_ind3)[1] ) #add threads back
-                a1 = array_ind3[counter,1]
-                a2 = array_ind3[counter,2]
-                a3 = array_ind3[counter,3]
-                cind1 = array_ind3[counter,4]
-#                println("add $cind1  $a1 $a2 $a3")
-                counter_arr[cind1] += norb[a1]*norb[a2]
+            @time begin
+                println("loop")
+                if use_threebody
+                    
+                    @time for  counter = 1: (size(array_ind3)[1] ) #add threads back
+                        a1 = array_ind3[counter,1]
+                        a2 = array_ind3[counter,2]
+                        a3 = array_ind3[counter,3]
+                        cind1 = array_ind3[counter,4]
+                        #                println("add $cind1  $a1 $a2 $a3")
+                        counter_arr[cind1] += norb[a1]*norb[a2]
+                    end
+                end
+                if use_threebody_onsite
+                    counter_arr[c_zero] += 9 * size(array_ind3)[1] + nwan*2
+                end
                 
+                #            for i = 1:nkeep
+                #                println("ca $i ", counter_arr[i])
+                #            end
+                
+                Harr3 = Array{Float64}[]
+                INDarr3 = Array{Int64,2}[]
+                println("push")
+                @time for k in 1:nkeep
+                    push!(Harr3, zeros(counter_arr[k]))
+                    push!(INDarr3, zeros(Int64, counter_arr[k],2))
+                end
+                counter_arr .= 1
             end
-            counter_arr[c_zero] += min(9 * crys.nat^2 * nkeep^2 + nwan*2, 9 * (size(array_ind3)[1] ) + nwan*2)
-
-#            for i = 1:nkeep
-#                println("ca $i ", counter_arr[i])
-#            end
-            
-            Harr3 = Array{Float64}[]
-            INDarr3 = Array{Int64,2}[]
-            println("push")
-            @time for k in 1:nkeep
-                push!(Harr3, zeros(counter_arr[k]))
-                push!(INDarr3, zeros(Int64, counter_arr[k],2))
-            end
-            counter_arr .= 1
         end
         
         begin
@@ -867,13 +877,14 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         #            end
     end
 
-    println("sparsify3")
-    @time for k in  1:nkeep
-        H[k] += sparse(INDarr3[k][1:counter_arr[k]-1,1], INDarr3[k][1:counter_arr[k]-1,2], Harr3[k][1:counter_arr[k]-1], nwan, nwan )
-    end
-    
+    if use_threebody || use_threebody_onsite
+        println("sparsify3")
+        @time for k in  1:nkeep
+            H[k] += sparse(INDarr3[k][1:counter_arr[k]-1,1], INDarr3[k][1:counter_arr[k]-1,2], Harr3[k][1:counter_arr[k]-1], nwan, nwan )
+        end
+    end    
 
-    return H, S
+
     
 
     if retmat
@@ -884,14 +895,14 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
     if true
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
         #println("maketb")
-        tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S)
+        tb = make_tb_sparse( H , ind_arr, r_dict,  S)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]
         else
             scf = false
         end
         #println("make")
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys_sparse(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
         tbc.tot_charge = tot_charge
         tbc.nelec = tbc.nelec - tot_charge
     end
