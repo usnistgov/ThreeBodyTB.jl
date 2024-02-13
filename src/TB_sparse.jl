@@ -354,12 +354,14 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
             
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
-            VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(hk3[c])*vects[:,:,id]))
+            println("VALS0")
+            @time VALS0[c,:, spin] .= real.(diag( (@view vects[:,:,id])'*(hk3[c])*(@view vects[:,:,id])))
+            
 #            if c == 1
 #                println("vals0 ", VALS0[c,:, spin])
 #                println()
 #            end
-            VECTS[:,:, c, spin] .= vects[:,:,id]
+            VECTS[:,:, c, spin] .= (@view vects[:,:,id])
             
         end
     end

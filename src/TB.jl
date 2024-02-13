@@ -4654,7 +4654,8 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
-            VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
+            println("vals0")
+            @time VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
 #            if c == 1
 #                println("vals0 ", VALS0[c,:, spin])
 #                println()
