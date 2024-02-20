@@ -204,7 +204,7 @@ function core_onsite_sparse!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR
 end
 
 
-function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
+function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
 
 
     #        verbose=true
@@ -290,7 +290,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
     end
 
     
-    if verbose println("check_frontier") end
+    if verbose println("check_frontier  $check_frontier") end
     @time if !ismissing(database) && check_frontier
         #    if false
         #        println("check ---------------------------------")
@@ -323,8 +323,8 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
         if verbose; println("memory"); end
         @time begin 
-            H = SparseMatrixCSC{Float64, Int64}[]
-            S = SparseMatrixCSC{Float64, Int64}[]
+            H = SparseMatrixCSC{var_type, Int64}[]
+            S = SparseMatrixCSC{var_type, Int64}[]
             
             for k in 1:nkeep
                 push!(H, spzeros(nwan, nwan))
@@ -401,7 +401,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
 
                     cutoff_arr = zeros(crys.nat, crys.nat, 2)
-                    cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
+#                    cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
                     get_cutoff_pre = Dict()       
                     s = Set(crys.stypes)
                 end
@@ -419,10 +419,10 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
                     for b = 1:crys.nat
                         tb = crys.stypes[b]            
                         cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
-                        for c = 1:crys.nat
-                            tc = crys.stypes[c]            
-                            cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
-                        end
+#                        for c = 1:crys.nat
+#                            tc = crys.stypes[c]            
+#                            cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
+#                        end
                     end
                 end
 
@@ -552,13 +552,13 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
             #                for k = 1:nkeep
             #                   println("nz $(counter_arr[k]) ")
             #                end
-            Harr = Array{Float64}[]
-            Sarr = Array{Float64}[]
+            Harr = Array{var_type}[]
+            Sarr = Array{var_type}[]
             INDarr = Array{Int64,2}[]
             println("push")
             @time for k in 1:nkeep
-                push!(Harr, zeros(counter_arr[k]))
-                push!(Sarr, zeros(counter_arr[k]))
+                push!(Harr, zeros(var_type, counter_arr[k]))
+                push!(Sarr, zeros(var_type, counter_arr[k]))
                 push!(INDarr, zeros(Int64, counter_arr[k],2))
             end
             
@@ -626,11 +626,13 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
 
                             Harr[cham][counter_arr[cham]] = h
+
                             Sarr[cham][counter_arr[cham]] = s
                             INDarr[cham][counter_arr[cham],1] = o1
                             INDarr[cham][counter_arr[cham],2] = o1
                             counter_arr[cham] += 1
                             if repel
+                                println("repel")
                                 #H[o1, o1, c_zero] += repel_vals[a1] * 0.1
                                 #H[c_zero][o1, o1] += repel_vals[a1] * 0.1
                                 Harr[cham][counter_arr[cham]] += repel_vals[a1] * 0.1
@@ -656,6 +658,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         end
     end
 
+    
     println("sparsify")
     @time for k in  1:nkeep
         #            println(size(INDarr[k][:,1]), " " , size(INDarr[k][:,2]), size(Harr[k]))
@@ -663,7 +666,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         H[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Harr[k][1:counter_arr[k]-1], nwan, nwan )
         S[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Sarr[k][1:counter_arr[k]-1], nwan , nwan)
     end
-    
+
 
     
         #                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
@@ -823,7 +826,8 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
                     dist23, lmn23[:] = get_dist(a2,a3, -rind1+rind2, crys, At)
                     
                     cutoffZZ = cutoff_arr[a1,a2,1]
-                    cutoff3 = cutoff_arr3[a1,a2,a3]
+                    #                    cutoff3 = cutoff_arr3[a1,a2,a3]
+                    cutoff3 = get_cutoff_pre[(crys.stypes[a1],crys.stypes[a2],crys.stypes[a3])]
 
                     cut_ab = cutoff_fn_fast(dist12, cutoffZZ - cutoff_length, cutoffZZ)
                     cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
@@ -877,6 +881,8 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         #            end
     end
 
+
+    
     if use_threebody || use_threebody_onsite
         println("sparsify3")
         @time for k in  1:nkeep
@@ -884,13 +890,13 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         end
     end    
 
+    if retmat
+        return H, S, INDarr3
+        #return 
+    end
 
     
 
-    if retmat
-        return H, S
-        #return 
-    end
     if verbose println("make") end
     if true
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
