@@ -5,7 +5,7 @@ using ..CalcTB:calc_tb_LV_sparse
 
 using SparseArrays
 
-function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, FloatX, nwan, nr, atom)
+function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, FloatX, nwan, nr, atom, INDH, INDS)
 #    println("HS atom $atom")
     begin
 #        println("begin")
@@ -26,26 +26,73 @@ function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, Fl
         #println("dual")
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
         #println("calc_tb_LV")
-        H, S, INDarr = calc_tb_LV_sparse(crys_dual, database; verbose=true, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, atom = atom)
+        H, S = calc_tb_LV_sparse(crys_dual, database; verbose=true, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, atom = atom)
+
+        #println("INDarr_temp")
+        #println(INDarr_temp)
+        #println()
+        
+        #push!(IND, INDarr_temp)
         
         nnz = 0
         for n = 1:length(H)
             nnz += length(H[n])
+            I,J,data = findnz(H[n])
+            push!(INDH, [I,J])
+        end
+        for n = 1:length(S)
+            nnz += length(S[n])
+            I,J,data = findnz(S[n])
+            push!(INDS, [I,J])
         end
 
-        ret = zeros(T, nnz*2)
+        ret = zeros(T, nnz)
+        c = 1
         for n = 1:length(H)
-            ret[1:length(H[n])] = H[n]
-            ret[ nnz .+ (1:length(H[n]))] = S[n]
+            I,J,nz = findnz(H[n])
+            ret[c:c+length(nz)-1] = nz
+            c += length(H[n])
+        end
+        for n = 1:length(S)
+            I,J,nz = findnz(S[n])
+            ret[c:c+length(nz)-1] = nz
+            c += length(S[n])
         end
 
+        
     end
 
     return ret
 end
 
 
+function sparsify_jac(jac, INDH, INDS, nwan)
+    Harr = []
+    Sarr = []
+    for find = 1:size(jac,2)
+        H = []
+        c=1
+        for n = 1:length(INDH)
+            I,J = INDH[n]
+            println("I $I")
+            println("J $J")
+            push!(H, sparse(I,J,jac[c:c+length(I)-1,find], nwan, nwan))
+            c+=length(I)
+        end
+        push!(Harr, H)
+        S = []
+        for n = 1:length(INDS)
+            I,J = INDS[n]
+            push!(S, sparse(I,J,jac[c:c+length(I)-1,find], nwan, nwan))
+            c+=length(I)
+            
+        end
+        push!(Sarr, S)
+    end
 
+    return Harr, Sarr
+end
+    
 function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("SINGLE tot", tbc.tot_charge)
@@ -74,8 +121,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 
     #println("grid sym")
     nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
-#    println("nk $nk nk_red $nk_red")
-    
+    println("nk $nk nk_red $nk_red")
+    println("kpts $kpts")
+    println("kweights $kweights")
+    println()
 #    println("get_energy_force_stress_fft2")
     
     #println("test safe get_energy_force_stress_fft")
@@ -185,7 +234,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 
                 memory = Dict()
                 ATOM = 1
-                FN_ham = x->ham_SINGLE_sparse(x,ct,database,dontcheck, repel, DIST, FloatX, tbc.tb.nwan, tbc.tb.nr, ATOM)
+                INDH = []
+                INDS = []
+
+                FN_ham = x->ham_SINGLE_sparse(x,ct,database,dontcheck, repel, DIST, FloatX, tbc.tb.nwan, tbc.tb.nr, ATOM, INDH, INDS)
                 
                 #chunksize=min(15, 3*ct.nat + 6)
                 chunksize=3
@@ -214,10 +266,27 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 
         ATOM = 1
         println("repel $repel")
+
         jjj = FN_ham(zeros(FloatX, 3))
+
+        a = zeros(3)
+        a[3] = 0.0001
+        jjj_t = FN_ham(a)
+        
+#        println("fd , ", (jjj_t - jjj) / a)
+        
+
+#        return jjj
+        #        return jjj, H, S
+        INDH = []
+        INDS = []
         jac = ForwardDiff.jacobian(FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
 
-        return jjj, jac
+#        println("jac , ", jac)
+        
+        #Harr first index is xyz/stress, second is cell index
+        
+        #        return jjj, jac, Harr, Sarr
         
         #        return g
         
@@ -227,151 +296,207 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
         size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
         println("Calculate Force / Stress")
         begin
-        
+            
             #println("mem")
             begin
-#                hr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
-#                sr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
+                #                hr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
+                #                sr_g = zeros(Complex{eltype(g)},  tbc.tb.nwan, tbc.tb.nwan,  grid[1], grid[2], grid[3] )
 
-                hr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
-                sr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                #                hr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                #                sr_g_r = zeros(FloatX,    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
                 
-                hr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
-                sr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                #                hr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
+                #                sr_g = zeros(Complex{FloatX},    grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan )
 
-#                hk_g = similar(hr_g)
-#                sk_g = similar(sr_g)
+                #                hk_g = similar(hr_g)
+                #                sk_g = similar(sr_g)
                 
 
-                sk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                sk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                hk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
-                hk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                #                sk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                #                sk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                #                hk_g_r = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
+                #                hk_g_i = zeros(FloatX, grid[1], grid[2], grid[3], tbc.tb.nwan, tbc.tb.nwan)
 
                 
                 garr =zeros(Float64, 3*ct.nat+6)
 
                 #        pVECTS = permutedims(Complex{FloatX}.(VECTS), [2,3,1])
-                pVECTS = permutedims(Complex{FloatX}.(VECTS), [3,4,1,2])
-                pVECTS_conj = conj.(pVECTS)
+                #                pVECTS = permutedims(Complex{FloatX}.(VECTS), [3,4,1,2])
+                #                pVECTS_conj = conj.(pVECTS)
 
 
                 #        hk_g_temp = deepcopy(hk_g)
                 
                 #VALS0 = zeros(FloatX,  prod(grid), tbc.tb.nwan, nspin)
                 VALS0 = zeros(FloatX,  nk_red, nspin)
+                max_occ = 1
+                for a = 2:tbc.tb.nwan
+                    if maximum(OCCS[:,a,:]) > 1e-6
+                        max_occ = a
+                    end
+                end
+                println("max_occ $max_occ")
                 
-                OCCS = Float32.(OCCS)
+                #               OCCS = Float32.(OCCS)
             end
             #println("denmat")
-            begin
+            #            begin
+            
+            #                DENMAT = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
+            #                DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
+            #                println("SUM OCCS ", sum(abs.(OCCS)))
+            #                go_denmat_sym!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_conj, tbc, nk_red, grid_ind, kweights )
+            #                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
+
+            #                DENMAT_r = real(DENMAT)
+            #                DENMAT_i = imag(DENMAT)
+            #                DENMAT_V_r = real(DENMAT_V)
+            #                DENMAT_V_i = imag(DENMAT_V)
+
+
+
+        end            
+
+        #println("declare mem")
+        begin
+            gatom = zeros(FloatX,2*size_ret+1 ,3)
+            gstress = zeros(FloatX,2*size_ret+1 ,6)
+
+#            H_K = []
+#            S_K = []
+#            for 
+#                h_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
+#                s_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
+#                push!(H_K, h_k)
+#                push!(S_K, s_k)
+#            end
+            twopi_i = 2*pi*im
+            
+        end
+        #            print("atom ")
+        for atom in 0:ct.nat
+            #                print("$atom ")
+            ATOM=atom
+            INDH = []
+            INDS = []
+            if atom >= 1
+                jac =ForwardDiff.jacobian(FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
+                Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
+                find= 1:3
+                #                    println("XXXXXXXXXXXX atom $atom ", sum(abs.(gatom)))
+            else
+                jac = ForwardDiff.jacobian(FN_ham, zeros(FloatX, 6) , cfg6 ) ::  Array{FloatX,2}
+                Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
+                #g = gstress
+                find = 1:6
+            end                    
+
+#            return Harr, Sarr, find
+            println("Harr ")
+            println(Harr)
+            println()
+            #println("sum abs gz ", sum(abs.(g)))
+            #                println("done atom; find")
+            for FIND in find
+
+                #println("FIND $FIND")
+#                VALS0 .= 0.0
                 
-                DENMAT = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
-                DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, nk_red, nspin)
-#                println("SUM OCCS ", sum(abs.(OCCS)))
-                go_denmat_sym!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_conj, tbc, nk_red, grid_ind, kweights )
-#                println("size DENMAT $(size(DENMAT)) VALS $(size(VALS)) VECTS $(size(VECTS)) OCCS $(size(OCCS))")
-
-                DENMAT_r = real(DENMAT)
-                DENMAT_i = imag(DENMAT)
-                DENMAT_V_r = real(DENMAT_V)
-                DENMAT_V_i = imag(DENMAT_V)
-
-
-
-            end            
-
-            #println("declare mem")
-            begin
-                gatom = zeros(FloatX,2*size_ret+1 ,3)
-                gstress = zeros(FloatX,2*size_ret+1 ,6)
-            end
-#            print("atom ")
-            for atom in 0:ct.nat
-#                print("$atom ")
-                ATOM=atom
-                if atom >= 1
-                    ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
-                    g = gatom
-                    find= 1:3
-#                    println("XXXXXXXXXXXX atom $atom ", sum(abs.(gatom)))
-                else
-                    ForwardDiff.jacobian!(gstress, FN_ham, zeros(FloatX, 6) , cfg6 ) ::  Array{FloatX,2}
-                    g = gstress
-                    find = 1:6
-                end                    
-                #println("sum abs gz ", sum(abs.(g)))
-#                println("done atom; find")
-                for FIND in find
-
-                    #println("FIND $FIND")
-                    VALS0 .= 0.0
-                    
-                    hr_g .= 0.0
-                    sr_g .= 0.0
-#                    hr_g_r .= 0.0
-#                    sr_g_r .= 0.0
+#                hr_g .= 0.0
+#                sr_g .= 0.0
+                #                    hr_g_r .= 0.0
+                #                    sr_g_r .= 0.0
 
 
                 #    println("forl")
-                    #                @time forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
-                    begin
-                    #    println("normal")
-                        #@time forloops2_SINGLE!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
-                    #    println("check")
-                        forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)                        
-#                        hr_g[:] .= hr_g_r[:]
-#                        sr_g[:] .= sr_g_r[:]
+                #                @time forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
+                #                    begin
+                #    println("normal")
+                #@time forloops2_SINGLE!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
+                #    println("check")
+                #                        forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)                        
+                #                        hr_g[:] .= hr_g_r[:]
+                #                        sr_g[:] .= sr_g_r[:]
 
-                    end
-                    
-                    #println("fft ", size(hr_g))
-                    #println("fft")
-
-                    begin 
-                        
-                        h = @spawn begin
-                            #   hk_g .= fft(hr_g, [1,2,3])
-                            fft!(hr_g, [1,2,3])
-                        end
-                        s = @spawn begin 
-                            #fft!(sr_g, [3,4,5])
-                            fft!(sr_g, [1,2,3])
-                        end
-
-                        wait(h)
-                        wait(s)
-                    end
-
-#                    println("psi")
-#                    if atom >= 1
-#                        println("ATOM $atom $FIND ", sum(abs.(hr_g)), " ", sum(abs.(sr_g)), " " , sum(abs.(DENMAT_r)), " " , sum(abs.(DENMAT_V_r)))
-#                    end
-                    #@time psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)
-
-                    psi_gradH_psi3_sym2_sparse(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i, DENMAT, DENMAT_V)                                
-
-                    #println("atom $atom sum vals ", sum(VALS0))
-                    #println("sum")
-                    if atom >= 1
-                        garr[3*(atom-1) + FIND] += sum(VALS0)
-#                        println("ATOM END $atom $FIND ", sum(VALS0))
-                    else
-                        garr[3*(ct.nat) + FIND] += sum(VALS0) 
-                    end
-                    
-                end #end FIND
-            end
-            println()            
-            if scf
-                #println("IF SCF ", scf, " " , sum(abs.(g_ew[1,:][:])))
-                #println("ONLY EW")
-                garr += g_ew[1,:][:]
-                #garr = g_ew[1,:][:]
-            end
+                #                    end
                 
-        end #end begin
+                #println("fft ", size(hr_g))
+                #println("fft")
 
+                #                    begin 
+                
+                #                        h = @spawn begin
+                #   hk_g .= fft(hr_g, [1,2,3])
+                #                            fft!(hr_g, [1,2,3])
+                #                        end
+                #                        s = @spawn begin 
+                #                            #fft!(sr_g, [3,4,5])
+                #                            fft!(sr_g, [1,2,3])
+                #                        end
+
+                #                        wait(h)
+                #                        wait(s)
+                #                    end
+
+                println("ft")
+
+                f_temp = 0.0
+                @time for k = 1:nk_red
+                    h_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
+                    s_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
+                    
+                    kpoint = kpts[k,:]
+                    kmat = repeat(kpoint', tbc.tb.nr,1)
+                    exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
+                    for nr = 1:tbc.tb.nr
+                        h_k += Harr[FIND][nr] * exp_ikr[nr]
+                        s_k += Sarr[FIND][nr] * exp_ikr[nr]
+                    end
+                    
+
+                    for spin = 1:nspin
+                        for a =1:max_occ
+                            for c1 = 1:tbc.tb.nwan
+                                for c2 = 1:tbc.tb.nwan
+                                    f_temp += OCCS[k,a,spin]*VECTS[k,spin,c1,a]*conj(VECTS[k,spin,c2,a])*(h_k[c1,c2] - VALS[k, a,spin] * s_k[c1,c2]) * kweights[k]
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                
+                
+                
+                #                    println("psi")
+                #                    if atom >= 1
+                #                        println("ATOM $atom $FIND ", sum(abs.(hr_g)), " ", sum(abs.(sr_g)), " " , sum(abs.(DENMAT_r)), " " , sum(abs.(DENMAT_V_r)))
+                #                    end
+                #@time psi_gradH_psi3_sym2(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i)
+
+                #                    psi_gradH_psi3_sym2_sparse(VALS0, hr_g, sr_g, FloatX.(h1), FloatX.(h1spin), scf, tbc.tb.nwan, ct.nat, grid, DENMAT_r, DENMAT_i, DENMAT_V_r, DENMAT_V_i, nk_red, grid_ind, kweights, sk_g_r, sk_g_i, hk_g_r, hk_g_i, DENMAT, DENMAT_V)                                
+
+                #println("atom $atom sum vals ", sum(VALS0))
+                #println("sum")
+                if atom >= 1
+                    #    garr[3*(atom-1) + FIND] += sum(VALS0)
+                    garr[3*(atom-1) + FIND] += f_temp
+                    #                        println("ATOM END $atom $FIND ", sum(VALS0))
+                else
+                    #                        garr[3*(ct.nat) + FIND] += sum(VALS0)
+                    garr[3*(ct.nat) + FIND] += f_temp
+                end
+                
+            end #end FIND
+        end
+        println()            
+        if scf
+            #println("IF SCF ", scf, " " , sum(abs.(g_ew[1,:][:])))
+            #println("ONLY EW")
+            garr += g_ew[1,:][:]
+            #garr = g_ew[1,:][:]
+        end
+        
     end #ends else
     #println("end else")
     #    println()
@@ -381,11 +506,11 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
     f_cart = f_cart * inv(ct.A)' / nspin
     stress = -stress / abs(det(ct.A)) /nspin
 
-#    println("before ")
-#    println(f_cart)
-#    println()
-#    println(stress)
-
+    println("before ")
+    println(f_cart)
+    println()
+    println(stress)
+    println()
 
     #important if there is symmetry
     f_cart,stress = symmetrize_vector_tensor(f_cart,stress, ct)
