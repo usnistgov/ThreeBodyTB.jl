@@ -166,7 +166,7 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
     return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
-function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
+function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
 
     #println("begin")
     begin
@@ -242,7 +242,7 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
 
 
     println("go eig time")
-    @time go_eig_sym_sparse(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red,grid_ind)
+    @time go_eig_sym_sparse(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red)
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
@@ -279,8 +279,16 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
     #println("nelec $nelec")
 
     println("chargeden")
-    @time if nelec > 1e-10
-        chargeden = go_charge15_sym_sparse(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
+    if nelec > 1e-10
+#        @time chargeden = go_charge15_sym_sparse(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
+#        println("chargeden  ", sum(chargeden))
+#        @time chargeden_opt1 = go_charge15_sym_sparse_opt(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
+#        println("chargedenO1 ", sum(chargeden_opt1))
+        @time chargeden = go_charge15_sym_sparse_opt2(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,kweights, SI, SJ, rSV, iSV, maxS)
+        
+#        println("chargedenO2 ", sum(chargeden_opt2))
+#        println("dchargeden ", sum(abs.(chargeden_opt1 - chargeden)))
+#        println("dchargeden2 ", sum(abs.(chargeden_opt2 - chargeden)))
     else
         chargeden = zeros(nspin, nwan)
     end
@@ -294,17 +302,17 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
 
 end 
 
-function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red, grid_ind)
+function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red)
 
     #    max_num = nthreads()
-    max_num = 1
+
     println("assemble memory")
     @time begin 
-        hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
-        sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+        hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
+        sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
         #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
-        vals = zeros(Complex{Float64}, size(h1)[1], max_num)
-        vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
+        vals = zeros(Complex{Float64}, size(h1)[1])
+        vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
     end
     
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
@@ -313,9 +321,7 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
     
     
     @inbounds @fastmath for c = 1:nk_red
-        id = threadid()
-        
-        sk[:,:,id] .= collect(sk3[c]) 
+        sk .= collect(sk3[c]) 
         for spin = 1:nspin
             spin_ind = min(spin, nspin_ham)
             
@@ -323,7 +329,7 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
             #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
             
-            hk[:,:, id] .= hk3[c]  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+            hk .= hk3[c]  .+ sk .* (h1 + (@view h1spin[spin,:,:] ))
 
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
@@ -331,7 +337,8 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
             try
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
-                @time vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+                #println("eig")
+                @time vals, vects = eigen( Hermitian(hk), Hermitian(sk))
 #                if c == 1
 #                    println()
 #                    println("hk ")
@@ -342,26 +349,27 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
 #                end
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
             catch err
+                println("eig failed")
                 typeof(err) == InterruptException && rethrow(err)
-                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+                vals, vects = eigen( hk, sk)
             end
             
             if maximum(abs.(imag.(vals))) > 1e-10
-
-                println("s ", eigvals(sk[:,:,id])[:,:])
+                
+                println("s ", eigvals(sk))
                 error_flag = true
             end
             
-            VALS[c,:, spin] .= real.(vals[:,id])
+            VALS[c,:, spin] .= real.(vals)
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
-            println("VALS0")
-            @time VALS0[c,:, spin] .= real.(diag( (@view vects[:,:,id])'*(hk3[c])*(@view vects[:,:,id])))
+#            println("VALS0")
+            VALS0[c,:, spin] .= real.(diag( ( vects)'*(hk3[c])*(vects)))
             
 #            if c == 1
 #                println("vals0 ", VALS0[c,:, spin])
 #                println()
 #            end
-            VECTS[:,:, c, spin] .= (@view vects[:,:,id])
+            VECTS[:,:, c, spin] .= vects
             
         end
     end
@@ -420,7 +428,7 @@ function ewald_energy(tbc::tb_crys_sparse, delta_q=missing)
 
 end
 
-function go_charge15_sym_sparse(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, grid_ind,kweights )
+function go_charge15_sym_sparse(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, kweights )
 
     nw = size(S[1])[1]
     #    nk = size(S)[3]
@@ -476,4 +484,130 @@ function go_charge15_sym_sparse(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, i
         charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
     end
     return charge/2.0 #, denmat/2.0
+end
+
+
+function go_charge15_sym_sparse_opt(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, kweights )
+
+    nw = size(S[1])[1]
+    #    nk = size(S)[3]
+
+    d = zeros(Complex{Float64}, nw,nw)
+    charge = zeros(nspin, nw)
+
+#    denmat = zeros(Complex{Float64}, nspin, nw, nw, nk_red)
+
+#    println("size kw ", size(kweights))
+#    println("size occ ", size(occ))
+#    println("size rv ", size(rv))
+    #    println("nw $nw nk_red $nk_red max_occ $max_occ")
+    println("size VECTS ", size(VECTS))
+    println("size VECTS ", size(occ))
+    println("max_occ ", max_occ)
+
+
+#=    for spin = 1:nspin
+        d .= 0.0
+        for k = 1:nk_red
+            for n = 1:max_occ
+                for i = 1:nw
+                    for j = 1:nw
+                        d[i,j] += kweights[k] * occ[k,n,spin] * conj(VECTS[j,n,k, spin])*VECTS[i,n,k, spin]*S[k][j,i]
+                    end
+                end
+            end
+        end
+        charge[spin,:] = sum(real(0.5*(d + d')), dims=1) 
+    end
+=#
+  
+    for spin = 1:nspin
+        d .= 0.0
+#        rv[:,:,:] .= real.(VECTS[:,:,:,spin])
+#        iv[:,:,:] .= imag.(VECTS[:,:,:,spin])    
+
+        for k = 1:nk_red
+            #println("k $k")
+            kw =kweights[k]
+            I,J,V = findnz(S[k])
+            for (i,j,v) in zip(I,J,V)
+#            for i = 1:nw
+#                for j = 1:nw
+                for a = 1:max_occ
+                    d[i,j] += conj(VECTS[i,a,k,spin])*VECTS[j,a,k,spin]*occ[k,a,spin] * kw * v
+                end
+            end
+        end
+        #        d .= sum(DEN .* S, dims=3)[:,:]
+        #charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
+        charge[spin,:] = 0.5*sum( real( d + d' ) , dims=1)
+    end
+
+    return charge/2.0  #, denmat/2.0
+end
+
+function go_charge15_sym_sparse_opt2(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rp, ip,  nk_red, kweights, SI, SJ, rSV, iSV, maxS )
+
+    nw = size(S[1])[1]
+    #    nk = size(S)[3]
+    #d = zeros(Complex{Float64}, nw,nw)
+    rd = zeros(Float64, maxS)
+    id = zeros(Float64, maxS)
+    charge = zeros(nspin, nw)
+
+
+    
+    for spin = 1:nspin
+
+        rp[:,:,:] .= real.(VECTS[:,:,:,spin])
+        ip[:,:,:] .= imag.(VECTS[:,:,:,spin])    
+
+        d = spzeros(Complex{Float64}, nw,nw)
+        
+        for k = 1:nk_red
+            kw =kweights[k]
+            #            I,J,V = findnz(S[k])
+            I = SI[k]
+            J = SJ[k]
+            rV = rSV[k]
+            iV = iSV[k]
+            lv = length(rSV[k])
+            #            rV = real(V)
+            #            iV = imag(V)
+
+            rd .= 0.0
+            id .= 0.0
+
+            @tturbo for c in 1:lv
+                i = I[c]
+                j = J[c]
+                rv = rV[c]
+                iv = iV[c]
+                for a = 1:max_occ
+                    #                    d[i,j] += conj(VECTS[i,a,k,spin])*VECTS[j,a,k,spin]*occ[k,a,spin] * kw * v
+                    #                    rd[i,j] += (rv[i,a,k]*rv[j,a,k] + iv[i,a,k]*iv[j,a,k])*occ[k,a,spin] * kw * rV[c]
+                    #                    id[i,j] += (rv[i,a,k]*iv[j,a,k] - iv[i,a,k]*rv[j,a,k])*occ[k,a,spin] * kw * rV[c]
+                    #                    rd[i,j] += occ[k,a,spin] * kw*(-ip[j,a,k]*iv*rp[i,a,k] + ip[i,a,k]* ip[j,a,k]*rv + rp[i,a,k]*rp[j,a,k]*rv + ip[i,a,k]*ip[j,a,k]*iv)
+                    #                    id[i,j] += occ[k,a,spin] * kw*(ip[i,a,k]* ip[j,a,k]*iv + iv*rp[i,a,k]*rp[j,a,k] + ip[j,a,k]*rp[i,a,k]*rv -  ip[i,a,k]*rp[j,a,k]*rv )
+
+
+                    #                    rd[i,j] +=  occ[k,a,spin] * kw*( -ip[j,a,k]*iv*rp[i,a,k] + ip[i,a,k]*iv*rp[j,a,k] +  ip[i,a,k]*ip[j,a,k]*rv + rp[i,a,k]*rp[j,a,k]*rv)
+                    #                    id[i,j] +=  occ[k,a,spin] * kw*(  ip[i,a,k]*ip[j,a,k]*iv + iv*rp[i,a,k]*rp[j,a,k] -  ip[i,a,k]*rp[j,a,k]*rv + ip[j,a,k]*rp[i,a,k]*rv)
+
+#                    rd[i,j] +=  occ[k,a,spin] * kw*( -ip[j,a,k]*iv*rp[i,a,k] + ip[i,a,k]*iv*rp[j,a,k] +  ip[i,a,k]*ip[j,a,k]*rv + rp[i,a,k]*rp[j,a,k]*rv)
+#                    id[i,j] +=  occ[k,a,spin] * kw*(  ip[i,a,k]*ip[j,a,k]*iv + iv*rp[i,a,k]*rp[j,a,k] -  ip[i,a,k]*rp[j,a,k]*rv + ip[j,a,k]*rp[i,a,k]*rv)
+
+                    rd[c] +=  occ[k,a,spin] * kw*( -ip[j,a,k]*iv*rp[i,a,k] + ip[i,a,k]*iv*rp[j,a,k] +  ip[i,a,k]*ip[j,a,k]*rv + rp[i,a,k]*rp[j,a,k]*rv)
+                    id[c] +=  occ[k,a,spin] * kw*(  ip[i,a,k]*ip[j,a,k]*iv + iv*rp[i,a,k]*rp[j,a,k] -  ip[i,a,k]*rp[j,a,k]*rv + ip[j,a,k]*rp[i,a,k]*rv)
+                    
+                    
+                end
+            end
+            d += sparse(I, J,(@view  (rd+im*id)[1:lv]))
+        end
+
+        charge[spin,:] = 0.5*sum( real( d + d' ) , dims=1)
+    end
+
+    return charge/2.0  #, denmat/2.0
 end

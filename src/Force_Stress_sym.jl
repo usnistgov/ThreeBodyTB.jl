@@ -921,6 +921,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
             else
                 h1spin = zeros(2,tbc.tb.nwan, tbc.tb.nwan)
             end
+
             OCCS = gaussian.(VALS.-efermi, smearing)
         end
 #        println("sum OCCS get_energy_force_stress_fft ", sum(OCCS))
@@ -967,6 +968,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
         println("(Pre-)Calculate Jacobian of TB object")
+        println("repel $repel")
         begin
 
             #println("ew")
