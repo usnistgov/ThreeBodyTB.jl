@@ -98,9 +98,9 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
     end
     
-    println("calc tb")
-    @time tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
-    println("done calc tb")
+    #println("calc tb")
+    tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
+    #println("done calc tb")
     #    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
@@ -118,12 +118,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 """
 #    println("SCF_ENERGY TOT ", tbc.tot_charge)
 
-    @time begin
+    begin
         
     if do_classical
-        println("DO CLASSICAL $do_classical")
-        
         if !ismissing(database_classical)
+            println("DO CLASSICAL $do_classical")
             energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)
             println("energy classical   $energy_classical ")
         else
@@ -372,9 +371,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     Qpropose = deepcopy(dq)
     end
-    println("done begin")
-    println("fft time")
-    @time hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
+#    println("done begin")
+#    println("fft time")
+    hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
 
         
 #=
@@ -561,8 +560,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println("iter $iter add rho_in")
             push!(rho_in, e_denA)
 #            println("iter $iter add rho_in $(length(rho_in))")            
-            println("calc_energy")
-            @time if use_sym
+            #println("calc_energy")
+            if use_sym
 #                println("hk3 ", size(hk3), " " , typeof(hk3))
 #                println("sk3 ", size(sk3), " " , typeof(sk3))
 #                println("nelec ", tbc.nelec)
@@ -883,7 +882,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #    conv, e_den = innnerloop(0.2, 0.1, e_den, 1e-4)
 #    println("e_den  $e_den")
 
-    @time begin
+    begin
         
         if mixing_mode == :pulay
             #        println("time pulay")
@@ -931,10 +930,10 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
         end
     end
-    println("done inn")
+    #println("done inn")
 #    conv, e_den = innnerloop(mix, smearing, e_den, conv_thr, 200)
 
-    @time begin 
+    begin 
     
         
         if conv == false
@@ -971,7 +970,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
         V = permutedims(VECTS[:,:,:,:], [3,4,1,2])
     end
-    println("done wrap")
+#    println("done wrap")
         
 #    println("FINAL error_flag ", error_flag)
     

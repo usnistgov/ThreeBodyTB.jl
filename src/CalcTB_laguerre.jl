@@ -6911,8 +6911,8 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         end
     end
 
-    println("stuff")
-    @time begin
+    #println("stuff")
+    begin
         
         within_fit = true
         
@@ -7457,7 +7457,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     if verbose println("distances") end
-    @time begin
+    begin
         
         use_dist_arr = true
         if !ismissing(DIST)
@@ -7503,7 +7503,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     end
 
     if verbose println("check_frontier") end
-    @time if !ismissing(database) && check_frontier
+    if !ismissing(database) && check_frontier
         #    if false
 #        println("check ---------------------------------")
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
@@ -7515,8 +7515,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         repel_vals = zeros(var_type, crys.nat)
     end
 
-    println("stuff")
-    @time begin
+    #println("stuff")
+    begin
     
         #    println("repel_vals ", repel_vals)
         
@@ -7533,7 +7533,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         
 
         if verbose; println("memory"); end
-        @time begin
+        begin
             if ismissing(Hin)
                 H = zeros(var_type, nwan, nwan, nkeep)
                 S = zeros(var_type, nwan, nwan, nkeep)
@@ -7544,7 +7544,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 S .= 0.0
             end
         end
-        println("done memory")
+        #println("done memory")
         ind_arr = zeros(Int64, nkeep, 3)
         ind_arr[:,:] = R_keep[:,2:4]
 
@@ -7740,7 +7740,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     if verbose println("2body LV") end
 
 
-    @time twobody_LV = begin
+    twobody_LV = begin
         
         
         #println("nkeep_ab $nkeep_ab")
@@ -7876,7 +7876,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             
             #                for mc in meta_count #@threads 
             #                    for counter in mc
-            @time for  counter = 1: (size(array_ind3)[1] ) #add threads back
+            for  counter = 1: (size(array_ind3)[1] ) #add threads back
                 
                 id = threadid()
 
@@ -8001,7 +8001,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         return 
     end
     if verbose println("make") end
-    @time begin
+    begin
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
         #println("maketb")
         tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S)

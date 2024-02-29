@@ -4529,8 +4529,8 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
     end
 
 
-    println("go eig time")
-    @time go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
+    #println("go eig time")
+    go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
@@ -4566,8 +4566,8 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
 
     #println("nelec $nelec")
 
-    println("chargeden")
-    @time if nelec > 1e-10
+    #println("chargeden")
+    if nelec > 1e-10
         chargeden = go_charge15_sym(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
     else
         chargeden = zeros(nspin, nwan)
@@ -4582,18 +4582,96 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
 
 end 
 
+function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red, grid_ind)
+
+    hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+    #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())                                                                                           
+    vals = zeros(Complex{Float64}, size(h1)[1], nthreads())
+    vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], nthreads())
+
+#    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))                                                                                              
+    #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))                                                                                          
+
+
+    @inbounds @fastmath @threads for c = 1:nk_red
+        id = threadid()
+        k1,k2,k3 = grid_ind[c,:]
+
+        #k3 = mod(c-1 , grid[3])+1                                                                                                                                     
+        #k2 = 1 + mod((c-1) ÷ grid[3], grid[2])                                                                                                                        
+        #k1 = 1 + (c-1) ÷ (grid[2]*grid[3])                                                                                                                            
+
+        sk[:,:,id] .= (@view sk3[:,:,k1,k2,k3])
+        #sk[:,:,id] .= 0.5*( (@view sk[:,:,id]) .+ (@view sk[:,:,id])')                                                                                                
+        SK[:,:,c] .= (@view sk[:,:,id])
+
+        #=                                                                                                                                                             
+        sk = 0.5*( (@view sk3[:,:,k1,k2,k3]) + (@view sk3[:,:,k1,k2,k3])')                                                                                             
+        SK[:,:,c] .= sk                                                                                                                                                
+        =#
+
+        for spin = 1:nspin
+            spin_ind = min(spin, nspin_ham)
+
+            #            hk0[:,:,id] .= ( (@view hk3[:,:,spin_ind, k1,k2,k3]) )                                                                                        
+            #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')                                                                                                  
+            #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')                                                                      
+
+            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+
+#            HK[spin, :,:,c] = hk[:,:, id]                                                                                                                             
+            #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')                                                                                            
+
+            try
+                #hermH[:,:] = (@view hk[:,:,id][:,:])                                                                                                                  
+                #hermS[:,:] = (@view sk[:,:,id][:,:])                                                                                                                  
+                vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+#                if c == 1                                                                                                                                             
+#                    println()                                                                                                                                         
+#                    println("hk ")                                                                                                                                    
+#                    println(hk[:,:,id][:,:])                                                                                                                          
+#                    println()                                                                                                                                         
+#                    println("vals ", vals[:,id])                                                                                                                      
+#                    println()                                                                                                                                         
+#                end                                                                                                                                                   
+                #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)                                                                                                      
+            catch err
+                typeof(err) == InterruptException && rethrow(err)
+                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+            end
+
+            if maximum(abs.(imag.(vals))) > 1e-10
+                println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
+                println("s ", eigvals(sk[:,:,id])[:,:])
+                error_flag = true
+            end
+
+            VALS[c,:, spin] .= real.(vals[:,id])
+            #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))                                                                                     
+            VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
+#            if c == 1                                                                                                                                                 
+#                println("vals0 ", VALS0[c,:, spin])                                                                                                                   
+#                println()                                                                                                                                             
+#            end                                                                                                                                                       
+            VECTS[:,:, c, spin] .= vects[:,:,id]
+
+        end
+    end
+
+end
+
+
 function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red, grid_ind)
 
     max_num = nthreads()
 
-    println("assemble memory")
-    @time begin 
         hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
         sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
         #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
         vals = zeros(Complex{Float64}, size(h1)[1], max_num)
         vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
-    end
+
     
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
@@ -4623,7 +4701,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
             
-            hk[:,:, id] .= (@view hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + (@view h1spin[spin,:,:] ))
+            hk[:,:, id] .= ( hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + ( h1spin[spin,:,:] ))
 
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
@@ -4631,7 +4709,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             try
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
-                @time vals[:,id], vects[:,:,id] = eigen( Hermitian(@view hk[:,:,id][:,:]), Hermitian(@view sk[:,:,id][:,:]))
+                vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
 #                if c == 1
 #                    println()
 #                    println("hk ")
@@ -4654,8 +4732,8 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
-            println("vals0")
-            @time VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(@view hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
+            
+            VALS0[c,:, spin] .= real.(diag(vects[:,:,id]'*(hk3[:,:,spin_ind, k1,k2,k3])*vects[:,:,id]))
 #            if c == 1
 #                println("vals0 ", VALS0[c,:, spin])
 #                println()

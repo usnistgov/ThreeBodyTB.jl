@@ -6,7 +6,7 @@ using ..CalcTB:calc_tb_LV_sparse
 using SparseArrays
 
 function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, FloatX, nwan, nr, atom, INDH, INDS, ret)
-    println("HS atom $atom ret $(size(ret))")
+#    println("HS atom $atom ret $(size(ret))")
     begin
 #        println("begin")
         begin
@@ -25,34 +25,37 @@ function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, Fl
         end        
         #println("dual")
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
-        println("calc_tb_LV")
-        @time H, S = calc_tb_LV_sparse(crys_dual, database; verbose=true, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, atom = atom)
-        println("end calc_tb_LV")
+        H, S = calc_tb_LV_sparse(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, atom = atom)
+        #println("end calc_tb_LV")
+
+
+        #println("atom $atom sum abs S ", sum(abs.(S[32])))
         #println("INDarr_temp")
         #println(INDarr_temp)
         #println()
+        #println("atom $atom sum abs ", sum(abs.(H[32])))
         
         #push!(IND, INDarr_temp)
 
-        println("rearrange time")
-        nnz = 0
-        @time begin
+        #println("rearrange time")
 
-            c=1            
+        begin
+
+            c=0            
             for n = 1:length(H)
             #            println("typeof ", typeof(H[n]), " " , size(H[n]))
-                nnz += length(H[n])
                 I,J,data = findnz(H[n])
                 push!(INDH, [I,J])
-                ret[c:c+length(data)-1] = data
+                ret[(1+c):(c+length(data))] = data
+                c += length(data)
             end
             for n = 1:length(S)
-                nnz += length(S[n])
                 I,J,data = findnz(S[n])
                 push!(INDS, [I,J])
-                ret[c:c+length(data)-1] = data
+                ret[(1+c):(c+length(data))] = data
+                c += length(data)                
             end
-
+            #println("atom $atom sum abs $(sum(abs.(ret)))")
            if false
             
 
@@ -69,6 +72,7 @@ function ham_SINGLE_sparse(x :: Vector, ct, database, dontcheck, repel, DIST, Fl
                     c += length(nz)
                 end
             end
+            
         end
         
     end
@@ -79,17 +83,19 @@ end
 
 
 function sparsify_jac(jac, INDH, INDS, nwan)
+
+#    println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
     Harr = []
     Sarr = []
     for find = 1:size(jac,2)
         H = []
-        c=1
+        c=0
         for n = 1:length(INDH)
             I,J = INDH[n]
 #            println("I $I")
 #            println("J $J")
 #            println("H ",sparse(I,J,jac[c:c+length(I)-1,find]))
-            push!(H, sparse(I,J,jac[c:c+length(I)-1,find], nwan, nwan))
+            push!(H, droptol!(sparse(I,J,jac[(1+c):(c+length(I)),find], nwan, nwan), 1e-8))
             c+=length(I)
         end
         push!(Harr, H)
@@ -101,7 +107,13 @@ function sparsify_jac(jac, INDH, INDS, nwan)
 #            println("J $J")
 #            println("S ", jac[c:c+length(I)-1,find])
 #            println()
-            push!(S, sparse(I,J,jac[c:c+length(I)-1,find], nwan, nwan))
+            push!(S, droptol!(sparse(I,J,jac[(1+c):(c+length(I)),find], nwan, nwan), 1e-8))
+#            if n == 32
+#                println("SSSSSSSSSS $find")
+#                println(sparse(I,J,jac[(1+c):(c+length(I)),find], nwan, nwan))
+#                println()
+#            end
+
             c+=length(I)
             
         end
@@ -185,8 +197,9 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                 #prepare eigenvectors / values
                 error_flag = false
                 if do_scf
-#                    println("do_scf")
+                    #println("do_scf")
                     energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
+                    #println("done scf $energy_tot")
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing, repel=repel)
@@ -225,7 +238,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
             scf = false
         end
         
-        dontcheck, sum_repel = calc_tb_LV(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
+        dontcheck, sum_repel = calc_tb_LV_sparse(ct, database; check_only=true, use_threebody=true, use_threebody_onsite=true, DIST=DIST, verbose=false)
 #        println("dc $dontcheck sum_repel $sum_repel")
         dontcheck = dontcheck && sum_repel
 
@@ -238,7 +251,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
         size_ret_full = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
 #        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
-        println("(Pre-)Calculate Jacobian of TB object")
+        #println("(Pre-)Calculate Jacobian of TB object")
         begin
 
             #println("ew")
@@ -250,8 +263,8 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                 end
             end
             
-            #println("done ew")
-            #println("ham")
+#            println("done ew")
+#            println("ham")
             HAM = begin
 
                 
@@ -263,23 +276,26 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                 INDH = []
                 INDS = []
 
-                nnz = 1
+                nnz = 0
                 for n = 1:tbc.tb.nr
                     I,J,nz = findnz(tbc.tb.H[n])
                     nnz += length(nz)
+                end
+#                println("nnz h $nnz ----------")
+                for n = 1:tbc.tb.nr
                     I,J,nz = findnz(tbc.tb.S[n])
                     nnz += length(nz)
                 end
-                println("nnz $nnz ----------")
-                ret = zeros(nnz)
+#                println("nnz s $nnz ----------")
+                ret = zeros(nnz*3)
                 
                 FN_ham = (ret,x)->ham_SINGLE_sparse(x,ct,database,dontcheck, repel, DIST, FloatX, tbc.tb.nwan, tbc.tb.nr, ATOM, INDH, INDS, ret)
                 
                 #chunksize=min(15, 3*ct.nat + 6)
                 chunksize=3
-                cfg3 = ForwardDiff.JacobianConfig(FN_ham, zeros(FloatX, 3), ForwardDiff.Chunk{chunksize}())
+                cfg3 = ForwardDiff.JacobianConfig(FN_ham, ret, zeros(FloatX, 3), ForwardDiff.Chunk{chunksize}())
                 chunksize=6
-                cfg6 = ForwardDiff.JacobianConfig(FN_ham, zeros(FloatX, 6), ForwardDiff.Chunk{chunksize}())
+                cfg6 = ForwardDiff.JacobianConfig(FN_ham, ret, zeros(FloatX, 6), ForwardDiff.Chunk{chunksize}())
                 #println("jacham")
 
 
@@ -294,7 +310,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                 #g[end,:] = g_nz[end,:]
                 #g_nz = missing
             end
-#            println("done ham")
+            #println("done ham")
             #println("wait")
 #            wait(HAM)
 #            wait(EW)
@@ -304,20 +320,77 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 #        println("repel $repel")
 
         
-#        FN_ham(ret, zeros(FloatX, 3))
 #        return ret
         #
 #        a = zeros(3)
 #        a[3] = 0.0001
-#        jjj_t = FN_ham(a)
         
 #        println("fd , ", (jjj_t - jjj) / a)
         
 
-#        return jjj
-        #        return jjj, H, S
         INDH = []
         INDS = []
+        ATOM=1
+        
+        #ATOM=2
+        #@time jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
+
+        #jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3)  ) ::  Array{FloatX,2}
+        #atom = 2
+        #println("sum abs jac atom $atom ", sum(abs.(jac)))
+        #println(jac)
+        #println("MMMMMMMMM min ", minimum(abs.(5.975364940157351 .- jac)))
+        #println("MMMMMMMMM min ", minimum(abs.(-5.975364940157351 .- jac)))
+                                               
+#        println("done jac part")
+#        println("sparsify time")
+        #Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
+
+#        println("autodiff AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+#        println(Sarr[2][1])
+#        println()
+        
+#        ret1 = deepcopy(ret)
+#        ret2 = deepcopy(ret)
+#        ret1 .= 0.0
+#        ret2 .= 0.0
+
+#        INDH = []
+#        INDS = []
+#        ATOM = 1
+        
+        #ForwardDiff.jacobian(FN_ham,ret1, [0.0, 0.00001, 0.0] , cfg3 ) 
+        #INDH = []
+        #INDS = []
+        #ForwardDiff.jacobian(FN_ham,ret2, [0.0, -0.00001, 0.0] , cfg3 ) 
+
+        #@time Harr1, Sarr1 = sparsify_jac(ret1, INDH, INDS, tbc.tb.nwan)
+        #@time Harr2, Sarr2 = sparsify_jac(ret2, INDH, INDS, tbc.tb.nwan)
+
+#        println("FDFDFDFDFDFDFDFDFDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+#        println( (Sarr2[1][1] - Sarr1[1][1]) / -0.00002)
+#        println("diff ")
+#        println((Sarr2[1][1] - Sarr1[1][1]) / -0.00002 - Sarr[2][1])
+#        return
+        
+        #@time jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3)  ) ::  Array{FloatX,2}
+        #println("sum abs jac atom $atom ", sum(abs.(jac)))
+        #println(jac)
+        #println("done jac part")
+        #println("sparsify time")
+        #@time Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
+        
+        
+        
+        #ATOM = 0
+
+#        FN_ham(ret, zeros(FloatX, 3))
+#        Harr, Sarr = sparsify_jac(ret, INDH, INDS, tbc.tb.nwan)
+#        println("sum abs $(sum(abs.(Sarr[1][32])))")
+#        return Harr, Sarr
+
+        #        INDH = []
+#        INDS = []
 #        jac = ForwardDiff.jacobian(FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
 
 #        println("jac , ", jac)
@@ -415,30 +488,41 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
         #            print("atom ")
         for atom in 0:ct.nat
         #for atom in 0:3
-            print("atom $atom ")
+            if atom == 0
+                println("...doing stress ")
+            else
+                println("...doing atom $atom ")                
+            end
             ATOM=atom
+            #ATOM=0
             INDH = []
             INDS = []
-            println("jac")
-            @time if atom >= 1
-                #                @time jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
-                @time jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3)  ) ::  Array{FloatX,2}
-                println("done jac part")
+#            println("jac")
+            ret .= 0.0
+            if atom >= 1
+                jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
+
+                #@time jac =ForwardDiff.jacobian(FN_ham,ret, zeros(FloatX, 3)  ) ::  Array{FloatX,2}
+#                println("sum abs jac atom $atom ", sum(abs.(jac)))
+#                println(jac)
+#                println("done jac part")
                 #                println("jac $jac")
 #                println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-                println("sparsify time")
-                @time Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
+                #println("sparsify time")
+                Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
                 find= 1:3
                 #                    println("XXXXXXXXXXXX atom $atom ", sum(abs.(gatom)))
             else
-                #jac = ForwardDiff.jacobian(FN_ham, ret, zeros(FloatX, 6) , cfg6 ) ::  Array{FloatX,2}
-                jac = ForwardDiff.jacobian(FN_ham, ret, zeros(FloatX, 6) ) ::  Array{FloatX,2}
+                jac = ForwardDiff.jacobian(FN_ham, ret, zeros(FloatX, 6) , cfg6 ) ::  Array{FloatX,2}
+                #jac = ForwardDiff.jacobian(FN_ham, ret, zeros(FloatX, 6) ) ::  Array{FloatX,2}
+#                println("done jac part stress")
 
+#                println("sparsify time stress")
                 Harr, Sarr = sparsify_jac(jac, INDH, INDS, tbc.tb.nwan)
                 #g = gstress
                 find = 1:6
             end                    
-            println("endjac")
+#            println("endjac")
             #            return Harr, Sarr, find
 #            println("atom $atom")
 #            println("Harr ")
@@ -448,9 +532,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 #            println()
             #println("sum abs gz ", sum(abs.(g)))
             #                println("done atom; find")
-            println("find")
-            @time for FIND in find
-
+#            println("find")
+            f_temp = zeros(Complex{Float64}, nthreads())
+            for FIND in find
+                f_temp .= 0.0
                 #println("FIND $FIND")
 #                VALS0 .= 0.0
                 
@@ -492,25 +577,31 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 
 #                println("ft")
 
-                f_temp = 0.0 + 0.0*im
-                @time for k = 1:nk_red
-                    println("mem")
-                    @time begin
+                #f_temp = 0.0 + 0.0*im
+                for k = 1:nk_red
+                    #println("mem")
+                    begin
                         h_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
                         s_k = spzeros(Complex{FloatX},  tbc.tb.nwan, tbc.tb.nwan)
                     end
 
-                    println("ft")
-                    @time begin
+#                    println("ft")
+                    begin
                         kpoint = kpts[k,:]
                         kmat = repeat(kpoint', tbc.tb.nr,1)
                         exp_ikr = exp.(twopi_i * sum(kmat .* tbc.tb.ind_arr,dims=2))
+#                        println("Sarr nr 32 $(tbc.tb.ind_arr[32,:])  atom $atom FIND $FIND          88888888888888888888888888888888888888888888888888")
+#                        println(Sarr[FIND][32])
+#                        println()
                         for nr = 1:tbc.tb.nr
                             h_k += Harr[FIND][nr] * exp_ikr[nr] 
                             s_k += Sarr[FIND][nr] * exp_ikr[nr]
                         end
                     end
-#                    println("h_k $k")
+#                    println("atom $atom FIND $FIND h_k $(sum(abs.(h_k))) s_k $(sum(abs.(s_k)))    999999999999999999999999999999999999999999999999999999999999999999999999")
+#                    println(s_k)
+#                    println()
+                    #                    println("h_k $k")
 #                    println(h_k)
 #                    println("s_k $k")
 #                    println(s_k)
@@ -524,15 +615,18 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
 #                            end
 #                        end
 #                    end
-                    println("compile")
-                    @time for spin = 1:nspin
+                    #println("compile")
+
+
+                    for spin = 1:nspin
 #                        println("a ", typeof(h_k), " ", size(h_k))
 #                        println("b ", typeof(h1_sparse), " ", size(h1_sparse))
 #                        println("c ", typeof(h1spin_sparse), " ", size(h1spin_sparse))
                         h_k_t = h_k + (h1_sparse + h1spin_sparse[spin]) .* s_k
-                        @fastmath @inbounds for a = 1:max_occ
-                            #f_temp += (kweights[k]*OCCS[k,a,spin])*((@view VECTS[k,spin,:,a])'*(h_k_t - VALS[k, a,spin] * s_k)*(@view VECTS[k,spin,:,a]))
-                            f_temp += (kweights[k]*OCCS[k,a,spin])*((@view pVECTS[:,a,k,spin])'*(h_k_t - VALS[k, a,spin] * s_k)*(@view pVECTS[:,a,k,spin]))
+                        @fastmath @inbounds @threads for a = 1:max_occ
+                            #                            f_temp += (kweights[k]*OCCS[k,a,spin])*((@view VECTS[k,spin,:,a])'*(h_k_t - VALS[k, a,spin] * s_k)*(@view VECTS[k,spin,:,a]))
+                            id = threadid()
+                            f_temp[id] += (kweights[k]*OCCS[k,a,spin])*((@view pVECTS[:,a,k,spin])'*(h_k_t - VALS[k, a,spin] * s_k)*(@view pVECTS[:,a,k,spin]))
                         end
                     end
                 end
@@ -552,15 +646,15 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                 #println("sum")
                 if atom >= 1
                     #    garr[3*(atom-1) + FIND] += sum(VALS0)
-                    garr[3*(atom-1) + FIND] += real(f_temp )
+                    garr[3*(atom-1) + FIND] += real(sum(f_temp) )
                     #                        println("ATOM END $atom $FIND ", sum(VALS0))
                 else
                     #                        garr[3*(ct.nat) + FIND] += sum(VALS0)
-                    garr[3*(ct.nat) + FIND] += real(f_temp )
+                    garr[3*(ct.nat) + FIND] += real(sum(f_temp) )
                 end
-                println("end find iter")
+#                println("end find iter")
             end #end FIND
-            println("end find")
+#            println("end find")
         end
 #        println()            
         if scf

@@ -156,8 +156,8 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
     tot_charge = -sum(dq)
     
     
-    println("gamma")
-    @time if ismissing(gamma) 
+    #println("gamma")
+    if ismissing(gamma) 
         #        println("ismissing gamma")
         gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
@@ -241,8 +241,8 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
     end
 
 
-    println("go eig time")
-    @time go_eig_sym_sparse(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red)
+    #println("go eig time")
+    go_eig_sym_sparse(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red)
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
@@ -278,13 +278,13 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
 
     #println("nelec $nelec")
 
-    println("chargeden")
+#    println("chargeden")
     if nelec > 1e-10
 #        @time chargeden = go_charge15_sym_sparse(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
 #        println("chargeden  ", sum(chargeden))
 #        @time chargeden_opt1 = go_charge15_sym_sparse_opt(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
 #        println("chargedenO1 ", sum(chargeden_opt1))
-        @time chargeden = go_charge15_sym_sparse_opt2(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,kweights, SI, SJ, rSV, iSV, maxS)
+        chargeden = go_charge15_sym_sparse_opt2(VECTS, sk3, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,kweights, SI, SJ, rSV, iSV, maxS)
         
 #        println("chargedenO2 ", sum(chargeden_opt2))
 #        println("dchargeden ", sum(abs.(chargeden_opt1 - chargeden)))
@@ -306,8 +306,8 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
 
     #    max_num = nthreads()
 
-    println("assemble memory")
-    @time begin 
+    #println("assemble memory")
+    begin 
         hk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
         sk = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
         #    hk0 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
@@ -338,7 +338,7 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
                 #println("eig")
-                @time vals, vects = eigen( Hermitian(hk), Hermitian(sk))
+                vals, vects = eigen( Hermitian(hk), Hermitian(sk))
 #                if c == 1
 #                    println()
 #                    println("hk ")

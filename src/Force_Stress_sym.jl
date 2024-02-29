@@ -750,13 +750,17 @@ function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, F
         #println("dual")
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
         #println("calc_tb_LV")
-        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = atom)
+        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = 0)
+
+#        println("atom $atom S sum abs $(sum(abs.(Sdual[:,:,32])))")
+#        println("atom $atom H sum abs $(sum(abs.(Hdual[:,:,32])))")
         
         #println("move_mem")
         begin
             ret[1:size_ret] = Hdual
             ret[size_ret+1:size_ret*2] = Sdual
         end
+        #println("atom $atom sum abs ", sum(abs.(ret)))
     end
 #    println("end HS")
     return ret
@@ -789,7 +793,7 @@ function forloops2_SINGLE!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
             end
         end
     end
-    println("c_nz $c_nz c_tot $c_tot $(c_nz / c_tot)")
+#    println("c_nz $c_nz c_tot $c_tot $(c_nz / c_tot)")
     
 end
 
@@ -810,7 +814,26 @@ function forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
             end
         end
     end
-    
+
+    sr_g_t = zeros(1,1,1,tbc.tb.nwan, tbc.tb.nwan)
+    for c in 1:size(tbc.tb.ind_arr)[1] #@threads 
+#    for c in [32] #@threads 
+        
+        ind = tbc.tb.ind_arr[c,:]
+        new_ind = [1,1,1]
+        for nb = 1:tbc.tb.nwan
+            for na = 1:tbc.tb.nwan
+                if abs(g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]) > 1e-10
+                    #                    hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
+                    sr_g_t[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[size_ret + na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1), FIND ]
+                end
+            end
+        end
+    end
+
+#    println("sr_g_t")
+#    println(sr_g_t[1,1,1,:,:][:,:])
+#    println()
     #    @tturbo for nb = 1:tbc.tb.nwan
         #for nb = 1:tbc.tb.nwan
 
@@ -967,8 +990,8 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
         size_ret_full = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
 #        g = zeros(FloatX, size_ret_full*2 + 1, 3*ct.nat + 6)
 
-        println("(Pre-)Calculate Jacobian of TB object")
-        println("repel $repel")
+        println("Prepare to calculate Jacobian of TB object")
+#        println("repel $repel")
         begin
 
             #println("ew")
@@ -1017,13 +1040,15 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #            wait(EW)
         end
 
+        ATOM=1
+        #FN_ham(zeros(3))
         #return g
         
 #        if scf
 #            g[end,:] = g_ew[1,:]
 #        end
         size_ret = tbc.tb.nwan * tbc.tb.nwan * tbc.tb.nr 
-        println("Calculate Force / Stress")
+               println("Calculate Force / Stress")
         begin
         
             #println("mem")
@@ -1091,6 +1116,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 if atom >= 1
                     ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}
                     g = gatom
+                    #println("sum abs jac atom $atom ", sum(abs.(g)))
                     find= 1:3
 #                    println("XXXXXXXXXXXX atom $atom ", sum(abs.(gatom)))
                 else
@@ -1118,7 +1144,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                         #@time forloops2_SINGLE!(tbc, hr_g_r, sr_g_r, size_ret, FIND, grid, g)
                     #    println("check")
                         forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)                        
-#                        hr_g[:] .= hr_g_r[:]
+                        #                        hr_g[:] .= hr_g_r[:]
 #                        sr_g[:] .= sr_g_r[:]
 
                     end
@@ -1126,6 +1152,10 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     #println("fft ", size(hr_g))
                     #println("fft")
 
+#                    println("sr_g before atom $atom find $FIND 888888888888888888888888888888888888888")
+#                    println(sr_g[1,1,1,:,:])
+ #                   println()
+ #                   println("kpts 1 ", kpts[1,:])
                     begin 
                         
                         h = @spawn begin
@@ -1140,7 +1170,9 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                         wait(h)
                         wait(s)
                     end
-
+  #                  println("atom $atom FIND $FIND hr_g $(sum(abs.(hr_g))) sr_g $(sum(abs.(sr_g)))    999999999999999999999999999999999999999999999999999999999999999999999999")
+  #                  println(sr_g[1,1,1,:,:][:,:])
+  #                  println()
 #                    println("psi")
 #                    if atom >= 1
 #                        println("ATOM $atom $FIND ", sum(abs.(hr_g)), " ", sum(abs.(sr_g)), " " , sum(abs.(DENMAT_r)), " " , sum(abs.(DENMAT_V_r)))
@@ -1160,7 +1192,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     
                 end #end FIND
             end
-            println()            
+#            println()            
             if scf
                 #println("IF SCF ", scf, " " , sum(abs.(g_ew[1,:][:])))
                 #println("ONLY EW")
