@@ -98,7 +98,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
         
     #println("shrink")
         begin
-            ht = (abs.(tbc.tb.H[1,:,:,:]) .> 1e-7) .|| (abs.(tbc.tb.S) .> 1e-7)
+            ht = (abs.(tbc.tb.H[1,:,:,:]) .> 1e-7) .| (abs.(tbc.tb.S) .> 1e-7)
             num_nonzero = sum(ht)
 
             nz_arr = zeros(Int64, num_nonzero)
@@ -953,7 +953,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
         
     #println("shrink")
         begin
-            ht = (abs.(tbc.tb.H[1,:,:,:]) .> 1e-7) .|| (abs.(tbc.tb.S) .> 1e-7)
+            ht = (abs.(tbc.tb.H[1,:,:,:]) .> 1e-7) .| (abs.(tbc.tb.S) .> 1e-7)
             num_nonzero = sum(ht)
 
             nz_arr = zeros(Int64, num_nonzero)

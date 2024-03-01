@@ -1409,7 +1409,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 
          for a = 1:crys.nat
             for b = 1:crys.nat
-                found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .||     (dist_TT[:,:,:,a,b,1] .< cutoff_arr[a,b,1])
+                found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .|     (dist_TT[:,:,:,a,b,1] .< cutoff_arr[a,b,1])
                 for r1 = eachindex(rf1)
                     for r2 = eachindex(rf2)
                         for r3 = eachindex(rf3)
