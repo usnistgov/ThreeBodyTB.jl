@@ -277,13 +277,24 @@ Find the lowest energy atomic configuration of crystal `c`.
 - `update_grid=true`: update automatic k-point grid during relaxation
 - `conv_thr = 2e-3 `: Convergence threshold for gradient
 - `energy_conv_thr = 2e-4 `: Convergence threshold for energy in Ryd
+- `sparse = :auto`: Default is to use dense matricies for `nat < 100`. Can be `true` or `false` to force choice.
 """
-function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0)
+function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 2e-3, energy_conv_thr = 2e-4, nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0, sparse=:auto)
 
     if ismissing(database_classical)
         do_classical=false
     end
-        
+
+    if sparse == :auto
+        if c.nat >= 100
+            sparse = true
+            println("auto use sparse matricies, set sparse=false to avoid")
+        else
+            sparse = false
+        end
+    end
+    
+    
     if ismissing(database)
         ManageDatabase.prepare_database(c)
         database = ManageDatabase.database_cached
@@ -292,7 +303,7 @@ function relax_structure(c::crystal; database=missing, smearing = 0.01, grid = m
         update_grid = false
     end
 
-    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel, do_tb=do_tb, database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge)
+    cfinal, tbc, energy, force, stress = Relax.relax_structure(c, database, smearing=smearing, grid=grid, mode=mode, nsteps=nsteps, update_grid=update_grid, conv_thr=conv_thr, energy_conv_thr = energy_conv_thr, nspin=nspin, repel=repel, do_tb=do_tb, database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge, sparse=sparse)
 
    
     println("Relax done")
@@ -353,8 +364,9 @@ Calculate energy, force, and stress for a crystal.
 - `database=missing`: Source of coeficients. Will be loaded from pre-fit coefficients if missing.
 - `smearing=0.01`: Gaussian smearing temperature, in Ryd. Usually can leave as default.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
+- `sparse = :auto`: Default is to use dense matricies for `nat < 100`. Can be `true` or `false` to force choice.
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0, sparse = :auto)
 
     #nothing case
     if !do_tb && !do_classical
@@ -365,7 +377,19 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     if ismissing(database_classical)
         do_classical=false
     end
-            
+
+    if sparse == :auto
+        if c.nat >= 100
+            sparse = true
+            println("auto use sparse matricies, set sparse=false to avoid")
+        else
+            sparse = false
+        end
+    end
+    
+    if sparse
+        use_sym = true
+    end
     
     if do_classical
         energy_cl, force_cl, stress_cl = energy_force_stress_cl(c, database=database_classical)
@@ -383,7 +407,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         return energy_cl, force_cl, stress_cl, missing
     end
 #    println("tot_charge before 00000 ", tot_charge)
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge )
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge, sparse=sparse )
 #    println("tot charge 11111111111 ", tbc.tot_charge, " " , tbc.nelec)
     
     if ismissing(database)
@@ -398,7 +422,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     println()
     println("Calculate Force, Stress")
     if use_sym
-        println("use sym")
+#        println("use sym")
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)
     else
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)        
@@ -447,7 +471,10 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
     if ismissing(database_classical)
         do_classical=false
     end
-        
+
+    if typeof(tbc) <: tbc_crys_sparse
+        use_sym=true
+    end
     
     if ismissing(database)
         ManageDatabase.prepare_database(tbc.crys)
@@ -505,11 +532,12 @@ returns energy, tight-binding-crystal-object, error-flag
 - `smearing=0.01`: Gaussian smearing temperature, in Ryd. Usually can leave as default.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 - `conv_thr = 1e-5`: SCF convergence threshold (Ryd).
+- `sparse = :auto`: Default is to use dense matricies for `nat < 100`. Can be `true` or `false` to force choice.
 - `iter = 75`: number of iterations before switch to more conservative settings.
-- `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge.
-- `mixing_mode = :DIIS`: default is DIIS (direct inversion of iterative subspace). Other options are :simple and :pulay (DIIS, old version), for simple linear mixing of old and new electron-density. Will automatically switch to simple if Pulay fails.
+- `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge. Starting default is smaller for larger unit cells.
+- `mixing_mode = :simple`: default is simple. Other options are `:simple` and `:DIIS` / `:pulay` (direct inversion of iterative subspace). Will automatically switch to simple if Pulay fails. 
 """
-function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing)
+function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -524,8 +552,16 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         do_classical=false
     end
         
+    if sparse == :auto
+        if c.nat >= 100
+            sparse = true
+            println("auto use sparse matricies, set sparse=false to avoid")
+        else
+            sparse = false
+        end
+    end
     
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb)
+    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse)
 
     conv_flag = !error_flag
     if do_tb
@@ -556,14 +592,14 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true, sparse=:auto)
 
     if ismissing(database_classical)
         do_classical=false
     end
         
     
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb, sparse=sparse)
 
 end
 

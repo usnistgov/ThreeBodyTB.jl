@@ -49,6 +49,7 @@ using ..TB:smearing_energy
 
 #using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_LV
+using ..CalcTB:calc_tb_LV_sparse
 #using ..CalcTB:calc_tb_lowmem
 using ..TB:get_magmom
 using ..CrystalMod:get_grid
@@ -79,7 +80,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true)
+function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true, sparse=false)
 
 
 #    println("SCF.jl $tot_charge")
@@ -99,11 +100,16 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
     end
     
     #println("calc tb")
-    tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
+    if sparse == false
+        tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
+    else
+        tbc = calc_tb_LV_sparse(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
+    end
     #println("done calc tb")
     #    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
+    
     t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
     return t
     

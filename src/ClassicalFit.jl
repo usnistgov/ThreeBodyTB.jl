@@ -81,6 +81,12 @@ using ..Classical:n_3body_cl_same
 using ..Classical:n_3body_cl_pair
 using ..Classical:n_3body_cl_diff
 
+
+"""
+    function kfold(L, n)
+
+Helper function for kfold cross-validation
+"""
 function kfold(L, n)
 
     r = randperm(L)
@@ -118,7 +124,13 @@ function atom_perm_to_dist_perm(perm)
     
 end
 
+"""
+    function do_fit_cl_RECURSIVE(DFT_start)
 
+Main CLASSICAL fitting routine. Runs DFT in recursive active-learning styel framework. For fitting classical energy model with basis of Laguerre polynomials times exponentials similar to the TB3 model. Can consider 2 and 3 body terms
+as well as an EAM (embedded atom model) style term.
+Experimental.
+"""
 function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
 
     vtot = missing
@@ -165,6 +177,11 @@ function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thre
 end
 
 
+"""
+    function do_fit_cl(DFT)
+
+For fitting the classical model to a specific set of DFT calculations in the list `DFT`
+"""
 function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing)
 
     println("DFT version")
@@ -285,6 +302,11 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
     
 end
 
+"""
+    function do_fit_cl(CRYS::Array{crystal,1})
+
+Does the main fitting for CLASSICAL MODEL
+"""
 function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing)
 
     #ENERGIES PER ATOM. 

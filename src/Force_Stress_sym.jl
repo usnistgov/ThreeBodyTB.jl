@@ -914,7 +914,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 #        println("not too ")
         
         scf = database["scf"]
-        println("SINGLE scf ", scf)
+#        println("SINGLE scf ", scf)
         if !(tooshort)
             if !ismissing(vv)
                 VECTS, VALS, efermi = vv
@@ -1111,7 +1111,18 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
             end
 #            print("atom ")
             for atom in 0:ct.nat
-#                print("$atom ")
+                if atom == 0
+                    print("...doing stress ")
+                else
+                    if atom == 1
+                        print("...doing atom $atom ")
+                    elseif atom == ct.nat
+                        println("$atom.")
+                    else
+                        print("$atom ")
+                    end
+                end
+
                 ATOM=atom
                 if atom >= 1
                     ForwardDiff.jacobian!(gatom, FN_ham, zeros(FloatX, 3) , cfg3 ) ::  Array{FloatX,2}

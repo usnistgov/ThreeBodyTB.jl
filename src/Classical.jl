@@ -5,9 +5,9 @@
 
 
 """
-    module CalcTB
+    module Classical
 
-Create TB matrix sets from coefficients, or prepare to fit the coefficients.
+Run a CLASSICAL model based on similar computational machinery to the TB3 model.
 """
 module Classical
 
@@ -101,25 +101,10 @@ using ..DFToutMod:dftout
 
 
 """
-    struct coefs
+    struct coefs_cl
 
-Hold the TB coefficients for 2body or 3body interactions
+Hold the classical coefficients for 2body or 3body interactions and EAM interactions.
 
-- `dim::Int64` - dimension (2 or 3)
-- `datH::Array{Float64,1}` Hamiltonian parameters
-- `datS::Array{Float64,1}`  Overlap parameters, if any
-- `sizeH::Int64` 
-- `sizeS::Int64`
-- `inds::Dict{Array{Symbol}, Array{Int64,1}}` Holds inds that tell which coeffiecients correspond to which atoms/orbitals
-- `inds_int::Dict{Array{Symbol}, Any}` Holds inds that tell which coeffiecients correspond to which atoms/orbitals, but integer array
-- `ninds_int::Dict{Array{Symbol}, Array{UInt16,2}}` Holds number of coefs
-- `names::Set` Names of atoms
-- `orbs::Array{Any,1}` Orbitals 
-- `cutoff::Float64` cutoff distance
-- `min_dist::Float64` minimum atom-atom distance in fitting data
-- `maxmin_val_train::Dict` max and min value of matrix elements within fitting data
-- `dist_frontier::Dict` dictionary of pareto frontier of shortest fitting distances
-- `version::Int64` version number
 """
 struct coefs_cl
 
@@ -138,9 +123,9 @@ end
 
 
 """
-    function write_coefs(filename, co::coefs; compress=true)
+    function write_coefs_cl(filename, co::coefs; compress=true)
 
-Write `coefs` to a file. Compress uses gzip. See `read_coefs`
+Write `coefs_cl` to an file xml. Compress uses gzip. See `read_coefs_cl`
 """
 function write_coefs_cl(filename, co::coefs_cl; compress=true)
     """
@@ -189,9 +174,9 @@ end
 
 
 """
-    function read_coefs(filename, directory = missing)
+    function read_coefs_cl(filename, directory = missing)
 
-Read `coefs` from filename. Can read gzip directly.
+Read Classical `coefs_cl` from filename. Can read gzipped files directly.
 """
 function read_coefs_cl(filename, directory = missing)
     """
@@ -269,11 +254,11 @@ end
 
 
 """
-    function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, maxmin_val_train=missing, dist_frontier=missing)
+    function make_coefs_cl(at_list, dim)
 
 Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
-See `coefs` to understand arguments.
+See `coefs_cl` to understand arguments.
 """
 function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=lim, repval=repval)
 
@@ -440,6 +425,11 @@ function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, 
     
 end
 
+"""
+    function energy_force_stress_cl(crys::crystal)
+
+Main function for running classical model. Returns energy/force/stress from crystal structure.
+"""
 function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true)
 
     if verbose; println("dist energy_force_stress");end
@@ -790,7 +780,9 @@ end
 
 #include("CalcTB_laguerre_deriv.jl")
 
-
+"""
+Four body terms are experimental, may not be supported
+"""
 function core_4_cl_laguerre_fast_fourbdy_cl!(dist_1, dist_2, dist_3, dist_4, dist_5, dist_6, t1,t2,t3,t4, DAT_ARR4, var_type)
 
 
@@ -886,7 +878,11 @@ end
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
+"""
+    function calc_energy_cl(crys::crystal
 
+Main function for classical energy calculation from crystal structure.
+"""
 function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
 
     no_errors = true
@@ -1540,631 +1536,3 @@ end #end module
 
 
 
-
-
-#=
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
-
-    no_errors = true
-    
-#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody")
-#    verbose=true
-
-#    println("CRYS.nat ", crys.nat)
-    
-    At = crys.A'
-    
-    if verbose
-        println()
-        println("-----")
-        println("Get classical energy from crystal structure")
-        println()
-    end
-
-    if ismissing(dat_vars) && ismissing(var_type)
-        var_type=Float64
-    elseif ismissing(var_type)
-        var_type = eltype(dat_vars)
-    end
-
-#    if verbose  println("LV $var_type")  end
-    
-    
-    
-
-    
-    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
-    if verbose println("distances") end
-    begin
-        
-        use_dist_arr = true
-        if !ismissing(DIST)
-            use_dist_arr = false
-            if use_fourbody
-                R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3,array_ind4 = DIST
-            else
-                R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
-            end                
-
-        else
-            if (use_threebody ) 
-                if (use_fourbody)
-                    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,array_ind4 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false, cutoff4 = cutoff4X)
-                    DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3, array_ind4
-                else
-                
-                    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
-                    DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
-                end
-
-            else
-                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, 0.0,var_type=var_type, return_floats=false)
-                DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3             
-            end
-        end
-
-        
-        
-        within_fit = true
-        
-        if !ismissing(database)
-            for key in keys(dmin_types)
-                for key2 in keys(database)
-                    if !(typeof(key) <: Set) || !(typeof(key2) <: Set)
-                        continue
-                    end
-                    if key == Set(key2)
-                        if dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
-                            if !turn_off_warn; println("WARNING : structure has 2body distances less than or close to min fitting data distances, may result in errors"); end
-                            if !turn_off_warn; println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist); end
-                            within_fit = false
-                        end
-                    end
-                end
-            end
-            
-#            c_zero_ref=1
-#            if !(ismissing(reference_tbc))
-#                if size(reference_tbc.tb.ind_arr)[1] > 1
-#                    c_zero_ref = reference_tbc.tb.r_dict[[0,0,0]]
-#                end
-#            end
-        end
-    end
-
-    if check_frontier
-        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
-        if vio_bool
-            no_errors = false
-        end
-        if check_only
-            return vio_bool
-        end
-    end
-    
-    nkeep=size(R_keep)[1]
-    ind_arr = zeros(Int64, nkeep, 3)
-    ind_arr[:,:] = R_keep[:,2:4]
-
-    if verbose; println("types stuff "); end
-    if !ismissing(database)
-        types_dict = Dict()
-        types_dict_reverse = Dict()
-        types_counter = 0
-        types_arr = zeros(Int64, crys.nat)
-        for a = 1:crys.nat
-            if !(crys.stypes[a]  in keys(types_dict))
-                types_counter += 1
-                types_dict[crys.stypes[a]] = types_counter
-                types_dict_reverse[types_counter] = crys.stypes[a]
-            end
-            types_arr[a] = types_dict[crys.stypes[a]]
-        end
-    else
-        types_dict = Dict()
-        types_dict_reverse = Dict()
-        types_counter = 0
-        types_arr = zeros(Int64, crys.nat)
-        for a = at_types
-            if !(Symbol(a) in keys(types_dict))
-                types_counter += 1
-                types_dict[Symbol(a)] = types_counter
-                types_dict_reverse[types_counter] = Symbol(a)
-            end
-        end
-
-#        println("types_counter ", types_counter)
-        
-        for (ind, a) in enumerate(crys.stypes)
-            types_arr[ind] = types_dict[a]
-        end
-#        println("types_arr, ", types_arr)
-        
-    end
-
-    if verbose; println("cutoff stuff"); end
-
-    
-    get_cutoff_pre = Dict()       
-    s = Set(crys.stypes)
-    for s1 in s
-        for s2 in s
-            ind1 = types_dict[s1]
-            ind2 = types_dict[s2]
-            get_cutoff_pre[(ind1, ind2)] = get_cutoff(s1,s2)[:] 
-            if use_threebody
-                for s3 in s 
-                    ind3 = types_dict[s3] 
-                    get_cutoff_pre[(ind1, ind2, ind3)] = get_cutoff(s1,s2,s3)[1] 
-                end
-            end
-        end
-    end
-        
-    if false
-        cutoff_arr = zeros(crys.nat, crys.nat, 2)
-        cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
-        for a = 1:crys.nat
-            ta = crys.stypes[a]
-            for b = 1:crys.nat
-                tb = crys.stypes[b]            
-                cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
-                if use_threebody
-                    for c = 1:crys.nat
-                        tc = crys.stypes[c]            
-                        cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
-                    end
-                end
-            end
-        end
-    end
-    
-
-    badlist = Set()
-
-    if verbose; println("setup database stuff"); end
-    #println("ismissing database ", ismissing(database))
-    begin
-        DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
-        if use_em
-            DAT_EM_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_em )
-        end
-
-        #        DAT_IND_ARR3 = zeros(var_type, types_counter, types_counter, types_counter, 1: max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff) )
-         if use_threebody
-             DAT_IND_ARR3 = zeros(var_type, max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff), types_counter, types_counter, types_counter )
-             if use_fourbody
-                 DAT_IND_ARR4 = zeros(var_type, 2, types_counter, types_counter, types_counter, types_counter )
-             end
-         end
-        
-        if !ismissing(database)
-#            if use_em
-#                if :em in keys(database)
-#                    em = database[:em]                    
-#                else
-#                    if use_em
-#                        if !turn_off_warn; println("WARNING, no embed key :em "); end
-#                        use_em = false
-#                    end
-#                end
-#            end
-
-            for c1 = 1:types_counter
-                for c2 = 1:types_counter
-                    t1 = types_dict_reverse[c1]
-                    t2 = types_dict_reverse[c2]
-
-                    if (t1,t2) in keys(database)
-                        coef = database[(t1,t2)]
-                        DAT_IND_ARR[c1,c2,1:n_2body_cl] = coef.datH[:]
-                    else
-                        if !turn_off_warn; println("WARNING, ",(t1,t2), " database not found"); end
-                        within_fit = false
-                        push!(badlist, (t1,t2))
-                        if !turn_off_warn; println("badlist ", badlist); end
-                    end
-
-                    if use_em
-                        if (t1,t2,:em) in keys(database)
-                            DAT_EM_ARR[c1,c2,1:n_2body_em] = database[(t1,t2, :em)].datH
-                        end
-                    end
-                    
-                    if use_threebody
-                        for c3 = 1:types_counter
-                            t3 = types_dict_reverse[c3]
-                            if (t1,t2,t3) in keys(database)
-                                coef = database[(t1,t2,t3)]
-                                #                                DAT_IND_ARR3[c1,c2,c3,1:coef.sizeH] = coef.datH[1:coef.sizeH]
-                                DAT_IND_ARR3[1:coef.sizeH, c1,c2,c3] = coef.datH[1:coef.sizeH]
-                            else
-                                if !turn_off_warn;                             println("WARNING, ",(t1,t2,t3), " database not found"); end
-                                within_fit = false
-                                push!(badlist, (t1,t2,t3))
-                                if !turn_off_warn; println("badlist ", badlist); end
-                            end
-                            if use_fourbody
-                                for c4 = 1:types_counter
-                                    t4 = types_dict_reverse[c4]
-                                    if (t1,t2,t3,t4) in keys(database)
-                                        coef = database[(t1,t2,t3,t4)]
-                                        #                                DAT_IND_ARR3[c1,c2,c3,1:coef.sizeH] = coef.datH[1:coef.sizeH]
-                                        DAT_IND_ARR4[1:coef.sizeH, c1,c2,c3,c4] = coef.datH[1:coef.sizeH]
-                                    else
-                                        if !turn_off_warn;                             println("WARNING, ",(t1,t2,t3,t4), " database not found"); end
-                                        within_fit = false
-                                        push!(badlist, (t1,t2,t3,t4))
-                                        if !turn_off_warn; println("badlist ", badlist); end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                end
-            end
-        else
-
-            for v in vars_list
-                if v[2] == 2
-                    for c1 = 1:types_counter
-                        for c2 = 1:types_counter
-                            t1 = types_dict_reverse[c1]
-                            t2 = types_dict_reverse[c2]
-                            if (t1,t2) in keys(ind_set)
-                                ind = ind_set[(t1,t2)] 
-                                if t1 in v[1] && t2 in v[1] && length(Set([t1,t2])) == length(v[1])
-                                #                            println("v $v")
-                                #                            println("DAT_IND_ARR $c1 $c2 $n_2body_cl ", dat_vars[ind])
-                                #                            println("ind $ind ", typeof(ind))
-                                #                            println("dat_vars  $ind ", typeof(dat_vars[ind]))
-                                    DAT_IND_ARR[c1,c2,1:n_2body_cl] = dat_vars[ind]
-                                #                            println("after")
-                                end
-                            end
-
-                            if use_em
-#                                println("use ------------------------------------------ $((t1,t2,:em)) ")
-#                                println(keys(ind_set), " " , (t1,t2,:em) in keys(ind_set))
-                                if (t1,t2,:em) in keys(ind_set)
-#                                    println("key")
-                                    ind = ind_set[(t1,t2,:em)] 
-#                                    println(v , " " , v[1])
-                                    if t1 in v[1] && t2 in v[1]
-                                        DAT_EM_ARR[c1,c2,1:n_2body_em] = dat_vars[ind]
-#                                        println("add $t1 $t2 xxxxxxxxxxxxxxxxxxxxxxxxxxx")
-                                    end
-                                end
-                            end
-                            
-                        end
-                    end
-#                    counter += n_2body_cl
-                elseif v[2] == 3
-                    for c1 = 1:types_counter
-                        for c2 = 1:types_counter
-                            for c3 = 1:types_counter
-                                t1 = types_dict_reverse[c1]
-                                t2 = types_dict_reverse[c2]
-                                t3 = types_dict_reverse[c3]
-                                if t1 in v[1] && t2 in v[1] && t3 in v[1] && length(Set([t1,t2,t3])) == length(v[1])
-                                    if (t1,t2,t3) in keys(ind_set)
-                                        ind = ind_set[(t1,t2,t3)] 
-                                        #DAT_IND_ARR3[c1,c2,c3,1:length(ind)] = dat_vars[ind]
-#                                        println("dat_vars[ind] ", dat_vars[ind], " size ", size(DAT_IND_ARR3))
-                                        DAT_IND_ARR3[1:length(ind), c1,c2,c3] = dat_vars[ind]
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                elseif v[2] == 4
-                    for c1 = 1:types_counter
-                        for c2 = 1:types_counter
-                            for c3 = 1:types_counter
-                                for c4 = 1:types_counter
-                                    t1 = types_dict_reverse[c1]
-                                    t2 = types_dict_reverse[c2]
-                                    t3 = types_dict_reverse[c3]
-                                    t4 = types_dict_reverse[c4]
-                                    if t1 in v[1] && t2 in v[1] && t3 in v[1] && t4 in v[1] && length(Set([t1,t2,t3,t4])) == length(v[1])
-                                        if (t1,t2,t3,t4) in keys(ind_set)
-                                            ind = ind_set[(t1,t2,t3,t4)] 
-                                            DAT_IND_ARR4[1:length(ind), c1,c2,c3,c4] = dat_vars[ind]
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                else
-                    println("something wrong energy_cl v $v ")
-                end
-                
-            end
-        end
-    end
-        #    println("DAT_IND_ARR")
-#    println(DAT_IND_ARR)
-
-    warned = false
-
-    nkeep_ab = size(R_keep_ab)[1]
-    
-    lag_arr_TH = zeros(var_type, n_2body_cl, nthreads())
-    energy_2bdy_TH = zeros(var_type,nthreads())
-
-    rho = zeros(var_type, crys.nat, types_counter)
-    rho2 = zeros(var_type, crys.nat, types_counter)
-#    rho3 = zeros(var_type, crys.nat)
-    if verbose println("2body CL") end
-    twobody_Cl = begin
-        for c = 1:nkeep_ab
-            id = threadid()
-            lag_arr = lag_arr_TH[:,id]
-
-            cind = R_keep_ab[c,1]
-            cham = R_keep_ab[c,7]
-            a1 = R_keep_ab[c,2]
-            a2 = R_keep_ab[c,3]
-
-#            println("$a1 $a2 types_arr $types_arr")
-            t1 = types_arr[a1]
-            t2 = types_arr[a2]
-
-            if !turn_off_warn && (t1,t2) in badlist
-                if warned == false
-                    println("WARNING missing $( (t1,t2) ) ")
-                    warned = true
-                end
-                continue
-            end
-            
-            if use_dist_arr
-                dist_a = dist_arr[c,1]
-                cut_a = dist_arr[c,5]
-            else
-                dist_a = get_dist_only(a1,a2, R_keep_ab[c,4:6], crys, At)
-                #cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
-                cutoff2, cutoff2on = get_cutoff_pre[(t1,t2)][:]
-                cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
-            end
-            
-            if dist_a <  1e-5    # true onsite
-                continue
-            end
-            
-            laguerre_fast!(dist_a, lag_arr, a=2.0)
-            energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
-            rho[a1,t2] += exp(-1.0*dist_a)
-            rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
-            #rho3[a1] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.1*dist_a)
-        end
-        
-    end
-    
-    energy_embed = zero(var_type)
-    if use_em
-        for a1 = 1:crys.nat
-#            if var_type == Float64
-#                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
-#            end
-            t1 = types_arr[a1]
-            for t=1:types_counter
-                em = DAT_EM_ARR[t1,t,1:n_2body_em]
-                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3
-                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3
-                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] 
-            end
-            #            energy_embed +=  em[5]*rho3[a1]^2 + em[6]*rho3[a1]^3
-            
-            #            energy_embed +=  em[7]*rho[a1]*rho2[a1] + em[8]*rho2[a1]*rho3[a1]
-
-            
-        end
-    end
-        
-
-    begin
-        lag_arr3_TH = zeros(var_type, max(n_3body_cl_same, n_3body_cl_pair, n_3body_cl_diff), nthreads())
-        energy_3bdy_TH = zeros(var_type,nthreads())
-    end
-            if verbose println("3body LV") end
-
-    threebdy_LV = begin
-        
-        if use_threebody 
-
-            meta_count = []
-            old = 1
-            for  counter = 1: (size(array_ind3)[1]-1 ) 
-                if array_ind3[counter,1] != array_ind3[counter+1,1]
-                    push!(meta_count, old:counter)
-                    old = counter+1
-                end
-            end
-            push!(meta_count, old:size(array_ind3)[1])
-            
-            #            println("asdf")
-            
-            #println("meta_count $meta_count")
-            
-             @threads for mc in meta_count 
-                for counter in mc
-                    
-                    id = threadid()
-
-                    a1 = array_ind3[counter,1]
-                    a2 = array_ind3[counter,2]
-                    a3 = array_ind3[counter,3]
-
-            #        println("a1 a2 a3 $a1 $a2 $a3 ", crys.stypes)
-
-                    t1s = crys.stypes[a1]
-                    t2s = crys.stypes[a2]
-                    t3s = crys.stypes[a3]
-
-                    t1 = types_arr[a1]
-                    t2 = types_arr[a2]
-                    t3 = types_arr[a3]
-                    
-                    if !turn_off_warn && (t1,t2,t3) in badlist
-                        if warned == false
-                            println("WARNING missing $( (t1,t2,t3) ) ")
-                            warned = true
-                        end
-                        continue
-                    end
-                    
-                    cind1 = array_ind3[counter,4]
-                    cind2 = array_ind3[counter,5]
-
-                    rind1 = ind_arr[cind1,1:3]
-                    rind2 = ind_arr[cind2,1:3]
-
-                    
-                    
-                    if use_dist_arr
-                        dist12 = array_floats3[counter, 1]
-                        dist13 = array_floats3[counter, 2]
-                        dist23 = array_floats3[counter, 3]                    
-                        
-                        cut_h = array_floats3[counter,14]
-                    else
-                        dist12 = get_dist_only(a1,a2, rind1, crys, At)
-                        dist13 = get_dist_only(a1,a3, rind2, crys, At)
-                        dist23 = get_dist_only(a2,a3, -rind1+rind2, crys, At)
-
-                        cutoff3 = get_cutoff_pre[(t1,t2,t3)]
-                            
-                        cut_ab = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
-                        cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
-                        cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
-                        
-                        cut_h = cut_ab*cut_ac*cut_bc
-                    end
-                    
-                    
-                    #lag_arr3 = lag_arr3_TH[:,id]
-                    #ntot = 20
-#                    ntot = laguerre_fast_threebdy_cl!(dist12,dist13,dist23, t1,t2,t3, lag_arr3)
-                    #                    energy_3bdy_TH[id] += core_3_cl(t1,t2,t3,ntot,lag_arr3,DAT_IND_ARR3, var_type) * cut_h * 100.0
-
-                     energy_3bdy_TH[id] += core_3_cl_laguerre_fast_threebdy_cl!(dist12, dist13, dist23, t1,t2,t3, DAT_IND_ARR3, var_type)  * cut_h * 100.0
-                    
-                end
-            end
-        end
-    end
-
-    energy_4bdy_TH = zeros(var_type,nthreads())
-    if verbose println("4body LV") end
-
-    fourbody_LV = begin
-        
-        if use_fourbody
-
-            meta_count = []
-            old = 1
-            for  counter = 1: (size(array_ind4)[1]-1 ) 
-                if array_ind4[counter,1] != array_ind4[counter+1,1]
-                    push!(meta_count, old:counter)
-                    old = counter+1
-                end
-            end
-            push!(meta_count, old:size(array_ind4)[1])
-            
-            #            println("asdf")
-            
-            #println("meta_count $meta_count")
-            
-            @threads for mc in meta_count 
-                for counter in mc
-                    
-                    id = threadid()
-
-                    a1 = array_ind4[counter,1]
-                    a2 = array_ind4[counter,2]
-                    a3 = array_ind4[counter,3]
-                    a4 = array_ind4[counter,4]
-
-            #        println("a1 a2 a3 $a1 $a2 $a3 ", crys.stypes)
-
-                    t1s = crys.stypes[a1]
-                    t2s = crys.stypes[a2]
-                    t3s = crys.stypes[a3]
-                    t4s = crys.stypes[a4]
-
-                    t1 = types_arr[a1]
-                    t2 = types_arr[a2]
-                    t3 = types_arr[a3]
-                    t4 = types_arr[a4]
-                    
-                    if !turn_off_warn && (t1,t2,t3,t4) in badlist
-                        if warned == false
-                            println("WARNING missing $( (t1,t2,t3,t4) ) ")
-                            warned = true
-                        end
-                        continue
-                    end
-                    
-                    cind1 = array_ind4[counter,5]
-                    cind2 = array_ind4[counter,6]
-                    cind3 = array_ind4[counter,7]
-
-                    rind1 = ind_arr[cind1,1:3]
-                    rind2 = ind_arr[cind2,1:3]
-                    rind3 = ind_arr[cind3,1:3]
-
-                    
-                    
-                    if false
-                        dist12 = array_floats3[counter, 1]
-                        dist13 = array_floats3[counter, 2]
-                        dist23 = array_floats3[counter, 3]                    
-                        
-                        cut_h = array_floats3[counter,14]
-                    else
-                        dist12 = get_dist_only(a1,a2, rind1, crys, At)
-                        dist13 = get_dist_only(a1,a3, rind2, crys, At)
-                        dist14 = get_dist_only(a1,a4, rind3, crys, At)
-                        
-                        dist23 = get_dist_only(a2,a3, -rind1+rind2, crys, At)
-                        dist24 = get_dist_only(a2,a4, -rind1+rind3, crys, At)
-
-                        dist34 = get_dist_only(a3,a4, -rind2+rind3, crys, At)
-                        
-                        cutoff4 = cutoff4X
-                            
-#                        cut_ab = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
-#                        cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
-#                        cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
-                        #                        cut_h = cut_ab*cut_ac*cut_bc
-                        
-                    end
-                    
-                    
-                    #lag_arr3 = lag_arr3_TH[:,id]
-                    #ntot = 20
-#                    ntot = laguerre_fast_threebdy_cl!(dist12,dist13,dist23, t1,t2,t3, lag_arr3)
-                    #                    energy_3bdy_TH[id] += core_3_cl(t1,t2,t3,ntot,lag_arr3,DAT_IND_ARR3, var_type) * cut_h * 100.0
-
-                    energy_4bdy_TH[id] += core_4_cl_laguerre_fast_fourbdy_cl!(dist12, dist13, dist14, dist23,dist24, dist34, t1,t2,t3,t4, DAT_IND_ARR4, var_type) * 1000.0
-                    
-                end
-            end
-        end
-    end
-
-#    if var_type == Float64
-#        println(" energy comps  $(sum(energy_2bdy_TH))    $(sum(energy_3bdy_TH))    $(sum(energy_4bdy_TH))    $energy_embed")
-#    end
-    
-    return sum(energy_2bdy_TH) + sum(energy_3bdy_TH) + sum(energy_4bdy_TH) + energy_embed, no_errors
-    
-    
-end
-=#

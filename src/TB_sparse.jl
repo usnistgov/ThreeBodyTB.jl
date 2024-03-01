@@ -1,7 +1,13 @@
 
 using SparseArrays
 
+#Contains sparse matrix implementations of severals structs and functions in parallel to the main TB.jl
 
+"""
+    mutable struct tb_sparse{T}
+
+Holds the tb object, but with a sparse matrix implementation (see also `tb`). `H` and `S` are vectors that contain sparce matricies, as opposed to a higher-dimensional dense matrix that is implemented in the dense version.
+"""
 mutable struct tb_sparse{T}
 
     #    H::Array{Complex{Float64},3}
@@ -34,9 +40,9 @@ Base.show(io::IO, h::tb_sparse) = begin
 end   
 
 """
-        mutable struct tb_crys{T}
+        mutable struct tb_crys_sparse{T}
 
-    Main tight-binding object, holds the tight-binding model `tb` and information about the `crystal`
+    Main tight-binding object (SPARSE matrix version, see `tb_crys_dense`), holds the tight-binding model `tb` and information about the `crystal`
 
     # Holds
     - `tb::tb` Has the key tb info (see above)
@@ -51,7 +57,7 @@ end
     - `efermi::Float64` Fermi energy in Ryd, if calculated.
     - `nspin::Int64` number of spins (2=magnetic)
     """
-mutable struct tb_crys_sparse{T}
+mutable struct tb_crys_sparse{T} <: tb_crys
 
     tb::tb_sparse
     crys::crystal
@@ -99,10 +105,10 @@ Base.show(io::IO, x::tb_crys_sparse) = begin
 end   
 
 """
-        function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing)
+        function make_tb_sparse(H, ind_arr, r_dict::Dict, S; h1=missing)
 
-    Constructor function for `tb` with overlaps
-    """
+Constructor function for `tb_sparse` with overlaps
+"""
 function make_tb_sparse(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
     nw=size(H[1],2)
     nr=length(H)
@@ -135,6 +141,11 @@ function make_tb_sparse(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missin
     return tb_sparse{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,scfspin, h1, h1spin)
 end
 
+"""
+function make_tb_crys_sparse
+
+Constructor function for `tb_crys_sparse`.
+"""
 function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
 
     T = typeof(crys.coords[1,1])
@@ -168,6 +179,21 @@ end
 
 function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
 
+    if length(SI) == 0
+        SI = []
+        SJ = []
+        rSV = []
+        iSV = []
+        maxS = 0
+        for s in sk3
+            I,J,V = findnz(s)
+            push!(SI, I)
+            push!(SJ, J)
+            push!(rSV, real(V))
+            push!(iSV, imag(V))
+            maxS = max(maxS, length(V))
+        end
+    end
     #println("begin")
     begin
         thetype=typeof(real(sk3[1][1,1]))
@@ -302,6 +328,12 @@ function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01,
 
 end 
 
+"""
+    function go_eig_sym_sparse
+
+Helper function for calculating eigenvalues/vectors for sparse matricies. Uses dense linear algebra for the actual diagonalization.
+Need to implement a linear-scaling version.
+"""
 function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, nk_red)
 
     #    max_num = nthreads()
@@ -376,7 +408,16 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
 
 end
 
-function  myfft_R_to_K_sparse(tbc::tb_crys_sparse, nk_red, kpts)
+"""
+    function  myfft_R_to_K_sparse(tbc::tb_crys_sparse, nk_red, kpts)
+
+Sparse matrix fourier transform of Hamiltonian. Not actually an fft,
+just a naive fourier transform. Becomes fast if the matricies are
+actually sparse, so that matrix multiplication becomes linear in the
+number of atoms instead of `nat^3`. In that case we only need a few
+k-points anyways, so the fft is not needed.  
+"""
+function myfft_R_to_K_sparse(tbc::tb_crys_sparse, nk_red, kpts)
 
     T = typeof(tbc.tb.H[1][1,1])
                
@@ -404,148 +445,13 @@ function  myfft_R_to_K_sparse(tbc::tb_crys_sparse, nk_red, kpts)
 
 end
 
-function get_dq(tbc::tb_crys_sparse)
-    return get_dq(tbc.crys, tbc.eden)
-end
-
-function get_h1(tbc::tb_crys_sparse, chargeden::Array{Float64,2})
-    dq = get_dq(tbc.crys, chargeden)
-    h1 = get_h1_dq(tbc,dq)
-    return h1, dq
-end
-
-function ewald_energy(tbc::tb_crys_sparse, delta_q=missing)
-
-    background_charge_correction = tbc.background_charge_correction
-    gamma = tbc.gamma 
-    crys = tbc.crys
-
-    if ismissing(delta_q)
-        delta_q =  get_dq(crys , tbc.eden)
-    end
-
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
-
-end
-
-function go_charge15_sym_sparse(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, kweights )
-
-    nw = size(S[1])[1]
-    #    nk = size(S)[3]
-
-    d = zeros(Complex{Float64}, nw,nw)
-    charge = zeros(nspin, nw)
-
-#    denmat = zeros(Complex{Float64}, nspin, nw, nw, nk_red)
-
-#    println("size kw ", size(kweights))
-#    println("size occ ", size(occ))
-#    println("size rv ", size(rv))
-#    println("nw $nw nk_red $nk_red max_occ $max_occ")
-    for spin = 1:nspin
-        rv[:,:,:] .= real.(VECTS[:,:,:,spin])
-        iv[:,:,:] .= imag.(VECTS[:,:,:,spin])    
-
-        rDEN .= 0.0
-        iDEN .= 0.0
-        @tturbo for n = 1:max_occ  #tturbo
-            for k = 1:nk_red
-                for b = 1:nw
-                    for a = 1:nw
-                        #DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[b,n,k,spin])
-
-                        #                        DEN[a,b,k] += occ[k,n,spin].*  (real(VECTS[a,n,k,spin]) - im * imag(VECTS[a,n,k,spin])) .*(real(VECTS[b,n,k,spin]) + im * imag(VECTS[b,n,k,spin]))
-
-#                        DEN[a,b,k] += occ[k,n,spin].*  ( real(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + real(VECTS[a,n,k,spin])*im * imag(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*real(VECTS[b,n,k,spin]) + (-im)*imag(VECTS[a,n,k,spin])*im*imag(VECTS[b,n,k,spin]))
-
-                        rDEN[a,b,k] += kweights[k]*occ[k,n,spin]*(rv[a,n,k]*rv[b,n,k] + iv[a,n,k]*iv[b,n,k])
-                        iDEN[a,b,k] += kweights[k]*occ[k,n,spin]*(rv[a,n,k]*iv[b,n,k] - iv[a,n,k]*rv[b,n,k])
-                        
-                        #DEN[a,b,k] += occ[k,n,spin]*(rv[a,n,k,spin]*rv[b,n,k,spin]-iv[b,n,k,spin]*iv[a,n,k,spin])
-
-                    end
-                end
-            end
-        end
-#        for k = 1:nk_red
-#            #            denmat[spin,:,:,k] = rDEN[:,:,k] + im*iDEN[:,:,k]
-#            for n = 1:max_occ
-#                denmat[spin,:,:,k] += occ[k,n,spin]*VECTS[:,n,k,spin] * VECTS[:,n,k,spin]'
-#            end
-#        end
-
-        
-#        println("size rDEN $(size(rDEN)) i $(size(iDEN)) s $(size(S)) d $(size(d))")
-        d .= 0.0
-        for k = 1:nk_red
-            d += sum(((@view rDEN[:,:,k])+(@view iDEN[:,:,k])*im) .* S[k], dims=3)[:,:]
-        end
-        #        d .= sum(DEN .* S, dims=3)[:,:]
-        charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
-    end
-    return charge/2.0 #, denmat/2.0
-end
 
 
-function go_charge15_sym_sparse_opt(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rv, iv,  nk_red, kweights )
+"""
+    function go_charge15_sym_sparse_opt2
 
-    nw = size(S[1])[1]
-    #    nk = size(S)[3]
-
-    d = zeros(Complex{Float64}, nw,nw)
-    charge = zeros(nspin, nw)
-
-#    denmat = zeros(Complex{Float64}, nspin, nw, nw, nk_red)
-
-#    println("size kw ", size(kweights))
-#    println("size occ ", size(occ))
-#    println("size rv ", size(rv))
-    #    println("nw $nw nk_red $nk_red max_occ $max_occ")
-    println("size VECTS ", size(VECTS))
-    println("size VECTS ", size(occ))
-    println("max_occ ", max_occ)
-
-
-#=    for spin = 1:nspin
-        d .= 0.0
-        for k = 1:nk_red
-            for n = 1:max_occ
-                for i = 1:nw
-                    for j = 1:nw
-                        d[i,j] += kweights[k] * occ[k,n,spin] * conj(VECTS[j,n,k, spin])*VECTS[i,n,k, spin]*S[k][j,i]
-                    end
-                end
-            end
-        end
-        charge[spin,:] = sum(real(0.5*(d + d')), dims=1) 
-    end
-=#
-  
-    for spin = 1:nspin
-        d .= 0.0
-#        rv[:,:,:] .= real.(VECTS[:,:,:,spin])
-#        iv[:,:,:] .= imag.(VECTS[:,:,:,spin])    
-
-        for k = 1:nk_red
-            #println("k $k")
-            kw =kweights[k]
-            I,J,V = findnz(S[k])
-            for (i,j,v) in zip(I,J,V)
-#            for i = 1:nw
-#                for j = 1:nw
-                for a = 1:max_occ
-                    d[i,j] += conj(VECTS[i,a,k,spin])*VECTS[j,a,k,spin]*occ[k,a,spin] * kw * v
-                end
-            end
-        end
-        #        d .= sum(DEN .* S, dims=3)[:,:]
-        #charge[spin,:] = sum( real(0.5*(d + d')), dims=1)
-        charge[spin,:] = 0.5*sum( real( d + d' ) , dims=1)
-    end
-
-    return charge/2.0  #, denmat/2.0
-end
-
+Helper function for calculating charge density using sparse matrix multiplcation. Becomes faster if matricies are actually sparse (large unit cells or low dimensions).
+"""
 function go_charge15_sym_sparse_opt2(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, rp, ip,  nk_red, kweights, SI, SJ, rSV, iSV, maxS )
 
     nw = size(S[1])[1]
@@ -610,4 +516,320 @@ function go_charge15_sym_sparse_opt2(VECTS, S, occ, nspin, max_occ, rDEN, iDEN, 
     end
 
     return charge/2.0  #, denmat/2.0
+end
+
+#sparse matrix version of arbitrary k-point diagonalization. Uses dense diagonalization
+function Hk(h::tb_sparse, kpoint; spin=1)
+
+#    println("Hk sparse")
+    
+    kpoint = vec(kpoint)
+    hk = zeros(Complex{Float64}, h.nwan, h.nwan)
+    sk = zeros(Complex{Float64}, h.nwan, h.nwan)
+    hk0 = zeros(Complex{Float64}, size(hk))
+
+    if h.nonorth  
+        fill!(sk, zero(Float64))
+    end
+
+    twopi_i = -1.0im*2.0*pi
+
+    #    println("repeat")
+    kmat = repeat(kpoint', h.nr,1)
+
+    #    println("exp")
+    exp_ikr = exp.(twopi_i * sum(kmat .* h.ind_arr,dims=2))
+
+    for m in 1:h.nwan
+        for n in 1:h.nwan        
+            for k = 1:h.nr
+                if h.nspin == 2
+                    hk0[m,n] += h.H[k][m,n]'*exp_ikr[k]
+                else
+                    hk0[m,n] += h.H[k][m,n]'*exp_ikr[k]
+                end
+                if h.nonorth
+                    sk[m,n] += h.S[k][m,n]'*exp_ikr[k]
+                end
+            end
+        end
+    end
+    hk0 = 0.5*(hk0 + hk0')
+
+    hk .= hk0
+    if h.scf
+        hk .+= sk .* h.h1
+    end
+    if h.scfspin
+        hk .+= sk .* h.h1spin[spin,:,:]
+    end
+
+    hk = 0.5*(hk[:,:] + hk[:,:]')
+
+    
+    nw=size(hk)[1]
+    vects = zeros(nw,nw)
+    vals = zeros(nw)
+    vals0 = zeros(nw)
+
+    try
+        if h.nonorth
+            sk = 0.5*(sk[:,:] + sk[:,:]')
+            F=eigen(hk[:,:], sk[:,:])
+        else
+            #        println("orth")
+            #        println(typeof(hk))
+            hk = 0.5*(hk[:,:] + hk[:,:]')            
+            F=eigen(hk[:,:]) #orthogonal
+        end
+
+        vects = F.vectors
+        vals = real(F.values)
+        vals0 = real.(diag(vects'*hk0*vects))
+
+    catch
+        println("warning eigen failed, ", kpoint)
+        vects = collect(I(nw))
+        vals = 1000.0 * ones(nw)
+        vals0 = 1000.0 * ones(nw)
+
+    end
+
+    return vects, sort!(vals), hk, sk, vals0
+
+end
+
+#sparse version.
+function calc_energy_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
+
+    etypes = types_energy(tbc.crys)
+
+    if tbc.nspin == 2 || tbc.tb.scfspin == true
+        nspin = 2
+    else
+        nspin = 1
+    end
+
+
+    #     println("size(hk3) ", size(hk3))
+    
+    #     if tbc.tb.scfspin 
+    #         h1 = tbc.tb.h1spin
+    #     else
+    #         h1 = missing
+    #     end
+
+    #     if tbc.nspin == 2 || tbc.tb.scfspin == true
+    #         nspin = 2
+    #     else
+    #         nspin = 1
+    #     end
+
+    use_sym = true
+    
+    nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+
+    hk3, sk3 = myfft_R_to_K_sparse(tbc, nk_red, kpts)
+
+    
+    if abs(scissors_shift) > 1e-10
+        return_more_info = true
+    end
+    
+    ret =  calc_energy_fft_band_sparse(hk3, sk3, tbc.nelec, smearing=smearing, return_more_info=true, h1=tbc.tb.h1, h1spin = tbc.tb.h1spin , nspin=nspin, use_sym=use_sym, nk_red=nk_red, grid_ind = grid_ind, kweights=kweights)
+
+#    println("ret ", ret)
+    energy, efermi, vals, vects  = ret
+
+    vals_old = deepcopy(vals)
+    vects_old = deepcopy(vects)
+    hk3 = deepcopy(hk3)
+    sk3 = deepcopy(sk3)
+    
+    if abs(scissors_shift) > 1e-10
+        println("apply scissors shift $scissors_shift (in ryd) to $scissors_shift_atoms")
+        energy, efermi, vals, vects  = ret
+        vals, vects = apply_scissors_shift(efermi, vals, vects, scissors_shift, scissors_shift_atoms, tbc.crys, hk3, sk3, tbc.nspin, tbc.tb.h1, tbc.tb.h1spin) 
+        
+    end
+    
+    
+    if return_more_info
+
+        #        println("PRE-precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
+
+        etot = etypes + energy
+        return etot, efermi, vals, vects, hk3, sk3
+
+    end
+    return energy + etypes
+
+end
+
+function calc_energy_fft_band_sparse(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
+
+    thetype=typeof(real(sk3[1][1]))
+    nwan = size(hk3[1])[1]
+    if use_sym
+        println("use_sym")
+        VALS = zeros(Float64, nk_red,nwan,nspin)
+        VECTS = zeros(Complex{Float64}, nk_red,nspin, nwan, nwan)
+        
+        spin_size=1
+        go_sym_sparse(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thetype, nwan, nspin, spin_size,return_more_info)
+        
+        band_en, efermi = band_energy(VALS, kweights, nelec, smearing, returnef=true)
+        energy_smear = smearing_energy(VALS, kweights, efermi, smearing)
+        
+    end
+    
+    if return_more_info
+        return  band_en + energy_smear, efermi, VALS, VECTS
+    else
+        return  band_en + energy_smear
+    end
+    
+end 
+
+function go_sym_sparse(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thetype, nwan, nspin, spin_size, return_more_info)
+    c=0
+    sk = zeros(Complex{thetype}, nwan, nwan)
+    hk = zeros(Complex{thetype}, nwan, nwan)
+    for c = 1:nk_red
+        
+        try
+
+            sk[:,:] = 0.5*(sk3[c] + sk3[c]')
+            for spin = 1:nspin
+                spins = min(spin, spin_size)
+                hk[:,:] = 0.5*(hk3[c]+ hk3[c]')
+                
+                if !ismissing(h1)
+                    hk += 0.5*sk .* (h1+h1')
+                end
+                if nspin == 2
+                    hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
+                end
+                
+                vals, vects = eigen(hk, sk)
+                VALS[c, :,spin] = real(vals)
+
+                if return_more_info
+                    VECTS[c,spin, :,:] = vects
+                end
+            end
+            #                    println("tb check ", sum(vects' * sk * vects))
+            #                    println("tb check2    ", sum(VECTS[c,:,:]' * sk3[:,:,k1,k2,k3] * VECTS[c,:,:]))
+
+        catch e
+            if e isa InterruptException
+                println("user interrupt")
+                rethrow(InterruptException)
+            end
+
+            println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
+            sk[:,:] = 0.5*(sk3[c] + sk3[c]')
+            valsS, vectsS = eigen(sk)
+            println(valsS)
+
+            rethrow(error("BadOverlap"))
+
+        end
+    end
+end
+
+"""
+         function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01)
+
+Sparse matrix non-scf energy/eigenvectors.
+"""
+function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01)
+
+    #     println("asdf")
+    etypes = types_energy(tbc.crys)
+
+    if ismissing(grid)
+        grid = get_grid(tbc.crys)
+    else
+        if length(grid) != 3
+            grid = get_grid(tbc.crys, grid) 
+        end
+    end
+    #    println("calc_energy_charge_fft grid $grid")
+
+    nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+    hk3, sk3 = myfft_R_to_K_sparse(tbc, nk_red, kpts)
+
+    if tbc.scf
+        h1 = tbc.tb.h1
+        echarge, pot = ewald_energy(tbc)
+    else
+        h1 = missing
+        echarge = 0.0
+    end
+
+    if tbc.nspin == 2 || tbc.tb.scfspin
+        #         h1up, h1dn = get_spin_h1(tbc)
+        #         h1spin = [h1up, h1dn]
+        h1spin = get_spin_h1(tbc)
+        emag = magnetic_energy(tbc)
+    else
+        h1spin = missing
+        emag = 0.0
+    end
+
+
+    eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin, nk_red = nk_red, kweights=kweights)
+    tbc.efermi = efermi
+    tbc.eden[:,:] = chargeden[:,:]
+    #println("energy comps $eband $etypes $echarge $emag")
+    energy = eband + etypes + echarge + emag
+
+    #     println("end asdf")
+
+    return energy, efermi, chargeden, VECTS, VALS, error_flag
+
+end
+
+"""
+    function convert_sparse_dense(tbc::tb_crys)
+
+Converts a `tb_crys_dense` to `tb_crys_sparse` or vice versa,
+depending on what you give it.  Users usually don't have to worry
+about using dense or sparse versions; publically exported commands
+perform the same either way, and main functions are overloaded or they
+accept the supertype `tb_crys`.  Can be useful for testing speed
+difference though.  
+"""
+function convert_sparse_dense(tbc::tb_crys)
+
+    if typeof(tbc) <: tb_crys_dense
+        println("convert to sparse")
+        H = []
+        S = []
+        for r in 1:tbc.tb.nr
+            push!(H, sparse( real.(tbc.tb.H[1,:,:,r])))
+            push!(S, sparse( real.(tbc.tb.S[:,:,r])))
+        end
+        tb = make_tb_sparse( H , tbc.tb.ind_arr, tbc.tb.r_dict,  S, h1 = tbc.tb.h1, h1spin = tbc.tb.h1spin)
+        tb.scfspin = tbc.tb.scfspin
+        tbc_new = make_tb_crys_sparse(tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden=tbc.eden, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, screening=1.0, fermi_energy=tbc.efermi)
+        
+    elseif typeof(tbc) <: tb_crys_sparse
+        println("convert to dense")        
+        H = zeros(Complex{Float64}, 1, tbc.tb.nwan, tbc.tb.nwan, tbc.tb.nr)
+        S = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan, tbc.tb.nr)
+        for r in 1:tbc.tb.nr
+            H[1,:,:,r] = tbc.tb.H[r]
+            S[:,:,r] = tbc.tb.S[r]
+        end
+        tb = make_tb( H , tbc.tb.ind_arr, tbc.tb.r_dict,  S, h1 = tbc.tb.h1, h1spin = tbc.tb.h1spin)
+        tb.scfspin = tbc.tb.scfspin
+        tbc_new = make_tb_crys(tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden=tbc.eden, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, screening=1.0, fermi_energy=tbc.efermi)
+        
+        
+    end
+
+    return tbc_new
+    
 end

@@ -88,7 +88,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     if ismissing(kappa)
 #        kappa_default = 0.25
         kappa = estimate_best_kappa(crys.A)
-        println("kappa $kappa")
+#        println("kappa $kappa")
     end
     kappa = Float64(kappa)
 

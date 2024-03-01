@@ -17,10 +17,12 @@ using ..CrystalMod:get_grid
 using ..TB:make_kgrid
 using ..TB:calc_energy_fft
 using ..TB:tb_crys
+using ..TB:tb_crys_sparse
 using ..TB:tb_crys_kspace
 using ..CrystalMod:crystal
 using ..CrystalMod:orbital_index
 using ..TB:summarize_orb
+
 
 using ..DOS:dos
 using ..DOS:plot_dos_flip
@@ -182,8 +184,16 @@ function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=-1, efermi
                           plot_hk=false, align = "vbm", proj_types = missing, proj_orbs =
                           missing, proj_nums=missing, clear_previous=true, do_display=true,
                           color_spin = ["green", "orange"], spin = :both, nspin = 1,
-                          database=missing)
+                          database=missing, sparse=:auto)
 
+    if sparse == :auto
+        if c.nat >= 100
+            sparse = true
+            println("auto use sparse matricies, set sparse=false to avoid")
+        else
+            sparse = false
+        end
+    end
 
     if npts == -1
         npts = maximum(get_grid(c)) * 2
@@ -197,7 +207,7 @@ function plot_bandstr_sym(c::crystal; sym_prec = 5e-4, npts=-1, efermi
         database = database_cached
     end
     
-    energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin)
+    energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, nspin=nspin, sparse=sparse)
     p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=tbc.efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
 
 
@@ -215,6 +225,7 @@ calculation, but otherwise it will.
 """
 function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=-1, efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, nspin = 1, database=missing)
 
+    
     if npts == -1
         npts = maximum(get_grid(tbc.crys)) * 2
     end
@@ -235,7 +246,12 @@ function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=-1, efermi = miss
             nspin = 2
         end
         
-        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, e_den0=tbc.eden, nspin=nspin)
+        if typeof(tbc) <: tb_crys_sparse
+            sparse = true
+        else
+            sparse = false
+        end
+        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, e_den0=tbc.eden, nspin=nspin, sparse=sparse)
     end
     
     

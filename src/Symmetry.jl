@@ -973,6 +973,12 @@ function get_kgrid_sym(c::crystal; grid=missing,  sym_prec=5e-4)
     if ismissing(grid)
         grid = get_grid(c)
     end
+
+    #gamma only is easy
+    nkt = prod(grid)
+    if nkt == 1
+        return nkt, [1 1 1], [0.0 0.0 0.0], [2.0]
+    end
     
     coords = [c.coords[i,:] for i in 1:c.nat]
     cell = Spglib.Cell(c.A', coords, c.types)
@@ -1126,7 +1132,7 @@ end
 function symmetrize_charge_den(crys::crystal, v, SS, atom_trans, orb2ind )
 
     nsym = size(SS)[3]
-
+    
     vnew = zeros(size(v)[1], nthreads())
 
     workspace = zeros(5, nthreads())

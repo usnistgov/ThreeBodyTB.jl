@@ -80,12 +80,20 @@ for i = 1:16
     symbol_dict[list[i]] = i
 end
 
+"""
+    abstract type tb_crys end
+
+Abstract supertype of objects that have a tight binding object and a crystal structure.
+There are `tb_crys_dense` and `tb_crys_sparse` implementations.
+"""
+abstract type tb_crys end
+
 
 
 """
         mutable struct tb{T}
 
-    Holds key tight-binding information in real-space. Like `_hr.dat` file from Wannier90. Also part of the `tb_crys` object.
+    Holds key tight-binding information in real-space. Like `_hr.dat` file from Wannier90. Also part of the `tb_crys` object. Dense matrix version, see also `tb_sparse`
 
     # Holds
     - `H::Array{Complex{T},4}` Hamiltonian. `nwan`×`nwan`×`nr`×`nspin`
@@ -125,7 +133,7 @@ Base.show(io::IO, h::tb) = begin
     scf = h.scf
     scfspin = h.scfspin
     nspin=h.nspin
-    println(io, "tight binding real space object; nwan = $nwan, nr = $nr, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, nspin = $nspin" )
+    println(io, "tight binding real space object (DENSE); nwan = $nwan, nr = $nr, nonorth = $nonorth, scf = $scf, scfmagnetic = $scfspin, nspin = $nspin" )
     println(io)
     
 end   
@@ -133,7 +141,7 @@ end
 """
         mutable struct tb_crys{T}
 
-    Main tight-binding object, holds the tight-binding model `tb` and information about the `crystal`
+    Main tight-binding object, holds the tight-binding model `tb` and information about the `crystal`. Dense matrix version
 
     # Holds
     - `tb::tb` Has the key tb info (see above)
@@ -148,7 +156,7 @@ end
     - `efermi::Float64` Fermi energy in Ryd, if calculated.
     - `nspin::Int64` number of spins (2=magnetic)
     """
-mutable struct tb_crys{T}
+mutable struct tb_crys_dense{T} <: tb_crys
 
     tb::tb
     crys::crystal
@@ -168,9 +176,9 @@ end
 
 
 
-Base.show(io::IO, x::tb_crys) = begin
+Base.show(io::IO, x::tb_crys_dense) = begin
     println(io)
-    println(io, "tb_crys object ")
+    println(io, "tb_crys object (DENSE)")
     println(io)    
     println(io, x.crys)
     println(io)
@@ -339,7 +347,7 @@ end
     Can read gzipped files directly.
 
     """
-function read_tb_crys(filename; directory=missing)
+function read_tb_crys(filename; directory=missing, sparse=false)
     """
         get tbc object from xml file, written by write_tb_crys (see below)
         """
@@ -364,7 +372,8 @@ function read_tb_crys(filename; directory=missing)
         end
     end
     if !isfile(filename)
-        println("warning error read_tb_crys $filename $directory not found")
+        println("warning error read_tb_crys $filename   $directory not found")
+        return
     else
         println("found $filename")
     end
@@ -529,6 +538,10 @@ function read_tb_crys(filename; directory=missing)
     
     tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi)
 
+    if sparse
+        tbc = convert_sparse_dense(tbc)
+    end
+    
     return tbc
     
     #    catch
@@ -778,7 +791,10 @@ function write_tb_crys(filename, tbc::tb_crys)
     """
         write xml tb_crys object
         """
-
+    if typeof(tbc) <: tb_crys_sparse
+        tbc = convert_sparse_dense(tbc)
+    end
+    
     doc = XMLDocument()
     root = ElementNode("root")
     setroot!(doc, root)
@@ -1032,7 +1048,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
     
-    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
 """
@@ -2010,7 +2026,7 @@ end
      `etot, efermi, vals, vects`
 
      """
-function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
+function calc_energy_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
 
     etypes = types_energy(tbc.crys)
 
@@ -2924,7 +2940,7 @@ end
 
      Do fft, then calculate energy and charge.
      """
-function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
+function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
 
     #     println("asdf")
     etypes = types_energy(tbc.crys)
@@ -3053,7 +3069,7 @@ end
 
      Calculate energy without fft.
      """
-function calc_energy(tbc::tb_crys; smearing=0.01, returnk=false)
+function calc_energy(tbc::tb_crys_dense; smearing=0.01, returnk=false)
     """
          calculate the energy from a kgrid
          """
@@ -3110,7 +3126,7 @@ end
 
      Calculate energy no fft
      """
-function calc_energy(h::tb_crys, kgrid; smearing=0.01, returnk=false)
+function calc_energy(h::tb_crys_dense, kgrid; smearing=0.01, returnk=false)
     """
          calculate the energy from a kgrid
          """
@@ -3337,7 +3353,7 @@ end
      - column 8,9,10 have the the direction cosines lmn for the atom pair.
 
      """
-function organizedata(tbc::tb_crys; spin=1)
+function organizedata(tbc::tb_crys_dense; spin=1)
 
     return organizedata(tbc.crys, tbc.tb,spin=spin)
 

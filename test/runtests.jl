@@ -24,7 +24,9 @@ include("test_sym.jl")
 include("test_force_sym.jl")
 #include("test_examples.jl")
 include("test_sparse.jl")
-include("test_forces_sparse.jl")
+include("test_sparse_forces.jl")
+include("test_sparse_relax.jl")
+include("test_sparse_plot.jl")
 
 delete!(ENV, "GKSwstype") #undo magic to avoid side effects
 

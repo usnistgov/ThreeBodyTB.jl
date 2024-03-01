@@ -1358,5 +1358,5 @@ function psi_gradH_psi3(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DEN
 end
 
 include("Force_Stress_sym.jl")
-
+include("Force_Stress_sparse.jl")
 end #end module

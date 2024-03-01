@@ -16,6 +16,7 @@ using Base.Threads
 using ..CrystalMod:get_grid
 using ..TB:calc_energy_fft
 using ..TB:tb_crys
+using ..TB:tb_crys_sparse
 using ..TB:tb_crys_kspace
 using ..CrystalMod:crystal
 using ..CrystalMod:orbital_index
@@ -130,7 +131,7 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
         proj = zeros(nk_red, tbc.tb.nwan, length(PROJ), nspin)
         
         for spin = 1:nspin
-            @threads for c = 1:nk_red
+            for c = 1:nk_red
                 k1,k2,k3 = grid_ind[c,:]
 #                k3 = mod(c-1 , grid[3])+1
 #                k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
@@ -138,8 +139,13 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
                 
                 #            skt = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
                 #            skt5 = skt^0.5
-                v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+                if length(size(sk3)) == 5
+                    v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+                else
 
+                    v5 = (0.5*( collect( sk3[c] .+  sk3[c]')))^0.5 * ( vects[c,spin,:,:])
+                end
+                          
 
                 
                 vectsS[c,spin,:,:] = real(v5.*conj(v5))
@@ -158,7 +164,11 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
                 
                 #            skt = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
                 #            skt5 = skt^0.5
-                v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+                if length(size(sk3)) == 5 
+                    v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])
+                else
+                    v5 = (0.5*( ( sk3[:,:,k1,k2,k3]) .+ ( sk3[:,:,k1,k2,k3])'))^0.5 * ( vects[c,spin,:,:])                    
+                end
 
 
                 
@@ -241,6 +251,18 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
 end
             
 
+"""
+    function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+
+Makes an atom and spatially resoloved DOS-style plot. Along `direction=1,2,3` (lattice vector 1,2,3) the atoms are plotted, using transparancy to denote DOS amplitude. Try it out to see. Potentially useful for interfaces. Example usage:
+`c = makecrys([8.0 0 0; 0 8.0 0; 0 0 10.0], [0 0 0; 0 0 0.5], [:Li, :Cl]) #quasi 1D LiCl chain`
+`en, tbc, flag = scf_energy(c*[1,1,10])                                   #ten unit cells`
+`dos_realspace(tbc, direction=3)`
+
+Adjust the `energy_grid` and `width` to adjust plotting parameters.
+Scissors shift in energy unit to certain atoms will add scissors shift to open band gaps is desired.
+"""
 function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
 
     if ismissing(width)
@@ -339,7 +361,11 @@ function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)
 
     for k = 1:nk
         c += 1
-        sk[:,:] = ( 0.5 * (SK[ :, :,k] + SK[ :, :, k]'))
+        if length(size(SK)) == 3
+            sk[:,:] = ( 0.5 * (SK[ :, :,k] + SK[ :, :, k]'))
+        else
+            sk[:,:] = ( 0.5 * (SK[k] + SK[k]'))
+        end            
         for spin = 1:nspin
             for (pind, proj_inds) in enumerate(PROJ)
                 for p in proj_inds
@@ -360,6 +386,11 @@ function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)
 end
             
     
+"""
+    function gaussian_dos(tbc::tb_crys)
+
+Gaussian smearing DOS is now the main DOS. Tetraheral method is still coded, but it is a bit wonky.
+"""
 function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[])
 
     return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
@@ -383,6 +414,11 @@ See also `dos`
 """
 function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[])
 
+
+    if typeof(tbc) <: tb_crys_sparse
+        use_sym=true
+    end
+        
     println("proj_type $proj_type")
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -545,7 +581,7 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
 
     if ismissing(proj_type)  
         do_proj=true
-        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
+        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type, use_sym=use_sym)
         nproj = size(proj)[3]
         
         pdos = zeros(length(energies),nproj, nspin)
@@ -558,7 +594,7 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
     else
         #    if ismissing(proj_type) || !(  proj_type != "none"  || proj_type != :none)
         do_proj=true
-        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
+        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type, use_sym=use_sym)
         nproj = size(proj)[3]
         
         pdos = zeros(length(energies),nproj, nspin)
@@ -764,7 +800,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
     if ismissing(proj_type) ||  (proj_type != "none"   && proj_type != :none)
         do_proj=true
         #println("Projection")
-        proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type)
+        proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym)
         nproj = size(proj)[3]
 
         pdos = zeros(length(energies),nproj, nspin)
@@ -1108,6 +1144,11 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 end
 
 
+"""
+    function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=true, yrange=[-6, 4.0])
+
+For plotting with x and y axes reversed, useful for bandstucture plots
+"""
 function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=true, yrange=[-6, 4.0])
 
     

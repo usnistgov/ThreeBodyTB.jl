@@ -6,7 +6,12 @@ using ..TB:calc_energy_charge_fft_band2_sym_sparse
 
 using SparseArrays
 
+"""
+    function scf_energy(tbc::tb_crys_sparse)
 
+Sparse matrix implmentation of self-consistent field. Uses dense eigen routines, but sparse matrix mulitplication.
+Repeats a lot of code currently. TODO : refactor with less waste.
+"""
 function scf_energy(tbc::tb_crys_sparse; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
@@ -14,7 +19,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #    println("SCF_ENERGY TOT ", tbc.tot_charge)
 
     begin 
-        use_sym = true
+        use_sym = true #sparse matrix version always use_sym=true
         
         if do_classical
             if !ismissing(database_classical)
@@ -860,7 +865,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         if size(e_den) == size(tbc.eden)
             tbc.eden[:] = e_den #save charge density!!!!!  side effect!!!!!
         else #i don't think i need this option anymore
-            tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
+            tbc= make_tb_crys_sparse(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
         end
         
         h1, dq = get_h1(tbc, e_den)

@@ -3,6 +3,8 @@ using SparseArrays
 using ..TB:make_tb_crys_sparse
 using ..TB:make_tb_sparse
 
+#contains sparse matrix implementations.
+
 function core3b_sparse!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,IND, counter, sym_dat1, sym_dat2, lmn31, lmn32)
 
 #            println("cut_h $cut_h")
@@ -203,8 +205,12 @@ function core_onsite_sparse!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR
     end
 end
 
+"""
+    function calc_tb_LV_sparse(crys::crystal)
 
-function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
+Main sparse matrix tight binding Hamiltonian calculator.
+"""
+function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
 
 
     #        verbose=true

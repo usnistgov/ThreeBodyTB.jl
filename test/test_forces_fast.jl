@@ -22,8 +22,8 @@ function test1()
     @testset "testing force fast" begin
 
         @suppress begin
+            units_old = ThreeBodyTB.set_units()
             for SCF in [true, false]
-                units_old = ThreeBodyTB.set_units()
                 ThreeBodyTB.set_units(both="atomic")
                 
                 c = makecrys([14.0 0 0; 0 7.0 0; 0 0 7.0], [0 0 0; 0.45 0 0 ], ["Hx", "Hx"], units="Bohr");

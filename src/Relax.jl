@@ -11,6 +11,7 @@ using ..CrystalMod:makecrys
 using ..CrystalMod:write_axsf
 using ..CalcTB:calc_tb_lowmem2
 using ..CalcTB:calc_tb_LV
+using ..CalcTB:calc_tb_LV_sparse
 using ..Atomdata:atom_radius
 
 using LinearAlgebra
@@ -38,7 +39,7 @@ using ..ThreeBodyTB:set_units
 
 Relax structure. Primary user function is relax_structure in ThreeBodyTB.jl, which calls this one.
 """
-function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0)
+function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0, sparse=false)
 
 #    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 
@@ -67,7 +68,11 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
     
     #do this ahead of first iteration, to get memory in correct place
     if do_tb
-        tbc = calc_tb_LV(deepcopy(crys), database, verbose=false, repel=repel)
+        if sparse == false
+            tbc = calc_tb_LV(deepcopy(crys), database, verbose=false, repel=repel)
+        else
+            tbc = calc_tb_LV_sparse(deepcopy(crys), database, verbose=false, repel=repel)
+        end
         energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge )
         eden = deepcopy(tbc.eden)
     else
@@ -155,7 +160,11 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 
         if do_tb
             if crys_working != tbc.crys
-                tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+                if sparse == false
+                    tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+                else
+                    tbc = calc_tb_LV_sparse(deepcopy(crys_working), database, verbose=false, repel=repel)
+                end
                 tbc.tot_charge=tot_charge
             end
         end
@@ -215,7 +224,11 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #        println("too short ", tooshort)
 
         if do_tb
-            tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+            if sparse == false
+                tbc = calc_tb_LV(deepcopy(crys_working), database, verbose=false, repel=repel)
+            else
+                tbc = calc_tb_LV_sparse(deepcopy(crys_working), database, verbose=false, repel=repel)                
+            end
             tbc.tot_charge=tot_charge
         end
 
