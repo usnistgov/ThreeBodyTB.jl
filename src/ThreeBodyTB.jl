@@ -11,7 +11,8 @@ function get_ver()
     println("Main branch.")
 end
 
-get_ver()
+#get_ver()
+
 
 include("GlobalUnits.jl")
 include("SetDir.jl")
@@ -49,6 +50,8 @@ include("TB.jl")
 ###include("Magnetic.jl") #now inside TB.jl
 
 using .TB:tb_crys
+using .TB:tb_crys_dense
+using .TB:tb_crys_sparse
 using .TB:tb_crys_kspace
 using .TB:tb
 
@@ -472,7 +475,7 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
         do_classical=false
     end
 
-    if typeof(tbc) <: tbc_crys_sparse
+    if typeof(tbc) <: tb_crys_sparse
         use_sym=true
     end
     
@@ -605,9 +608,9 @@ end
 
 
 """
-    scf_energy(tbc::tbc_crys)
+    scf_energy(tbc::tb_crys)
 
-    SCF energy using crystal structure from TBC object.
+SCF energy using crystal structure from TBC object.
 """
 function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing, repel=true)
 

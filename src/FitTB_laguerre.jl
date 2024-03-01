@@ -1750,7 +1750,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
         
 
-        if !ismissing(tbc) && typeof(tbc) == tb_crys{Float64}
+        if !ismissing(tbc) && typeof(tbc) <: tb_crys
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             H1[c,1:nw, 1:nw] = tbc.tb.h1

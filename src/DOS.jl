@@ -581,7 +581,7 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
 
     if ismissing(proj_type)  
         do_proj=true
-        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type, use_sym=use_sym)
+        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
         nproj = size(proj)[3]
         
         pdos = zeros(length(energies),nproj, nspin)
@@ -594,7 +594,7 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
     else
         #    if ismissing(proj_type) || !(  proj_type != "none"  || proj_type != :none)
         do_proj=true
-        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type, use_sym=use_sym)
+        proj, names, pwan =  projection(tbcK, vects, tbcK.tb.Sk, ptype=proj_type)
         nproj = size(proj)[3]
         
         pdos = zeros(length(energies),nproj, nspin)
