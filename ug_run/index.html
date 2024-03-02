@@ -1,89 +1,52 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Running Calculations · ThreeBodyTB.jl Documentation</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/><link href="../assets/nist-combined.css" rel="stylesheet" type="text/css"/>      <link rel="stylesheet" href="../assets/nist-combined.css"> <script src="../assets/jquery-1.9.0.min.js" type="text/javascript" defer="defer"></script><script src="../assets/nist-header-footer.js" type="text/javascript" defer="defer"></script><script async type="text/javascript" id="_fed_an_ua_tag" src="https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=NIST&subagency=github&pua=UA-66610693-1&yt=true&exts=ppsx,pps,f90,sch,rtf,wrl,txz,m1v,xlsm,msi,xsd,f,tif,eps,mpg,xml,pl,xlt,c"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="ThreeBodyTB.jl Documentation logo"/></a><div class="docs-package-name"><span class="docs-autofit">ThreeBodyTB.jl Documentation</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">User Guide</span><ul><li class="is-active"><a class="tocitem" href>Running Calculations</a><ul class="internal"><li><a class="tocitem" href="#**Create-a-crystal-object**"><span><strong>Create a crystal object</strong></span></a></li><li><a class="tocitem" href="#**Do-a-self-consistent-calculation.**"><span><strong>Do a self-consistent calculation.</strong></span></a></li><li><a class="tocitem" href="#**Plot-the-band-structure.**"><span><strong>Plot the band structure.</strong></span></a></li><li><a class="tocitem" href="#**Calculate-force-/-stress**"><span><strong>Calculate force / stress</strong></span></a></li><li><a class="tocitem" href="#**Relax-structure**"><span><strong>Relax structure</strong></span></a></li><li><a class="tocitem" href="#**Available-parameters**"><span><strong>Available parameters</strong></span></a></li></ul></li><li><a class="tocitem" href="../ug_fit/">Fit Coefficients</a></li></ul></li><li><span class="tocitem">Core User Interface</span><ul><li><a class="tocitem" href="../structs/">Structs</a></li><li><a class="tocitem" href="../core/">Functions</a></li></ul></li><li><a class="tocitem" href="../compile/">Compile/Python</a></li><li><a class="tocitem" href="../every/">Additional Docstrings</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">User Guide</a></li><li class="is-active"><a href>Running Calculations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Running Calculations</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/usnistgov/ThreeBodyTB.jl/blob/master/docs/src/ug_run.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Running-tight-binding-calculations"><a class="docs-heading-anchor" href="#Running-tight-binding-calculations">Running tight-binding calculations</a><a id="Running-tight-binding-calculations-1"></a><a class="docs-heading-anchor-permalink" href="#Running-tight-binding-calculations" title="Permalink"></a></h1><p>How to run tight-binding calculations using the pre-fit tight-binding coefficients. Note, only elemental and binary systems are currently supported.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Running a julia function for the first time will compile the function. Future runs will be <em>much</em> faster.</p></div></div><h2 id="**Create-a-crystal-object**"><a class="docs-heading-anchor" href="#**Create-a-crystal-object**"><strong>Create a crystal object</strong></a><a id="**Create-a-crystal-object**-1"></a><a class="docs-heading-anchor-permalink" href="#**Create-a-crystal-object**" title="Permalink"></a></h2><p>Use <a href="../core/#ThreeBodyTB.CrystalMod.makecrys"><code>makecrys</code></a> to create a <a href="../structs/#ThreeBodyTB.CrystalMod.crystal"><code>crystal</code></a> from lattice vectors, atomic positions, and atom types:</p><pre><code class="language-julia">using ThreeBodyTB
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Running Calculations · ThreeBodyTB.jl Documentation</title><meta name="title" content="Running Calculations · ThreeBodyTB.jl Documentation"/><meta property="og:title" content="Running Calculations · ThreeBodyTB.jl Documentation"/><meta property="twitter:title" content="Running Calculations · ThreeBodyTB.jl Documentation"/><meta name="description" content="Documentation for ThreeBodyTB.jl Documentation."/><meta property="og:description" content="Documentation for ThreeBodyTB.jl Documentation."/><meta property="twitter:description" content="Documentation for ThreeBodyTB.jl Documentation."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/><link href="../assets/nist-combined.css" rel="stylesheet" type="text/css"/>      <link rel="stylesheet" href="../assets/nist-combined.css"> <script src="../assets/jquery-1.9.0.min.js" type="text/javascript" defer="defer"></script><script src="../assets/nist-header-footer.js" type="text/javascript" defer="defer"></script><script async type="text/javascript" id="_fed_an_ua_tag" src="https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=NIST&subagency=github&pua=UA-66610693-1&yt=true&exts=ppsx,pps,f90,sch,rtf,wrl,txz,m1v,xlsm,msi,xsd,f,tif,eps,mpg,xml,pl,xlt,c"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="ThreeBodyTB.jl Documentation logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">ThreeBodyTB.jl Documentation</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">User Guide</span><ul><li class="is-active"><a class="tocitem" href>Running Calculations</a><ul class="internal"><li><a class="tocitem" href="#**Create-a-crystal-object**"><span><strong>Create a crystal object</strong></span></a></li><li><a class="tocitem" href="#**Do-a-self-consistent-calculation.**"><span><strong>Do a self-consistent calculation.</strong></span></a></li><li><a class="tocitem" href="#**Plot-the-band-structure.**"><span><strong>Plot the band structure.</strong></span></a></li><li><a class="tocitem" href="#**Symmetry-enabled-plotting**"><span><strong>Symmetry-enabled plotting</strong></span></a></li><li><a class="tocitem" href="#**Calculate-force-/-stress**"><span><strong>Calculate force / stress</strong></span></a></li><li><a class="tocitem" href="#**Relax-structure**"><span><strong>Relax structure</strong></span></a></li><li><a class="tocitem" href="#**Magnetic-calculations**"><span><strong>Magnetic calculations</strong></span></a></li><li><a class="tocitem" href="#**Sparse-matrix**"><span><strong>Sparse matrix</strong></span></a></li></ul></li><li><a class="tocitem" href="../ug_fit/">Fit Coefficients</a></li></ul></li><li><span class="tocitem">Core User Interface</span><ul><li><a class="tocitem" href="../structs/">Structs</a></li><li><a class="tocitem" href="../core/">Functions</a></li></ul></li><li><a class="tocitem" href="../compile/">Compile/Python</a></li><li><a class="tocitem" href="../every/">Additional Docstrings</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">User Guide</a></li><li class="is-active"><a href>Running Calculations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Running Calculations</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/usnistgov/ThreeBodyTB.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/usnistgov/ThreeBodyTB.jl/blob/master/docs/src/ug_run.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Running-tight-binding-calculations"><a class="docs-heading-anchor" href="#Running-tight-binding-calculations">Running tight-binding calculations</a><a id="Running-tight-binding-calculations-1"></a><a class="docs-heading-anchor-permalink" href="#Running-tight-binding-calculations" title="Permalink"></a></h1><p>How to run tight-binding calculations using the pre-fit tight-binding coefficients. Note, only elemental and binary systems are currently supported.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Running a julia function for the first time will compile the function. Future runs will be <em>much</em> faster.</p></div></div><h2 id="**Create-a-crystal-object**"><a class="docs-heading-anchor" href="#**Create-a-crystal-object**"><strong>Create a crystal object</strong></a><a id="**Create-a-crystal-object**-1"></a><a class="docs-heading-anchor-permalink" href="#**Create-a-crystal-object**" title="Permalink"></a></h2><p>Use <a href="../core/#ThreeBodyTB.CrystalMod.makecrys"><code>makecrys</code></a> to create a <a href="../structs/#ThreeBodyTB.CrystalMod.crystal"><code>crystal</code></a> from lattice vectors, atomic positions, and atom types:</p><pre><code class="language-julia hljs">using ThreeBodyTB
 A = [2.1 2.1 0.0;2.1 0.0 2.1;0.0 2.1 2.1];
 pos = [0.0 0.0 0.0];
 types =        [&quot;Al&quot;];
-fcc_al = makecrys(A, pos, types)</code></pre><pre class="documenter-example-output">Units: Å
+fcc_al = makecrys(A, pos, types)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Units: Å
 
 A1=     2.10000  2.10000  0.00000
 A2=     2.10000  0.00000  2.10000
 A3=     0.00000  2.10000  2.10000
 
 Al   0.00000  0.00000  0.00000
-</pre><p>Current default units are Angstrom and eV. You can change the global units to atomic units with <a href="../core/#ThreeBodyTB.set_units"><code>set_units(both=&quot;atomic&quot;)</code></a> if you prefer.</p><p>Alternatively, you can read the positions from a simple POSCAR or Quantum Espresso input file.</p><pre><code class="language-julia">rbcl = makecrys(&quot;../src/POSCAR_rbcl&quot;)</code></pre><pre class="documenter-example-output">Units: Å
+</code></pre><p>Current default units are Angstrom and eV. You can change the global units to atomic units with <a href="../core/#ThreeBodyTB.set_units"><code>set_units(both=&quot;atomic&quot;)</code></a> if you prefer.</p><p>Alternatively, you can read the positions from a simple POSCAR or Quantum Espresso input file.</p><pre><code class="language-julia hljs">rbcl = makecrys(&quot;../src/POSCAR_rbcl&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Units: Å
 
-A1=     3.90963  -0.00000  0.00000
-A2=     -0.00000  3.90963  0.00000
-A3=     0.00000  -0.00000  3.90963
+A1=     3.90963  0.00000  0.00000
+A2=     0.00000  3.90963  0.00000
+A3=     0.00000  0.00000  3.90963
 
 Rb   0.00000  0.00000  0.00000
 Cl   0.50000  0.50000  0.50000
-</pre><h2 id="**Do-a-self-consistent-calculation.**"><a class="docs-heading-anchor" href="#**Do-a-self-consistent-calculation.**"><strong>Do a self-consistent calculation.</strong></a><a id="**Do-a-self-consistent-calculation.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Do-a-self-consistent-calculation.**" title="Permalink"></a></h2><p>Gets the energy and charge density with <a href="../core/#ThreeBodyTB.scf_energy"><code>scf_energy</code></a>:</p><pre><code class="language-julia">alp = makecrys(&quot;../src/POSCAR_alp&quot;)
+</code></pre><h2 id="**Do-a-self-consistent-calculation.**"><a class="docs-heading-anchor" href="#**Do-a-self-consistent-calculation.**"><strong>Do a self-consistent calculation.</strong></a><a id="**Do-a-self-consistent-calculation.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Do-a-self-consistent-calculation.**" title="Permalink"></a></h2><p>Gets the energy and charge density with <a href="../core/#ThreeBodyTB.scf_energy"><code>scf_energy</code></a>:</p><pre><code class="language-julia hljs">alp = makecrys(&quot;../src/POSCAR_alp&quot;)
 energy, tbc_alp = scf_energy(alp);
-println(&quot;The energy is $energy eV&quot;)</code></pre><pre class="documenter-example-output">
-Begin scf_energy-------------
+println(&quot;The energy is $energy eV&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
 
-Load TB parameters from file
-prepare atoms [&quot;Al&quot;, &quot;P&quot;]
-
-
------
-Construct tight-binding model from crystal structure
-
-distances
-check_frountier
-CHECK FRONTIER - everything fine
-2body
-3body
-onsite
-make
------
-
-  0.064838 seconds (1.64 M allocations: 118.413 MiB)
-------
-Do SCF
-Mixing mode: pulay
-Get initial guess from tbc
-DQ: [0.0, -0.0]
-
-Parameters:
-smearing = 0.01 conv_thr = 1.0e-5, iters = 75, mix = 0.5, grid = missing
 
 START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.42350021
-SCF CALC 0002 energy  -10.24668598  en_diff:   1.768142E-01  dq_diff:   2.430874E+00
-SCF CALC 0003 energy  -10.24965650  en_diff:   2.970519E-03  dq_diff:   2.048571E-02
-SCF CALC 0004 energy  -10.25609985  en_diff:   6.443359E-03  dq_diff:   4.504717E-02
-SCF CALC 0005 energy  -10.25883441  en_diff:   2.734558E-03  dq_diff:   1.938020E-02
-SCF CALC 0006 energy  -10.26020629  en_diff:   1.371874E-03  dq_diff:   9.783404E-03
-SCF CALC 0007 energy  -10.26088960  en_diff:   6.833124E-04  dq_diff:   4.888346E-03
-SCF CALC 0008 energy  -10.26123074  en_diff:   3.411420E-04  dq_diff:   2.444346E-03
-SCF CALC 0009 energy  -10.26140118  en_diff:   1.704372E-04  dq_diff:   1.222178E-03
-SCF CALC 0010 energy  -10.26148636  en_diff:   8.518531E-05  dq_diff:   6.110918E-04
-SCF CALC 0011 energy  -10.26152895  en_diff:   4.258433E-05  dq_diff:   3.055466E-04
-SCF CALC 0012 energy  -10.26155024  en_diff:   2.129009E-05  dq_diff:   1.527734E-04
+SCF CALC 0001 energy  -10.55408488
+SCF CALC 0002 energy  -10.52616388  en_diff:   2.792100E-02  dq_diff:   8.846071E-01   mix: 4.000000E-01
+SCF CALC 0003 energy  -10.50207018  en_diff:   2.409371E-02  dq_diff:   4.993416E-01   mix: 4.000000E-01
+SCF CALC 0004 energy  -10.48518376  en_diff:   1.688642E-02  dq_diff:   2.818125E-01   mix: 4.000000E-01
+SCF CALC 0005 energy  -10.47460640  en_diff:   1.057736E-02  dq_diff:   1.590286E-01   mix: 4.000000E-01
+SCF CALC 0006 energy  -10.46830396  en_diff:   6.302438E-03  dq_diff:   8.973524E-02   mix: 4.800000E-01
+SCF CALC 0007 energy  -10.46389975  en_diff:   4.404211E-03  dq_diff:   4.281269E-02   mix: 4.800000E-01
+SCF CALC 0008 energy  -10.46175961  en_diff:   2.140138E-03  dq_diff:   2.042529E-02   mix: 4.800000E-01
+SCF CALC 0009 energy  -10.46072973  en_diff:   1.029880E-03  dq_diff:   9.744450E-03   mix: 4.800000E-01
+SCF CALC 0010 energy  -10.46023639  en_diff:   4.933475E-04  dq_diff:   4.648826E-03   mix: 4.800000E-01
 
-YES convergence in 12 iters, energy -10.261550238376099 eV   dq = [-1.163, 1.163]
+YES convergence in 10 iters, energy -10.460236385746784 eV
 END SCF ------------------
 
-  0.657587 seconds (814.82 k allocations: 396.464 MiB, 15.05% gc time)
+ΔQ = [-0.89, 0.89]
+
 scf_energy success, done
 
-The energy is -10.261550238376099 eV</pre><p>This returns the (non-magnetic) atomization energy, and a tight-binding object with the TB matrix elements and SCF electron density calculated for post-processing.</p><h2 id="**Plot-the-band-structure.**"><a class="docs-heading-anchor" href="#**Plot-the-band-structure.**"><strong>Plot the band structure.</strong></a><a id="**Plot-the-band-structure.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Plot-the-band-structure.**" title="Permalink"></a></h2><p>Using the <a href="../structs/#ThreeBodyTB.TB.tb_crys"><code>tb_crys</code></a> tight-binding object <code>tbc_alp</code> from above. Note: SCF must be done first.</p><pre><code class="language-julia">plot_bandstr(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">plot_bandstr
-align vbm
-color = blue markersize = 0
-no display</pre><p><img src="../alp.png" alt="AlP plot"/></p><p>Use <code>do_display=true</code> (the default) to produce an interactive plot. Here <code>do_display</code> is set to <code>false</code> because we are saving a static figure with <code>savefig</code> for the docs.</p><p>The default <a href="../core/#ThreeBodyTB.BandStruct.plot_bandstr"><code>plot_bandstr</code></a> just picks some random kpoints, but you can add your own kpath. We can also project onto the <em>s</em> orbital of Al.</p><pre><code class="language-julia">kpath=[0.0 0.0 0.0; 0.5 0.5 0.5; 0.0 0.5 0.5];
+Formation energy: -0.494 eV/atom
+
+The energy is -10.460236385746784 eV</code></pre><p>This returns the (non-magnetic) atomization energy, and a tight-binding object with the TB matrix elements and SCF electron density calculated for post-processing.</p><h2 id="**Plot-the-band-structure.**"><a class="docs-heading-anchor" href="#**Plot-the-band-structure.**"><strong>Plot the band structure.</strong></a><a id="**Plot-the-band-structure.**-1"></a><a class="docs-heading-anchor-permalink" href="#**Plot-the-band-structure.**" title="Permalink"></a></h2><p>Using the <a href="../structs/#ThreeBodyTB.TB.tb_crys"><code>tb_crys</code></a> tight-binding object <code>tbc_alp</code> from above. Note: SCF must be done first.</p><pre><code class="language-julia hljs">plot_bandstr(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/alp.png&quot;</code></pre><p><img src="../alp.png" alt="AlP plot"/></p><p>Use <code>do_display=true</code> (the default) to produce an interactive plot. Here <code>do_display</code> is set to <code>false</code> because we are saving a static figure with <code>savefig</code> for the docs.</p><p>The default <a href="../core/#ThreeBodyTB.BandStruct.plot_bandstr"><code>plot_bandstr</code></a> just picks some random kpoints, but you can add your own kpath. We can also project onto the <em>s</em> orbital of Al.</p><pre><code class="language-julia hljs">kpath=[0.0 0.0 0.0; 0.5 0.5 0.5; 0.0 0.5 0.5];
 knames=[&quot;Γ&quot;, &quot;X&quot;, &quot;V&quot;];
-plot_bandstr(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=[&quot;Al&quot;], do_display=false);</code></pre><pre class="documenter-example-output">proj_inds [1]
-plot_bandstr
-align vbm
-no display</pre><p><img src="../alp2.png" alt="AlP plot 2"/></p><p>You can also plot the DOS using <a href="../core/#ThreeBodyTB.DOS.dos"><code>dos</code></a></p><pre><code class="language-julia">dos(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output">grid [14, 14, 14]
-  0.194499 seconds (71.70 k allocations: 73.312 MiB, 6.85% gc time)
-Projection type: atomic
-PROJ
-(&quot;P&quot;, [5, 6, 7, 8], 4)
-(&quot;Al&quot;, [1, 2, 3, 4], 4)</pre><p><img src="../alp_dos.png" alt="AlP DOS"/></p><p>Project onto orbitals instead with <code>proj_type=:orbs</code></p><h2 id="**Calculate-force-/-stress**"><a class="docs-heading-anchor" href="#**Calculate-force-/-stress**"><strong>Calculate force / stress</strong></a><a id="**Calculate-force-/-stress**-1"></a><a class="docs-heading-anchor-permalink" href="#**Calculate-force-/-stress**" title="Permalink"></a></h2><p>With <a href="../core/#ThreeBodyTB.scf_energy_force_stress"><code>scf_energy_force_stress</code></a></p><pre><code class="language-julia">energy, force, stress, tbc = scf_energy_force_stress(tbc_alp);
+plot_bandstr(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=[&quot;Al&quot;], do_display=false);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/alp2.png&quot;</code></pre><p><img src="../alp2.png" alt="AlP plot 2"/></p><p>You can also plot the DOS using <a href="../core/#ThreeBodyTB.DOS.dos"><code>dos</code></a></p><pre><code class="language-julia hljs">dos(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/alp_dos.png&quot;</code></pre><p><img src="../alp_dos.png" alt="AlP DOS"/></p><p>Project onto orbitals instead with <code>proj_type=:orbs</code></p><h2 id="**Symmetry-enabled-plotting**"><a class="docs-heading-anchor" href="#**Symmetry-enabled-plotting**"><strong>Symmetry-enabled plotting</strong></a><a id="**Symmetry-enabled-plotting**-1"></a><a class="docs-heading-anchor-permalink" href="#**Symmetry-enabled-plotting**" title="Permalink"></a></h2><p>Plot bandstructure path with symmetry <a href="../core/#ThreeBodyTB.BandStruct.plot_bandstr_sym"><code>plot_bandstr_sym</code></a>:</p><pre><code class="language-julia hljs">plot_bandstr_sym(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/alp3.png&quot;</code></pre><p><img src="../alp3.png" alt="AlP plot 3"/></p><p>Plot bandstructure with DOS <a href="../core/#ThreeBodyTB.BandStruct.plot_bandstr_dos"><code>plot_bandstr_dos</code></a>:</p><pre><code class="language-julia hljs">plot_bandstr_dos(tbc_alp, do_display=false);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/alp4.png&quot;</code></pre><p><img src="../alp4.png" alt="AlP plot 4"/></p><h2 id="**Calculate-force-/-stress**"><a class="docs-heading-anchor" href="#**Calculate-force-/-stress**"><strong>Calculate force / stress</strong></a><a id="**Calculate-force-/-stress**-1"></a><a class="docs-heading-anchor-permalink" href="#**Calculate-force-/-stress**" title="Permalink"></a></h2><p>With <a href="../core/#ThreeBodyTB.scf_energy_force_stress"><code>scf_energy_force_stress</code></a></p><pre><code class="language-julia hljs">energy, force, stress, tbc = scf_energy_force_stress(tbc_alp);
 
 println(&quot;energy $energy&quot;)
 println()
@@ -91,24 +54,51 @@ println(&quot;Forces&quot;)
 show(stdout, &quot;text/plain&quot;, force)
 println()
 println(&quot;Stress&quot;)
-show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-example-output">prepare atoms [&quot;Al&quot;, &quot;P&quot;]
-
+show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
 Calculate Force, Stress (no scf)
-get_energy_force_stress_fft
-  1.186074 seconds (5.06 M allocations: 1.087 GiB, 45.10% gc time)
+
+START SCF ----------------
+SCF CALC 0001 energy  -10.46000056
+SCF CALC 0002 energy  -10.45988326  en_diff:   1.173021E-04  dq_diff:   1.009740E-03   mix: 4.000000E-01
+SCF CALC 0003 energy  -10.45984052  en_diff:   4.274270E-05  dq_diff:   5.697215E-04   mix: 4.000000E-01
+SCF CALC 0004 energy  -10.45981640  en_diff:   2.412084E-05  dq_diff:   3.214517E-04   mix: 4.000000E-01
+
+YES convergence in 4 iters, energy -10.459816398138578 eV
+END SCF ------------------
+
+ΔQ = [-0.89, 0.89]
+
+Prepare to calculate Jacobian of TB object
+Calculate Force / Stress
+...doing stress ...doing atom 1 2.
 done
 ----
-energy -10.261560882898987
+
+Formation energy: -0.494 eV/atom
+
+Lattice Vectors                       | Stress
+-----------------------------------------------------------------------
+A1=     +0.00000  +2.60000  +2.60000  |  +8.75790  +0.00000  +0.00000
+A2=     +2.60000  +0.00000  +2.60000  |  +0.00000  +8.75790  +0.00000
+A3=     +2.60000  +2.60000  +0.00000  |  +0.00000  +0.00000  +8.75790
+
+Crystal coords                        | Force (Cartesian)
+-----------------------------------------------------------------------
+Al      +0.00000  +0.00000  +0.00000  |  +0.00000  +0.00000  +0.00000
+P       +0.25000  +0.25000  +0.25000  |  +0.00000  +0.00000  +0.00000
+-----------------------------------------------------------------------
+
+energy -10.459816398138578
 
 Forces
 2×3 Matrix{Float64}:
- -1.37155e-11  -1.37151e-11  -1.37152e-11
-  0.0           0.0           0.0
+ 0.0  0.0  0.0
+ 0.0  0.0  0.0
 Stress
 3×3 Matrix{Float64}:
- 0.138527  0.0       0.0
- 0.0       0.138527  0.0
- 0.0       0.0       0.138527</pre><p>Can also be called directly on a new crystal structure instead of a <code>tb_crys</code> object.</p><h2 id="**Relax-structure**"><a class="docs-heading-anchor" href="#**Relax-structure**"><strong>Relax structure</strong></a><a id="**Relax-structure**-1"></a><a class="docs-heading-anchor-permalink" href="#**Relax-structure**" title="Permalink"></a></h2><p>Using <a href="../core/#ThreeBodyTB.relax_structure"><code>relax_structure</code></a></p><pre><code class="language-julia">crys_new, tbc_updated, energy, force, stress = relax_structure(alp);
+ 0.0953855  0.0        0.0
+ 0.0        0.0953855  0.0
+ 0.0        0.0        0.0953855</code></pre><p>Can also be called directly on a new crystal structure instead of a <code>tb_crys</code> object.</p><h2 id="**Relax-structure**"><a class="docs-heading-anchor" href="#**Relax-structure**"><strong>Relax structure</strong></a><a id="**Relax-structure**-1"></a><a class="docs-heading-anchor-permalink" href="#**Relax-structure**" title="Permalink"></a></h2><p>Using <a href="../core/#ThreeBodyTB.relax_structure"><code>relax_structure</code></a></p><pre><code class="language-julia hljs">crys_new, tbc_updated, energy, force, stress = relax_structure(alp);
 
 println(&quot;Energy new $energy&quot;)
 println()
@@ -116,41 +106,32 @@ println(&quot;Force&quot;)
 show(stdout, &quot;text/plain&quot;, force)
 println()
 println(&quot;Stress&quot;)
-show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-example-output">prepare atoms [&quot;Al&quot;, &quot;P&quot;]
-relax_structure conv_thr 0.002 energy_conv_thr (Ryd) 0.0002
-------
-Do SCF
-Mixing mode: pulay
-Get initial guess from tbc
-DQ: [0.0, -0.0]
-
-Parameters:
-smearing = 0.01 conv_thr = 1.0e-7, iters = 200, mix = 0.5, grid = missing
+show(stdout, &quot;text/plain&quot;, stress)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Units are now eV and Å
+Units are now Ryd. and Bohr
 
 START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.42350021
-SCF CALC 0002 energy  -10.24668598  en_diff:   1.768142E-01  dq_diff:   2.430874E+00
-SCF CALC 0003 energy  -10.24965650  en_diff:   2.970519E-03  dq_diff:   2.048571E-02
-SCF CALC 0004 energy  -10.25609985  en_diff:   6.443359E-03  dq_diff:   4.504717E-02
-SCF CALC 0005 energy  -10.25883441  en_diff:   2.734558E-03  dq_diff:   1.938020E-02
-SCF CALC 0006 energy  -10.26020629  en_diff:   1.371874E-03  dq_diff:   9.783404E-03
-SCF CALC 0007 energy  -10.26088960  en_diff:   6.833124E-04  dq_diff:   4.888346E-03
-SCF CALC 0008 energy  -10.26123074  en_diff:   3.411420E-04  dq_diff:   2.444346E-03
-SCF CALC 0009 energy  -10.26140118  en_diff:   1.704372E-04  dq_diff:   1.222178E-03
-SCF CALC 0010 energy  -10.26148636  en_diff:   8.518531E-05  dq_diff:   6.110918E-04
-SCF CALC 0011 energy  -10.26152895  en_diff:   4.258433E-05  dq_diff:   3.055466E-04
-SCF CALC 0012 energy  -10.26155024  en_diff:   2.129009E-05  dq_diff:   1.527734E-04
-SCF CALC 0013 energy  -10.26156088  en_diff:   1.064452E-05  dq_diff:   7.638676E-05
-SCF CALC 0014 energy  -10.26156621  en_diff:   5.322131E-06  dq_diff:   3.819339E-05
-SCF CALC 0015 energy  -10.26156887  en_diff:   2.661033E-06  dq_diff:   1.909670E-05
-SCF CALC 0016 energy  -10.26157020  en_diff:   1.330508E-06  dq_diff:   9.548349E-06
-SCF CALC 0017 energy  -10.26157086  en_diff:   6.652522E-07  dq_diff:   4.774175E-06
-SCF CALC 0018 energy  -10.26157119  en_diff:   3.326256E-07  dq_diff:   2.387087E-06
-SCF CALC 0019 energy  -10.26157136  en_diff:   1.663126E-07  dq_diff:   1.193544E-06
+SCF CALC 0001 energy  -0.77571065
+SCF CALC 0002 energy  -0.77365849  en_diff:   2.052155E-03  dq_diff:   8.846071E-01   mix: 4.000000E-01
+SCF CALC 0003 energy  -0.77188764  en_diff:   1.770854E-03  dq_diff:   4.993416E-01   mix: 4.000000E-01
+SCF CALC 0004 energy  -0.77064651  en_diff:   1.241129E-03  dq_diff:   2.818125E-01   mix: 4.000000E-01
+SCF CALC 0005 energy  -0.76986909  en_diff:   7.774210E-04  dq_diff:   1.590286E-01   mix: 4.000000E-01
+SCF CALC 0006 energy  -0.76940587  en_diff:   4.632204E-04  dq_diff:   8.973524E-02   mix: 4.800000E-01
+SCF CALC 0007 energy  -0.76908217  en_diff:   3.237034E-04  dq_diff:   4.281269E-02   mix: 4.800000E-01
+SCF CALC 0008 energy  -0.76892487  en_diff:   1.572972E-04  dq_diff:   2.042529E-02   mix: 4.800000E-01
+SCF CALC 0009 energy  -0.76884918  en_diff:   7.569475E-05  dq_diff:   9.744450E-03   mix: 4.800000E-01
+SCF CALC 0010 energy  -0.76881291  en_diff:   3.626036E-05  dq_diff:   4.648826E-03   mix: 4.800000E-01
+SCF CALC 0011 energy  -0.76879558  en_diff:   1.733259E-05  dq_diff:   2.217828E-03   mix: 4.800000E-01
+SCF CALC 0012 energy  -0.76878731  en_diff:   8.276576E-06  dq_diff:   1.058063E-03   mix: 5.760000E-01
+SCF CALC 0013 energy  -0.76878257  en_diff:   4.740456E-06  dq_diff:   3.941134E-04   mix: 5.760000E-01
+SCF CALC 0014 energy  -0.76878080  en_diff:   1.766167E-06  dq_diff:   1.468015E-04   mix: 5.760000E-01
+SCF CALC 0015 energy  -0.76878014  en_diff:   6.579292E-07  dq_diff:   5.468142E-05   mix: 5.760000E-01
+SCF CALC 0016 energy  -0.76877990  en_diff:   2.450770E-07  dq_diff:   2.036803E-05   mix: 5.760000E-01
+SCF CALC 0017 energy  -0.76877980  en_diff:   9.128870E-08  dq_diff:   7.586791E-06   mix: 5.760000E-01
 
-YES convergence in 19 iters, energy -10.261571360762517 eV   dq = [-1.163, 1.163]
+YES convergence in 17 iters, energy -0.7687798045552228 Ryd.
 END SCF ------------------
+
+ΔQ = [-0.89, 0.89]
 
 starting vec
 [0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -159,147 +140,130 @@ starting vec
 Conj Grad START
 
 START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.26157144
-SCF CALC 0002 energy  -10.26157153  en_diff:   8.701624E-08  dq_diff:   6.244729E-07
+SCF CALC 0001 energy  -0.76877977
+SCF CALC 0002 energy  -0.76877976  en_diff:   1.099476E-08  dq_diff:   1.286614E-06   mix: 4.000000E-01
 
-YES convergence in 2 iters, energy -10.261571530935061 eV   dq = [-1.163, 1.163]
+YES convergence in 2 iters, energy -0.7687797595566086 Ryd.
 END SCF ------------------
 
-get_energy_force_stress_fft
-  0.998125 seconds (5.06 M allocations: 1.087 GiB, 18.68% gc time)
+ΔQ = [-0.89, 0.89]
 
-FCALL 1 en:  -0.7542113224350956 (Ryd)  fsum:  9.238855355689506e-13  ssum:  0.0026132419609586595    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Prepare to calculate Jacobian of TB object
+Calculate Force / Stress
+...doing stress ...doing atom 1 2.
 
-A1=     +2.60000  +2.60000  +0.00000  |  +0.13853  +0.00000  +0.00000
-A2=     +2.60000  +0.00000  +2.60000  |  +0.00000  +0.13853  +0.00000
-A3=     +0.00000  +2.60000  +2.60000  |  +0.00000  +0.00000  +0.13853
+FCALL 1 en:  -0.7687797595566086 (Ryd)  fsum:  0.0  ssum:  0.00179938181415565    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-Al   +0.00000  +0.00000  +0.00000 |  -0.00000  -0.00000  -0.00000
-P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
+Lattice Vectors                       | Stress
+-----------------------------------------------------------------------
+A1=     +0.00000  +4.91329  +4.91329  |  +0.00104  +0.00000  +0.00000
+A2=     +4.91329  +0.00000  +4.91329  |  +0.00000  +0.00104  +0.00000
+A3=     +4.91329  +4.91329  +0.00000  |  +0.00000  +0.00000  +0.00104
+
+Crystal coords                        | Force (Cartesian)
+-----------------------------------------------------------------------
+Al      +0.00000  +0.00000  +0.00000  |  +0.00000  +0.00000  +0.00000
+P       +0.25000  +0.25000  +0.25000  |  +0.00000  +0.00000  +0.00000
+-----------------------------------------------------------------------
+
 
 
 START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.77406936
-SCF CALC 0002 energy  -10.66263972  en_diff:   1.114296E-01  dq_diff:   6.133443E-01
-SCF CALC 0003 energy  -10.66341365  en_diff:   7.739346E-04  dq_diff:   3.594524E-03
-SCF CALC 0004 energy  -10.67104778  en_diff:   7.634124E-03  dq_diff:   3.581870E-02
-SCF CALC 0005 energy  -10.67379272  en_diff:   2.744942E-03  dq_diff:   1.304421E-02
-SCF CALC 0006 energy  -10.67515510  en_diff:   1.362376E-03  dq_diff:   6.507522E-03
-SCF CALC 0007 energy  -10.67583457  en_diff:   6.794725E-04  dq_diff:   3.253946E-03
-SCF CALC 0008 energy  -10.67617388  en_diff:   3.393097E-04  dq_diff:   1.627030E-03
-SCF CALC 0009 energy  -10.67634343  en_diff:   1.695482E-04  dq_diff:   8.135294E-04
-SCF CALC 0010 energy  -10.67642817  en_diff:   8.474744E-05  dq_diff:   4.067683E-04
-SCF CALC 0011 energy  -10.67647054  en_diff:   4.236706E-05  dq_diff:   2.033850E-04
-SCF CALC 0012 energy  -10.67649172  en_diff:   2.118186E-05  dq_diff:   1.016927E-04
-SCF CALC 0013 energy  -10.67650231  en_diff:   1.059051E-05  dq_diff:   5.084643E-05
-SCF CALC 0014 energy  -10.67650761  en_diff:   5.295166E-06  dq_diff:   2.542323E-05
-SCF CALC 0015 energy  -10.67651026  en_diff:   2.647540E-06  dq_diff:   1.271162E-05
+SCF CALC 0001 energy  -0.78843427
+SCF CALC 0002 energy  -0.78843437  en_diff:   1.008046E-07  dq_diff:   8.163035E-06   mix: 4.000000E-01
 
-YES convergence in 15 iters, energy -10.676510255924832 eV   dq = [-0.949, 0.949]
+YES convergence in 2 iters, energy -0.7884343681076027 Ryd.
 END SCF ------------------
 
-get_energy_force_stress_fft
-  1.125386 seconds (3.90 M allocations: 990.433 MiB, 39.42% gc time)
+ΔQ = [-0.84, 0.84]
 
-FCALL 2 en:  -0.7847087451310859 (Ryd)  fsum:  9.227630907280231e-9  ssum:  0.00019374308031405585    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Prepare to calculate Jacobian of TB object
+Calculate Force / Stress
+...doing stress ...doing atom 1 2.
 
-A1=     +2.80318  +2.80318  +0.00000  |  -0.01027  -0.00000  -0.00000
-A2=     +2.80318  +0.00000  +2.80318  |  -0.00000  -0.01027  -0.00000
-A3=     +0.00000  +2.80318  +2.80318  |  -0.00000  -0.00000  -0.01027
+FCALL 2 en:  -0.7884343681076027 (Ryd)  fsum:  0.0  ssum:  0.00019702979839959596    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-Al   +0.00000  +0.00000  +0.00000 |  -0.00000  -0.00000  -0.00000
-P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
+Lattice Vectors                       | Stress
+-----------------------------------------------------------------------
+A1=     +0.00000  +5.15546  +5.15546  |  +0.00011  +0.00000  +0.00000
+A2=     +5.15546  +0.00000  +5.15546  |  +0.00000  +0.00011  +0.00000
+A3=     +5.15546  +5.15546  +0.00000  |  +0.00000  +0.00000  +0.00011
 
-MY CG quadratic linesearch iter 1 fn val: -0.7847087451310859 | rms grad: 0.05759798164164776 within_stepsize: false , old step: 0.3275195802771361 , new step_size: 0.10565147750875359
-MY CG quadratic linesearch iter 2 fn val: -0.7847087451310859 | rms grad: 0.05759798164164776 within_stepsize: true , old step: 0.10565147750875359 , new step_size: 0.15847721626313038
+Crystal coords                        | Force (Cartesian)
+-----------------------------------------------------------------------
+Al      +0.00000  +0.00000  +0.00000  |  +0.00000  +0.00000  +0.00000
+P       +0.25000  +0.25000  +0.25000  |  +0.00000  +0.00000  +0.00000
+-----------------------------------------------------------------------
+
+
+MY CG quadratic linesearch iter 1 fn val: -0.7884343681076027 | rms grad: 0.05399617578010686 within_stepsize: true , old step: 0.30000000000000004 , new step_size: 0.3355015892978477
 
 START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.68005485
-SCF CALC 0002 energy  -10.68005569  en_diff:   8.399086E-07  dq_diff:   4.092795E-06
+SCF CALC 0001 energy  -0.78877560
+SCF CALC 0002 energy  -0.78875870  en_diff:   1.690623E-05  dq_diff:   1.299396E-03   mix: 4.000000E-01
+SCF CALC 0003 energy  -0.78875284  en_diff:   5.855415E-06  dq_diff:   7.096452E-04   mix: 4.000000E-01
+SCF CALC 0004 energy  -0.78874964  en_diff:   3.198620E-06  dq_diff:   3.875616E-04   mix: 4.000000E-01
+SCF CALC 0005 energy  -0.78874789  en_diff:   1.747107E-06  dq_diff:   2.116606E-04   mix: 4.000000E-01
 
-YES convergence in 2 iters, energy -10.680055690575825 eV   dq = [-0.959, 0.959]
+YES convergence in 5 iters, energy -0.7887478943269833 Ryd.
 END SCF ------------------
 
-get_energy_force_stress_fft
-  1.003617 seconds (3.90 M allocations: 990.440 MiB, 21.13% gc time)
+ΔQ = [-0.83, 0.83]
 
-FCALL 3 en:  -0.7849693296769005 (Ryd)  fsum:  1.2198061221457809e-8  ssum:  0.00011614206339563123    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Prepare to calculate Jacobian of TB object
+Calculate Force / Stress
+...doing stress ...doing atom 1 2.
 
-A1=     +2.79405  +2.79405  -0.00000  |  -0.00616  -0.00000  -0.00000
-A2=     +2.79405  -0.00000  +2.79405  |  -0.00000  -0.00616  -0.00000
-A3=     -0.00000  +2.79405  +2.79405  |  -0.00000  -0.00000  -0.00616
+FCALL 3 en:  -0.7887478943269833 (Ryd)  fsum:  0.0  ssum:  1.76322206334105e-8    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-Al   -0.00000  -0.00000  -0.00000 |  +0.00000  +0.00000  +0.00000
-P    +0.25000  +0.25000  +0.25000 |  -0.00000  -0.00000  -0.00000
+Lattice Vectors                       | Stress
+-----------------------------------------------------------------------
+A1=     +0.00000  +5.18971  +5.18971  |  +0.00000  +0.00000  +0.00000
+A2=     +5.18971  +0.00000  +5.18971  |  +0.00000  +0.00000  +0.00000
+A3=     +5.18971  +5.18971  +0.00000  |  +0.00000  +0.00000  +0.00000
 
-MY CG quadratic linesearch iter 3 fn val: -0.7849693296769005 | rms grad: 0.034191485087545964 within_stepsize: true , old step: 0.15847721626313038 , new step_size: 0.23771582439469557
+Crystal coords                        | Force (Cartesian)
+-----------------------------------------------------------------------
+Al      +0.00000  +0.00000  +0.00000  |  +0.00000  +0.00000  +0.00000
+P       +0.25000  +0.25000  +0.25000  |  +0.00000  +0.00000  +0.00000
+-----------------------------------------------------------------------
 
-START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.68164643
-SCF CALC 0002 energy  -10.68164715  en_diff:   7.167380E-07  dq_diff:   3.539612E-06
 
-YES convergence in 2 iters, energy -10.681647150688127 eV   dq = [-0.968, 0.968]
-END SCF ------------------
-
-get_energy_force_stress_fft
-  0.945768 seconds (3.90 M allocations: 990.444 MiB, 18.20% gc time)
-
-FCALL 4 en:  -0.785086299795199 (Ryd)  fsum:  5.897348932761092e-8  ssum:  4.1089258104637116e-5    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-A1=     +2.78591  +2.78591  -0.00000  |  -0.00218  -0.00000  -0.00000
-A2=     +2.78591  -0.00000  +2.78591  |  -0.00000  -0.00218  -0.00000
-A3=     -0.00000  +2.78591  +2.78591  |  -0.00000  -0.00000  -0.00218
-
-Al   +0.00000  +0.00000  +0.00000 |  -0.00000  -0.00000  -0.00000
-P    +0.25000  +0.25000  +0.25000 |  +0.00000  +0.00000  +0.00000
-
-MY CG quadratic linesearch iter 4 fn val: -0.785086299795199 | rms grad: 0.011991080376410947 within_stepsize: true , old step: 0.23771582439469557 , new step_size: 0.3565737365920434
-
-START SCF ----------------
-dq start[0.0, 0.0]
-SCF CALC 0001 energy  -10.68186423
-SCF CALC 0002 energy  -10.68186497  en_diff:   7.367556E-07  dq_diff:   3.664477E-06
-
-YES convergence in 2 iters, energy -10.681864967487188 eV   dq = [-0.973, 0.973]
-END SCF ------------------
-
-get_energy_force_stress_fft
-  0.873360 seconds (3.90 M allocations: 990.443 MiB, 20.96% gc time)
-
-FCALL 5 en:  -0.7851023090288308 (Ryd)  fsum:  3.6833778778375063e-7  ssum:  5.43724380921922e-8    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-A1=     +2.78164  +2.78164  -0.00000  |  -0.00000  -0.00000  -0.00000
-A2=     +2.78164  -0.00000  +2.78164  |  -0.00000  -0.00000  -0.00000
-A3=     -0.00000  +2.78164  +2.78164  |  -0.00000  -0.00000  -0.00000
-
-Al   -0.00000  -0.00000  -0.00000 |  +0.00000  +0.00000  +0.00000
-P    +0.25000  +0.25000  +0.25000 |  -0.00000  -0.00000  -0.00000
-
-yes conv sum_grad 1.6267652092480303e-5 fn_diff_1 0.00011697011829847614 fn_diff_2 1.600923363187512e-5
+Units are now eV and Å
 Relax done
+energy -0.7887478943269833
+force [0.0 0.0 0.0; 0.0 0.0 0.0]
+stress [1.0179967329118981e-8 0.0 0.0; 0.0 1.0179967329099018e-8 0.0; 0.0 0.0 1.0179967329113277e-8]
+
+Formation energy: -0.63 eV/atom
+
 
 ---------------------------------
-Final Energy -10.681864967487188
-A1=     +2.78164  +2.78164  -0.00000  |  -0.00026  -0.00000  -0.00000
-A2=     +2.78164  -0.00000  +2.78164  |  -0.00000  -0.00026  -0.00000
-A3=     -0.00000  +2.78164  +2.78164  |  -0.00000  -0.00000  -0.00026
+Final Energy -0.7887478943269833
+Lattice Vectors                       | Stress
+-----------------------------------------------------------------------
+A1=     +0.00000  +2.74628  +2.74628  |  +0.00000  +0.00000  +0.00000
+A2=     +2.74628  +0.00000  +2.74628  |  +0.00000  +0.00000  +0.00000
+A3=     +2.74628  +2.74628  +0.00000  |  +0.00000  +0.00000  +0.00000
 
-Al   -0.00000  -0.00000  -0.00000 |  +0.00010  +0.00010  +0.00010
-P    +0.25000  +0.25000  +0.25000 |  -0.00010  -0.00010  -0.00010
+Crystal coords                        | Force (Cartesian)
+-----------------------------------------------------------------------
+Al      +0.00000  +0.00000  +0.00000  |  +0.00000  +0.00000  +0.00000
+P       +0.25000  +0.25000  +0.25000  |  +0.00000  +0.00000  +0.00000
+-----------------------------------------------------------------------
 
 
-Energy new -10.681864967487188
+
+Energy new -10.731465700327336
 
 Force
 2×3 Matrix{Float64}:
-  3.86625e-6   3.86625e-6   3.86625e-6
- -3.86625e-6  -3.86625e-6  -3.86625e-6
+ 0.0  0.0  0.0
+ 0.0  0.0  0.0
 Stress
 3×3 Matrix{Float64}:
- -2.88127e-6  -5.39451e-8  -5.39451e-8
- -5.39451e-8  -2.88127e-6  -5.39451e-8
- -5.39451e-8  -5.39451e-8  -2.88127e-6</pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p><h2 id="**Available-parameters**"><a class="docs-heading-anchor" href="#**Available-parameters**"><strong>Available parameters</strong></a><a id="**Available-parameters**-1"></a><a class="docs-heading-anchor-permalink" href="#**Available-parameters**" title="Permalink"></a></h2><p>Pre-fit TB parameters are these elements and any binary combinations of them. You can run the code for ternary+ combinations of elements, but there is no guarantee it will work correctly.</p><p><img src="../orbs.png" alt="Available orbitals"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 22 December 2021 21:42">Wednesday 22 December 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 9.34682e-7  0.0         0.0
+ 0.0         9.34682e-7  0.0
+ 0.0         0.0         9.34682e-7</code></pre><p>Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende structure.</p><p>Force/Stress defaults are eV/Ang and eV/Ang^3.</p><h2 id="**Magnetic-calculations**"><a class="docs-heading-anchor" href="#**Magnetic-calculations**"><strong>Magnetic calculations</strong></a><a id="**Magnetic-calculations**-1"></a><a class="docs-heading-anchor-permalink" href="#**Magnetic-calculations**" title="Permalink"></a></h2><p>Set <code>nspin=2</code>, default is ferromagnetic.</p><pre><code class="language-julia hljs">c_hatom = makecrys([10.0 0 0; 0 10.0 0; 0  0 10.0], [0 0 0], [:H])
+en, tbc, flag = scf_energy(c_hatom, nspin=2)
+plot_bandstr(tbc, do_display=false)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/home/kfg/codes/NIST/ThreeBodyTB.jl/docs/build/h_bands.png&quot;</code></pre><p><img src="../h_bands.png" alt="H atom bands"/></p><h2 id="**Sparse-matrix**"><a class="docs-heading-anchor" href="#**Sparse-matrix**"><strong>Sparse matrix</strong></a><a id="**Sparse-matrix**-1"></a><a class="docs-heading-anchor-permalink" href="#**Sparse-matrix**" title="Permalink"></a></h2><p>Code will automatically try sparse matrix routines for large cells. You can set <code>sparse=true</code> in <code>scf_energy</code> and several other functions to force the use of sparse matricies, but users shouldn&#39;t have to worry about which backend is being used.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../ug_fit/">Fit Coefficients »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 1 March 2024 21:55">Friday 1 March 2024</span>. Using Julia version 1.9.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
