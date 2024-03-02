@@ -18,7 +18,8 @@
 Code for accurate and efficient electronic structure calculations
 using tight-binding (TB), including three-body interactions. Run TB
 calculations with nearly DFT (pbesol) accuracy in seconds, using a
-pre-fit and tested model for most elemental or binary systems.
+pre-fit and tested model for most elemental or binary systems. NEW:
+ternary coefficients for most common ternary systems are available.
 
 Or fit your own coefficients!
 
