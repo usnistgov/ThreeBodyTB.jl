@@ -3,6 +3,7 @@ using ..TB:tb_crys_sparse
 using ..TB:tb_sparse
 using ..TB:myfft_R_to_K_sparse
 using ..TB:calc_energy_charge_fft_band2_sym_sparse
+using ..TB:make_tb_crys_sparse
 
 using SparseArrays
 
