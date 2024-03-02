@@ -12,13 +12,18 @@ scf_energy_force_stress
 relax_structure
 read_tb_crys
 write_tb_crys
+get_symmetry
+get_standard_crys
 ```
 
 ## Plotting
 
 ```@docs
 plot_bandstr
+plot_bandstr_sym
+plot_bandstr_dos
 dos
+dos_realspace
 plot_compare_dft
 plot_compare_tb
 band_summary
@@ -30,6 +35,6 @@ band_summary
 set_units
 Hk
 calc_bands
-calc_tb_fast
+set_bin_dirs
 ```
 

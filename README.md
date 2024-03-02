@@ -61,6 +61,8 @@ New version of the code featuring
 Bulk AlP self-consistent field calculation and band structure plot. 
 
 ```
+using ThreeBodyTB
+
 #define crystal 
 c = makecrys([0 2.8 2.8 ; 2.8 0.0 2.8; 2.8 2.8 0.0], [0 0 0; 0.25 0.25 0.25], [:Al, :P])
 

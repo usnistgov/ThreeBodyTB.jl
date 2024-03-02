@@ -140,6 +140,23 @@ Modules = [ThreeBodyTB.SCF]
 Modules = [ThreeBodyTB.Utility]
 ```
 
+## Symmetry
 
+```@autodocs
+Modules = [ThreeBodyTB.Symmetry]
+```
 
+## Classical
+
+-experimental
+```@autodocs
+Modules = [ThreeBodyTB.Classical]
+```
+
+## ClassicalFit
+
+-experimental
+```@autodocs
+Modules = [ThreeBodyTB.ClassicalFit]
+```
 

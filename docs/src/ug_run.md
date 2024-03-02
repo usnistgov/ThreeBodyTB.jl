@@ -76,6 +76,26 @@ savefig("alp_dos.png"); #hide
 
 Project onto orbitals instead with `proj_type=:orbs`
 
+### Symmetry-enabled plotting
+
+Plot bandstructure path with symmetry:
+```
+plot_bandstr_sym(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=["Al"], do_display=false);
+savefig("alp3.png"); #hide
+```
+
+![AlP plot 3](alp3.png)
+
+Plot bandstructure with DOS:
+```
+plot_bandstr_dos(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=["Al"], do_display=false);
+savefig("alp4.png"); #hide
+```
+
+![AlP plot 4](alp4.png)
+
+
+
 ## **Calculate force / stress**
 
 With [`scf_energy_force_stress`](@ref)
@@ -114,4 +134,15 @@ Energy is lower, stress is near zero, forces are zero by symmetry in Zinc Blende
 
 Force/Stress defaults are eV/Ang and eV/Ang^3.
 
+## **Magnetic calculations**
+
+Set `nspin=2`, default is ferromagnetic.
+
+```@example 1
+c_hatom = makecrys([10.0 0 0; 0 10.0 0; 0  0 10.0], [0 0 0], [:H])
+en, tbc, flag = scf_energy(c_hatom, nspin=2)
+plot_bandstr(tbc, do_display=false)
+savefig("h_bands.png"); #hide
+```
+![H atom bands](h_bands.png)
 

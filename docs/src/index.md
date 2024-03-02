@@ -21,6 +21,15 @@ ThreeBodyTB.jl is a package for tight-binding, written in [Julia](https://julial
 - Includes self-consistent treatment of long-range Coulomb interaction.
 - Plotting based on interface of [Plots.jl](http://docs.juliaplots.org/latest/)
 
+### New features
+
+- Larger and better tested set of coefficients
+- Coefficients for three-atom interactions for thousands of common combinations
+- Magnetism (set `nspin=2` in `scf_energy` and similar functions)
+- Charged unit cells
+- Sparse matrix implementation of many key functions
+- Improved performance
+
 ## User's guide
 
 ```@contents
