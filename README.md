@@ -51,6 +51,33 @@ New version of the code featuring
 
 - New better-tested coefficients for elemental and binary systems
 - Coefficients for thousands of three-element combinations covering >99% of the ICSD (within the original 64 elements).
-- Sparse matrix implementations of key functions for improved perforance on large systems (>100 atoms) or low-dimensional systems.
+- Sparse matrix implementations of key functions for improved performance on large systems (>100 atoms) or low-dimensional systems.
 - Magnetic and charged systems.
 - Improved performance in many areas.
+- Support for symmetry in band structures and reducing k-point sampling
+
+## Example
+
+Bulk AlP self-consistent field calculation and band structure plot. 
+
+```
+#define crystal 
+c = makecrys([0 2.8 2.8 ; 2.8 0.0 2.8; 2.8 2.8 0.0], [0 0 0; 0.25 0.25 0.25], [:Al, :P])
+
+#run scf calculation
+energy, tbc, flag = scf_energy(c)
+
+#plot bandstructure
+plot_bandstr_dos(tbc)
+```
+
+## Performance notes
+
+Performance Note: julia compiles code the first time you run a
+function, but subsequent runs of this code will be much much faster. 
+Also, ThreeBodyTB.jl can take advantage of multiple processors
+if you define the environment variable `JULIA_NUM_THREADS=8; export
+JULIA_NUM_THREADS` or start julia with `julia --threads 8` where the
+number of threads is set as appropriate for your system.
+
+
