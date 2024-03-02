@@ -51,7 +51,7 @@ function relax_structure(crys::crystal, database; smearing = 0.01, grid = missin
 #    set_units(both="atomic")
 
     
-    if update_grid==false
+    if update_grid==false && ismissing(grid)
         grid = get_grid(crys)
     end
 
