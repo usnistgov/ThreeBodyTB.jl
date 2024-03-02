@@ -1,5 +1,10 @@
 push!(LOAD_PATH,"../src/")
 
+#using Pkg
+#Pkg.add(path="/home/kfg/codes/NIST/ThreeBodyTB.jl/")
+
+
+
 using ThreeBodyTB, Documenter
 #using DocumenterLaTeX
     
