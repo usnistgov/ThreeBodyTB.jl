@@ -59,7 +59,7 @@ and `reference_structures/` for examples of how to create a database of example 
 
 You can load `dft` variables from the
 "prefix.save/data-file-schema.xml" output file as 
-[`dft = ThreeBodyTB.QE.loadXML("prefix.save")`](@ref). You will need the charge
+[`dft = ThreeBodyTB.QE.loadXML("prefix.save")`]. You will need the charge
 density in the next step to run the non-SCF calculation, but after
 that you don't need the wavefunctions or charge density from either
 the DFT or NSCF run.

@@ -27,7 +27,7 @@ ThreeBodyTB.TB.find_vbm_cbm
 ThreeBodyTB.TB.ewald_energy
 ThreeBodyTB.TB.get_dq
 ThreeBodyTB.TB.get_energy_electron_density_kspace
-set_bin_dirs
+
 ```
 
 ## AtomicProj
@@ -79,6 +79,7 @@ ThreeBodyTB.CrystalMod.parsePOSCAR
 ThreeBodyTB.CrystalMod.parseQEinput
 ThreeBodyTB.CrystalMod.generate_supercell
 ThreeBodyTB.CrystalMod.generate_random_distortion
+ThreeBodyTB.CrystalMod.generate_optimum_supercell
 ThreeBodyTB.CrystalMod.write_poscar
 ThreeBodyTB.CrystalMod.write_efs
 ThreeBodyTB.CrystalMod.get_grid

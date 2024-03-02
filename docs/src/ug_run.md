@@ -76,19 +76,21 @@ savefig("alp_dos.png"); #hide
 
 Project onto orbitals instead with `proj_type=:orbs`
 
-### Symmetry-enabled plotting
+## **Symmetry-enabled plotting**
 
-Plot bandstructure path with symmetry:
-```
-plot_bandstr_sym(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=["Al"], do_display=false);
+Plot bandstructure path with symmetry [`plot_bandstr_sym`](@ref):
+
+```@example 1
+plot_bandstr_sym(tbc_alp, do_display=false);
 savefig("alp3.png"); #hide
 ```
 
 ![AlP plot 3](alp3.png)
 
-Plot bandstructure with DOS:
-```
-plot_bandstr_dos(tbc_alp, kpath=kpath, names=knames, npts=100, proj_orbs=[:s], proj_types=["Al"], do_display=false);
+Plot bandstructure with DOS [`plot_bandstr_dos`](@ref):
+
+```@example 1
+plot_bandstr_dos(tbc_alp, do_display=false);
 savefig("alp4.png"); #hide
 ```
 
@@ -146,3 +148,9 @@ savefig("h_bands.png"); #hide
 ```
 ![H atom bands](h_bands.png)
 
+## **Sparse matrix**
+
+Code will automatically try sparse matrix routines for large
+cells. You can set `sparse=true` in `scf_energy` and several other
+functions to force the use of sparse matricies, but users shouldn't
+have to worry about which backend is being used.
