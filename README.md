@@ -45,3 +45,12 @@ Pkg.add(url="https://github.com/usnistgov/ThreeBodyTB.jl")
 
 See [documentation](https://pages.nist.gov/ThreeBodyTB.jl/) for more details.
 
+## Updates
+
+New version of the code featuring
+
+- New better-tested coefficients for elemental and binary systems
+- Coefficients for thousands of three-element combinations covering >99% of the ICSD (within the original 64 elements).
+- Sparse matrix implementations of key functions for improved perforance on large systems (>100 atoms) or low-dimensional systems.
+- Magnetic and charged systems.
+- Improved performance in many areas.
