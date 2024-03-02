@@ -8,7 +8,7 @@ module ThreeBodyTB
 #println("develop3 branch")
 
 function get_ver()
-    println("Main branch.")
+    println("Main branch. v1.0")
 end
 
 #get_ver()
