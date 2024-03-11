@@ -216,7 +216,10 @@ function setup_proto_data()
 
     CalcD["bcc_tet"] = ["$STRUCTDIR/bcc_tet.in", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["trimer"] =       ["$STRUCTDIR/atom_small.in", "none", "2Dxy", "coords_trimer", "nscf", false]
+    CalcD["trimer"] =       ["$STRUCTDIR/trimer.in", "none", "2Dxy", "coords_trimer", "nscf", false]
+    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer_hex.in", "relax", "2Dxy", "coords-small", "nscf", false]
+    CalcD["trimer_line"] =       ["$STRUCTDIR/trimer_line.in", "relax", "2Dxy", "coords-small", "nscf", false]
+    CalcD["trimer_relax"] =       ["$STRUCTDIR/trimer_relax.in", "relax", "2Dxy", "coords-small2", "nscf", false]
     CalcD["trimerX"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerX", "scf", false]
     CalcD["trimerY"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerY", "scf", false]
 
@@ -733,7 +736,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 1
         elseif newst == "scf_small"
             ncalc = 1
-        elseif (newst == "coords_trimer"  ||  newst == "coords_trimer2" || newst == "coords_trimer_ab" || newst == "coords_trimer_ab_big" )
+        elseif (newst == "coords_trimer"  ||  newst == "coords_trimer2" || newst == "coords_trimer_ab" || newst == "coords_trimer_ab_big" || newst == "coords_trimer_hex")
             #            ncalc = length([1.05, 1.1, 1.15, 1.2, 1.25, 1.3])
             ncalc = length([1.05, 1.1,  1.2,  1.3])
         elseif newst == "coords_trimer_ab_new"  
@@ -1250,14 +1253,18 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
             elseif newst == "coords_trimer"
                 a = min_dimer_dist_dict[(T1,T1)]
-                c = makecrys([12 0 0; 0 12 0; 0 0 12]*1.0, [0 0 0; 0 0 a/12; a/12 0 0], [T1, T1, T1])
-                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+                c = makecrys([22 0 0; 0 18 0; 0 0 22]*1.0, [0 0 0; 0 0 a/22; a/22 0 0], [T1, T1, T1])
+                for x in [1.05, 1.1, 1.2, 1.3]
                     push!(torun, deepcopy(c*x))
                 end
-                c = makecrys([12 0 0; 0 12 0; 0 0 12]*1.0, [0 0 0; a/24 0 a/12; a/12 0 0], [T1, T1, T1])
-                for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+                c = makecrys([22 0 0; 0 18 0; 0 0 22]*1.0, [0 0 0; a/16 0 a/22; a/22 0 0], [T1, T1, T1])
+                for x in [1.05, 1.1, 1.2, 1.3]
                     push!(torun, deepcopy(c*x))
                 end
+            elseif newst == "coords_trimer_hex"
+                
+
+                
             elseif newst == "coords_trimerY"
 #                a = min_dimer_dist_dict[(T1,T1)]
                 a = -1.0*cnew.A[3,3] * (cnew.coords[1,3] - cnew.coords[2,3] - 1)  / 20.0
