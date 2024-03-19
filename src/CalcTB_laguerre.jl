@@ -528,7 +528,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
 
         for a in at_arr
             #println("a $a")
-            println(typeof(a))
+#            println(typeof(a))
             if !haskey(lim, a)
                 lim[a] = 0.02
             end
@@ -568,9 +568,9 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
 
-    for x in [dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval]
-        println(typeof(x))
-        end
+#    for x in [dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval]
+#        println(typeof(x))
+#        end
     
     return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval)
 
@@ -3938,12 +3938,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
             end
 
-            ad = 2.0*dist
-            expa=exp.(-0.5*ad)
+            if dist > 1e-5
+                ad = 2.0*dist
+                expa=exp.(-0.5*ad)
             
-            rho[a1, 1] += (1.0 * expa) * cut
-            rho[a1, 2] += (1.0 .- ad) * expa * cut
-
+                rho[a1, 1] += (1.0 * expa) * cut
+                rho[a1, 2] += (1.0 .- ad) * expa * cut
+            #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
+            end
             
             for o1 = orb2ind[a1]
                 a1a,t1a,s1 = ind2orb[o1]
@@ -4006,12 +4008,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             for o = orb2ind[a]
                 aa,t,s = ind2orb[o]
                 ind = ind_conversion[(o,o,c_zero)]
-                println("t $t ", typeof(t))
+#                println("t $t ", typeof(t))
                 at_set = Set((t,))
-                println(at_set)
-                println("at_set ", at_set)
-                println(keys(eam_arrays))
-                println("RHO $(rho[a,:])    vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])")
+#                println(at_set)
+#                println("at_set ", at_set)
+#                println(keys(eam_arrays))
+#                println("RHO $(rho[a,:])    vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])")
                 eam_arrays[at_set][1][ind,:] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
             end
         end
@@ -7892,6 +7894,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         rho_th[a1, 1, id] += lag_arr[1] * cut_on
                         rho_th[a1, 2, id] += lag_arr[2] * cut_on
+
+#                        println("add rho $a1 dist $dist_a 1 $(lag_arr[1] * cut_on) 2 $(lag_arr[2] * cut_on)")
                         
                         core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS)
                         core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS)
@@ -7906,11 +7910,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     
     if use_eam
         rho = sum(rho_th, dims=3)
+#        println("rho $rho")
         for a = 1:crys.nat
             t = crys.stypes[a]
             d = database[(:eam, t)].datH
             temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
-            println("a $a d $d rho[a,:] $(rho[a,:])  temp $temp     vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])  ")
+#            println("a $a d $d rho[a,:] $(rho[a,:])  temp $temp     vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])  ")
             for ox = 1:norb[a]
                 oxx = orbs_arr[a,ox,1]
                 H[ oxx, oxx, c_zero] += temp
