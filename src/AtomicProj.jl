@@ -157,7 +157,7 @@ run projwfc.x QE command
 
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]
-    command = `$proj $directory/$projfile `
+    command = `$proj  $directory/$projfile `
     println("projwfc.x command")
     println(command)
     println()
@@ -781,7 +781,10 @@ function loadXML_proj(savedir, B=missing)
             t =  d_eigstates[n+4]["PROJS"]["ATOMIC_WFC"]
 
             for a in 1:natwfc
-                proj[c,a,:] =  parse_str_ARR_complex(t[a][""])
+                #println("c $c a $a ")
+                #println(parse_str_ARR_complex(t[a][""]))
+                println(size(proj))
+                proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
             end
 
         end

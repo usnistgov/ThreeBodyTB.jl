@@ -421,7 +421,7 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.0 / 2.0))   #no spin yet
+        nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.0 / 2.0))  + 15  #no spin yet #extra 15
         if "La" in crys.types
             nbandtot += 7*crys.nat
         end

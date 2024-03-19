@@ -524,8 +524,8 @@ end
 =#
 
 
-function make_random_crys(types; database=missing)
-    return make_random_crystal(types; database=database)
+function make_random_crys(types; database=missing, A = missing)
+    return make_random_crystal(types; database=database, A = A)
 end
 
 "
@@ -533,8 +533,14 @@ end
 
 Make a random crystal with types t
 "
-function make_random_crystal(types; database=missing)
+function make_random_crystal(types; database=missing, A = missing)
 
+    if ismissing(A)
+        Afixed = missing
+    else
+        Afixed = deepcopy(A)
+    end
+    
     nat = length(types)
 
     db = database
@@ -574,7 +580,12 @@ function make_random_crystal(types; database=missing)
         
         A = A * det(A) / abs(det(A))
         
-        crys = makecrys(A, c, types, units="Bohr")
+        if !ismissing(Afixed)
+            c[:,2] .= 0.0
+            crys = makecrys(Afixed, c, types, units="Bohr")
+        else
+            crys = makecrys(A, c, types, units="Bohr")
+        end
         
         within_fit, rsum = calc_tb_LV(crys*0.97, db, check_only=true)
         if within_fit

@@ -525,7 +525,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
                 end
 
                 begin 
-                    lag_arr_TH = zeros(var_type, 6, nthreads())
+                    lag_arr_TH = zeros(var_type, maximum([n_2body, n_2body_onsite, n_2body_S]), nthreads())
                     lmn_arr_TH = zeros(var_type, 3, nthreads())
                     sym_arr_TH = zeros(var_type, 3, nthreads())
                     sym_arrS_TH = zeros(var_type, 3, nthreads())
