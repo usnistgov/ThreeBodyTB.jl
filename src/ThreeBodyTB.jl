@@ -122,6 +122,12 @@ export set_bin_dirs
 using .CrystalMod:plot
 export plot
 
+
+using .Symmetry:get_symmetry
+export get_symmetry
+using .Symmetry:get_standard_crys
+export get_standard_crys
+
 #include("RunWannier90.jl")
 
 
@@ -698,7 +704,7 @@ end
 
 
 include("ClassicalFit.jl")
-
+include("MonteCarlo.jl")
 
 end #end module
 
