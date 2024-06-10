@@ -393,6 +393,7 @@ Steps:
     olddir = "$directory/$prefix.save"
     nscfdir = "$directory/$prefix.nscf.save"
 
+    println("skip nscf OR  ", [!(skip_nscf), !(isdir(nscfdir)), ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))])
     
     if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))
 
@@ -483,6 +484,22 @@ Steps:
     
     function proj()
         projstr = make_projwfcx(newprefix, directory)
+        if !isfile("$directory/newprefix.save/data-file-schema.xml")
+            if isfile("$directory/newprefix.save/data-file-schema.xml.gz")
+                tounzip = "$directory/newprefix.save/data-file-schema.xml.gz"
+                command = `gunzip $tounzip`
+                s = read(command, String)
+            end
+        end
+        if !isfile("$directory/newprefix.save/charge-density.dat")
+            if isfile("$directory/newprefix.save/charge-density.dat.gz")
+                tounzip = "$directory/newprefix.save/charge-density.dat.gz"
+                command = `gunzip $tounzip`
+                s = read(command, String)
+            end
+        end
+        
+                
         write_to_file(projstr, "proj.in", directory)
         run_projwfcx("proj.in", directory=directory, nprocs=nprocs)
     end
@@ -780,13 +797,22 @@ function loadXML_proj(savedir, B=missing)
 
             t =  d_eigstates[n+4]["PROJS"]["ATOMIC_WFC"]
 
-            for a in 1:natwfc
-                #println("c $c a $a ")
-                #println(parse_str_ARR_complex(t[a][""]))
-                println(size(proj))
-                proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
+            if natwfc == 1 && !(1 in keys(t))
+                proj[c,1,1,:] =  parse_str_ARR_complex(t[""])
+            else
+            
+                #            println("t ", t)
+                #            println("keys t ", keys(t))
+                for a in 1:natwfc
+                    #println("c $c a $a ")
+                    #println(parse_str_ARR_complex(t[a][""]))
+                    #                println(size(proj))
+                    #                println(t[a])
+                    #                println(t[a][""])
+                    #                println(parse_str_ARR_complex(t[a][""]))
+                    proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
+                end
             end
-
         end
 
         d_over = da["OVERLAPS"]["OVPS"]

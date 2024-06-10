@@ -1477,11 +1477,11 @@ end
 
 
 Base.show(io::IO, d::coefs) = begin
-
+    println("xx")
     println(io, "coeffs ", d.names)
     for key in keys(d.inds)
         i = d.inds[key]
-        if key[end] == :S
+        if key[end] == :S && key[1] != :eam
             println(io, key, ": " , d.datS[i])
         else
             println(io, key, ": " , d.datH[i])
@@ -3676,7 +3676,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     nkeep_ab = size(R_keep_ab)[1]
 
     
-    rho = zeros(var_type, crys.nat, 3)
+    rho = zeros(var_type, crys.nat, crys.nat, 3)
     
     println("assign twobody")
     @time for c = 1:nkeep_ab
@@ -3942,8 +3942,8 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 ad = 2.0*dist
                 expa=exp.(-0.5*ad)
             
-                rho[a1, 1] += (1.0 * expa) * cut
-                rho[a1, 2] += (1.0 .- ad) * expa * cut
+                rho[a1,a2, 1] += (1.0 * expa) * cut
+                rho[a1,a2, 2] += (1.0 .- ad) * expa * cut
             #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
             end
             
@@ -4005,6 +4005,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
     if use_eam
         for a in 1:crys.nat
+            rho_s = sum(rho[a,:,:][:,:], dims=1)
+            temp = [rho_s[1]^2, rho_s[2]^2, rho_s[1]*rho_s[2]]
+            temp[1] += -sum(rho[a,:,1].^2)
+            temp[2] += -sum(rho[a,:,2].^2)
+            temp[3] += -sum(rho[a,:,1].*rho[a,:,2])
+            
             for o = orb2ind[a]
                 aa,t,s = ind2orb[o]
                 ind = ind_conversion[(o,o,c_zero)]
@@ -4014,7 +4020,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 #                println("at_set ", at_set)
 #                println(keys(eam_arrays))
 #                println("RHO $(rho[a,:])    vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])")
-                eam_arrays[at_set][1][ind,:] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+                eam_arrays[at_set][1][ind,:] += temp
             end
         end
     end    
@@ -7501,7 +7507,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
 
 
     #        verbose=true
@@ -7826,7 +7832,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
     twobody_LV = begin
         
-        rho_th = zeros(var_type, crys.nat, 3, nthreads())
+        rho_th = zeros(var_type, crys.nat, crys.nat,3, nthreads())
         #println("nkeep_ab $nkeep_ab")
         begin
             #@time twobody(nkeep_ab)
@@ -7892,8 +7898,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         laguerre_fast!(dist_a, lag_arr)
 
-                        rho_th[a1, 1, id] += lag_arr[1] * cut_on
-                        rho_th[a1, 2, id] += lag_arr[2] * cut_on
+                        rho_th[a1, a2, 1, id] += lag_arr[1] * cut_on
+                        rho_th[a1, a2, 2, id] += lag_arr[2] * cut_on
 
 #                        println("add rho $a1 dist $dist_a 1 $(lag_arr[1] * cut_on) 2 $(lag_arr[2] * cut_on)")
                         
@@ -7909,16 +7915,23 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     end
     
     if use_eam
-        rho = sum(rho_th, dims=3)
+        rho = sum(rho_th, dims=4)
 #        println("rho $rho")
         for a = 1:crys.nat
             t = crys.stypes[a]
-            d = database[(:eam, t)].datH
-            temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
-#            println("a $a d $d rho[a,:] $(rho[a,:])  temp $temp     vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])  ")
-            for ox = 1:norb[a]
-                oxx = orbs_arr[a,ox,1]
-                H[ oxx, oxx, c_zero] += temp
+            rho_s = sum(rho[a,:,:][:,:], dims=1) 
+            if (:eam, t) in keys(database)
+                d = database[(:eam, t)].datH
+                #temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
+                temp = d[1]*rho_s[1]^2 +  d[2]*rho_s[2]^2 + d[3]*rho_s[1]*rho_s[2]
+                temp += -d[1] * sum(rho[a,:,1].^2)
+                temp += -d[2] * sum(rho[a,:,2].^2)
+                temp += -d[3] * sum(rho[a,:,1].* rho[a,:,2])
+                #            println("a $a d $d rho[a,:] $(rho[a,:])  temp $temp     vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])  ")
+                for ox = 1:norb[a]
+                    oxx = orbs_arr[a,ox,1]
+                    H[ oxx, oxx, c_zero] += temp
+                end
             end
         end
     end

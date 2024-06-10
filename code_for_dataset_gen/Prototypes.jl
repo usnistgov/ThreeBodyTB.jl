@@ -33,6 +33,7 @@ struct proto_data
     core_ternary::Array{String}
     core_mono_mag::Array{String}
     core_mono_mag2::Array{String}
+    core_ass::Array{String}
 
 end
 
@@ -165,6 +166,7 @@ function setup_proto_data()
     CalcD["atom"] = ["$STRUCTDIR/atom.in", "scf", "all", "scf", "nscf", false]
     CalcD["sc"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-big", "nscf", false]
     CalcD["sc_inv"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "break_inv", "nscf", false]
+    CalcD["sc_tet"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-big-tet", "nscf", false]
     CalcD["bcc"] = ["$STRUCTDIR/bcc.in.up", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["bcc_inv"] = ["$STRUCTDIR/bcc_atom2.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["fcc"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -175,6 +177,11 @@ function setup_proto_data()
     CalcD["line_rumple"] = ["$STRUCTDIR/line.in.rumple.up", "vc-relax", "z", "scf", "nscf", false]
 
 
+    CalcD["fcc_strain"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "strain", "nscf", false]
+    CalcD["fcc_strain2"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "strain2", "nscf", false]
+    CalcD["fcc_strain2a"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "strain2a", "nscf", false]
+
+    
     CalcD["sc_verydense"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-verydense", "nscf", false]
 
     CalcD["fcc_verydense"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "vol-verydense", "nscf", false]
@@ -192,6 +199,8 @@ function setup_proto_data()
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
     CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "scf", "nscf", false]
 
+    CalcD["assemble"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "assemble", "nscf", false]    
+
 
     CalcD["el_party"] =       ["$STRUCTDIR/dimer.in.small", "relax", "2Dxy", "el_party", "nscf", false]
     CalcD["bin_party"] =       ["$STRUCTDIR/binary/dimer.in.small", "relax", "2Dxy", "bin_party", "nscf", false]
@@ -202,7 +211,9 @@ function setup_proto_data()
     CalcD["fourAtet"] =       ["$STRUCTDIR/fourAtet.in", "relax", "2Dxy", "vol-mid", "scf", false]
 
 
-    CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
+    CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "dimer", "nscf", false]
+    CalcD["dimer_dense"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "dimer_dense", "nscf", false]
+    
     CalcD["dimer_short"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords-short", "nscf", false]
     CalcD["dimer_small"] = ["$STRUCTDIR/dimer_small.in", "relax", "2Dxy", "scf_small", "nscf", false]
     CalcD["dimer_super"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_super", "nscf", false]
@@ -463,6 +474,10 @@ function setup_proto_data()
     CalcD["bcc_4lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_4lay", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["fcc_4lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_4lay", "vc-relax", "all", "vol2", "nscf", false]
 
+    CalcD["bcc_4layA"] = ["$STRUCTDIR/binary/POSCAR_bcc_4layA", "vc-relax", "2Dxy", "vol2", "nscf", false]
+    CalcD["fcc_4layA"] = ["$STRUCTDIR/binary/POSCAR_fcc_4layA", "vc-relax", "2Dxy", "vol2", "nscf", false]
+
+    
 #    CalcD["bcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
 #    CalcD["fcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
 
@@ -545,8 +560,10 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay", "bcc_4lay", "fcc_4lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line"]
+    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min",  "bcc_4lay", "fcc_4lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line"]
 
+    core_ass = ["assemble"]
+    #"bcc_5lay", "fcc_5lay",
 
 
 
@@ -585,7 +602,7 @@ function setup_proto_data()
 #    core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "hh1", "hh2", "hh3", "stuffhex_1", "stuffhex_2", "stuffhex_3", "trimer_tern","trimer_tern_right","trimer_tern_line", "trimer_tern_angle", "p4mmm" ]
     core_ternary = ["abc_line", "bac_line", "cab_line", "fcc_tern", "hex_trim", "trimer_rand", "sipau"]
 
-    pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag, core_mono_mag2)
+    pd = proto_data(CalcD, core_mono, core_binary, A0, A1B1, A1B2, A1B3, A1B4, A1B5, A1B6, A2B3, A2B5,A3B5, metals, short_bonds, core_ternary, core_mono_mag, core_mono_mag2, core_ass)
 
     return pd
 
@@ -597,6 +614,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
     for t in torun
         if t == :core_mono
             TORUN = [TORUN;pd.core_mono]
+        elseif t == :assemble
+            TORUN = [TORUN;pd.core_ass]
         elseif t == :core_binary
             TORUN = [TORUN;pd.core_binary]
         elseif t == :A0
@@ -666,10 +685,18 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         if newst == "vol"
             ncalc = length([ 0.95 1.0 1.05])
+        elseif newst == "strain"
+            ncalc = 16
+        elseif newst == "strain2"
+            ncalc = 9
+        elseif newst == "strain2a"
+            ncalc = 9
         elseif newst == "vol2"
             ncalc = length([ 0.94 1.0 ])
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
+        elseif newst == "assemble"
+            ncalc = 18
         elseif newst == "vol-mag"
             ncalc = length( [ 1.0 ])
         elseif newst == "vol-mag-more"
@@ -684,6 +711,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [0.77 0.82 0.75 0.70 0.65 0.60 0.55 0.50])
         elseif newst == "vol-big"
             ncalc = length( [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ])
+        elseif newst == "vol-big-tet"
+            ncalc = length( [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 1.75 2.0 3.0])
         elseif newst == "vol-huge"
             ncalc = length( [0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 2.0 2.5 3.0 3.5 4.0 5.0])
         elseif newst == "2D_tern"
@@ -702,6 +731,13 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "coords"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+        elseif newst == "dimer"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 17
+        elseif newst == "dimer_dense"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 3
+
         elseif newst == "el_party"
             ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
         elseif newst == "bin_party"
@@ -723,11 +759,11 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "coords-small"
             ncalc = length( [ -0.15  -0.10 -0.05  0.0 0.05 0.10  0.15  ])
         elseif newst == "coords-small2"
-            ncalc = length( [ -0.08, 0.0   ])
+            ncalc = 5
         elseif newst == "coords_super"
             ncalc = length( 0.08:.03:0.2)
         elseif newst == "break_inv"
-            ncalc = length( [0.01 0.02 0.05 0.07 ])
+            ncalc = length( [0.01 0.02  ])
         elseif newst == "shear"
             ncalc = length([0.01 0.02 ])
         elseif newst == "flyaway"
@@ -891,7 +927,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 println("START DFT.runSCF")
                 
                 if scf != "scf"
-                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic, nstep=50)
                     
                     println("did dft, get new struct")
                     
@@ -927,6 +963,39 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
                 end
+            elseif newst == "strain"
+                for x in [ 0.95, 1.0, 1.05, 1.1, 1.2, 1.5, 2.0, 3.0]
+                    c = deepcopy(cnew)
+                    c.A[:,3] = c.A[:,3] * x
+                    push!(torun, deepcopy(c))
+                end
+                for x in [ 0.95, 1.0, 1.05, 1.1, 1.2, 1.5, 2.0, 3.0, 4.0]
+                    c = deepcopy(cnew)
+                    c.A[3,:] = c.A[3,:] * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "strain2"
+                c2 = cnew * [1,1,2]
+                c_cart = c2.coords * c2.A
+                for x in [ 0.95, 1.0, 1.05, 1.1, 1.2, 1.5, 2.0, 3.0, 4.0]
+                    c = deepcopy(c2)
+                    c.A[3,:] = c.A[3,:] * x
+                    c.coords[2,:] = c_cart[2,:]' * inv(c.A)
+                    
+                    
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "strain2a"
+                c2 = cnew * [1,1,2]
+                c_cart = c2.coords * c2.A
+                for x in  1.55:0.1:2.201
+                    c = deepcopy(c2)
+                    c.A[3,:] = c.A[3,:] * x
+                    c.coords[2,:] = c_cart[2,:]' * inv(c.A)
+                    
+                    
+                    push!(torun, deepcopy(c))
+                end
             elseif newst == "vol2"
                 for x in [ 0.91 1.0 ]
                     c = deepcopy(cnew)
@@ -951,6 +1020,47 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
                 end
+
+
+            elseif newst == "assemble"
+                for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+
+                dist = cnew.A[1,1]
+                t = cnew.stypes[1]
+
+                c_dimer = makecrys([16 0 0; 0 16 0; 0 0 16], [0 0 0; 0 0 dist / 16], [t,t])
+                for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(c_dimer)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+
+                c_dimer = makecrys([16 0 0; 0 16 0; 0 0 16], [0 0 0; 0 0 sqrt(2)*dist / 16], [t,t])
+                for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(c_dimer)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+                
+                c_trimer = makecrys([16 0 0; 0 16 0; 0 0 16], [0 0 0; dist / 16 0 0; 0 dist/16 0], [t,t, t])
+                for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(c_trimer)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+
+                c_quad = makecrys([16 0 0; 0 16 0; 0 0 16], [0 0 0; dist / 16 0 0; 0 dist/16 0; dist/16 dist/16 0], [t,t, t, t])
+                for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(c_quad)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+                
+                
             elseif newst == "vol-oxygen"
                 cx = makecrys(cnew.A, cnew.coords[1:2,:], cnew.types[1:2])
 
@@ -989,6 +1099,13 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 for x in [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "vol-big-tet"
+                for x in [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 1.75 2.0 2.5 3.0]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    c.A[3,3] = c.A[3,3]*1.001
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "vol-huge"
@@ -1253,12 +1370,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
             elseif newst == "coords_trimer"
                 a = min_dimer_dist_dict[(T1,T1)]
-                c = makecrys([22 0 0; 0 18 0; 0 0 22]*1.0, [0 0 0; 0 0 a/22; a/22 0 0], [T1, T1, T1])
-                for x in [1.05, 1.1, 1.2, 1.3]
+                c = makecrys([20 0 0; 0 16 0; 0 0 20]*1.0, [0 0 0; 0 0 a/20; a/20 0 0], [T1, T1, T1])
+                for x in [1.05, 1.15, 1.3]
                     push!(torun, deepcopy(c*x))
                 end
-                c = makecrys([22 0 0; 0 18 0; 0 0 22]*1.0, [0 0 0; a/16 0 a/22; a/22 0 0], [T1, T1, T1])
-                for x in [1.05, 1.1, 1.2, 1.3]
+                c = makecrys([20 0 0; 0 16 0; 0 0 20]*1.0, [0 0 0; a/16 0 a/20; a/20 0 0], [T1, T1, T1])
+                for x in [1.05, 1.15, 1.3]
                     push!(torun, deepcopy(c*x))
                 end
             elseif newst == "coords_trimer_hex"
@@ -1364,6 +1481,27 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
 
+            elseif newst == "dimer"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [-0.25, -0.2, -0.15, -0.1, -0.05, 0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.1, 1.5, 2.0, 2.5]
+                    c = deepcopy(cnew)
+                    dist = ( (c.coords[2,3]+1) - c.coords[1,3]) * 22.0
+                    dist_new = dist * (1+x)
+                    c.coords[1,3] = (1 - dist_new/2/22.0)
+                    c.coords[2,3] = (dist_new/2/22.0)
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "dimer_dense"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [-0.4, -0.35, -0.31, -0.27]
+                    c = deepcopy(cnew)
+                    dist = ( (c.coords[2,3]+1) - c.coords[1,3]) * 22.0
+                    dist_new = dist * (1+x)
+                    c.coords[1,3] = (1 - dist_new/2/22.0)
+                    c.coords[2,3] = (dist_new/2/22.0)
+                    push!(torun, deepcopy(c))
+                end
+                
             elseif newst == "el_party"
                 c = deepcopy(cnew)
                 push!(torun, deepcopy(c))
@@ -1533,14 +1671,14 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
             elseif newst == "coords-small"
                 for x in [ -0.15  -0.10 -0.05  0.0 0.05 0.10  0.15  ]
-                    c = deepcopy(cnew)
-                    c.coords = c.coords * (1+x)
+                    c = deepcopy(cnew) * (1+x)
+                    #c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords-small2"
-                for x in [ -0.08, 0.0  ]
-                    c = deepcopy(cnew)
-                    c.coords = c.coords * (1+x)
+                for x in [ -0.08, 0.0, 0.2, 0.1, 0.4  ]
+                    c = deepcopy(cnew) * (1 + x)
+#                    c.coords = c.coords * (1+x)
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords_super"
@@ -1551,7 +1689,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "break_inv"
-                for x in [0.01 0.02 0.05 0.07 ]
+                for x in [0.01 0.03  ]
                     c = deepcopy(cnew)
 		    if c.nat == 1
 		        c = c * [2 1 1]

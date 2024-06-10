@@ -5,10 +5,11 @@ Main Module
 """
 module ThreeBodyTB
 
-#println("develop3 branch")
+println("develop4 branch")
 
 function get_ver()
-    println("Main branch. v1.0")
+    #println("Main branch. v1.0")
+    println("develop4")
 end
 
 #get_ver()
@@ -595,7 +596,7 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true, sparse=:auto)
+function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true, sparse=:auto)
 
     if ismissing(database_classical)
         do_classical=false
@@ -612,7 +613,7 @@ end
 
 SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:DIIS, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing, repel=true)
+function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing, repel=true)
 
     if ismissing(database_classical)
         do_classical=false
