@@ -260,7 +260,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs_cl` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=lim, repval=repval)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=missing, repval=missing)
 
     if ismissing(lim)
         lim = Dict()
