@@ -3,6 +3,10 @@ Module for classical monte carlo finite temperature sampling.
 """
 module MonteCarlo
 
+using ..CrystalMod:crystal
+
+
+
 function run_mc(c_start::crystal, tempK; step_size = 0.01, adjust_step = true, adjust_strain = true, nsteps = 100,  database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
 
     #temperature in K to atomic units energy
