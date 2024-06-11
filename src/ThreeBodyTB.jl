@@ -130,7 +130,6 @@ export get_standard_crys
 
 #include("RunWannier90.jl")
 
-include("MonteCarlo.jl")
 
 include("FitTB_laguerre.jl")
 
@@ -705,6 +704,7 @@ end
 
 
 include("ClassicalFit.jl")
+include("MonteCarlo.jl")
 
 end #end module
 
