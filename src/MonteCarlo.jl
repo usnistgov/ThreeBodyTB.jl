@@ -171,7 +171,8 @@ function generate_guess(atom, c_work, step_size, step_size_strain)
 
         Ainv = inv(c_work.A)
         atom_step = ((rand(c_work.nat,3) .- 0.5)*step_size ) * Ainv
-        c_work.coords[:, :] += mod.(atom_step[:,:], 1.0)
+        c_work.coords[:, :] += atom_step[:,:]
+        c_work.coords = mod.(c_work.coords, 1.0)
 
     else #strain case
 
