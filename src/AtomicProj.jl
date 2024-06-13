@@ -155,6 +155,9 @@ function run_projwfcx(projfile="proj.in"; directory="./", nprocs=1)
 run projwfc.x QE command
 """
 
+    nprocs = 1
+    println("set nprocs $nprocs")
+    
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]
     command = `$proj $directory/$projfile `
@@ -289,7 +292,7 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     
     if min_nscf
         println("minimize kgrid")
-        grid = max.(grid .- 1, 2)
+        grid = max.(grid .- 2, 2)
     end
                 
 
@@ -489,6 +492,7 @@ Steps:
     
     if skip_proj
         try
+            println("using precomputed proj file $directory/$newprefix.save $B")
             p = loadXML_proj("$directory/$newprefix.save", B)
             println("using precomputed proj file")
         catch
@@ -780,10 +784,19 @@ function loadXML_proj(savedir, B=missing)
 
             t =  d_eigstates[n+4]["PROJS"]["ATOMIC_WFC"]
 
-            for a in 1:natwfc
-                proj[c,a,:] =  parse_str_ARR_complex(t[a][""])
-            end
-
+#            println("t ", t)
+##            println("t[1]")
+ #           println(parse_str_ARR_complex(t[1][""]))
+            
+            try
+                for a in 1:natwfc
+                    proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
+                end
+            catch
+                for a in 1:natwfc
+                    proj[c,a,1,:] =  parse_str_ARR_complex(t[""])
+                end
+            end                
         end
 
         d_over = da["OVERLAPS"]["OVPS"]
