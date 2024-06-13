@@ -141,14 +141,14 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
         end
         println("step $step accept $accept en $en step_size $step_size")        
         if adjust_step
-            if accept[1]
+            if accept[2]
                 step_size = step_size * 1.08
             else
                 step_size = step_size * 0.90
             end
         end                
         if adjust_step && adjust_strain
-            if accept[2]
+            if accept[1]
                 step_size_strain = step_size_strain * 1.08
             else
                 step_size_strain = step_size_strain * 0.90
