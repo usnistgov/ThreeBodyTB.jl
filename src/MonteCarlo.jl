@@ -27,6 +27,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
     println("c_thermal")
     println(c_thermal)
     println("energy ", energies_thermal[end])
+    flush(stdout)
     
     println("final run")
     energies, c_final, step_size, step_size_strain = mc_helper(c_thermal, beta, false, step_size_thermal, step_size_strain_thermal, adjust_strain = adjust_strain, nsteps = nsteps, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
@@ -38,6 +39,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
     println("c_final ")
     println(c_final)
     println("energy ", energies[end])
+    flush(stdout)
     
     
     return energies, c_final
