@@ -578,6 +578,7 @@ function read_tb_crys_kspace(filename; directory=missing)
     if !ismissing(directory)
         filename=directory*"/"*filename
     end
+    println("filename ", filename)
     if !isfile(filename)
         if isfile(filename*".xml")
             filename=filename*".xml"
@@ -587,6 +588,7 @@ function read_tb_crys_kspace(filename; directory=missing)
             filename=filename*".xml.gz"
         end
     end
+    println("final filename $filename")
     if !isfile(filename)
         println("warning error read_tb_crys $filename $directory not found")
     else
