@@ -108,7 +108,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     tbc_list_real = []
     for (c, tbc) in enumerate(list_of_tbcs)
         println(typeof(tbc))
-        if ismissing(tbc) || typeof(tbc) == tb_crys_kspace{Float64}
+        if ismissing(tbc) || typeof(tbc) <: tb_crys_kspace
             println("calc fake tbc")
             tbc_fake = calc_tb_fast(tbc.crys, repel=false) #we calculate the fake tbc in order to take the fourier transform.
             if tbc.nspin == 2
@@ -166,6 +166,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     SPIN = Int64[]
 
+    
+    
     for (counter, tbc) in enumerate(tbc_list)
 #        println("XXXXXXXXXXXXXXXXXXXXXXXXXX $counter")
 #        println(tbc)
@@ -678,7 +680,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     flush(stdout)
     sleep(0.001)
 
-    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN
+    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds
     
 end
 
@@ -722,7 +724,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     end
 
 
-    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database)
+    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -854,7 +856,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
-    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN
+    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
            
 
 end
@@ -1180,7 +1182,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
 #            X_Snew[(kind-1)*nw*nw + (o1-1)*nw + o2 + nk*nw*nw, :] += X_S[rind[i], :] .* imag_expirk[i]
 
 
-            if typeof(tbc) != tb_crys_kspace{Float64}
+            if !(typeof(tbc) <: tb_crys_kspace)
                 Y_Hnew[indr] += Y_H[ri] .* real_expirk[i]
                 Y_Snew[indr] += Y_S[ri] .* real_expirk[i]
 
@@ -1200,7 +1202,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
 
         end
 
-        if typeof(tbc) == tb_crys_kspace{Float64}
+        if typeof(tbc) <: tb_crys_kspace
 #            println("typeof(tbc) == tb_crys_kspace !!!!!!!!!!!!!!!!!!!! $spin")
             vects, vals, hk, sk, vals0 = Hk(tbc, kpoints[kind,:], scf=false, spin=spin)
 
@@ -1465,7 +1467,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = prepare_data
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
 
     println("AAAAAAAA ch_lin ", ch_lin)
     
@@ -1758,7 +1760,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
 
         end
-        if !ismissing(tbc) && typeof(tbc) == tb_crys_kspace{Float64}
+        if !ismissing(tbc) && typeof(tbc) <: tb_crys_kspace
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
 #            println("x ", tbc.tb.h1)
@@ -2404,8 +2406,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         if lambda > 1e-10
             for ind3 = 1:nlam
                 counter += 1
-                NEWX[counter,ind3] = lambda
-                push!(nonzero_ind, counter)
+                if counter in threebody_inds
+                    NEWX[counter,ind3] = lambda
+                else
+                    NEWX[counter,ind3] = lambda * 100
+                end
+                push!(nonzero_ind, counter)                    
 
             end
         end
@@ -4154,8 +4160,10 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
         
         energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
         
-
-        if !ismissing(tbc) && typeof(tbc) == tb_crys{Float64}
+        println(ismissing(tbc))
+        println(typeof(tbc) )
+        
+        if !ismissing(tbc) && typeof(tbc) <: tb_crys
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             H1[c,1:nw, 1:nw] = tbc.tb.h1
@@ -4163,7 +4171,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
 
         end
-        if !ismissing(tbc) && typeof(tbc) == tb_crys_kspace{Float64}
+        if !ismissing(tbc) && typeof(tbc) <: tb_crys_kspace
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
 #            println("x ", tbc.tb.h1)
@@ -4880,7 +4888,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
     @time begin
 
         pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
-        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
+        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = pd
 
         (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
         if ismissing(weights_list)
@@ -4989,9 +4997,9 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             tbc_list_NEW = tb_crys_kspace[]
             dft_list_NEW2 = []
             println("projwfc")
-            @time @suppress for (dft, dname) in zip(dft_list_NEW, dname_list)
+            @time for (dft, dname) in zip(dft_list_NEW, dname_list)
                 println("dname $dname")
-                try
+#                try
                     if dft.atomize_energy > 0.05
                         continue
                     end
@@ -5005,10 +5013,10 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                         push!(dft_list_NEW2, dft)
                         
                     end
-                catch
-                    println("err projwfc $dname")
-                    println(dft)
-                end
+#                catch
+#                    println("err projwfc $dname")
+#                    println(dft)
+                #                end #kfg abc
             end
             println("end proj")
 
@@ -5034,7 +5042,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         @time @suppress begin
 
             pd, KPOINTS, KWEIGHTS, nk_max, list_of_tbcs, dft_list = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
-            database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
+            database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = pd
 
             (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
 
