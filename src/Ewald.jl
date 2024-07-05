@@ -325,6 +325,7 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
 
                                     if useU
                                         @inbounds gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+
                                     end
                                 end
                             end
@@ -398,7 +399,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
 #                Uconst[i,j] = sqrt(pi/2 * (U[i]^2 * U[j]^2 / (U[i]^2 + U[j]^2)))
 
                 Fj = sqrt( 8* log(2)/pi ) / (U[j]/2.0)
-                Uconst[i,j] = sqrt(4 * log(2) / (Fi^2 + Fj^2))
+                Uconst[i,j] = sqrt(4 * log(2) / (Fi^2 + Fj^2))  #* 0.8
             end
         end
     else

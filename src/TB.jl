@@ -4053,21 +4053,36 @@ end
 """
          function get_neutral_eden(crys::crystal, nwan=missing)
      """
-function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
+function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, dq_list = missing)
 
+#    println("get_neutral_edenget_neutral_edenget_neutral_eden")
+    
     if ismissing(nwan)
         ind2orb, orb2ind, etotal, nval = orbital_index(crys)
         nwan = length(keys(ind2orb))
     end
 
+    
     eden = zeros(nspin, nwan)
+    total = 0.0
     for sp in 1:nspin
 
         counter = 0
         for (i, t) in enumerate(crys.types)
             
             at = atoms[t]
-            z_ion = at.nval
+            total += at.nval
+            if !ismissing(dq_list)
+                z_ion = at.nval + dq_list[i]
+                if z_ion < 0.0
+                    z_ion = 0.000000000000001
+                end
+            else
+                z_ion = at.nval
+            end
+
+#            println("z_ion $i $z_ion")
+            
             nwan = at.nwan
             if nspin == 1
                 still_needA = [z_ion]
@@ -4144,6 +4159,12 @@ function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
     end
 
 
+#    println("total $total sum eden $(sum(eden))")
+    if nspin == 1
+        eden = eden .- (sum(eden) - total/2.0) / size(eden,2) 
+    end
+    #eden = eden .- sum(total) / nspin / size(eden,2) / 2.0
+    
     return eden
 
 end
@@ -4864,5 +4885,99 @@ end
 include("Magnetic.jl")
 
 include("TB_sparse.jl")
+
+
+function ewald_guess(crys::crystal; tot_charge = 0.0, kappa=missing)
+
+#    println("top 1")
+    
+    gamma, background_charge_correction = electrostatics_getgamma(crys, kappa=kappa);
+
+#    println("gamma ", gamma)
+    
+    return ewald_guess(crys, gamma, tot_charge = tot_charge)
+    
+end
+
+
+function ewald_guess(crys::crystal, gamma; tot_charge = 0.0)
+
+#    println("top 2")
+    thetype= typeof(crys.coords[1,1])
+    
+    chi0 = zeros(thetype, crys.nat)
+    nelec = zeros(thetype, crys.nat)
+    nholes = zeros(thetype, crys.nat)
+    for (c,t) in enumerate(crys.types)
+        chi0[c] = atoms[t].efermi
+        nelec[c] = -atoms[t].nval / 2.0
+        nholes[c] = (atoms[t].nwan - atoms[t].nval)/2.0
+    end
+#    println("nelec $nelec")
+#    println("nholes $nholes")
+
+    #    println("chi0 ", chi0)
+
+    nat = crys.nat
+    final_list = zeros(thetype, crys.nat)
+    current = collect(1:crys.nat)
+    for ITER = 1:crys.nat 
+        C = zeros(thetype, nat, nat)
+        D = zeros(thetype, nat)
+        C[1,:] .= 1.0
+        D[1] = -tot_charge
+
+        #    println("gamma", gamma)
+        
+        for i = 2:nat
+            @views C[i,:] = gamma[current[i],current] - gamma[current[1],current]
+            D[i] = chi0[current[i]] - chi0[current[1]]
+        end
+
+        guess = -C \ D
+#        println("ITER $ITER guess $guess")
+        final_list[current] = guess
+
+        max_vio = 1.0
+        for i = current
+            if final_list[i] <= nelec[i] + 1e-10
+#                println("i vio el ", [nelec[i], final_list[i], abs(nelec[i] / final_list[i])])
+                max_vio = min(max_vio, abs(nelec[i] / final_list[i]))
+            elseif final_list[i] >= nholes[i] - 1e-10
+#                println("i vio ho ", [nholes[i], final_list[i], abs(nholes[i] / final_list[i])])
+                max_vio = min(max_vio, abs(nholes[i] / final_list[i]))
+            end
+        end
+#        println("max vio $max_vio")
+        final_list[current] = final_list[current] * max_vio
+        done = true
+        for i = current
+
+            if final_list[i] <= nelec[i] + 1e-10
+                final_list[i] = nelec[i]
+                tot_charge += nelec[i]
+                current = current[ current .!= i]
+                #println("el new tot_charge $tot_charge")
+                #println("el new current $current")
+                nat = length(current)
+                done = false
+            elseif final_list[i] >= nholes[i] - 1e-10
+                final_list[i] = nholes[i]
+                tot_charge -= nholes[i]
+                current = current[ current .!= i]
+                #println("ho new tot_charge $tot_charge")
+                #println("ho new current $current")
+                nat = length(current)
+                done = false
+            end                
+        end
+        if done == true || length(current) == 0
+            break
+        end
+        
+    end
+    return final_list
+
+end
 
 end #end module
