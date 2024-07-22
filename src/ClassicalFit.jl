@@ -183,7 +183,7 @@ end
 
 For fitting the classical model to a specific set of DFT calculations in the list `DFT`
 """
-function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, use_charges=true, subtract_scf=false, return_mats = false, CRYS_tot=missing)
+function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, use_charges=true, subtract_scf=false, return_mats = false, CRYS_tot=missing, factor= 1.0)
 
     println("DFT version")
     println("database_start ", database_start)
@@ -229,7 +229,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
 
             println("subtract old forces, ", keys(database_start))
 
-            energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, turn_off_warn=true)
+            energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, turn_off_warn=true, factor=factor)
 
 #            println("dft")
 #            println(dft)
@@ -237,7 +237,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
             if flag == true
                 continue
             end
-            energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges,turn_off_warn=true)
+            energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges,turn_off_warn=true, factor=factor)
             #energyT += energyTT (already added, former bug)
             forceT += forceTT
             stressT += stressTT
@@ -299,7 +299,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
 
 #    println("ENERGIES ", ENERGIES[1:5])
     
-    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, return_mats=return_mats, CRYS_tot=CRYS_tot)
+    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, return_mats=return_mats, CRYS_tot=CRYS_tot, factor = factor)
     
 end
 
@@ -308,7 +308,7 @@ end
 
 Does the main fitting for CLASSICAL MODEL
 """
-function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, use_charges=true, return_mats=false, weights_train = missing, CRYS_tot = missing)
+function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, use_charges=true, return_mats=false, weights_train = missing, CRYS_tot = missing, factor = 1.0)
 
     #ENERGIES PER ATOM. 
     
@@ -330,7 +330,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         get_force = false
     end
 
-    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em, use_charges=use_charges)
+    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em, use_charges=use_charges, factor=factor)
 
     ntot = max(size(Ve)[2], size(Vf)[2], size(Vs)[2])
     if ismissing(Vtot_start)
@@ -536,12 +536,12 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     end
 end    
 
-function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, use_charges, DIST, fixed_charges)
+function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, use_charges, DIST, fixed_charges, factor)
     var_type = eltype(dat_vars)
 #    println("EFS ---------------------------------------------------------------------------------------- $use_charges, $fixed_charges")
 #    println("$use_charges  $fixed_charges")
     #energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody)
-    energy, force, stress = energy_force_stress_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, DIST=DIST, fixed_charges=fixed_charges)
+    energy, force, stress = energy_force_stress_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type, verbose=false, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, DIST=DIST, fixed_charges=fixed_charges, factor=factor)
     #return energy 
 
     v = vcat(force[:], [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
@@ -551,7 +551,7 @@ function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fou
 end
 
 
-function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true, use_charges=true, fixed_charges=missing)
+function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true, use_charges=true, fixed_charges=missing, factor=1.0)
     println("prepare_fit_cl $use_threebody $use_em ")
     types_dict = Dict()
     types_dict_reverse = Dict()
@@ -767,7 +767,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
     crysX = CRYS[1]
     DIST = []
     function go(x)
-        en, _ = calc_energy_cl(crysX, verbose=false, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, DIST=DIST, check_frontier=false, fixed_charges=fixed_charges)
+        en, _ = calc_energy_cl(crysX, verbose=false, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, use_fourbody=use_fourbody, use_em = use_em, use_charges=use_charges, DIST=DIST, check_frontier=false, fixed_charges=fixed_charges, factor=factor)
         return en
     end
 
@@ -810,7 +810,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
         counter_s = 0
 
         function go2(x)
-            t = efs(crysX, x, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, use_charges, DIST, fixed_charges)
+            t = efs(crysX, x, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, use_charges, DIST, fixed_charges, factor)
 #            println("t $t")
             return t
         end

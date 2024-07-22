@@ -422,14 +422,14 @@ end
 
 
 
-function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa)
+function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa, factor)
     T=eltype(x)
 
     x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
     A = FloatX.(ct.A) * (I(3) + x_r_strain)
     crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
 
-    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, use_charges=use_charges, check_frontier=false, fixed_charges=fixed_charges, kappa=kappa)
+    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, use_charges=use_charges, check_frontier=false, fixed_charges=fixed_charges, kappa=kappa, factor=factor)
 
     return energy
     
@@ -440,7 +440,7 @@ end
 
 Main function for running classical model. Returns energy/force/stress from crystal structure.
 """
-function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true, use_charges=true, fixed_charges = missing)
+function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true, use_charges=true, fixed_charges = missing, factor=1.0)
 
     if verbose; println("dist energy_force_stress");end
     if ismissing(DIST)
@@ -470,7 +470,7 @@ function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false,
 
     kappa = estimate_best_kappa(crys.A)
 
-    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa)
+    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa, factor)
 
     if verbose; println("energy test "); end
     energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
@@ -904,7 +904,7 @@ end
 
 Main function for classical energy calculation from crystal structure.
 """
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, use_charges= true, check_only=false, check_frontier=true, fixed_charges=missing, kappa=missing)
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, use_charges= true, check_only=false, check_frontier=true, fixed_charges=missing, kappa=missing, factor=1.0)
 
     no_errors = true
     #fixed_charges .= [100.0, 100.0]
@@ -930,14 +930,13 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     end
     CHARGES = zeros(var_type, crys.nat)
 
-    if ismissing(database)
+    if use_charges
         if ismissing(fixed_charges) 
-            CHARGES .= ewald_guess(crys, kappa=kappa)
+            CHARGES .= ewald_guess(crys, kappa=kappa, factor=factor)
         else
             CHARGES .= fixed_charges
         end
-    end
-    
+    end    
     #    if verbose  println("LV $var_type")  end
     
     
@@ -1162,14 +1161,6 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                         end
                         if !found_charge
                             use_charges = false
-                        end
-                        if use_charges
-#                            println("use_charges true")
-                            if ismissing(fixed_charges)
-                                CHARGES .= ewald_guess(crys, kappa=kappa)
-                            else
-                                CHARGES .= fixed_charges
-                            end
                         end
 
                         
