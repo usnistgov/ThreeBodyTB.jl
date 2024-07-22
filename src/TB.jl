@@ -1362,23 +1362,23 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
                     if tbc.nspin == 2
                         hk= hk3[:,:,spin,k1,k2,k3]
                         if orthogonalize
-                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + sk .* tbc.tb.h1spin[spin,:,:] + sk .* tbc.tb.h1 ) * (sk^-0.5)
                         else
-                            hk3_orth[1, :,:,k1,k2,k3] = hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1
+                            hk3_orth[1, :,:,k1,k2,k3] = hk + sk .* tbc.tb.h1spin[spin,:,:] + sk .* tbc.tb.h1
                         end
                     elseif tbc.tb.scfspin
                         hk= hk3[:,:,1,k1,k2,k3]
                         if orthogonalize
-                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 ) * (sk^-0.5)
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + sk .* tbc.tb.h1spin[spin,:,:] + sk .* tbc.tb.h1 ) * (sk^-0.5)
                         else
-                            hk3_orth[1, :,:,k1,k2,k3] = (hk + tbc.tb.h1spin[spin,:,:] + tbc.tb.h1 )
+                            hk3_orth[1, :,:,k1,k2,k3] = (hk + sk .* tbc.tb.h1spin[spin,:,:] + sk .* tbc.tb.h1 )
                         end                            
                     else
                         hk= hk3[:,:,1,k1,k2,k3]
                         if orthogonalize
-                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + tbc.tb.h1) * (sk^-0.5)
+                            hk3_orth[1, :,:,k1,k2,k3] = (sk^-0.5) * (hk + sk .* tbc.tb.h1) * (sk^-0.5)
                         else
-                            hk3_orth[1, :,:,k1,k2,k3] =  (hk + tbc.tb.h1) 
+                            hk3_orth[1, :,:,k1,k2,k3] =  (hk + sk .* tbc.tb.h1) 
                         end                            
                     end
                     
@@ -1437,6 +1437,8 @@ function write_hr_dat(tbc; filename="wannier90_hr.dat", directory=".", verbose=t
 
 
 end
+
+
 
 """
         function load_hr_dat(filename, directory="")
