@@ -153,6 +153,7 @@ struct atom
     eigs::Dict
     energy_offset::Float64
     U::Float64
+    efermi::Float64
 end
 
 
@@ -165,6 +166,7 @@ Base.show(io::IO, a::atom) = begin
     println(io,str_w_spaces(["Nval=", a.nval, "Nsemicore=", a.nsemicore, "Orbitals=",a.orbitals]))
     println(io,"U = ",a.U)
     println(io,"total energy=", a.total_energy)
+    println(io,"efermi (isolated netural)=", a.efermi)
     for i in a.orbitals
         println(i, "  " , a.eigs[i])
     end
@@ -284,7 +286,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
     
     
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U)
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, efermi)
     
 end
     
