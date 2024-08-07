@@ -71,7 +71,7 @@ include("CalcTB_laguerre.jl")
 
 #using .CalcTB:calc_tb_fast
 #export calc_tb_fast
-#using .CalcTB:calc_twobody
+using .CalcTB:calc_twobody
 
 include("ManageDatabase.jl")
 
