@@ -63,8 +63,11 @@ using ..Symmetry:get_symmetry
 using ..Symmetry:symmetrize_charge_den
 
 using ..Classical:calc_energy_cl
+using ..TB:ewald_guess
 
 export scf_energy
+
+
 
 """
     function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
@@ -124,6 +127,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 """
 #    println("SCF_ENERGY TOT ", tbc.tot_charge)
 
+    println("START")
     begin
         
     if do_classical
@@ -265,7 +269,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     
 
     if ismissing(e_den0)
-        e_den0 = deepcopy(tbc.eden)
+        e_den0 = eden_guess(tbc)
+        #e_den0 = deepcopy(tbc.eden)
     end
     if nspin == 2 && size(e_den0,1) == 1
         e_den0 = [e_den0;e_den0]
@@ -1557,6 +1562,21 @@ function DIIS(N, nwan, nspin, rho_in, rho_out, mix)
 #    return rho_new * (mix) + rho_in[end] * (1 - mix)
     return rho_new
     
+end
+
+function eden_guess(tbc; nspin = 1, magnetic=false, mix = 0.5)
+
+    guess = ewald_guess(tbc.crys, tbc.gamma)#
+#   println("unscreened guess ", guess)
+#    guess =  get_neutral_eden(tbc.crys, nspin=nspin, magnetic=magnetic)
+    guess =  get_neutral_eden(tbc.crys, nspin=nspin, magnetic=magnetic, dq_list = guess * mix)
+    if minimum(guess) < -1e-10
+#        println("min ", minimum(guess) )
+        guess =  get_neutral_eden(tbc.crys, nspin=nspin, magnetic=magnetic)
+    end
+#    println("guess $guess ")
+    return guess
+
 end
 
 

@@ -73,9 +73,9 @@ This is only run once for a given `tb_crys` object and stored.
 - `onlyU=false` for testing only
 - `screening=1.0` Not used. Purpose is to reduce U values for values < 1.
 """
-function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0)
+function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0, factor = 1.0)
 #noU and onlyU are for testing purposes
-
+    println("factor $factor")
 #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 0.0)
 
 #    println("EWALD")
@@ -118,7 +118,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     # can run real space and k-space in parallel with asyncronous parallelization. Only a minor improvement.
     #println("rs")
     rs = begin 
-        gamma_rs, gamma_U = real_space_LV(crys, kappa, U, starting_size_rspace)
+        gamma_rs, gamma_U = real_space_LV(crys, kappa, U, starting_size_rspace, factor)
         #gamma_rs, gamma_U = real_space(crys, kappa, U, starting_size_rspace)
     end
     
@@ -325,6 +325,7 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
 
                                     if useU
                                         @inbounds gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+
                                     end
                                 end
                             end
@@ -372,7 +373,7 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
 end
 
 
-function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, starting_size_rspace=2)
+function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, starting_size_rspace=2, factor=1.0)
     
     T = typeof(crys.coords[1,1])
 
@@ -398,7 +399,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
 #                Uconst[i,j] = sqrt(pi/2 * (U[i]^2 * U[j]^2 / (U[i]^2 + U[j]^2)))
 
                 Fj = sqrt( 8* log(2)/pi ) / (U[j]/2.0)
-                Uconst[i,j] = sqrt(4 * log(2) / (Fi^2 + Fj^2))
+                Uconst[i,j] = sqrt(4 * log(2) / (Fi^2 + Fj^2)) * factor
             end
         end
     else

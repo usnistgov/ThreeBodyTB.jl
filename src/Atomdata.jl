@@ -892,6 +892,11 @@ for key in keys(uniform_charge_interaction)
     uniform_charge_interaction[String(key)] = uniform_charge_interaction[key]
 end
 
+#neutral_fermi = Dict()
+#for k in keys(atoms)
+#    a = atoms[k]
+    
+
 
 end #ends module
  

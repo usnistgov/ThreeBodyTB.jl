@@ -30,18 +30,60 @@ function test1()
             c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.15], ["Al", "Al"])
             v = 1.0;
             C = ThreeBodyTB.CrystalMod.crystal[];
+            ENT = Float64[];
+            for x in 1:12;
+                v = v * 1.12;
+                for c in [c2];
+                    push!(C, c*v);
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false, use_em=false, use_charges=false);
+                    push!(ENT, en / c.nat ); #normalize per atom
+                end;
+            end
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=false, use_charges=false);
+            x = V \ ENT
+            @test sum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            
+            
+        end
+    end
+end
+
+function test1a()
+
+    @testset "testing classical charges" begin
+        @suppress begin
+
+            database = Dict()
+            coef2 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
+            coef2.datH[:] = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+            database[(:Al, :Al)] = coef2
+
+
+            databaseC = Dict()
+            coef2z = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
+            coef2z.datH[:] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            databaseC[(:Al, :Al)] = coef2z
+            coef2_charges = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2, charges=true)
+            coef2_charges.datH[:] = -1.0*[0.0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+            databaseC[(:Al, :Al, :charges)] = coef2_charges
+            
+            c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.15], [:Al, :Al])
+            v = 1.0;
+            C = ThreeBodyTB.CrystalMod.crystal[];
             EN = Float64[];
             for x in 1:12;
                 v = v * 1.12;
                 for c in [c2];
                     push!(C, c*v);
-                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false, use_em=false);
-                    push!(EN, en / c.nat ); #normalize per atom
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false, use_em=false, use_charges=false);
+                    enC, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=databaseC, use_threebody=false, use_em=false, use_charges=true, fixed_charges = [1.0, -1.0]);
+                    @test abs(en - enC) < 1e-8
+                    push!(EN, enC / c.nat ); #normalize per atom
                 end;
             end
-            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=false);
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=false, use_charges=true, fixed_charges = [1.0, -1.0]);
             x = V \ EN
-            @test sum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            @test sum(abs.(x - 0.5*[1.0, 0.8, 0.6, 0.4, 0.2, 0.1, 0.0, -1.0, -0.8, -0.6, -0.4, -0.2, -0.1])) < 1e-8
             
             
         end
@@ -74,13 +116,13 @@ function test3()
                 v = v * 1.12;
                 for c in [c2, c3 ,c3a];
                     push!(C, c*v);
-                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false)
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false, use_charges=false)
                     push!(EN, en / c.nat);
                 end;
             end
 
 
-            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=true, get_force=false, use_em = false);
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=true, get_force=false, use_em = false, use_charges=false);
             x = V \ EN
 
             @test sum(abs.(x[1:6] - [1.0, -0.8, 0.6, -0.4, 0.2, -0.1])) < 1e-8
@@ -159,12 +201,12 @@ function test3_2atoms()
             for x in 1:11; v = v * 1.12;
                 for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                     push!(C, c*v);
-                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em =false)                    
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em =false, use_charges=false)                    
                     push!(EN, en / c.nat);
                 end
             end
 
-            database_NEW = ThreeBodyTB.ClassicalFit.do_fit_cl(C,ENERGIES=EN, use_threebody=true, use_em=false, lambda = 0.0);
+            database_NEW = ThreeBodyTB.ClassicalFit.do_fit_cl(C,ENERGIES=EN, use_threebody=true, use_em=false, use_charges=false, lambda = 0.0);
 
             @test sum(abs.(database[(:Al, :Ga)].datH - database_NEW[(:Al, :Ga)].datH)) < 5e-3
             @test sum(abs.(database[(:Al, :Al, :Al)].datH - database_NEW[(:Al, :Al, :Al)].datH)) < 5e-3
@@ -232,7 +274,7 @@ function test3_3atoms()
                 #                for c in [c2, c2a, c2b, c3 ,c3a, c3aB, c3B, c3aC, c3C,c3aD, c3D, c3aE, c3E, c3aF, c3F];
                 for c in [ c3aC, c3C, c3aE, c3E, c3aF, c3F]
                     push!(C, c*v);
-                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false)
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=true, use_em = false, use_charges=false)
                     push!(EN, en / c.nat);
                 end
             end
@@ -252,6 +294,7 @@ end
 
 
 test1();
+test1a();
 test3();
 database_NEW2 = test3_2atoms();
 database_NEW3 = test3_3atoms();

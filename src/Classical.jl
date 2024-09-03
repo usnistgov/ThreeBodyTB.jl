@@ -50,6 +50,8 @@ using ..Utility:cutoff_fn_fast
 using ForwardDiff
 using ..CrystalMod:makecrys
 
+using ..TB:ewald_guess
+using ..Ewald:estimate_best_kappa
 #using ..ThreeBodyTB:scf_energy_force_stress
 #using ..ThreeBodyTB:scf_energy
 
@@ -58,7 +60,10 @@ using Random
 
 const n_2body_cl = 6
 
-const n_2body_em = 5
+const n_2body_em = 6
+
+const n_2body_charges = 7
+
 #const n_2body_em = 12
 
 #const n_3body_cl_same = 7
@@ -116,6 +121,7 @@ struct coefs_cl
     dist_frontier::Dict
     version::Int64
     em::Bool
+    charges::Bool
     lim::Dict
     repval::Dict
 end
@@ -151,6 +157,7 @@ function write_coefs_cl(filename, co::coefs_cl; compress=true)
     addelement!(c, "min_dist", string(co.min_dist))
     addelement!(c, "dist_frontier", dict2str(co.dist_frontier))
     addelement!(c, "em", string(co.em))
+    addelement!(c, "charges", string(co.charges))
 
     if !isempty(co.lim)
         addelement!(c, "lim", dict2str(co.lim))
@@ -219,6 +226,7 @@ function read_coefs_cl(filename, directory = missing)
     min_dist = parse(Float64, d["coefs"]["min_dist"])
     dist_frontier = str2tuplesdict(eval(d["coefs"]["dist_frontier"]))
     em = parse(Bool, d["coefs"]["em"])
+    charges = parse(Bool, d["coefs"]["charges"])
 
     version = parse(Int64, d["coefs"]["version"])
     
@@ -245,7 +253,7 @@ function read_coefs_cl(filename, directory = missing)
 #    println("dist_frontier ", dist_frontier)
 #    println("-")
     
-    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em, lim=lim, repval=repval)
+    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em,charges=charges, lim=lim, repval=repval)
 
     return co
     
@@ -260,7 +268,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs_cl` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=missing, repval=missing)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false, charges=false, lim=missing, repval=missing)
 
     if ismissing(lim)
         lim = Dict()
@@ -273,6 +281,8 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
     println("make coefs ", at_list, " ", typeof(at_list))
     if em == true
         totH = n_2body_em
+    elseif charges == true
+        totH = n_2body_charges
     else
         if dim == 2
             totH = n_2body_cl
@@ -386,14 +396,14 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
     println(typeof.([dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em]))
     println("lim ", lim)
     println("repval ", repval)
-    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em, lim, repval)
+    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em, charges, lim, repval)
     
 end
     
 
 Base.show(io::IO, d::coefs_cl) = begin
 
-    println(io, "coeffs classical ", d.names, " embedding: ", d.em)
+    println(io, "coeffs classical ", d.names, " embedding: ", d.em, " charges: ", d.charges)
     if d.dim == 2
         println(io, "min dist ", round.(d.min_dist, digits=4))
     end
@@ -412,14 +422,14 @@ end
 
 
 
-function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)
+function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa, factor)
     T=eltype(x)
 
     x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
     A = FloatX.(ct.A) * (I(3) + x_r_strain)
     crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
 
-    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, check_frontier=false)
+    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, use_charges=use_charges, check_frontier=false, fixed_charges=fixed_charges, kappa=kappa, factor=factor)
 
     return energy
     
@@ -430,7 +440,7 @@ end
 
 Main function for running classical model. Returns energy/force/stress from crystal structure.
 """
-function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true)
+function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true, use_charges=true, fixed_charges = missing, factor=1.0)
 
     if verbose; println("dist energy_force_stress");end
     if ismissing(DIST)
@@ -458,7 +468,9 @@ function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false,
 #    return energy
     #    energy = calc_energy_cl(crys,  database=missing,  DIST=missing, verbose=false,  use_threebody=use_threebody,  dat_vars=dat_vars, at_types=at_types)
 
-    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)
+    kappa = estimate_best_kappa(crys.A)
+
+    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, use_charges, fixed_charges, kappa, factor)
 
     if verbose; println("energy test "); end
     energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
@@ -482,7 +494,8 @@ function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false,
     f_cart = f_cart * inv(crys.A)' 
     stress = -stress / abs(det(crys.A)) 
 
-    #neaten                                                                                                                                                                                                              
+    #neaten (this breaks the fitting in very rare cases, do not use)
+    #=            
     for i = 1:3
 	for j = 1:3
             if abs(stress[i,j]) < 1e-9
@@ -497,7 +510,7 @@ function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false,
             end
         end
     end
-
+    =#
     
     return energy_test, f_cart, stress
 
@@ -523,6 +536,14 @@ function core_cl(t1, t2, lag_arr, DAT_ARR, var_type )
     energy = zero(var_type)
     for n = 1:n_2body_cl
         energy +=  lag_arr[n]*DAT_ARR[t1,t2,n]
+    end
+    return energy
+end
+
+function core_cl_charges(t1, t2, lag_arr, DAT_ARR_CHARGES, var_type )
+    energy = zero(var_type)
+    for n = 1:(n_2body_charges-1)
+        energy +=  lag_arr[n]*DAT_ARR_CHARGES[t1,t2,n+1] #1 reserved for onsite
     end
     return energy
 end
@@ -883,14 +904,15 @@ end
 
 Main function for classical energy calculation from crystal structure.
 """
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, use_charges= true, check_only=false, check_frontier=true, fixed_charges=missing, kappa=missing, factor=1.0)
 
     no_errors = true
-    
-#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody")
+    #fixed_charges .= [100.0, 100.0]
+#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody use_charges $use_charges fixed_charges $fixed_charges")
 #    verbose=true
 
-#    println("CRYS.nat ", crys.nat)
+
+    #    println("CRYS.nat ", crys.nat)
     
     At = crys.A'
     
@@ -906,8 +928,16 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     elseif ismissing(var_type)
         var_type = eltype(dat_vars)
     end
+    CHARGES = zeros(var_type, crys.nat)
 
-#    if verbose  println("LV $var_type")  end
+    if use_charges
+        if ismissing(fixed_charges) 
+            CHARGES .= ewald_guess(crys, kappa=kappa, factor=factor)
+        else
+            CHARGES .= fixed_charges
+        end
+    end    
+    #    if verbose  println("LV $var_type")  end
     
     
     
@@ -973,6 +1003,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     end
 
     if check_frontier
+#        println("keys ", keys(database))
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
         if vio_bool
             no_errors = false
@@ -1065,11 +1096,14 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     if verbose; println("setup database stuff"); end
     #println("ismissing database ", ismissing(database))
      begin
-        DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
-        if use_em
+         DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
+         if use_em
             DAT_EM_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_em )
-        end
-
+         end
+         if use_charges
+             DAT_CHARGES_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_charges )
+         end
+         
         #        DAT_IND_ARR3 = zeros(var_type, types_counter, types_counter, types_counter, 1: max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff) )
          if use_threebody
              DAT_IND_ARR3 = zeros(var_type, max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff), types_counter, types_counter, types_counter )
@@ -1079,7 +1113,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
          end
         
         if !ismissing(database)
-#            if use_em
+#            println("not is missing ")
+            #            if use_em
 #                if :em in keys(database)
 #                    em = database[:em]                    
 #                else
@@ -1106,9 +1141,31 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                     end
 
                     if use_em
+                        found_em=false
                         if (t1,t2,:em) in keys(database)
+                            found_em = true
                             DAT_EM_ARR[c1,c2,1:n_2body_em] = database[(t1,t2, :em)].datH
                         end
+                        if !found_em
+                            use_em=false
+                        end
+                    end
+
+                    if use_charges
+#                        println("use ", keys(database))
+                        found_charge = false
+                        if (t1,t2,:charges) in keys(database)
+#                            println("add ")
+                            found_charge=true
+                            DAT_CHARGES_ARR[c1,c2,1:n_2body_charges] = database[(t1,t2, :charges)].datH
+                        end
+                        if !found_charge
+                            use_charges = false
+                        end
+
+                        
+#                        println("DAT_CHARGES_ARR ", DAT_CHARGES_ARR)
+#                        println("CHARGES $CHARGES")
                     end
                     
                     if use_threebody
@@ -1147,6 +1204,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         else
 
             for v in vars_list
+#                println("v $v")
                 if v[2] == 2
                     for c1 = 1:types_counter
                         for c2 = 1:types_counter
@@ -1154,6 +1212,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                             t2 = types_dict_reverse[c2]
                             if (t1,t2) in keys(ind_set)
                                 ind = ind_set[(t1,t2)] 
+#                                println("ind $ind")
                                 if t1 in v[1] && t2 in v[1] && length(Set([t1,t2])) == length(v[1])
                                 #                            println("v $v")
                                 #                            println("DAT_IND_ARR $c1 $c2 $n_2body_cl ", dat_vars[ind])
@@ -1170,13 +1229,29 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                                 if (t1,t2,:em) in keys(ind_set)
 #                                    println("key")
                                     ind = ind_set[(t1,t2,:em)] 
-#                                    println(v , " " , v[1])
+
+                                    #                                    println(v , " " , v[1])
                                     if t1 in v[1] && t2 in v[1]
                                         DAT_EM_ARR[c1,c2,1:n_2body_em] = dat_vars[ind]
 #                                        println("add $t1 $t2 xxxxxxxxxxxxxxxxxxxxxxxxxxx")
                                     end
                                 end
                             end
+
+                            if use_charges
+#                                println("use charges")
+                                if (t1,t2,:charges) in keys(ind_set)
+#                                    println("key")
+                                    ind = ind_set[(t1,t2,:charges)] 
+#                                    println("ind charges $ind")
+#                                    println(v , " " , v[1])
+                                    if t1 in v[1] && t2 in v[1]
+                                        DAT_CHARGES_ARR[c1,c2,1:length(dat_vars[ind])] = dat_vars[ind]
+#                                        println("blah $((t1,t2,:charges)) ", dat_vars[ind])
+                                    end
+                                end
+                            end
+
                             
                         end
                     end
@@ -1235,6 +1310,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     nkeep_ab = size(R_keep_ab)[1]
     
     lag_arr_TH = zeros(var_type, n_2body_cl, nthreads())
+
     energy_2bdy_TH = zeros(var_type,nthreads())
 
     rho = zeros(var_type, crys.nat, types_counter)
@@ -1242,8 +1318,9 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #    rho3 = zeros(var_type, crys.nat, types_counter)
     if verbose println("2body CL") end
      twobody_Cl = begin
-        for c = 1:nkeep_ab
-            id = threadid()
+        for c = 1:nkeep_ab #rho not thread safe
+            #id = threadid()
+            id = 1
             lag_arr = lag_arr_TH[:,id]
 
             cind = R_keep_ab[c,1]
@@ -1251,7 +1328,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             a1 = R_keep_ab[c,2]
             a2 = R_keep_ab[c,3]
 
-#            println("$a1 $a2 types_arr $types_arr")
+#            println("c $c a1 $a1 a2 $a2 types_arr $types_arr")
             t1 = types_arr[a1]
             t2 = types_arr[a2]
 
@@ -1274,11 +1351,18 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             end
             
             if dist_a <  1e-5    # true onsite
+                if use_charges
+                    energy_2bdy_TH[id] += 0.5 * CHARGES[a1]^2 * DAT_CHARGES_ARR[t1,t2,1] #onsite charges
+                end
                 continue
             end
             
             laguerre_fast!(dist_a, lag_arr, a=2.0)
             energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
+            #            println("ADD ", core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a)
+            if use_charges
+                energy_2bdy_TH[id] += core_cl_charges(t1, t2, lag_arr, DAT_CHARGES_ARR, var_type) * cut_a *  CHARGES[a1] * CHARGES[a2] 
+            end
             rho[a1,t2] += exp(-1.0*dist_a)
             rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
 #            rho3[a1, t2] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.0*dist_a)
@@ -1288,7 +1372,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     
     energy_embed = zero(var_type)
     if verbose; println("do em"); end
-     if use_em
+    if use_em
         for a1 = 1:crys.nat
 #            if var_type == Float64
 #                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
@@ -1299,6 +1383,9 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                 energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3  #+ em[6] * rho[a1,t]^1
                 energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3  #+ em[7] * rho2[a1,t]^1
                 energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] #+ em[6]*(rho[a1,t]*rho2[a1,t])^2
+                if t1 != t
+                    energy_embed +=  em[6]*rho[a1,t]*rho[a1,t1] 
+                end
 
 #                energy_embed +=  em[6]*rho3[a1,t]^2 + em[7]*rho3[a1,t]^3  + em[12]* rho3[a1,t]^4
 #                energy_embed +=  em[8]*rho[a1,t]*rho3[a1,t] + em[9]*rho2[a1,t]*rho3[a1,t]
