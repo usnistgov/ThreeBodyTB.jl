@@ -29,6 +29,8 @@ using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:global_length_units
 using ..ThreeBodyTB:no_display
 using ..Symmetry:get_kgrid_sym
+using ..DFToutMod:dftout
+using ..DFToutMod:bandstructure
 
 function get_projtype(tbc, ptype=missing)
 
@@ -1263,7 +1265,7 @@ function dos(dft::dftout; smearing=0.03, npts=missing, proj_type=missing, do_dis
     return dos(dft.bandstruct, smearing=smearing, do_display=do_display)
 end
 
-function dos(bs::bandstruct, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(bs::bandstructure, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
     
     
     #prelim

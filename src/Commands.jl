@@ -43,6 +43,7 @@ and mpi commands (if any)
     #main QE SCF driver
     pwscf_command_serial=`$qebin/pw.x -input `
     pwscf_command_parallel=`$mpi $nprocs $qebin/pw.x -npool 2 -input `
+    #pwscf_command_parallel=`$mpi $qebin/pw.x -npool 2 -input `
 
     pwscf_command_parallel_backup=`$mpi $nprocs $qebin/pw.x -ndiag 1 -npool 1 -input `
 
@@ -57,9 +58,15 @@ and mpi commands (if any)
     #    og_command_parallel=`$mpi $nprocs $qebin/open_grid.x -input `
 
     #qe-project-wavefunction code
-    proj_command_serial=`$qebin/projwfc.x -input `
-    proj_command_parallel=`$mpi $nprocs $qebin/projwfc.x -input `
+#    proj_command_serial=`$mpi $qebin/projwfc.x -input `
+#    proj_command_parallel=`$mpi $nprocs $qebin/projwfc.x -input `
 
+    #proj_command_serial=`mpirun -np 1 $qebin/projwfc.x -input `
+    #proj_command_parallel=`mpirun -np 1 $qebin/projwfc.x -input `
+
+    proj_command_serial=`$mpi 1 $qebin/projwfc.x -input `
+    proj_command_parallel=`$mpi 1 $qebin/projwfc.x -input `
+    
     
     #w90 (serial)
     wannier90_command=`$w90bin/wannier90.x `
@@ -85,8 +92,8 @@ and mpi commands (if any)
         command_dict["qe_backup"] = pwscf_command_parallel_backup
         command_dict["pw2wan"] = pw2wan_command_parallel        
         command_dict["og"] = og_command_parallel
-#        command_dict["proj"] = proj_command_parallel        
-        command_dict["proj"] = proj_command_serial
+        command_dict["proj"] = proj_command_parallel        
+#        command_dict["proj"] = proj_command_serial
 
     end
 

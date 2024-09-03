@@ -100,16 +100,17 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
         if !haskey(database_cached , (a1, a1))
             loaded = false
             for d in dirlist
-                f =  "$d/els/coef.el.2bdy.$a1.xml.gz"
+                for f in [ "$d/els/coef.el.2bdy.$a1.xml.gz", "$d/els/coef.el.2bdy.$a1.$a1.xml.gz"]
 
-                if isfile(f) || isfile(f*".gz")
-                    try
-                        dat = read_coefs(f)
-                        database_cached[(a1, a1)] = dat
-#                        println("added to cache ", (a1, a1))
-                        loaded=true
-                    catch
-                        println("WARNING - error loading $f")
+                    if isfile(f) || isfile(f*".gz")
+                        try
+                            dat = read_coefs(f)
+                            database_cached[(a1, a1)] = dat
+                            #                        println("added to cache ", (a1, a1))
+                            loaded=true
+                        catch
+                            println("WARNING - error loading $f")
+                        end
                     end
                 end
                 if loaded == true
@@ -130,19 +131,20 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
 
             loaded = false
             for d in dirlist
-                f = "$d/els/coef.el.3bdy.$a1.xml.gz"
+                for f in ["$d/els/coef.el.3bdy.$a1.xml.gz", "$d/els/coef.el.3bdy.$a1.$a1.$a1.xml.gz"]
 
-                if isfile(f) || isfile(f*".gz")
-                    try
-                        #                    jldopen(f)                    
-                        dat = read_coefs(f)
-                        database_cached[(a1, a1, a1)] = dat
-#                        println("added to cache ", (a1, a1, a1))
-                        loaded == true
-                    catch
-                        println("WARNING - error loading $f")
+                    if isfile(f) || isfile(f*".gz")
+                        try
+                            #                    jldopen(f)                    
+                            dat = read_coefs(f)
+                            database_cached[(a1, a1, a1)] = dat
+                            #                        println("added to cache ", (a1, a1, a1))
+                            loaded == true
+                        catch
+                            println("WARNING - error loading $f")
+                        end
+                        loaded=true
                     end
-                    loaded=true
                 end
                 if loaded == true
                     break

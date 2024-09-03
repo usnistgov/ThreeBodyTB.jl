@@ -3499,11 +3499,8 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-<<<<<<< HEAD
+
 function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing)
-=======
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, use_eam=false)
->>>>>>> 1bb00a723ecfbfb15e0d1e883838de11ccb4e70b
 
     #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
     #    println(reference_tbc.crys)
@@ -3513,7 +3510,6 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     
     var_type=typeof(crys.coords[1,1])
 
-<<<<<<< HEAD
 
     if ismissing(factor_dict)
         use_factor_dict = false
@@ -3523,11 +3519,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     #    if ismissing(var_type)
 #        var_type=Float64
 #    end
-=======
+
     #    if ismissing(var_type)
     #        var_type=Float64
     #    end
->>>>>>> 1bb00a723ecfbfb15e0d1e883838de11ccb4e70b
+
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
 

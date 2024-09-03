@@ -2206,6 +2206,148 @@ function merge_crystal(c_small, c_big, vacancy_location = missing)
     
 end
 
+function get_dist_a1a2(c::crystal,a1,a2)
+    dist =  1000000000000.0
+    c_cart = c.coords*c.A
+    cart1 = c_cart[a1,:]
+    cart2 = c_cart[a2,:]
+    for x = -2:2
+        for y = -2:2
+            for z = -2:2
+
+                println("a1 $a1 a2 $a2 xyz $([x,y,z])")
+                d = sum( ( cart1 - cart2 + ([x y z] * c.A)[:] ).^2)
+                println("d $d")
+                if d < dist
+                    dist = d
+                end
+            end
+        end
+    end
+    return sqrt(dist)
+end
+
+
+function generate_subsets(crys::crystal, n; always_include = [1])
+
+    n1_subsets = []
+    for i1 in   always_include
+        push!(n1_subsets, [i1])
+    end
+
+
+    if n == 1
+        return always_include
+    end
+    
+    n2_subsets = []
+    #d2 = [100000000000.0]
+
+    d2_dict = Dict()
+    
+    for i1 in always_include
+        for i2 in 1:crys.nat
+            if i1 == i2
+                continue
+            end
+#            println("i1 $i1 i2 $i2")
+            d = get_dist_a1a2(crys,i1,i2)
+
+            found = false
+            for k in keys(d2_dict)
+                if sort([crys.stypes[i1], crys.stypes[i2]]) == k && minimum(abs.(d .- d2_dict[k])) < 1e-4
+                    found = true
+                end
+            end
+            if found == false
+                push!(n2_subsets, [i1,i2])
+                if ! (sort([crys.stypes[i1], crys.stypes[i2]]) in keys( d2_dict))
+                    d2_dict[sort([crys.stypes[i1], crys.stypes[i2]])] = []
+                end
+                push!(d2_dict[sort([crys.stypes[i1], crys.stypes[i2]])] , d)
+            end
+        end
+    end
+
+    if n == 2
+        return n2_subsets
+    end
+
+    #d3 = [[1000000000.0, 100000000.0, 10000000.0] ]
+    d3_dict = Dict()
+    n3_subsets = []
+
+    permutations = [[1,2,3],[2,1,3],[1,3,2],[2,3,1], [3,1,2],[3,2,1]]
+    
+    
+    for c = 1:length(n2_subsets)
+        i1 = n2_subsets[c][1]
+        i2 = n2_subsets[c][2]
+        for i3 = 1:crys.nat
+            if i1 == i3 || i2 == i3
+                continue
+            end
+            d12 = get_dist_a1a2(crys,i1,i2)
+            d13 = get_dist_a1a2(crys,i1,i3)
+            d23 = get_dist_a1a2(crys,i2,i3)
+
+            #d = sort([d12,d13,d23])
+            found = false
+            for k in keys(d3_dict)
+                if crys.stypes[i1] == k[1] && crys.stypes[i2] == k[2] &&crys.stypes[i3] == k[3] 
+                    for d3 in d3_dict[k]
+                        if abs(d12 - d3[1]) < 1e-4 && abs(d13 - d3[2]) < 1e-4 && abs(d23 - d3[3]) < 1e-4 
+                            found = true
+                            break
+                        end
+                    end
+                end
+            end
+            if found
+                continue
+            end
+
+            push!(n3_subsets, sort([i1,i2,i3]))
+            if ! ( [crys.stypes[i1], crys.stypes[i2], crys.stypes[i3]] in keys(d3_dict))
+                t = [crys.stypes[i1], crys.stypes[i2], crys.stypes[i3]]
+                for p in permutations
+                    d3_dict[t[p]] = []
+                end
+
+            end
+
+            toadd = [crys.stypes[i1], crys.stypes[i2], crys.stypes[i3]]
+            dadd = [d12, d13, d23]
+            for p in permutations
+                push!(d3_dict[toadd[p]] ,  dadd[p])
+            end
+            
+        end
+    end
+
+    if n == 3
+        return n3_subsets
+    end
+
+    if n <= 0
+        return vcat(n1_subsets, n2_subsets, n3_subsets)
+    end
+
+    #    println("n > 3 not implmented")
+    return Nothing
+    
+end
+
+function generate_crystal_from_subsets(crys::crystal, subsets)
+
+    C = []
+    for s in subsets
+        c = makecrys(crys.A, crys.coords[s,:], crys.stypes[s])
+        push!(C, c)
+    end
+    return C
+    
+end
 
 end #end module
 

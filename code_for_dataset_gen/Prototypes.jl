@@ -49,12 +49,19 @@ end
 
 function get_twobody_dist(A,B)
 
-    ab = 4.7
-    #prepare_database([A,B])
-    #database = ThreeBodyTB.ManageDatabase.database_cached
-    
-    #ab = database[(A,B)].min_dist * 1.0001
-    #println("min dist $A $B $ab")
+    ab = 4.0
+    try 
+        prepare_database([A,B])
+        database = ThreeBodyTB.ManageDatabase.database_cached
+        
+        ab = database[(A,B)].min_dist * 1.0001
+        println("min dist $A $B $ab")
+        
+        ThreeBodyTB.ManageDatabase.clear_database()
+    catch
+        println("couldn't find $A $B")
+    end
+        
     return ab
 end
 #=    println("get_twobody_dist $A $B")
@@ -272,6 +279,8 @@ function setup_proto_data()
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["rocksalt"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-mid", "nscf", false]
+    CalcD["rocksalta"] = ["$STRUCTDIR/binary/rocksalt.ina", "vc-relax", "all", "vol-mid", "nscf", false]
+    CalcD["rocksaltb"] = ["$STRUCTDIR/binary/rocksalt.inb", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["rocksalt_inv"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "break_inv", "nscf", false]
 
     CalcD["rocksalt_dense"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-dense", "nscf", false]
@@ -297,6 +306,8 @@ function setup_proto_data()
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
 
     CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
+    CalcD["dimer2a"] = ["$STRUCTDIR/binary/dimer2.ina", "relax", "all", "coords", "nscf", false]
+    CalcD["dimer2b"] = ["$STRUCTDIR/binary/dimer2.inb", "relax", "all", "coords", "nscf", false]
 #    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
 
     CalcD["dimer2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min", "nscf", false]
@@ -318,8 +329,8 @@ function setup_proto_data()
 
     CalcD["p2ca3"] = ["$STRUCTDIR/binary/POSCAR_p2ca3", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle_r.in", "vc-relax", "all", "scf", "nscf", false]
-    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle_r2.in", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle.in", "relax", "all", "scf", "nscf", false]
+    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle2.in", "relax", "all", "scf", "nscf", false]
 
 
     CalcD["beta_sn2"] = ["$STRUCTDIR/binary/beta_sn.in.up", "vc-relax", "all", "vol2", "nscf", false]
@@ -362,6 +373,13 @@ function setup_proto_data()
 
     CalcD["bcc_13"] = ["$STRUCTDIR/binary/POSCAR_bcc_13", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["bcc_31"] = ["$STRUCTDIR/binary/POSCAR_bcc_31", "vc-relax", "all", "vol2", "nscf", false]
+
+    CalcD["bcc_31a"] = ["$STRUCTDIR/binary/POSCAR_bcc_31a", "vc-relax", "all", "vol2", "nscf", false]
+    CalcD["bcc_31b"] = ["$STRUCTDIR/binary/POSCAR_bcc_31b", "vc-relax", "all", "vol2", "nscf", false]
+
+    CalcD["znse_31a"] = ["$STRUCTDIR/binary/POSCAR_znse_31a", "vc-relax", "all", "vol2", "nscf", false]
+    CalcD["znse_31b"] = ["$STRUCTDIR/binary/POSCAR_znse_31b", "vc-relax", "all", "vol2", "nscf", false]
+    
     CalcD["mg2si"] = ["$STRUCTDIR/binary/POSCAR_mg2si", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["simg2"] = ["$STRUCTDIR/binary/POSCAR_simg2", "vc-relax", "all", "vol2", "nscf", false]
 
@@ -460,8 +478,8 @@ function setup_proto_data()
     CalcD["bcc_4lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_4lay", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["fcc_4lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_4lay", "vc-relax", "all", "vol2", "nscf", false]
 
-#    CalcD["bcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
-#    CalcD["fcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
+    CalcD["bcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
+    CalcD["fcc_3lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_3lay", "vc-relax", "all", "vol2", "nscf", false]
 
 
     CalcD["k2n6"] = ["$STRUCTDIR/binary/POSCAR_k2n6", "vc-relax", "all", "vol2", "nscf", false]
@@ -542,7 +560,7 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min", "bcc_5lay", "fcc_5lay", "bcc_4lay", "fcc_4lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line"]
+    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min",  "bcc_3lay", "fcc_3lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line"]
 
 
 
@@ -698,7 +716,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [-0.06 -0.03 0.03 0.06])
         elseif newst == "coords"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
-            ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 10
         elseif newst == "el_party"
             ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]) * 2
         elseif newst == "bin_party"
@@ -1351,9 +1370,11 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
             elseif newst == "coords"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
-                for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [-0.06 -0.04 -0.03 -0.02 -0.00 0.02 0.04 0.1 0.2 0.3]
                     c = deepcopy(cnew)
-                    c.coords = c.coords * (1+x)
+                    c.coords[1,3] = c.coords[1,3] * (1 - x)
+                    c.coords[2,3] = c.coords[2,3] * (1 + x)
                     push!(torun, deepcopy(c))
                 end
 

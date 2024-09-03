@@ -116,7 +116,7 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
             if rand_num < W #accept
 
                 en = en_new
-                c_current.coords[:,:] = c_work.coords
+                c_current.coords[:,:] = mod.(c_work.coords, 1.0)
                 c_current.A[:,:]   = c_work.A
 
                 #accept += 1

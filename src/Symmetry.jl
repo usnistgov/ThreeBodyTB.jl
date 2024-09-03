@@ -513,7 +513,7 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     #########
 
-    #println("cat $cat")
+    println("cat $cat")
     
     kdict = Dict()
     if cat == "SC"
@@ -705,7 +705,7 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
         
     elseif cat == "rhl1"
 
-        eta = (1 + 4 * cos(alpha)) / (2 + 4 * cos(alpha))
+        eta = (1 + 4 * cos(alpha * pi/180)) / (2 + 4 * cos(alpha*pi/180))
         nu = 3.0 / 4.0 - eta / 2.0
 
         kdict["Γ"] = [0.0, 0.0, 0.0]
@@ -725,7 +725,7 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     elseif cat == "rhl2"
         
-        eta = 1 / (2 * tan(alpha / 2.0) ^ 2)
+        eta = 1 / (2 * tan(alpha*pi/180 / 2.0) ^ 2)
         nu = 3.0 / 4.0 - eta / 2.0
 
         kdict["Γ"] = [0.0, 0.0, 0.0]
@@ -765,10 +765,10 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     elseif cat == "mclc1"
 
-        zeta = (2 - b * cos(alpha) / c) / (4 * sin(alpha) ^ 2)
-        eta = 0.5 + 2 * zeta * c * cos(alpha) / b
-        psi = 0.75 - a ^ 2 / (4 * b ^ 2 * sin(alpha) ^ 2)
-        phi = psi + (0.75 - psi) * b * cos(alpha) / c
+        zeta = (2 - b * cos(alpha*pi/180) / c) / (4 * sin(alpha*pi/180) ^ 2)
+        eta = 0.5 + 2 * zeta * c * cos(alpha*pi/180) / b
+        psi = 0.75 - a ^ 2 / (4 * b ^ 2 * sin(alpha*pi/180) ^ 2)
+        phi = psi + (0.75 - psi) * b * cos(alpha*pi/180) / c
 
         kdict["Γ"] = [0.0, 0.0, 0.0]
         kdict["N"] = [0.5, 0.0, 0.0]
@@ -791,10 +791,10 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     elseif cat == "mclc2"
         
-        zeta = (2 - b * cos(alpha) / c) / (4 * sin(alpha) ^ 2)
-        eta = 0.5 + 2 * zeta * c * cos(alpha) / b
-        psi = 0.75 - a ^ 2 / (4 * b ^ 2 * sin(alpha) ^ 2)
-        phi = psi + (0.75 - psi) * b * cos(alpha) / c
+        zeta = (2 - b * cos(alpha*pi/180) / c) / (4 * sin(alpha*pi/180) ^ 2)
+        eta = 0.5 + 2 * zeta * c * cos(alpha*pi/180) / b
+        psi = 0.75 - a ^ 2 / (4 * b ^ 2 * sin(alpha*pi/180) ^ 2)
+        phi = psi + (0.75 - psi) * b * cos(alpha*pi/180) / c
         
         kdict["Γ"] = [0.0, 0.0, 0.0]
         kdict["N"] = [0.5, 0.0, 0.0]
@@ -818,10 +818,12 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
 
     elseif cat == "mclc3"
 
+        println("a $a b $b c $c alpha $alpha")
+        println("xxx")
         mu = (1 + b ^ 2 / a ^ 2) / 4.0
-        delta = b * c * cos(alpha) / (2 * a ^ 2)
-        zeta = mu - 0.25 + (1 - b * cos(alpha) / c) / (4 * sin(alpha) ^ 2)
-        eta = 0.5 + 2 * zeta * c * cos(alpha) / b
+        delta = b * c * cos(alpha*pi/180) / (2 * a ^ 2)
+        zeta = mu - 0.25 + (1 - b * cos(alpha*pi/180) / c) / (4 * sin(alpha*pi/180) ^ 2)
+        eta = 0.5 + 2 * zeta * c * cos(alpha*pi/180) / b
         phi = 1 + zeta - 2 * mu
         psi = eta - 2 * delta
 
@@ -848,9 +850,9 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
     elseif cat == "mclc4"
 
         mu = (1 + b ^ 2 / a ^ 2) / 4.0
-        delta = b * c * cos(alpha) / (2 * a ^ 2)
-        zeta = mu - 0.25 + (1 - b * cos(alpha) / c) / (4 * sin(alpha) ^ 2)
-        eta = 0.5 + 2 * zeta * c * cos(alpha) / b
+        delta = b * c * cos(alpha*pi/180) / (2 * a ^ 2)
+        zeta = mu - 0.25 + (1 - b * cos(alpha*pi/180) / c) / (4 * sin(alpha*pi/180) ^ 2)
+        eta = 0.5 + 2 * zeta * c * cos(alpha*pi/180) / b
         phi = 1 + zeta - 2 * mu
         psi = eta - 2 * delta
 
@@ -877,21 +879,21 @@ function get_kpath_sym(c::crystal; sym_prec = 5e-4, magmoms = missing)
     elseif cat == "mclc5"
 
         zeta = (
-            b ^ 2 / a ^ 2 + (1 - b * cos(alpha) / c) / sin(alpha) ^ 2
+            b ^ 2 / a ^ 2 + (1 - b * cos(alpha*pi/180) / c) / sin(alpha*pi/180) ^ 2
         ) / 4
-        eta = 0.5 + 2 * zeta * c * cos(alpha) / b
+        eta = 0.5 + 2 * zeta * c * cos(alpha*pi/180) / b
         mu = (
-            eta / 2 + b ^ 2 / (4 * a ^ 2) - b * c * cos(alpha) / (2 * a ^ 2)
+            eta / 2 + b ^ 2 / (4 * a ^ 2) - b * c * cos(alpha*pi/180) / (2 * a ^ 2)
         )
         nu = 2 * mu - zeta
         rho = 1 - zeta * a ^ 2 / b ^ 2
         omega = (
-            (4 * nu - 1 - b ^ 2 * sin(alpha) ^ 2 / a ^ 2)
+            (4 * nu - 1 - b ^ 2 * sin(alpha*pi/180) ^ 2 / a ^ 2)
             * c
-            / (2 * b * cos(alpha))
+            / (2 * b * cos(alpha*pi/180))
         )
 
-        delta = zeta * c * cos(alpha) / b + omega / 2 - 0.25
+        delta = zeta * c * cos(alpha*pi/180) / b + omega / 2 - 0.25
 
         kdict["Γ"] = [0.0, 0.0, 0.0]
         kdict["F"] = [nu, nu, omega]

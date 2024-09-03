@@ -101,7 +101,7 @@ end
 
 Make lots of preperations for fitting. Moves things around, put stuff in materices, etc.
 """
-function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing)
+function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, factor_dict = missing)
 
 
     tbc_list = []
@@ -174,9 +174,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #        for spin = 1:tbc.nspin
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1)
+        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1 ,factor_dict = factor_dict)
         if tbc.nspin == 2
-            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2)
+            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2,factor_dict = factor_dict)
         end
         #            println("INDVEC ", INDvec)
         
@@ -703,7 +703,7 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, factor_dict = missing)
 
     println("MODE $mode")
 
@@ -724,7 +724,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     end
 
 
-    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database)
+    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database, factor_dict=factor_dict)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -1428,7 +1428,115 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false)
+
+    if !ismissing(dft_list)
+        println("top")
+        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
+    else
+        println("bot")
+        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+    end
+
+    if use_factor_dict == true
+        factor_dict = Dict()
+        factor_dict[:Hx  ] =  1.0
+        factor_dict[:X  ] =  1.0
+        factor_dict[:Xa  ] =  1.0
+
+        factor_dict[:Ag  ] =  1.0
+        factor_dict[:Al ] =  1.0
+        factor_dict[:As ] =  0.8
+        factor_dict[:Au ] =  0.9
+        factor_dict[:Ba ] =  0.5
+        factor_dict[:B ] =  1.0
+        factor_dict[:Be ] =  0.9
+        factor_dict[:Bi ] =  0.9
+        factor_dict[:Br ] =  0.9
+        factor_dict[:Ca ] =  0.65
+        factor_dict[:C ] =  0.9
+        factor_dict[:Cd ] =  1.0
+        factor_dict[:Cl ] =  1.0
+        factor_dict[:Co ] =  0.6
+        factor_dict[:Cr ] =  0.8
+        factor_dict[:Cs ] =  0.6
+        factor_dict[:Cu ] =  1.0
+        factor_dict[:Fe ] =  0.3
+        factor_dict[:F ] =  1.0
+        factor_dict[:Ga ] =  0.9
+        factor_dict[:Ge ] =  0.9
+        factor_dict[:Hf ] =  0.8
+        factor_dict[:Hg ] =  1.0
+        factor_dict[:H ] =  1.0
+        factor_dict[:I ] =  0.9
+        factor_dict[:In ] =  0.8
+        factor_dict[:Ir ] =  0.5
+        factor_dict[:K ] =  0.6
+        factor_dict[:La ] =  0.4
+        factor_dict[:Li ] =  0.4
+        factor_dict[:Mg ] =  1.0
+        factor_dict[:Mn ] =  1.0
+        factor_dict[:Mo ] =  0.6
+        factor_dict[:Na ] =  0.7
+        factor_dict[:Nb ] =  1.0
+        factor_dict[:Ni ] =  0.7
+        factor_dict[:N ] =  0.7
+        factor_dict[:O ] =  0.8
+        factor_dict[:Os ] =  0.7
+        factor_dict[:Pb ] =  0.7
+        factor_dict[:Pd ] =  1.0
+        factor_dict[:P  ] =  0.9
+        factor_dict[:Pt ] =  0.9
+        factor_dict[:Rb ] =  0.5
+        factor_dict[:Re ] =  0.1
+        factor_dict[:Rh ] =  0.2
+        factor_dict[:Ru ] =  0.2
+        factor_dict[:Sb ] =  1.0
+        factor_dict[:Sc ] =  0.8
+        factor_dict[:Se ] =  0.8
+        factor_dict[:Si ] =  0.95
+        factor_dict[:Sn ] =  0.9
+        factor_dict[:Sr ] =  0.7
+        factor_dict[:S  ] =  0.8
+        factor_dict[:Ta ] =  0.95
+        factor_dict[:Tc ] =  0.9
+        factor_dict[:Te ] =  0.9
+        factor_dict[:Ti ] =  1.0
+        factor_dict[:Tl ] =  0.6
+        factor_dict[:V  ] =  0.8
+        factor_dict[:W ] =  0.6
+        factor_dict[:Y ] =  0.5
+        factor_dict[:Zn ] =  1.0
+        factor_dict[:Zr ] =  0.6
+
+    else
+        factor_dict = missing
+    end
+    
+#    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
+    
+    if ismissing(prepare_data)
+        println("DO LINEAR FITTING")
+
+        if update_all == true
+            starting_database_t = missing #keep all
+        else
+            starting_database_t = starting_database
+        end
+
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, factor_dict = factor_dict)
+    else
+        println("SKIP LINEAR MISSING")
+        pd = prepare_data
+#        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
+    end
+
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
+
+end
+
+
+function do_fitting_recursive_factor(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
 
     if !ismissing(dft_list)
         println("top")
@@ -1458,9 +1566,27 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
+    DATABASE = []
+    for factor = 0.1:0.1:1.1
+    #for factor = [0.5]
+        println("FACTOR $factor ")
+        database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds     = pd
+        cs_temp = cs * factor
+        Y_S_temp = Y_S * factor
+        Y_Snew_BIG_temp = Y_Snew_BIG * factor
+        YS_new_temp = YS_new * factor
+        pd_temp = database, ch, cs_temp, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S_temp, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG_temp, YS_new_temp, cs_temp , ch_refit, SPIN, threebody_inds   
+        database = do_fitting_recursive_main(list_of_tbcs, pd_temp; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
+        push!(DATABASE, database)
+    end
 
+    return DATABASE
+    
+    #return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
+
+    
 end
+
 
 function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false)
 
@@ -2598,7 +2724,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                println()
             end
 
-            if abs(error_new_energy - err_old_en) < 2e-2 && iters >= 6
+            if abs(error_new_energy - err_old_en) < 0.5e-2 && iters >= 6
                 println("break")
                 break
             else

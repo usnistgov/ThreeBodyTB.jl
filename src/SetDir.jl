@@ -9,13 +9,14 @@ STRUCTDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "reference_structures")
 PSEUDODIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "pseudo", "gbrv_pbesol")
 
 
-DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.3")
+DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.4")
+DATSDIR2 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.3")
 
 #DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v0.9")
 
 #DATSDIR1 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v0.4")
 
-DATSDIR2 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.0")
+#DATSDIR2 = joinpath(dirname(pathof(ThreeBodyTB)), "..", "dats", "pbesol", "v1.0")
 
 DOCSDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "docs")
 
@@ -26,9 +27,15 @@ DOCSDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "docs")
 #DATSDIR2 = "/home/kfg/codes/TB_fit/binary_v10/datab/"
 
 
-global MPI_STRING="mpirun -np"
+global MPI_STRING="srun --mpi=pmi2  -n  "
+#global MPI_STRING="mpirun "
+#global MPI_STRING=" "
 #global QE_BIN_DIR_STRING="/home/kfg/codes/q-e-qe-6.5/bin/"
-global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"
+#global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"
+#global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/7.2/impi-oneapi-2023.0.0/bin/"
+global  QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/7.2/impi-oneapi-2023.0.0/bin/"
+#global QE_BIN_DIR_STRING="/home/kfg/codes/qe-7.2/bin/"
+
 global PSEUDOS=PSEUDODIR
 global TEMPLATES=TEMPLATEDIR
 
