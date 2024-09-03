@@ -2366,7 +2366,7 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
             
             if maximum(abs.(imag.(vals))) > 1e-10
                 println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
-                println("s ", eigvals(sk[:,:,id])[:,:])
+#                println("s ", eigvals(sk[:,:,id])[:,:])
                 error_flag = true
             end
             
@@ -4661,7 +4661,7 @@ function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1
 
             if maximum(abs.(imag.(vals))) > 1e-10
                 println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
-                println("s ", eigvals(sk[:,:,id])[:,:])
+#                println("s ", eigvals(sk[:,:,id])[:,:])
                 error_flag = true
             end
 
@@ -4744,7 +4744,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             
             if maximum(abs.(imag.(vals))) > 1e-10
                 println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
-                println("s ", eigvals(sk[:,:,id])[:,:])
+#                println("s ", eigvals(sk[:,:,id])[:,:])
                 error_flag = true
             end
             

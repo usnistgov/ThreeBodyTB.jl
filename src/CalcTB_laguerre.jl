@@ -2952,7 +2952,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                     repval = 0.001
                 end
                 
-                if !ismissing(d) && dist < d*(1+lim) && dist > 0.1
+                if !ismissing(d) && dist <= d*1.005  && dist > 0.1
 #                    println("type of repel_vals[a1] ", typeof(repel_vals[a1]))
 #                    println("type fo repel ", typeof(repel_short_dist_fn(dist, d, lim) * 0.1))
 
@@ -3071,7 +3071,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         if sum(abs.([dist, dist31, dist32] - f)) < 1e-5
                             vio = false
                         end
-                        if dist >= f[1]*(1+lim) && dist31 >= f[2]*(1+lim) && dist32 >= f[3]*(1+lim)
+                        if dist >= f[1] && dist31 >= f[2] && dist32 >= f[3]
                             vio_lim = false
                         end
                         
@@ -3097,7 +3097,7 @@ function calc_frontier(crys::crystal, frontier; var_type=Float64, test_frontier=
                         rsum = 10000000.0
                         rvals = zeros(var_type, 3)
                         for f in vals
-                            if dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim) 
+                            if dist <= f[1] && dist31 <= f[2] && dist32 <= f[3] 
 #                                println("$lim dist $dist $dist31 $dist32 " , f, " ", dist <= f[1]*(1+lim) && dist31 <= f[2]*(1+lim) && dist32 <= f[3]*(1+lim), " ", [dist <= f[1]*(1+lim) , dist31 <= f[2]*(1+lim) , dist32 <= f[3]*(1+lim)])
 
 
@@ -3484,7 +3484,7 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing)
 
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
@@ -3494,7 +3494,13 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     
     var_type=typeof(crys.coords[1,1])
 
-#    if ismissing(var_type)
+
+    if ismissing(factor_dict)
+        use_factor_dict = false
+    else
+        use_factor_dict = true
+    end
+    #    if ismissing(var_type)
 #        var_type=Float64
 #    end
     
@@ -3690,7 +3696,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 ind = ind_conversion[(o1,o2,cham)]
 
                 hvec[ind] = real(reference_tbc.tb.H[spin, o1,o2,c_ref])
-                svec[ind] = real(reference_tbc.tb.S[o1,o2,c_ref])
+                if use_factor_dict
+                    svec[ind] = real(reference_tbc.tb.S[o1,o2,c_ref]) * (factor_dict[t1]*factor_dict[t2])^0.5
+#                    println("apply factor_dict $t1 $t2 ", (factor_dict[t1]*factor_dict[t2])^0.5)
+                else
+                    svec[ind] = real(reference_tbc.tb.S[o1,o2,c_ref]) 
+                end
                 dist2[ind] = dist
 #                if abs(svec[ind]) > 0.001
 #                    println(" svec $ind $o1 $o2 $c_ref ",   svec[ind] )
