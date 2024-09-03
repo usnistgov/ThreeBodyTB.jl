@@ -1075,10 +1075,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1088,10 +1090,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1099,10 +1103,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, -pdos[:,i,2], color=color, lw=3, label=false)
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, -pdos[:,i,2], color=color, lw=3, label=false)
+                end
             end
         end    
     end
@@ -1166,10 +1172,12 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!( pdos[:,i,1], energies, color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!( pdos[:,i,1], energies, color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1180,12 +1188,14 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
         if !ismissing(names)
             #colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
             colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
-                p = ylims!(yrange[1], yrange[2])
-                
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
+                    p = ylims!(yrange[1], yrange[2])
+                    
+                end
             end
         end    
 
@@ -1193,12 +1203,14 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
         if !ismissing(names)
             colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
-                p = ylims!(yrange[1], yrange[2])
-                
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
+                    p = ylims!(yrange[1], yrange[2])
+                    
+                end
             end
         end    
     end
@@ -1242,6 +1254,63 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 #    if !ismissing(filename)
 #        savefig(filename)
     #    end
+    
+end
+
+
+function dos(dft::dftout; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+
+    return dos(dft.bandstruct, smearing=smearing, do_display=do_display)
+end
+
+function dos(bs::bandstruct, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+    
+    
+    #prelim
+    vals = bs.eigs .- bs.efermi
+
+    nk = size(vals)[1]
+    nspin = size(vals)[3]
+    
+    vmin = minimum(vals) - 0.1
+    vmax = maximum(vals) + 0.1
+
+    r = vmax - vmin
+
+    if ismissing(npts)
+        npts = Int64(round(r * 100 ))
+    end
+    
+    energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
+    
+    dos = zeros(length(energies), nspin)
+
+    W = repeat(bs.kweights, 1, bs.nbnd)
+
+    for spin = 1:nspin
+        for (c,e) in enumerate(energies)
+            dos[c] = sum(exp.( -0.5 * (vals[:,:, spin] .- e).^2 / smearing^2 ) .* W ) 
+        end
+    end
+    dos = dos / smearing / (2.0*pi)^0.5 / 2
+
+    println("Int DOS " , sum(dos) * (energies[2]-energies[1]) )
+
+    ind = energies .< 0
+
+    for spin = 1:nspin
+        println("$spin Int DOS occ " , sum(dos[ind, spin]) * (energies[2]-energies[1]) )
+        
+    end    
+    energies = convert_energy(energies)
+    dos = convert_dos(dos)
+    
+    plot_dos(energies, dos, missing, [], do_display=do_display)
+
+
+    
+    return energies, dos
+
     
 end
 

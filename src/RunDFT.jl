@@ -421,7 +421,7 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.0 / 2.0))   #no spin yet
+        nbandtot = 1+convert(Int64, round(nbandsemi/2.0 + nbandval * 11.0 / 10.0))   #no spin yet
         if "La" in crys.types
             nbandtot += 7*crys.nat
         end
@@ -435,7 +435,7 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 2.0 / 2.0))   #no spin yet
+        nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.8 / 2.0))   #no spin yet
         other *="nbnd = "*string(nbandtot)*"\n"
     elseif wannier == -1
         nbandsemi = 0
@@ -520,6 +520,13 @@ function loadXML(savedir)
     
     d= makedict(savedir)
 
+    calctype = d["espresso"]["input"]["control_variables"]["calculation"]
+    
+    convergence = d["espresso"]["output"]["convergence_info"]["scf_conv"]["convergence_achieved"]
+    if convergence == "false" && calctype != "nscf"
+        println("error dft $savedir convergence false")
+        return missing
+    end
 
     stin = d["espresso"]["output"]["atomic_structure"]
     stout = d["espresso"]["output"]["atomic_structure"]
