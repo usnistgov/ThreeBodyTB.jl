@@ -31,6 +31,7 @@ using ..ThreeBodyTB:no_display
 using ..Symmetry:get_kgrid_sym
 using ..DFToutMod:dftout
 using ..DFToutMod:bandstructure
+using ..TB:find_vbm_cbm
 
 function get_projtype(tbc, ptype=missing)
 
@@ -393,9 +394,9 @@ end
 
 Gaussian smearing DOS is now the main DOS. Tetraheral method is still coded, but it is a bit wonky.
 """
-function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[])
+function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[], align=:efermi)
 
-    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
+    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms, align=align)
     
 end
 
@@ -414,7 +415,7 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[])
+function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[], align=:efermi)
 
 
     if typeof(tbc) <: tb_crys_sparse
@@ -438,8 +439,13 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
 #    println("precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
     
     #prelim
-    vals = vals .- efermi
-
+    if align == :efermi
+        vals = vals .- efermi
+    else
+        vbm, cbm = find_vbm_cbm(vals, efermi)
+        vals = vals .- vbm
+    end
+    
     nk = size(vals)[1]
     
     vmin = minimum(vals) - 0.05
@@ -549,7 +555,7 @@ end
 
 
 
-function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
 
 
     @time bandenergy, eden, vects, vals, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=0.01)
@@ -560,7 +566,13 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
 #    println("precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
     
     #prelim
-    vals = vals .- efermi
+    if align == :efermi
+        vals = vals .- efermi
+    else
+        vbm, cbm = find_vbm_cbm(vals, efermi)
+        vals = vals .- vbm
+    end
+
 
     nk = size(vals)[1]
     nspin = size(vects)[2]
@@ -1260,16 +1272,23 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 end
 
 
-function dos(dft::dftout; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(dft::dftout; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
 
-    return dos(dft.bandstruct, smearing=smearing, do_display=do_display)
+    return dos(dft.bandstruct, smearing=smearing, do_display=do_display, align=align)
 end
 
-function dos(bs::bandstructure, smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(bs::bandstructure; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
     
     
     #prelim
-    vals = bs.eigs .- bs.efermi
+    if align == :efermi
+        vals = bs.eigs .- bs.efermi
+    else
+        vbm, cbm = find_vbm_cbm(bs.eigs, bs.efermi)
+        vals = bs.eigs .- vbm
+    end
+    
+    
 
     nk = size(vals)[1]
     nspin = size(vals)[3]
@@ -1291,7 +1310,7 @@ function dos(bs::bandstructure, smearing=0.03, npts=missing, proj_type=missing, 
 
     for spin = 1:nspin
         for (c,e) in enumerate(energies)
-            dos[c] = sum(exp.( -0.5 * (vals[:,:, spin] .- e).^2 / smearing^2 ) .* W ) 
+            dos[c, spin] = sum(exp.( -0.5 * (vals[:,:, spin] .- e).^2 / smearing^2 ) .* W ) 
         end
     end
     dos = dos / smearing / (2.0*pi)^0.5 / 2
@@ -1311,8 +1330,70 @@ function dos(bs::bandstructure, smearing=0.03, npts=missing, proj_type=missing, 
 
 
     
-    return energies, dos
+    return energies, dos * bs.nspin
 
+    
+end
+
+function compare_dos_dft(tbc::tb_crys, dft::dftout, smearing = 0.03, do_display=true, align=:vbm)
+
+    grid = dft.bandstruct.kgrid
+    energies_dft, dos_dft = dos(dft, do_display=false, align=align)
+    energies_tb , dos_tb  = dos(tbc, grid = grid, do_display=false, align=align)
+    
+    if ismissing(names)
+        plot(legend=false, grid=false, framestyle=:box)
+    else 
+        plot(legend=true, grid=false, framestyle=:box)
+    end
+
+    if dft.nspin == 1
+        plot!(energies_dft, dos_dft[:,1], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, dos_tb[:,1], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+    else
+
+        plot!(energies_dft, dos_dft[:,1], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, dos_tb[:,1], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_dft, -dos_dft[:,2], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, -dos_tb[:,2], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+
+    end
+
+    if global_energy_units == "eV"
+        ylabel!("DOS  ( 1 / eV )", guidefontsize=16)
+        if align == :efermi
+            xlabel!("Energy - E_F ( eV )", guidefontsize=16)
+        else
+            xlabel!("Energy - VBM ( eV )", guidefontsize=16)            
+        end
+    else
+        ylabel!("DOS  ( 1 / Ryd. )", guidefontsize=16)
+        if align == :efermi
+            xlabel!("Energy - E_F ( Ryd. )", guidefontsize=16)
+        else
+            xlabel!("Energy - VBM ( Ryd. )", guidefontsize=16)            
+        end
+
+    end
+
+        
+    if dft.nspin == 1
+        ylims!(0.0, max(maximum(dos_dft), maximum(dos_tb)) * 1.1)
+    elseif dft.nspin == 2
+        d = max(maximum(abs.(dos_dft)), maximum(abs.(dos_tb)))
+        ylims!(-d*1.1, d*1.1)
+    end
+
+    d = max(maximum(abs.(dos_dft)),maximum(abs.(dos_tb)))
+    if do_display && ! no_display
+        display(plot!([0,0], [-d * 1.1, d * 1.1], color="black", linestyle=:dash, label=""))
+    else
+
+        plot!([0,0], [- d * 1.1, d * 1.1], color="black", linestyle=:dash, label="")
+
+    end        
+                    
+        
     
 end
 
