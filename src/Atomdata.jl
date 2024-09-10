@@ -896,6 +896,85 @@ end
 #for k in keys(atoms)
 #    a = atoms[k]
     
+iupac_ordering = [
+:F ,
+:Cl,
+:Br,
+:I ,
+:At,
+:O ,
+:S ,
+:Se,
+:Te,
+:Po,
+:H,
+:N ,
+:P ,
+:As,
+:Sb,
+:Bi,
+:C ,
+:Si,
+:Ge,
+:Sn,
+:Pb,
+:B ,
+:Al,
+:Ga,
+:In,
+:Tl,
+:Zn,
+:Cd,
+:Hg,
+:Cu,
+:Ag,
+:Au,
+:Ni,
+:Pd,
+:Pt,
+:Co,
+:Rh,
+:Ir,
+:Fe,
+:Ru,
+:Os,
+:Mn,
+:Tc,
+:Re,
+:Cr,
+:Mo,
+:W,
+:V ,
+:Nb,
+:Ta,
+:Ti,
+:Zr,
+:Hf,
+:Sc,
+:Y ,
+:La,
+:Lu,
+:Ac,
+:Lr,
+:Be,
+:Mg,
+:Ca,
+:Sr,
+:Ba,
+:H ,
+:Li,
+:Na,
+:K ,
+:Rb,
+:Cs]
+
+
+
+
+
+
+
+
 
 
 end #ends module

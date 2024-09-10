@@ -1335,7 +1335,7 @@ function dos(bs::bandstructure; smearing=0.03, npts=missing, proj_type=missing, 
     
 end
 
-function compare_dos_dft(tbc::tb_crys, dft::dftout, smearing = 0.03, do_display=true, align=:vbm)
+function compare_dos_dft(tbc::tb_crys, dft::dftout; smearing = 0.03, do_display=true, align=:vbm)
 
     grid = dft.bandstruct.kgrid
     energies_dft, dos_dft = dos(dft, do_display=false, align=align)

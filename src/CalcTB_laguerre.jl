@@ -3500,7 +3500,7 @@ Where
 - `dmin_types` - shortest 3body distances
 """
 
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing, use_eam=false)
 
     #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
     #    println(reference_tbc.crys)

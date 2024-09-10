@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, isolated = false)
 """
 Run SCF calculation using QE
 """
@@ -98,8 +98,11 @@ Run SCF calculation using QE
         try
             savedir="$tmpdir/$prefix.save"
             qeout = loadXML(savedir)
-            println("skip: we loaded SCF data instead of rerunning")
-            return qeout
+            
+            if !ismissing(qeout)
+                println("skip: we loaded SCF data instead of rerunning")
+                return qeout
+            end
         catch
             println("skipping failed, continue scf calculation")
         end
@@ -126,7 +129,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, isolated=isolated)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -151,9 +154,9 @@ Run SCF calculation using QE
     end
 
     if ret != 0 && updated == false
-        println("failed DFT, trying with different mixing")
+        println("failed DFT, trying with different mixing 0.1")
         #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
-        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep)
+        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="local-TF", mix=0.1, mixing_ndim = 4, grid=grid, klines=klines, nstep=nstep, isolated=isolated)
         
 
         f = open(directory*"/"*inputstr, "w")
@@ -163,8 +166,24 @@ Run SCF calculation using QE
         ret = run_pwscf(inputstr, outputstr, nprocs, directory, use_backup)    
 
         if ret != 0
-            println("warning, run_pwscf threw an error again: $ret")
-            error("runSCF")
+#            println("warning, run_pwscf threw an error again: $ret")
+            #            error("runSCF")
+
+            println("failed DFT, trying with different mixing 0.5")
+            #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
+            tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="local-TF", mix=0.5, mixing_ndim = 3, grid=grid, klines=klines, nstep=nstep, isolated=isolated)
+            
+
+            f = open(directory*"/"*inputstr, "w")
+            write(f, inputfile)
+            close(f)
+
+            ret = run_pwscf(inputstr, outputstr, nprocs, directory, use_backup)    
+
+            if ret != 0
+                println("failed DFT")
+            end
+            
         end
        
     end
@@ -228,7 +247,7 @@ end
 Make QE inputfile for SCF DFT calculation.
 """
 
-function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing)
+function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", mix = 0.3, mixing_ndim=8, grid=missing, klines = missing, nstep=30, startingpot=missing, isolated=false)
 """
 Make inputfile for SCF calculation
 """
@@ -252,6 +271,8 @@ Make inputfile for SCF calculation
     temp = replace(temp, "SCF" => c)
 
     temp = replace(temp, "MIXING" => mixing)
+    temp = replace(temp, "MIX_BETA" => mix)
+    temp = replace(temp, "MIX_NDIM" => mixing_ndim)
 
     if !ismissing(startingpot) && startingpot == "file"
         temp = replace(temp, "STARTATOMIC" => startingpot)
@@ -263,7 +284,8 @@ Make inputfile for SCF calculation
         temp = replace(temp, "nosym = false" => "nosym = true")
         temp = replace(temp, "noinv = false" => "noinv = true")
     end
-        
+
+    
     
     settypes = []
     for t in crys.types
@@ -460,7 +482,11 @@ Make inputfile for SCF calculation
             other *= "  starting_magnetization( $c ) = 0.7 \n"
         end
     end
-                             
+
+    if isolated
+        other *= " assume_isolated = 'mp' \n"
+    end
+    
     temp = replace(temp, "JULIAOTHER" => other)
 
     st_free = "cell_dofree = 'all'"
@@ -753,7 +779,7 @@ using ..CrystalMod:crystal
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, isolated = false)
     
     nprocs = max(nprocs, procs)
 
@@ -772,11 +798,11 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         end
         qeout = missing
         try
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, isolated)
             return qeout
         catch
             println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, isolated)
             return qeout
 
         end

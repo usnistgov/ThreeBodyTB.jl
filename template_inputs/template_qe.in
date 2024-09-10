@@ -35,9 +35,10 @@
 &electrons
     diagonalization='david'
     mixing_mode = 'MIXING'
-    mixing_beta = 0.3
-    conv_thr = 1d-9
+    mixing_beta = MIX_BETA
+    conv_thr = 1d-6
     startingpot = 'STARTATOMIC'
+    mixing_ndim = MIX_NDIM
  /
 &ions
   ion_dynamics='bfgs',

@@ -11,6 +11,7 @@ using ..Atomdata:atoms
 using ..Atomdata:atom_radius
 using ..Atomdata:cutoff_dist
 using ..Atomdata:charge_cell_missing_atom_correction
+using ..Atomdata:iupac_ordering
 using GZip
 
 using ..ThreeBodyTB:global_length_units
@@ -2348,6 +2349,25 @@ function generate_crystal_from_subsets(crys::crystal, subsets)
     return C
     
 end
+
+function get_formula(crys::crystal)
+
+    atoms = Set(crys.stypes)
+    ad = Dict()
+    for a in atoms
+        ad[a] = sum(crys.stypes .== a)
+    end
+    st = ""
+    for i in reverse(iupac_ordering)
+        if i in keys(ad)
+            st *= "$i$(ad[i])"
+        end
+    end
+    return st
+    
+    
+end
+
 
 end #end module
 
