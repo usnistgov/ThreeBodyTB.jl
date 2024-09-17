@@ -79,7 +79,7 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
         accept = []
 #        reject = []
         
-        for atom = atoms
+        @time for atom = atoms
 #            atom_step = ((rand(1,3) .- 0.5)*step_size ) * Ainv
 #            c_work.coords[atom, :] += atom_step[:]
 #            println("atom $atom --------------------------------------------------------------------- $en")
