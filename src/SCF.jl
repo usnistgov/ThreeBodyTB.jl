@@ -572,7 +572,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             push!(rho_in, e_denA)
 #            println("iter $iter add rho_in $(length(rho_in))")            
             #println("calc_energy")
-@time             if use_sym
+             if use_sym
 #                println("hk3 ", size(hk3), " " , typeof(hk3))
 #                println("sk3 ", size(sk3), " " , typeof(sk3))
 #                println("nelec ", tbc.nelec)

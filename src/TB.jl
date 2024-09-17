@@ -4494,8 +4494,8 @@ end
 
 function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
 
-    println("begin")
-    @time begin
+    #println("begin")
+    begin
         thetype=typeof(real(sk3[1,1,1,1,1]))
 
         #     println("size ", size(hk3))
@@ -4568,13 +4568,13 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
     end
 
 
-    println("go eig time")
-    @time go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
+    #println("go eig time")
+    go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
     
-    @time begin
+    begin
 
         if nelec > 1e-10
 #            println("VALS ", VALS[1,:,1])
@@ -4605,8 +4605,8 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
 
     #println("nelec $nelec")
 
-    println("chargeden")
-    @time if nelec > 1e-10
+    #println("chargeden")
+    if nelec > 1e-10
         chargeden = go_charge15_sym(VECTS, SK, occ, nspin, max_occ, rDEN, iDEN, rv, iv, nk_red,grid_ind, kweights)
     else
         chargeden = zeros(nspin, nwan)
@@ -4712,11 +4712,13 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
         vects = zeros(Complex{Float64}, size(h1)[1], size(h1)[1], max_num)
 
     
-#    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
-    #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
+    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
-    println("blah")
-    @time  for c = 1:nk_red #@inbounds @fastmath @threads
+
+
+    #println("blah")
+    @time @inbounds @fastmath  for c = 1:nk_red #@inbounds @fastmath @threads
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
         
@@ -4745,10 +4747,13 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
             
-            @time try
-                #hermH[:,:] = (@view hk[:,:,id][:,:])
-                #hermS[:,:] = (@view sk[:,:,id][:,:])
-                vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
+            try
+            #    println("a")
+                hermH .= Hermitian( hk[:,:,id][:,:])
+                hermS .= Hermitian( sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
+
+                #vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
 #                if c == 1
 #                    println()
 #                    println("hk ")
@@ -4769,7 +4774,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 error_flag = true
             end
             
-            @time begin
+            
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
             
@@ -4779,7 +4784,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #                println()
 #            end
             VECTS[:,:, c, spin] .= vects[:,:,id]
-            end            
+            
         end
     end
 
