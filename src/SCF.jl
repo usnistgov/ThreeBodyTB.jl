@@ -572,13 +572,13 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             push!(rho_in, e_denA)
 #            println("iter $iter add rho_in $(length(rho_in))")            
             #println("calc_energy")
-            if use_sym
+@time             if use_sym
 #                println("hk3 ", size(hk3), " " , typeof(hk3))
 #                println("sk3 ", size(sk3), " " , typeof(sk3))
 #                println("nelec ", tbc.nelec)
 
                 
-                energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
+               energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
 
 #                push!(DenMat, denmat)
 #                push!(HK, hk)
