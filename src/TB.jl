@@ -4633,7 +4633,7 @@ function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))                                                                                          
 
 
-    @inbounds @fastmath @threads for c = 1:nk_red
+    @time @inbounds @fastmath @threads for c = 1:nk_red
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
 
@@ -4715,8 +4715,8 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
-    
-    @inbounds @fastmath @threads for c = 1:nk_red
+    println("blah")
+    @time  for c = 1:nk_red #@inbounds @fastmath @threads
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
         
@@ -4745,7 +4745,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
             
-            try
+            @time try
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
                 vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
@@ -4769,6 +4769,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 error_flag = true
             end
             
+            @time begin
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
             
@@ -4778,7 +4779,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #                println()
 #            end
             VECTS[:,:, c, spin] .= vects[:,:,id]
-            
+            end            
         end
     end
 
