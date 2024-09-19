@@ -153,6 +153,7 @@ mutable struct atom
     eigs::Dict
     energy_offset::Float64
     U::Float64
+    U3::Float64
     efermi::Float64
 end
 
@@ -180,7 +181,7 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0)
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0,U3=0.0)
     #vac potential in ryd
 
     orb2 = map(x->convert(Symbol, x), orbitals)
@@ -286,7 +287,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
     
     
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, efermi)
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, U3,efermi)
     
 end
     
