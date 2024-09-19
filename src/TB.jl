@@ -4568,7 +4568,7 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
     end
 
 
-    #println("go eig time")
+#    println("go eig time")
     go_eig_sym(grid, nspin,nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin, SK, nk_red,grid_ind)
 
 #    println("VALS ", VALS)
@@ -4715,10 +4715,10 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
     hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
+    s5 = zeros(Complex{Float64}, size(h1)[1], size(h1)[1])
 
-
-    #println("blah")
-    @time @inbounds @fastmath  for c = 1:nk_red #@inbounds @fastmath @threads
+#    println("blah")
+    @inbounds @fastmath  for c = 1:nk_red #@inbounds @fastmath @threads
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
         
@@ -4735,24 +4735,40 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
         SK[:,:,c] .= sk
         =#
         
+        #for spin = []
         for spin = 1:nspin
             spin_ind = min(spin, nspin_ham)
             
             #            hk0[:,:,id] .= ( (@view hk3[:,:,spin_ind, k1,k2,k3]) )
             #            hk0[:,:,id] = 0.5*(hk0[:,:,id]+hk0[:,:,id]')
             #            hk = hk0  .+ 0.5*sk .* (h1 + h1spin[spin,:,:] + h1' + h1spin[spin,:,:]')
-            
-            hk[:,:, id] .= ( hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + ( h1spin[spin,:,:] ))
 
+            hk[:,:, id] .= ( hk3[:,:,spin_ind, k1,k2,k3])  .+ sk[:,:,id] .* (h1 + ( h1spin[spin,:,:] ))
 #            HK[spin, :,:,c] = hk[:,:, id]
             #hk[:,:,id] .= 0.5*( (@view hk[:,:,id]) .+ (@view hk[:,:,id])')
             
             try
             #    println("a")
+
                 hermH .= Hermitian( hk[:,:,id][:,:])
                 hermS .= Hermitian( sk[:,:,id][:,:])
-                vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
+                vals[:,id], vects[:,:,id] = eigen( hermH, hermS)  #uncomment asdf
+                #vals[:,id], vects[:,:,id] = eigen( hermH)
+                #vals[:,id], vects[:,:,id] = eigen( Hermitian(hk[:,:,id][:,:]), Hermitian(sk[:,:,id][:,:]) )  #uncomment asdf
 
+#                hermH .= Hermitian( hk[:,:,id][:,:])
+#                hermS .= Hermitian( sk[:,:,id][:,:])
+                #println("a")
+#                s5 .= sk[:,:,id][:,:]^-0.5;
+#                vals[:,id], vects[:,:,id] = eigen(s5*hk[:,:,id][:,:]*s5);
+#                vects[:,:,id] = s5*vects[:,:,id]
+
+                #@time vectsT = s5*vectsT
+#                @time vals[:,id] = valsT
+#                @time vects[:,:,id] = vectsT
+                
+#                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:] )  #uncomment asdf
+                
                 #vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
 #                if c == 1
 #                    println()
@@ -4767,6 +4783,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 typeof(err) == InterruptException && rethrow(err)
                 vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
             end
+#            if false            
             
             if maximum(abs.(imag.(vals))) > 1e-10
                 println("$k1 $k2 $k3 WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
@@ -4774,7 +4791,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 error_flag = true
             end
             
-            
+
             VALS[c,:, spin] .= real.(vals[:,id])
             #            VALS0[c,:, spin] .= real.(diag(vects'*hk0[:,:,id]*vects))
             
@@ -4784,7 +4801,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #                println()
 #            end
             VECTS[:,:, c, spin] .= vects[:,:,id]
-            
+#            end            
         end
     end
 

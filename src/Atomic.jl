@@ -139,7 +139,7 @@ Hold basic atomic information
 - `U::Float64` U value for Ewald correction
 
 """
-struct atom
+mutable struct atom
     name::String
     Z::Int64
     row::Float64
