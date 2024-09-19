@@ -65,6 +65,7 @@ mutable struct tb_crys_sparse{T} <: tb_crys
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
+    u3::Array{T, 1}
     background_charge_correction::T
     eden::Array{Float64,2}
     within_fit::Bool
@@ -146,7 +147,7 @@ function make_tb_crys_sparse
 
 Constructor function for `tb_crys_sparse`.
 """
-function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing,u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -170,11 +171,11 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
     #println("gamma")
     if ismissing(gamma) 
         #        println("ismissing gamma")
-        gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 
     nspin = ham.nspin
-    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
 function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )

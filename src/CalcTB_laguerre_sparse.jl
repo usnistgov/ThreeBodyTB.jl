@@ -210,7 +210,7 @@ end
 
 Main sparse matrix tight binding Hamiltonian calculator.
 """
-function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
+function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
 
 
     #        verbose=true
@@ -932,7 +932,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
             scf = false
         end
         #println("make")
-        tbc = make_tb_crys_sparse(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys_sparse(tb, crys, nval, 0.0, scf=scf, gamma=gamma, u3=u3,background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
         tbc.tot_charge = tot_charge
         tbc.nelec = tbc.nelec - tot_charge
     end

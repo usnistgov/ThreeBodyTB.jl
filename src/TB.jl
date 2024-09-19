@@ -164,6 +164,7 @@ mutable struct tb_crys_dense{T} <: tb_crys
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
+    u3::Array{T, 1}
     background_charge_correction::T
     eden::Array{Float64,2}
     within_fit::Bool
@@ -286,6 +287,7 @@ mutable struct tb_crys_kspace{T}
     dftenergy::Float64
     scf::Bool
     gamma::Array{T, 2}
+    u3::Array{T,1}
     background_charge_correction::T
     eden::Array{Float64,2}
     energy::Float64
@@ -536,7 +538,7 @@ function read_tb_crys(filename; directory=missing, sparse=false)
         tb = make_tb(H, ind_arr, r_dict, h1=h1, h1spin=h1spin)
     end    
     
-    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi)
+    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=missing, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi)
 
     if sparse
         tbc = convert_sparse_dense(tbc)
@@ -1015,7 +1017,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -1039,7 +1041,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #println("gamma")
     if ismissing(gamma) 
         #        println("ismissing gamma")
-        gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 
     nspin = ham.nspin
@@ -1050,7 +1052,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
     
-    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
 """
@@ -1058,7 +1060,7 @@ end
 
     Constructor function for `tb_crys_kspace` object
     """
-function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, screening=1.0)
+function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing,background_charge_correction=0.0, screening=1.0)
 
     nspin = hamk.nspin
     
@@ -1081,7 +1083,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     end
     
     if ismissing(gamma) 
-        gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
     
     #    println(hamk)
@@ -1094,7 +1096,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     #    println(eden)
     #    println(size(gamma))
     #    println(size(eden))
-    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0)
+    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,u3,background_charge_correction,  eden, -999.0)
 end
 
 
@@ -3986,12 +3988,13 @@ function ewald_energy(tbc::tb_crys, delta_q=missing)
     background_charge_correction = tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
-
+    u3 = tbc.u3
+    
     if ismissing(delta_q)
         delta_q =  get_dq(crys , tbc.eden)
     end
 
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
+    return ewald_energy(crys, gamma, background_charge_correction, delta_q, u3)
 
 end
 
@@ -4008,7 +4011,7 @@ function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
         delta_q =  get_dq(crys , sum(tbc.eden, dims=1))
     end
     #     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
+    return ewald_energy(crys, gamma, background_charge_correction, delta_q, tbc.u3)
 
 end
 
@@ -4017,7 +4020,7 @@ end
 
      Does the actual calculation.
      """
-function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1})
+function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1},u3)
 
     T = typeof(crys.coords[1,1])
     pot = zeros(T, crys.nat, crys.nat)
@@ -4031,6 +4034,11 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
 
     energy = 0.5*sum(pot)
     energy += background_charge_correction * sum(delta_q)^2
+
+    for i = 1:crys.nat
+        energy += 1.0/3.0 * u3[i] * delta_q[i]^3
+    end
+    
     #println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
@@ -4249,6 +4257,10 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
     
 
     gamma = tbc.gamma
+    u3 = tbc.u3
+
+    println("u3 $u3")
+    println("gamma $gamma")    
     
     epsilon = gamma * dq
 
@@ -4272,7 +4284,29 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
         o1 += nw1
     end
 
-    return 0.5*(h1 + h1')
+    h1 = 0.5*(h1 + h1')
+    o1 = 1
+    for i = 1:tbc.crys.nat
+        at1 = atoms[tbc.crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:tbc.crys.nat
+            at2 = atoms[tbc.crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+                    println("i $i j $j size $(size(dq)) $(size(u3))")
+                    h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
+                end
+            end
+            o2 += nw2
+        end
+        o1 += nw1
+    end
+
+    
+    
+    return h1
 
 end
 
@@ -4292,7 +4326,8 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
     dq = get_dq(tbc.crys, chargeden)
 
     gamma = tbc.gamma
-
+    u3 = tbc.u3
+    
     epsilon = gamma * dq
 
     h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
@@ -4315,6 +4350,27 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
         o1 += nw1
     end
 
+    h1 = 0.5*(h1 + h1')
+    o1 = 1
+    for i = 1:tbc.crys.nat
+        at1 = atoms[tbc.crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:tbc.crys.nat
+            at2 = atoms[tbc.crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+                    h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
+                end
+            end
+            o2 += nw2
+        end
+        o1 += nw1
+    end
+
+
+    
     return 0.5*(h1 + h1'), dq
 
 end

@@ -44,6 +44,17 @@ function getU(types)
 
 end
 
+function getU3(types)
+
+    U3 = zeros(length(types))
+    for (c,t) in enumerate(types)
+        U3[c] = atoms[t].U3
+    end
+
+    return U3
+
+end
+
 """
     function get_onsite(crys::crystal, U::Array{Float64,1})
 
@@ -199,10 +210,14 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     end
 
     #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
-    
+
+
+    #onsite only U3
+    U3 = zeros(T, crys.nat)
+    U3 .= getU3(crys.stypes)
     
     #   return gamma_tot, background_charge_correction
-    return gamma_tot, background_charge_correction
+    return gamma_tot, background_charge_correction, U3
 
 end
 
