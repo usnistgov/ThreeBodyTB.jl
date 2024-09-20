@@ -1082,9 +1082,9 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
         end
     end
     
-    if ismissing(gamma) 
-        gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
-    end
+    #if ismissing(gamma) 
+    gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+    #end
     
     #    println(hamk)
     #    println(crys)

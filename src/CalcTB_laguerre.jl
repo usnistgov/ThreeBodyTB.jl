@@ -1846,7 +1846,7 @@ electron density and Fermi level will be wrong.
 - `verbose=true` - set to false for less output.
 - `var_type=missing` - variable type of `tb_crys`. Default is `Float64`.
 """
-function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, u3=u3,background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
+function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, u3=missing,background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
 
     #    use_threebody= false
     #    use_threebody_onsite=false
