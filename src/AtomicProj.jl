@@ -1075,8 +1075,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     max_c = minimum(EIGS[:,end,:])
     min_c = max_c - 0.1
 
-
-
+    
+    
     min_c = max(maximum(EIGS[:,1:nwan,:])+.001, min_c) #ensure we don't cut off needed states
 
 

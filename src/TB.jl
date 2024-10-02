@@ -4219,7 +4219,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
         e_den = e_den * 2.0
     end
 
-    
+    println("z_ion $z_ion e_den $e_den")
     dq = -z_ion + e_den
 
     #dq = dq .- sum(dq)/crys.nat #charge sum rule
@@ -4275,7 +4275,7 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
             nw2 = Int64(at2.nwan/2)
             for c1 = o1:o1+nw1-1
                 for c2 = o2:o2+nw2-1
-                    h1[c1,c2] = 0.5 * (epsilon[i] + epsilon[j])
+                    h1[c1,c2] += 0.5 * (epsilon[i] + epsilon[j])
                 end
             end
             o2 += nw2
@@ -4295,7 +4295,7 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
             nw2 = Int64(at2.nwan/2)
             for c1 = o1:o1+nw1-1
                 for c2 = o2:o2+nw2-1
-                    println("i $i j $j size $(size(dq)) $(size(u3))")
+#                    println("i $i j $j size $(size(dq)) $(size(u3))")
                     h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
                 end
             end
@@ -4306,7 +4306,7 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
 
     
     
-    return h1
+    return h1  ###xxxyyy
 
 end
 
@@ -4371,7 +4371,7 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
 
 
     
-    return 0.5*(h1 + h1'), dq
+    return  0.5*(h1 + h1'), dq  
 
 end
 

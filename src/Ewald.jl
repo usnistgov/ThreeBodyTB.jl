@@ -177,7 +177,8 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #rydberg units
     e2 = 2.0
 
-    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
+    #    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
+    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU      #xxyy
 
 
     
