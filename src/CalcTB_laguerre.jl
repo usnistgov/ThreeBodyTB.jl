@@ -102,7 +102,7 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
-EXP_a = [3.0]
+EXP_a = [2.5]
 
 using ..CrystalMod:cutoff2X
 using ..CrystalMod:cutoff3bX

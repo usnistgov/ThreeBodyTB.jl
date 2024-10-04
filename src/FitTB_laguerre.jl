@@ -1672,8 +1672,10 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
         returndatabase=true
         f(cs_start)
         returndatabase=false
-        ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 200, iterations = 60)
-        #ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 20, iterations = 2)
+    #ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 200, iterations = 60)
+        algo = Optim.NelderMead(initial_simplex=Optim.AffineSimplexer(a=0.05, b = 0.01))
+        opt = Optim.Options( f_tol = 1e-3, f_calls_limit = 20, iterations = 60)
+        ret = Optim.optimize(f, cs_start, algo,  opt)
         returndatabase=true
         println("err_min $err_min")
         println("cs_min $cs_min")
