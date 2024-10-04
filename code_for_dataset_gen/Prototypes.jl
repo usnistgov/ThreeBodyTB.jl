@@ -223,6 +223,8 @@ function setup_proto_data()
 
     CalcD["bcc_tet"] = ["$STRUCTDIR/bcc_tet.in", "vc-relax", "all", "scf", "nscf", false]
 
+    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "none", "relax", "scf", "nscf", false]
+
     CalcD["trimer"] =       ["$STRUCTDIR/atom_small.in", "none", "2Dxy", "coords_trimer", "nscf", false]
     CalcD["trimerX"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerX", "scf", false]
     CalcD["trimerY"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerY", "scf", false]
