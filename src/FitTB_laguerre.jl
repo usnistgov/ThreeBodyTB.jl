@@ -1653,7 +1653,7 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
             ch = ch_new
             println("cs_f ", cs_f)
             println("error_current $error_current")
-            weight = repeat([1.0, 1.0, 1.0, 10.0, 100.0, 1000.0]*1e-3, 6)[1:length(cs_f)]
+            weight = repeat([1.0, 1.0, 1.0, 10.0, 100.0, 1000.0]*1e-3, 10)[1:length(cs_f)]
             err = error_current + sum(cs_f.^2 .* weight) #very light regularization
             if err < err_min
                 cs_min = cs_f
@@ -1672,7 +1672,7 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
         returndatabase=true
         f(cs_start)
         returndatabase=false
-        ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 150, iterations = 45)
+        ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 200, iterations = 60)
         #ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 20, iterations = 2)
         returndatabase=true
         println("err_min $err_min")
