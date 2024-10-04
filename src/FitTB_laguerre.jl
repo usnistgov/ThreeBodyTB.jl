@@ -1601,8 +1601,8 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
 
     DATABASE = []
     ERROR = []
-    for a in a_list
-        EXP_a[1] = a
+#    for a in a_list
+#        EXP_a[1] = a
     
         #    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
         
@@ -1684,16 +1684,17 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
         println(Optim.minimizer(ret))
 
     
-        push!(DATABASE, deepcopy(database))
-        push!(ERROR, err_min)
-    end
+#        push!(DATABASE, deepcopy(database))
+#        push!(ERROR, err_min)
+#    end
 
     #end
 
 #    ret = f(cs)
 #    println("ret $ret")
     
-    return DATABASE, ERROR
+    #    return DATABASE, ERROR
+    return database
     
     #return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
 
