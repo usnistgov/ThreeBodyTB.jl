@@ -102,7 +102,7 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
-
+EXP_a = [3.0]
 
 using ..CrystalMod:cutoff2X
 using ..CrystalMod:cutoff3bX
@@ -3956,7 +3956,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             end
 
             if dist > 1e-5
-                ad = 2.0*dist
+                ad = EXP_a[1]*dist
                 expa=exp.(-0.5*ad)
             
                 rho[a1, 1] += (1.0 * expa) * cut
@@ -4586,7 +4586,7 @@ function calc_onsite(t1,s1,s2, database=missing)
     
 end
 
-function laguerre_fast!(dist, memory; a = 2.0)
+function laguerre_fast!(dist, memory; a = EXP_a[1])
 
 #    a=2.0
     ad = a*dist
@@ -4604,7 +4604,8 @@ end
 
 function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory)
 
-    a=2.0
+    #a=2.0
+    a=EXP_a[1]
 
     ad_0 = a*dist_0
     expa_0 =exp.(-0.5*ad_0) #* 10.0
@@ -4646,7 +4647,8 @@ end
 
 function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memory)
 
-    a=2.0
+    #a=2.0
+    a=EXP_a[1]
 
     ad_0 = a*dist_b
     expa_0 =exp.(-0.5*ad_0) #* 10.0
@@ -4682,7 +4684,8 @@ Calculate laguerre polynomials up to order `nmax`
 """
 function laguerre(dist, ind=missing; nmax=6, memory=missing)
 
-    a=2.0
+    #    a=2.0
+    a=EXP_a[1]
 
 
 #    a=3.0

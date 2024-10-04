@@ -8,7 +8,7 @@ using Plots
 #using JLD
 using LinearAlgebra
 #using Statistics
-#using Optim
+using Optim
 using Random
 #using Calculus
 using DelimitedFiles
@@ -52,6 +52,7 @@ using Suppressor
 using ..AtomicProj:projwfc_workf
 using ..SCF:remove_scf_from_tbc
 
+using ..CalcTB:EXP_a
 #using ..CrystalMod:orbital_index
 
 #using ..TB:get_grid
@@ -1428,7 +1429,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing)
 
     if !ismissing(dft_list)
         println("top")
@@ -1531,7 +1532,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, cs_start = cs_start)
 
 end
 
@@ -1588,7 +1589,7 @@ function do_fitting_recursive_factor(list_of_tbcs ; weights_list = missing, dft_
 end
 
 
-function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false)
+function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, cs_start = missing, a_list = [2.0])
 
     if !ismissing(dft_list)
         println("top")
@@ -1598,54 +1599,101 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
     end
 
-
+    DATABASE = []
+    ERROR = []
+    for a in a_list
+        EXP_a[1] = a
     
-#    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
-    
-    if ismissing(prepare_data)
-        println("DO LINEAR FITTING")
+        #    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
+        
+        if ismissing(prepare_data)
+            println("DO LINEAR FITTING")
 
-        if update_all == true
-            starting_database_t = missing #keep all
+            if update_all == true
+                starting_database_t = missing #keep all
+            else
+                starting_database_t = starting_database
+            end
+
+            pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database)
         else
-            starting_database_t = starting_database
+            println("SKIP LINEAR MISSING")
+            pd = prepare_data
+            #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
         end
 
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database)
-    else
-        println("SKIP LINEAR MISSING")
-        pd = prepare_data
-#        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
-    end
+#        DATABASE = []
+        #for factor = 0.1:0.1:1.1
+        #for factor = [0.5]
 
-    DATABASE = []
-    #for factor = 0.1:0.1:1.1
-    #for factor = [0.5]
+        database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds     = pd
 
-    database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds     = pd
+        returnstuff = true
 
-    function f(cs_f)
-        cs_temp = cs_f
+        topstuff = top(list_of_tbcs, pd, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
 
-        #i don't think these matter...
-        Y_S_temp = Y_S 
-        Y_Snew_BIG_temp = Y_Snew_BIG
 
-        #Y_Snew_BIG_temp = X_Snew_BIG * cs_f
-        YS_new_temp = X_Snew_BIG * cs_f
-        #YS_new_temp = YS_new 
-        pd_temp = database, ch, cs_temp, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S_temp, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG_temp, YS_new_temp, cs_temp , ch_refit, SPIN, threebody_inds   
-        database, ch_new, error_current = do_fitting_recursive_main(list_of_tbcs, pd_temp; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, returnstuff=true)
-        ch = ch_new
-        return error_current
-    end
+
+        function f(cs_f)
+            cs_temp = cs_f
+
+            #i don't think these matter...
+            Y_S_temp = Y_S 
+            Y_Snew_BIG_temp = Y_Snew_BIG
+
+            #Y_Snew_BIG_temp = X_Snew_BIG * cs_f
+            YS_new_temp = X_Snew_BIG * cs_f
+            #YS_new_temp = YS_new 
+            pd_temp = database, ch, cs_temp, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S_temp, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG_temp, YS_new_temp, cs_temp , ch_refit, SPIN, threebody_inds   
+            ch_new = missing
+            error_current = 0.0
+            @suppress begin
+                database, ch_new, error_current = do_fitting_recursive_main(list_of_tbcs, pd_temp; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, returnstuff=true, topstuff = missing, returndatabase=returndatabase)
+            end
+            ch = ch_new
+            println("cs_f ", cs_f)
+            println("error_current $error_current")
+            weight = repeat([1.0, 1.0, 1.0, 10.0, 100.0, 1000.0]*1e-3, 6)[1:length(cs_f)]
+            err = error_current + sum(cs_f.^2 .* weight) #very light regularization
+            if err < err_min
+                cs_min = cs_f
+                err_min = err
+            end
+            return  err
+        end
+
+        if ismissing(cs_start)
+            cs_start = cs
+        end
+        cs_min = cs_start
+        err_min = 10.0^15
+        
+        println("cs_start ", cs_start)
+        returndatabase=true
+        f(cs_start)
+        returndatabase=false
+        ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 150, iterations = 45)
+        #ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 20, iterations = 2)
+        returndatabase=true
+        println("err_min $err_min")
+        println("cs_min $cs_min")
+        f(cs_min)
+        println("ret")
+        println(ret)
+        println("Optim.minimizer(ret)")
+        println(Optim.minimizer(ret))
+
     
-    #push!(DATABASE, database)
+        push!(DATABASE, deepcopy(database))
+        push!(ERROR, err_min)
+    end
+
     #end
 
-    f(cs)
+#    ret = f(cs)
+#    println("ret $ret")
     
-    return database
+    return DATABASE, ERROR
     
     #return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs)
 
@@ -1653,13 +1701,10 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
 end
 
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false)
+function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
 
-
-#    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
-    
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
-
+    
     println("AAAAAAAA ch_lin ", ch_lin)
     
     println("keepind " , length(keepind), " " , sum(keepind))
@@ -1753,7 +1798,6 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     WEIGHTS     = zeros(NCALC,  nk_max, NWAN_MAX, SPIN_MAX)
     ENERGIES = zeros(NCALC)
 
-    Ys = Ys_new + Xc_Snew_BIG
     X_Snew_BIG = nothing
     Xc_Snew_BIG = nothing
 
@@ -2070,7 +2114,35 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     end
     println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
-#    return 
+
+    return ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0
+
+end
+
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing)
+
+    if ismissing(topstuff)
+        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0 = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
+    else
+        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
+    end
+
+
+
+    #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
+    
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
+
+    if !ismissing(cs_start)
+        cs = cs_start
+        cs_lin = cs_start
+        Ys_new = X_Snew_BIG * cs
+        println("use starting cs , $cs")
+        println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#        sleep(10)
+    end
+
+    Ys = Ys_new + Xc_Snew_BIG
     
     VALS_working = zeros(size(VALS))
     ENERGIES_working = zeros(size(ENERGIES))
@@ -2832,8 +2904,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println(good)
         println("make database")
 
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
-
+        if returndatabase == false
+            database =missing
+        else
+            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
+        end
+        
         return database, chX, current_error
 
     end
@@ -2848,12 +2924,16 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #    end            
 
     
-    if leave_one_out == false
+    if leave_one_out == false && returnstuff == false
         database, ch, current_error =  do_iters(ch, niters)
         println("return")
         return database
     elseif returnstuff == true
         database, ch, current_error =  do_iters(ch, niters)
+        println("returnstuff ")
+        println("database ", typeof(database))
+        println("ch ", typeof(ch))
+        println("current_error $current_error")
         return database, ch, current_error
     else
         database, ch =  do_iters(ch, min(niters,20)  )
