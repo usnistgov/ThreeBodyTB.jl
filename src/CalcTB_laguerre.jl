@@ -137,7 +137,7 @@ Hold the TB coefficients for 2body or 3body interactions
 - `dist_frontier::Dict` dictionary of pareto frontier of shortest fitting distances
 - `version::Int64` version number
 """
-struct coefs
+mutable struct coefs
 
     dim::Int64
     datH::Array{Float64,1}

@@ -397,10 +397,13 @@ Steps:
     nscfdir = "$directory/$prefix.nscf.save"
 
     
-    if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))
+    if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))  #change
 
         dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
 
+#        println("DO COPY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! kfg")
+#        cp("/home/kfg/codes/TB_run/optim/testing2/t.UPF" , "$nscfdir/h.pbesol.UPF", force=true)
+        
     else
         if (isdir(nscfdir))
             crys = dft.crys

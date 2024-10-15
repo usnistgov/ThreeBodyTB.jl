@@ -51,6 +51,7 @@ using ..TB:magnetic_energy
 using Suppressor
 using ..AtomicProj:projwfc_workf
 using ..SCF:remove_scf_from_tbc
+using ..SCF:convert_hk
 
 using ..CalcTB:EXP_a
 #using ..CrystalMod:orbital_index
@@ -704,7 +705,7 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, factor_dict = missing)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, factor_dict = missing, rind = missing)
 
     println("MODE $mode")
 
@@ -755,7 +756,9 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         if l > 3e6
             frac = 3e6 / l
             println("randsubseq $frac")
-            rind = randsubseq( 1:l, frac)
+            if ismissing(rind)
+                rind = randsubseq( 1:l, frac)
+            end
         else
             rind = 1:l
         end
@@ -857,7 +860,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
-    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
+    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds, rind
            
 
 end
@@ -1431,6 +1434,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 """
 function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing)
 
+    
     if !ismissing(dft_list)
         println("top")
         KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
@@ -1632,32 +1636,56 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
 
         topstuff = top(list_of_tbcs, pd, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
 
+    #=
+    function get_cs4(cs_big)
+        cs_small = zeros(Int64(length(cs_big)/6*4))
+        counter = 0
+        for i = 1:6:length(cs_big)
+            for j = 0:3
+                counter += 1
+                cs_small[counter] = cs_big[i+j]
+            end
+        end
+        return cs_small
+    end
 
-
+    function get_cs6(cs_small)
+        counter = 0
+        for i = 1:6:length(cs_ref)
+            for j = 0:3
+                counter += 1
+                cs_ref[i+j] = cs_small[counter]
+            end
+        end
+    end
+    =#
+    
         function f(cs_f)
-            cs_temp = cs_f
-
+            #cs_temp = cs_f
+            #get_cs6(cs_f)
             #i don't think these matter...
             Y_S_temp = Y_S 
             Y_Snew_BIG_temp = Y_Snew_BIG
 
-            #Y_Snew_BIG_temp = X_Snew_BIG * cs_f
+            Y_Snew_BIG_temp = X_Snew_BIG * cs_f
             YS_new_temp = X_Snew_BIG * cs_f
             #YS_new_temp = YS_new 
-            pd_temp = database, ch, cs_temp, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S_temp, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG_temp, YS_new_temp, cs_temp , ch_refit, SPIN, threebody_inds   
+            pd_temp = database, ch, cs_f, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S_temp, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG_temp, YS_new_temp, cs_f , ch_refit, SPIN, threebody_inds   
             ch_new = missing
             error_current = 0.0
             @suppress begin
                 database, ch_new, error_current = do_fitting_recursive_main(list_of_tbcs, pd_temp; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, returnstuff=true, topstuff = missing, returndatabase=returndatabase)
             end
-            ch = ch_new
-            println("cs_f ", cs_f)
+
+            println("cs_r ", cs_f)
             println("error_current $error_current")
-            weight = repeat([1.0, 1.0, 1.0, 10.0, 100.0, 1000.0]*1e-3, 10)[1:length(cs_f)]
-            err = error_current + sum(cs_f.^2 .* weight) #very light regularization
+            #weight = repeat([1.0, 1.0, 1.0, 10.0, 100.0, 1000.0]*1e-9, 10)[1:length(cs_f)]
+            err = error_current #+ sum(cs_f.^2 .* weight) #very light regularization
             if err < err_min
-                cs_min = cs_f
+                ch = ch_new
+                cs_min = deepcopy(cs_f)
                 err_min = err
+                println("update min $err_min $error_current  $cs_min")
             end
             return  err
         end
@@ -1665,21 +1693,38 @@ function do_fitting_recursive_optim(list_of_tbcs ; weights_list = missing, dft_l
         if ismissing(cs_start)
             cs_start = cs
         end
-        cs_min = cs_start
-        err_min = 10.0^15
-        
+    cs_min = deepcopy(cs_start)
+#    cs_ref = deepcopy(cs_start)
+#    cs4 = get_cs4(cs_ref)
+    err_min = 10.0^15
+
+
+    
         println("cs_start ", cs_start)
         returndatabase=true
-        f(cs_start)
+    println("f start 1")
+    f(cs_start)
+    println("f start 2")    
+        f(cs_start)    
+    println("f start 3")    
+        f(cs_start)    
+    println("f start 4")    
+        f(cs_start)    
         returndatabase=false
     #ret = Optim.optimize(f, cs_start,  f_tol = 1e-3, f_calls_limit = 200, iterations = 60)
-        algo = Optim.NelderMead(initial_simplex=Optim.AffineSimplexer(a=0.05, b = 0.01))
-        opt = Optim.Options( f_tol = 1e-3, f_calls_limit = 20, iterations = 60)
-        ret = Optim.optimize(f, cs_start, algo,  opt)
+        algo = Optim.NelderMead(initial_simplex=Optim.AffineSimplexer(a=0.05, b = 0.03))
+        opt = Optim.Options( f_tol = 1e-3, f_calls_limit = 300, iterations = 50)
+    ret = Optim.optimize(f, cs_start, algo,  opt)
+    #ret = Optim.optimize(f, cs4, algo,  opt)
         returndatabase=true
         println("err_min $err_min")
         println("cs_min $cs_min")
-        f(cs_min)
+    #cs_min = deepcopy(cs_min)
+    #cs4 = get_cs4(cs_ref)
+    println("final 1")
+    f(cs_min)
+    println("final 2")    
+    f(cs_min)
         println("ret")
         println(ret)
         println("Optim.minimizer(ret)")
@@ -2124,13 +2169,16 @@ end
 
 function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing)
 
+    println("MAIN")
+    sleep(10)
+    
     if ismissing(topstuff)
         ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0 = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
     else
         ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
     end
 
-
+    ks_weight_input = ks_weight
 
     #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
@@ -2773,7 +2821,16 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     TOTX = [X_H*rs_weight;TOTX]
                     TOTY = [Y_H*rs_weight;TOTY]
                 end            
-                if ks_weight > 1e-5
+
+                if iters == 4
+                    ks_weight = ks_weight_input
+                end
+                
+                if ks_weight > 1e-5 || iters <= 3
+
+                    if iters <=3 && ks_weight < 0.1
+                        ks_weight = 0.1
+                    end
 
                     l = length(Y_Hnew_BIG[:,1]) #randomly sample Hk to keep size reasonable
                     if l > 5e5
@@ -2821,7 +2878,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             println("fit")
             @time ch_new = TOTX \ TOTY
+            println("err XXXXXXXXXXXX ", sum(abs.(TOTX*ch_new - TOTY)) , " " , sum(abs.(NEWX*ch_new - NEWY)))
 
+            #println([TOTX*ch_new    TOTY ])
+            println()
             #println("ch_new ", ch_new)
             #            println("new errors")
             if true
@@ -2835,10 +2895,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                        println([ ch_old[i] , ch_new[i], ch_old[i] - ch_new[i]], " !!!! ")
 #                    end
  #               end
+
+#                mix = 0.01
                 chX = (ch_old * (1-mix) + ch_new * (mix) )
                 
 #                error_new_rs  = sum((X_H * chX .- Y_H).^2)
-                error_new_energy  = sum((NEWX * chX .- NEWY).^2)
+                error_new_energy  = sum(abs.(NEWX * chX .- NEWY))
                 current_error = error_new_energy
 #                error_new = error_new_rs + error_new_energy
                 
@@ -5622,6 +5684,81 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
     return NEWX, NEWY, energy_counter
 
 end
+
+
+function do_fitting_optim(atom1, atom2, list_of_tbcs, dft_list; fit_threebody=false, fit_threebody_onsite=false)
+
+    database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds = do_fitting_linear(list_of_tbcs; dft_list = dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = false)
+
+
+    l = length(Y_Hnew_BIG[:,1]) #randomly sample Hk to keep size reasonable
+    
+    if l > 3e6
+        frac = 3e6 / l
+        println("randsubseq $frac")
+        if ismissing(rind)
+            rind = randsubseq( 1:l, frac)
+        end
+    else
+        rind = 1:l
+    end
+
+    cs_start = database[(Symbol(atom1), Symbol(atom2))].datS / 10.0
+    cs_min = deepcopy(cs_start)
+    database_min = deepcopy(database)
+
+    err_min = 10.0^20
+
+    return_database=false
+    function f(cs_in)
+        err = 0.0
+        x = Dict()
+        printmin=false
+        @suppress begin
+            database[(Symbol(atom1), Symbol(atom2))].datS = cs_in
+            tbc_list_new = []
+            for tb in list_of_tbcs
+                push!(tbc_list_new, convert_hk(tb, database))
+            end
+            x, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds = do_fitting_linear(tbc_list_new; dft_list = dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = false, rind = rind, return_database=return_database)
+            if return_database
+                database_min = deepcopy(x)
+            end
+            
+            err =  sum( (X_Hnew_BIG*ch  -  Float64.(Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)).^2)
+
+            if err < err_min
+                err_min = err
+                cs_min = deepcopy(cs_in)
+                printmin=true
+            end
+        end
+        if printmin
+            println("MIN $err cs $cs_in")
+        end
+        println("err $err cs $cs_in")
+        return err
+        
+    end
+    println("cs_start , $cs_start")
+    return_database=false
+    println("err start1 ", f(cs_start))
+    return_database=true
+    println("err start2 ", f(cs_start))
+    return_database=false
+            
+    algo = Optim.NelderMead(initial_simplex=Optim.AffineSimplexer(a=0.5, b = 0.1))
+    opt = Optim.Options( f_tol = 1e-3, f_calls_limit = 600, iterations = 200)
+    ret = Optim.optimize(f, cs_start, algo,  opt)
+
+    return_database=true
+    println("err_min $err_min err final ", f(cs_min))
+    println("cs_min , $cs_min")
+    return database_min
+
+end
+                  
+    
 
 #include("FitTB_laguerre_system.jl")
 

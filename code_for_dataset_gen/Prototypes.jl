@@ -223,7 +223,7 @@ function setup_proto_data()
 
     CalcD["bcc_tet"] = ["$STRUCTDIR/bcc_tet.in", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "none", "relax", "scf", "nscf", false]
+    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "relax", "all", "scf", "nscf", false]
 
     CalcD["trimer"] =       ["$STRUCTDIR/atom_small.in", "none", "2Dxy", "coords_trimer", "nscf", false]
     CalcD["trimerX"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerX", "scf", false]
@@ -909,7 +909,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 println("START DFT.runSCF")
                 
                 if scf != "scf"
-                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="qe.relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
                     
                     println("did dft, get new struct")
                     
@@ -920,7 +920,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         println(c2)
                         println()
                         
-                        dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="$name.qe.relax", directory="$dir", tmpdir="/$tmpname/$name.$randi", wannier=false, code="QE", skip=true, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                        dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="qe.relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    end
+                    try
+                        rm("$dir/qe.relax.save", recursive=true)
+                    catch
+                        println("fail rm $dir/qe.relax.save")
                     end
                     println("END DFT.runSCF")
                     println(dft_ref)

@@ -4219,7 +4219,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
         e_den = e_den * 2.0
     end
 
-    println("z_ion $z_ion e_den $e_den")
+#    println("z_ion $z_ion e_den $e_den")
     dq = -z_ion + e_den
 
     #dq = dq .- sum(dq)/crys.nat #charge sum rule
@@ -4259,8 +4259,8 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
     gamma = tbc.gamma
     u3 = tbc.u3
 
-    println("u3 $u3")
-    println("gamma $gamma")    
+#    println("u3 $u3")
+#    println("gamma $gamma")    
     
     epsilon = gamma * dq
 
@@ -5058,5 +5058,6 @@ function ewald_guess(crys::crystal, gamma; tot_charge = 0.0)
     return final_list
 
 end
+
 
 end #end module

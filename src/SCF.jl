@@ -36,6 +36,7 @@ using ..TB:myfft_R_to_K
 using ..TB:ewald_energy
 using ..TB:magnetic_energy
 using ..TB:make_tb_crys
+using ..TB:Hk
 
 using ..CrystalMod:orbital_index
 using ..TB:get_neutral_eden
@@ -1577,6 +1578,24 @@ function eden_guess(tbc; nspin = 1, magnetic=false, mix = 0.5)
 #    println("guess $guess ")
     return guess
 
+end
+
+
+function convert_hk(tbc_k::tb_crys_kspace, database)
+
+    tbc_k2 = deepcopy(tbc_k)
+    tbc = calc_tb_LV(tbc_k.crys, database, use_threebody=false, use_threebody_onsite=false)
+    for spin = 1:tbc_k.tb.nspin
+        for kind in tbc_k.tb.nk
+            k = tbc_k.tb.K[kind,:]
+            vects, vals, hk, sk, vals0 = Hk(tbc, k)
+            sk_new_5 = sk^0.5
+            sk_old_inv5 = tbc_k.tb.Sk[:,:,kind]^-0.5
+            tbc_k2.tb.Hk[:,:,kind, spin]= sk_new_5 * sk_old_inv5 * tbc_k.tb.Hk[:,:,kind, spin]  * sk_old_inv5 * sk_new_5
+            tbc_k2.tb.Sk[:,:,kind] = sk
+        end
+    end
+    return tbc_k2
 end
 
 
