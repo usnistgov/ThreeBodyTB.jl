@@ -100,7 +100,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
         if !haskey(database_cached , (a1, a1))
             loaded = false
             for d in dirlist
-                for f in [ "$d/els/coef.el.2bdy.$a1.xml.gz", "$d/els/coef.el.2bdy.$a1.$a1.xml.gz"]
+                for f in [ "$d/els/coef.el.2bdy.$a1.xml.gz", "$d/els/coef.el.2bdy.$a1.$a1.xml.gz", "$d/coef.el.2bdy.$a1.xml.gz", "$d/coef.el.2bdy.$a1.$a1.xml.gz"]
 
                     if isfile(f) || isfile(f*".gz")
                         try
@@ -131,7 +131,7 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
 
             loaded = false
             for d in dirlist
-                for f in ["$d/els/coef.el.3bdy.$a1.xml.gz", "$d/els/coef.el.3bdy.$a1.$a1.$a1.xml.gz"]
+                for f in ["$d/els/coef.el.3bdy.$a1.xml.gz", "$d/els/coef.el.3bdy.$a1.$a1.$a1.xml.gz", "$d/coef.el.3bdy.$a1.xml.gz", "$d/coef.el.3bdy.$a1.$a1.$a1.xml.gz"]
 
                     if isfile(f) || isfile(f*".gz")
                         try
@@ -197,6 +197,18 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                 elseif isfile(fba) || isfile(fba*".gz")
                     f = fba
                 end
+
+                if ismissing(f)
+                    fab =  "$d/coef.el.2bdy.$a1.$a2.xml.gz"
+                    fba =  "$d/coef.el.2bdy.$a2.$a1.xml.gz"
+                    if isfile(fab) || isfile(fab*".gz")
+                        f = fab
+                    elseif isfile(fba) || isfile(fba*".gz")
+                        f = fba
+                    end
+                end
+                
+                
 #            elseif isfile(fab2) || isfile(fab2*".gz")
 #                f = fab2
 #            elseif isfile(fba2) || isfile(fba2*".gz")
@@ -249,6 +261,17 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                 elseif isfile(fba) || isfile(fba*".gz")
                     f = fba
                 end
+
+                if ismissing(f)
+                    fab =  "$d/coef.el.3bdy.$a1.$a2.xml.gz"
+                    fba =  "$d/coef.el.3bdy.$a2.$a1.xml.gz"
+                    if isfile(fab) || isfile(fab*".gz")
+                        f = fab
+                    elseif isfile(fba) || isfile(fba*".gz")
+                        f = fba
+                    end
+                end
+                
 #                elseif isfile(fab2) || isfile(fab2*".gz")
 #                    f = fab2
 #                elseif isfile(fba2) || isfile(fba2*".gz")

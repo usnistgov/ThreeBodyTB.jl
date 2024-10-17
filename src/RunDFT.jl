@@ -154,6 +154,10 @@ Run SCF calculation using QE
     end
 
     if ret != 0 && updated == false
+
+        if calculation == "nscf"
+            throw("throw fail to converge nscf")
+        end
         println("failed DFT, trying with different mixing 0.1")
         #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
         tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="local-TF", mix=0.1, mixing_ndim = 4, grid=grid, klines=klines, nstep=nstep, isolated=isolated)
@@ -182,6 +186,7 @@ Run SCF calculation using QE
 
             if ret != 0
                 println("failed DFT")
+                throw("throw dft error")
             end
             
         end
@@ -201,6 +206,7 @@ Run SCF calculation using QE
         qeout = loadXML(savedir)
     catch
         error("runSCF couldn't open output final try")
+        throw("DFT FAIL  :(:(")
     end
 
     if cleanup
@@ -458,6 +464,7 @@ Make inputfile for SCF calculation
             nbandval += atoms[t].nwan
         end
         nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.8 / 2.0))   #no spin yet
+        #nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.0 / 2.0))   #no spin yet
         other *="nbnd = "*string(nbandtot)*"\n"
     elseif wannier == -1
         nbandsemi = 0
@@ -467,7 +474,8 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.5 / 2.0))   #no spin yet
+        nbandtot = 2+convert(Int64, round(nbandsemi/2.0 + nbandval * 0.2 / 2.0))   #no spin yet
+        #nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 0.5 / 2.0))   #no spin yet
         other *="nbnd = "*string(nbandtot)*"\n"
     end
 
