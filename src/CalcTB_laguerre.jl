@@ -6294,9 +6294,9 @@ function renormalize_S(tbc, database, cutoff=17.99)
         Hk_arr[:,:,i] = (hk_new + hk_new')/2.0
 
         if i == 1
-            F_old = eigen(hk_old, sk_old)
-            F_orth = eigen(hk_orth)
-            F_new = eigen(hk_new, sk_new)
+            F_old = eigen(Hermitian(hk_old),Hermitian( sk_old))
+            F_orth = eigen(Hermitian(hk_orth))
+            F_new = eigen(Hermitian(hk_new), Hermitian(sk_new))
 #            println("vals old ", F_old.values)
 #            println("vals orth ", real(F_orth.values))
 #            println("vals new ", real(F_new.values)                        )
@@ -6315,7 +6315,7 @@ function renormalize_S(tbc, database, cutoff=17.99)
     tbc_renorm = make_tb_crys(tb, c, nelec, dftenergy)
 
     vect_old, vals_old, hk_old, sk_old = Hk(tbc_renorm.tb,  [0,0,0])
-    F = eigen(hk_old, sk_old)
+    F = eigen(Hermitian(hk_old), Hermitian(sk_old))
 #    println("vals renorm ", real(F.values)                        )
 #    println("sk_renorm ", diag(sk_old))
 #    println("hk_renorm ", diag(hk_old))
@@ -6326,7 +6326,7 @@ function renormalize_S(tbc, database, cutoff=17.99)
     tbc_renorm = trim_dist(tbc_renorm)
 
     vect_old, vals_old, hk_old, sk_old = Hk(tbc_renorm.tb,  [0,0,0])
-    F = eigen(hk_old, sk_old)
+    F = eigen(Hermitian(hk_old), Hermitian(sk_old))
 #    println("vals trim ", real(F.values) )
 #    println("sk_trim ", diag(sk_old))
 #    println("hk_trim ", diag(hk_old))
@@ -6351,7 +6351,7 @@ function renormalize_S(tbc, database, cutoff=17.99)
     println("ENERGY SHIFTING DFT: $dftenergy , new $energy_new shift $shift final $energy_after_shift")
 
     vect_old, vals_old, hk_old, sk_old = Hk(tbc_renorm.tb,  [0,0,0])
-    F = eigen(hk_old, sk_old)
+    F = eigen(Hermitian(hk_old), Hermitian(sk_old))
 #    println("vals shift ", real(F.values) )
 
     

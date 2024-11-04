@@ -192,7 +192,7 @@ Base.show(io::IO, x::tb_crys_dense) = begin
     println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
     println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
     println(io,"efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
-    dq = get_dq(x)
+    dq, dq_eden = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2
         mm = get_magmom(x)
@@ -1025,7 +1025,8 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #        if scf == false
 #            eden = zeros(nspin,ham.nwan)
 #        else
-            eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
+        eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
+        println("get_neutral_eden $eden")
             bv = eden .> 1e-5
 #            println("eden $eden sum $(sum(eden)) nelec $nelec")
             eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0)/crys.nat
@@ -1034,7 +1035,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #        println("start eden ", eden)
     end
 
-    dq = get_dq(crys, eden)
+    dq, dq_eden = get_dq(crys, eden)
     tot_charge = -sum(dq)
     
     
@@ -1679,7 +1680,7 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
     try
         if h.nonorth
             sk = 0.5*(sk[:,:] + sk[:,:]')
-            F=eigen(hk[:,:], sk[:,:])
+            F=eigen(Hermitian(hk[:,:]), Hermitian(sk[:,:]))
         else
             F=eigen(Hermitian(hk)) #orthogonal
         end
@@ -1784,12 +1785,12 @@ function Hk(hk,sk, h::tb, kpoint; spin=1)
     try
         if h.nonorth
             sk = 0.5*(sk[:,:] + sk[:,:]')
-            F=eigen(hk[:,:], sk[:,:])
+            F=eigen(Hermitian(hk[:,:]), Hermitian(sk[:,:]))
         else
             #        println("orth")
             #        println(typeof(hk))
             hk = 0.5*(hk[:,:] + hk[:,:]')            
-            F=eigen(hk[:,:]) #orthogonal
+            F=eigen(Hermitian(hk[:,:])) #orthogonal
         end
 
         vects = F.vectors
@@ -2149,7 +2150,7 @@ function apply_scissors_shift(efermi, vals, vects, scissors_shift, scissors_shif
                     end
                     
                     hk = 0.5*(hk + hk')
-                    valsnew, vectsnew= eigen(hk, sk)
+                    valsnew, vectsnew= eigen(Hermitian(hk), Hermitian(sk))
 #                    println("valsnew ", valsnew)
 #                    println("vals    ", vals[c,:,spin])
                     vals[c,:,spin] = valsnew
@@ -2186,7 +2187,7 @@ function go_sym(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thety
                     hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
                 end
                 
-                vals, vects = eigen(hk, sk)
+                vals, vects = eigen(Hermitian(hk), Hermitian(sk))
                 VALS[c, :,spin] = real(vals)
 
                 if return_more_info
@@ -2204,7 +2205,7 @@ function go_sym(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind, thety
 
             println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
             sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-            valsS, vectsS = eigen(sk)
+            valsS, vectsS = eigen(Hermitian(sk))
             println(valsS)
 
             rethrow(error("BadOverlap"))
@@ -2236,7 +2237,7 @@ function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS, thetype, nwan, nspin, spin_
                             hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
                         end
                         
-                        vals, vects = eigen(hk, sk)
+                        vals, vects = eigen(Hermitian(hk), Hermitian(sk))
                         VALS[c, :,spin] = real(vals)
 
                         if return_more_info
@@ -2254,7 +2255,7 @@ function go(grid, sk3, hk3, h1, h1spin, VALS, VECTS, thetype, nwan, nspin, spin_
 
                     println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
                     sk[:,:] = 0.5*(sk3[:,:,k1,k2,k3] + sk3[:,:,k1,k2,k3]')
-                    valsS, vectsS = eigen(sk)
+                    valsS, vectsS = eigen(Hermitian(sk))
                     println(valsS)
 
                     rethrow(error("BadOverlap"))
@@ -2363,7 +2364,7 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
             catch err
                 typeof(err) == InterruptException && rethrow(err)
-                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen(Hermitian( hk[:,:,id][:,:]), Hermitian(sk[:,:,id][:,:]))
             end
             
             if maximum(abs.(imag.(vals))) > 1e-10
@@ -2642,7 +2643,7 @@ function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missin
                 #                  end
 
 
-                vals, vects = eigen(hk, sk)
+                vals, vects = eigen(Hermitian(hk), Hermitian(sk))
                 
                 if maximum(abs.(imag.(vals))) > 1e-10
                     println("WARNING, imaginary eigenvalues ",  maximum(abs.(imag.(vals))))
@@ -3983,7 +3984,7 @@ end
      Return ewald energy term from tbc. If `delta_q`, the atomic charge density, is missing,
      loads from `tbc`.
      """
-function ewald_energy(tbc::tb_crys, delta_q=missing)
+function ewald_energy(tbc::tb_crys, delta_q=missing, delta_q_eden=missing)
 
     background_charge_correction = tbc.background_charge_correction
     gamma = tbc.gamma 
@@ -3991,10 +3992,10 @@ function ewald_energy(tbc::tb_crys, delta_q=missing)
     u3 = tbc.u3
     
     if ismissing(delta_q)
-        delta_q =  get_dq(crys , tbc.eden)
+        delta_q, delta_q_eden =  get_dq(crys , tbc.eden)
     end
-
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q, u3)
+    println("XXXXXXXXXXX $delta_q_eden $delta_q")
+    return ewald_energy(crys, gamma, u3, background_charge_correction, delta_q_eden, delta_q)
 
 end
 
@@ -4008,10 +4009,10 @@ function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
     crys = tbc.crys
 
     if ismissing(delta_q)
-        delta_q =  get_dq(crys , sum(tbc.eden, dims=1))
+        delta_q, delta_q_eden =  get_dq(crys , sum(tbc.eden, dims=1))
     end
     #     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q, tbc.u3)
+    return ewald_energy(crys, gamma, u3, background_charge_correction, delta_q_eden, delta_q )
 
 end
 
@@ -4020,6 +4021,7 @@ end
 
      Does the actual calculation.
      """
+#=
 function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1},u3)
 
     T = typeof(crys.coords[1,1])
@@ -4044,6 +4046,39 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 
     return energy, pot
+
+end
+=#
+
+function ewald_energy(crys::crystal, gamma,u3, background_charge_correction, delta_q_eden,delta_q::Array{Float64,1})
+
+#    T = typeof(crys.coords[1,1])
+#    pot = zeros(T, crys.nat, crys.nat)
+
+
+
+    pot = zero(typeof(crys.coords[1,1]))
+    
+    nwan = length(delta_q_eden)
+    for i = 1:nwan
+        for j = 1:nwan
+            pot += gamma[i,j] * delta_q_eden[i] * delta_q_eden[j]
+        end
+    end
+
+
+    energy = 0.5*pot
+    energy += background_charge_correction * sum(delta_q)^2
+
+    for i = 1:crys.nat
+        energy += 1.0/3.0 * u3[i] * delta_q[i]^3
+    end
+    
+    #println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
+    
+    #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
+
+    return energy
 
 end
 
@@ -4197,6 +4232,7 @@ end
 """
          function get_dq(crys::crystal, chargeden::Array{Float64,1})
      """
+#=
 function get_dq(crys::crystal, chargeden::Array{Float64,2})
 
     nspin = size(chargeden)[1]
@@ -4232,6 +4268,41 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
     return dq
 
 end
+=#
+
+function get_dq(crys::crystal, chargeden::Array{Float64,2})
+
+    nspin = size(chargeden)[1]
+
+    println("chargeden $chargeden size $(size(chargeden))")
+    if size(chargeden)[1] == 1
+        e_den = chargeden*2.0
+    else
+        e_den = sum(chargeden, dims=1)
+    end
+        
+    eden_neutral = get_neutral_eden(crys)
+
+    println("e_den $e_den eden_neutral $eden_neutral")
+
+    
+    dq_eden = e_den - eden_neutral * 2.0
+
+    println("get dq eden_neutral $eden_neutral dq_eden $dq_eden")
+    
+    dq = zeros(crys.nat)
+    counter = 0
+    for (i,t) in enumerate(crys.stypes)
+        for a = 1:Int64(atoms[t].nwan/2)
+            println("i $i t $t a $a counter $counter")
+            dq[i] += dq_eden[counter + a]
+        end
+        counter += Int64(atoms[t].nwan / 2)
+    end
+            
+    return dq, dq_eden
+
+end
 
 """
          function get_h1(tbc::tb_crys)
@@ -4248,11 +4319,13 @@ end
      """
 function get_h1(tbc, chargeden::Array{Float64,2})
 
-    dq = get_dq(tbc.crys, chargeden)
-    h1 = get_h1_dq(tbc,dq)
-    return h1, dq
+    dq, dq_eden = get_dq(tbc.crys, chargeden)
+    println("size dq_eden ", size(dq_eden), ", typeof ", typeof(dq_eden))
+    h1 = get_h1_dq(tbc,dq, dq_eden)
+    return h1, dq, dq_eden
 end
                       
+#=
 function get_h1_dq(tbc, dq::Array{Float64,1})
     
 
@@ -4305,6 +4378,78 @@ function get_h1_dq(tbc, dq::Array{Float64,1})
     end
 
     
+    return h1  ###xxxyyy
+
+end
+=#
+function get_h1_dq(tbc, dq::Array{Float64,1}, dq_eden::Array{Float64,2})
+
+    return get_h1_dq(tbc, dq, dq_eden[:])
+
+end
+
+function get_h1_dq(tbc, dq::Array{Float64,1}, dq_eden::Array{Float64,1})
+    
+
+    gamma = tbc.gamma
+    u3 = tbc.u3
+
+    return get_h1_dq(size(gamma)[1], tbc.crys, gamma, u3, dq, dq_eden[:])
+    
+end
+
+function get_h1_dq(nwan, crys, gamma, u3, dq::Array{Float64,1}, dq_eden::Array{Float64,2})
+
+    return get_h1_dq(nwan, crys, gamma, u3, dq, dq_eden[:])
+end
+
+function get_h1_dq(nwan, crys, gamma, u3, dq::Array{Float64,1}, dq_eden::Array{Float64,1})
+
+    #    println("u3 $u3")
+#    println("gamma $gamma")    
+    println("size gamma $(size(gamma)) dq_eden $(size(dq_eden))")
+    epsilon = gamma * dq_eden
+
+    h1 = zeros(Complex{Float64}, nwan, nwan)
+    o1 = 1
+    for i = 1:crys.nat
+        at1 = atoms[crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:crys.nat
+            at2 = atoms[crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+                    h1[c1,c2] += 0.5 * (epsilon[c1] + epsilon[c2])
+                end
+            end
+            o2 += nw2
+
+        end
+        o1 += nw1
+    end
+
+    h1 = 0.5*(h1 + h1')
+    o1 = 1
+    for i = 1:crys.nat
+        at1 = atoms[crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:crys.nat
+            at2 = atoms[crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+#                    println("i $i j $j size $(size(dq)) $(size(u3))")
+                    h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
+                end
+            end
+            o2 += nw2
+        end
+        o1 += nw1
+    end
+
     
     return h1  ###xxxyyy
 
@@ -4323,12 +4468,12 @@ end
      """
 function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
 
-    dq = get_dq(tbc.crys, chargeden)
+    dq, dq_eden = get_dq(tbc.crys, chargeden)
 
     gamma = tbc.gamma
     u3 = tbc.u3
     
-    epsilon = gamma * dq
+    epsilon = gamma * dq_eden
 
     h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     o1 = 1
@@ -4733,7 +4878,7 @@ function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)                                                                                                      
             catch err
                 typeof(err) == InterruptException && rethrow(err)
-                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen(Hermitian( hk[:,:,id][:,:]),Hermitian( sk[:,:,id][:,:]))
             end
 
             if maximum(abs.(imag.(vals))) > 1e-10
@@ -4837,7 +4982,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
                 #vals[:,id], vects[:,:,id] = eigen( hermH, hermS)
             catch err
                 typeof(err) == InterruptException && rethrow(err)
-                vals[:,id], vects[:,:,id] = eigen( hk[:,:,id][:,:], sk[:,:,id][:,:])
+                vals[:,id], vects[:,:,id] = eigen(Hermitian( hk[:,:,id][:,:]), Hermitian(sk[:,:,id][:,:]))
             end
 #            if false            
             

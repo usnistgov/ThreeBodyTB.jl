@@ -236,7 +236,7 @@ run open_grid.x command
 end
 
 
-function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=false, only_kspace=false, klines=missing)
+function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=false, only_kspace=false, klines=missing, gamma_only=false)
 
     olddir = "$directory/$prefix.save"
     println("doing nscf")
@@ -290,7 +290,9 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     tot_charge = dft.tot_charge
     grid=dft.bandstruct.kgrid
     
-    if min_nscf
+    if gamma_only
+        grid = [1,1,1]
+    elseif min_nscf
         println("minimize kgrid")
         grid = max.(grid .- 2, 2)
     end
@@ -371,7 +373,7 @@ Starting from a converged QE scf calculation...
 - `only_kspace=false` Do not create real-space tb. Usually true in current code, as I can fit directly from k-space tb only.
 - `screening = 1.0` If use a screening factor to reduce value of U in Ewald calculation. Usually leave at 1.0.
 """
-function projwfc_workf(dft::dftout; directory="./", nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false)
+function projwfc_workf(dft::dftout; directory="./", nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false)
 """
 
 Steps:
@@ -399,7 +401,7 @@ Steps:
     
     if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))  #change
 
-        dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace)
+        dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace, gamma_only=gamma_only)
 
 #        println("DO COPY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! kfg")
 #        cp("/home/kfg/codes/TB_run/optim/testing2/t.UPF" , "$nscfdir/h.pbesol.UPF", force=true)
@@ -772,25 +774,63 @@ function loadXML_proj(savedir, B=missing)
         
     else #other format that QE switched to in order to break my code :<(
 
+#        println(da["EIGENSTATES"])
+        
 #        println("asdf")
-        d_eigstates = da["EIGENSTATES"][""]
-        n = length(d_eigstates)
-        c = 0
-        for n = 2:6:n
+        if "" in keys(da["EIGENSTATES"])
+            d_eigstates = da["EIGENSTATES"][""]
 
-            c += 1
 
-            weights[c] = parse(Float64, d_eigstates[n]["K-POINT"][:Weight])
-            kpts[c,:] = parse_str_ARR_float(d_eigstates[n]["K-POINT"][""])
+            n = length(d_eigstates)
+            c = 0
+            for n = 2:6:n
 
-            eigs[c,:] = parse_str_ARR_float(d_eigstates[n+2]["E"])
+                c += 1
 
-            t =  d_eigstates[n+4]["PROJS"]["ATOMIC_WFC"]
 
-#            println("t ", t)
-##            println("t[1]")
- #           println(parse_str_ARR_complex(t[1][""]))
+                
+                weights[c] = parse(Float64, d_eigstates[n]["K-POINT"][:Weight])
+                kpts[c,:] = parse_str_ARR_float(d_eigstates[n]["K-POINT"][""])
+
+                eigs[c,:] = parse_str_ARR_float(d_eigstates[n+2]["E"])
+
+                t =  d_eigstates[n+4]["PROJS"]["ATOMIC_WFC"]
+
+                #            println("t ", t)
+                ##            println("t[1]")
+                #           println(parse_str_ARR_complex(t[1][""]))
+                
+                try
+                    for a in 1:natwfc
+                        proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
+                    end
+                catch
+                    for a in 1:natwfc
+                        proj[c,a,1,:] =  parse_str_ARR_complex(t[""])
+                    end
+                end                
+            end
+
+            d_over = da["OVERLAPS"]["OVPS"]
+
+            for k = 1:nk
+                overlaps[k, :,:] =  reshape(parse_str_ARR_complex(d_over[k][""]), natwfc, natwfc)'
+            end
             
+        else
+            d_eigstates = da["EIGENSTATES"]
+
+            #------
+            c = 1
+
+            
+            weights[c] = parse(Float64, d_eigstates["K-POINT"][:Weight])
+            kpts[c,:] = parse_str_ARR_float(d_eigstates["K-POINT"][""])
+            
+            eigs[c,:] = parse_str_ARR_float(d_eigstates["E"])
+
+            t =  d_eigstates["PROJS"]["ATOMIC_WFC"]
+
             try
                 for a in 1:natwfc
                     proj[c,a,1,:] =  parse_str_ARR_complex(t[a][""])
@@ -800,27 +840,26 @@ function loadXML_proj(savedir, B=missing)
                     proj[c,a,1,:] =  parse_str_ARR_complex(t[""])
                 end
             end                
-        end
-
-        d_over = da["OVERLAPS"]["OVPS"]
-
-        for k = 1:nk
-            overlaps[k, :,:] =  reshape(parse_str_ARR_complex(d_over[k][""]), natwfc, natwfc)'
-        end
-        
-        
-    end        
-        
+            
+            d_over = da["OVERLAPS"]["OVPS"]
+            
+            for k = 1:nk
+                overlaps[k, :,:] =  reshape(parse_str_ARR_complex(d_over[""]), natwfc, natwfc)'
+            end
+            #0-------
+        end        
+    end
+    
     if !(ismissing(B))
-
+        
         kpts = kpts * inv(B)
     end
     
+    
 
 
-
-#    println(overlaps)
-
+    #    println(overlaps)
+    
     bs = DFToutMod.makebs(nelec, efermi, kpts, weights, [0,0,0], eigs, nspin=nspin)
     
     return make_proj(bs, proj, overlaps)
@@ -1162,7 +1201,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             end
 
             #eigenvalues of projection matrix are key to this method
-            val, vect = eigen( 0.5 * (P[1:max_ind,1:max_ind] + P[1:max_ind,1:max_ind]')     ) # 
+            val, vect = eigen(Hermitian( 0.5 * (P[1:max_ind,1:max_ind] + P[1:max_ind,1:max_ind]')    ) ) # 
 
             good_proj = (max_ind - nwan + 1 ) : max_ind
 
@@ -1173,7 +1212,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             
             htemp[:,:] = Btilde[:,1:max_ind] * Diagonal(EIGS[k,1:max_ind, spin])  * Btilde[:,1:max_ind]'
 
-            neweigs, newvect = eigen((htemp+htemp')/2.0)
+            neweigs, newvect = eigen(Hermitian((htemp+htemp')/2.0))
 
             Pmat[k, :] = real(diag(P))
             Nmat[k, :] = neweigs
@@ -1209,7 +1248,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("energy_froz: $energy_froz , $energy_froz2")
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
-                val_tbt, vect = eigen(ham_k[:,:,k, spin] )
+                val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
                 val_tb = real(val_tbt)
                 val_tb_new = deepcopy(val_tb)
                 #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
@@ -1280,7 +1319,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 
                 ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
                 ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
-                val_tb_new, vect = eigen(ham_k[:,:,k, spin] )
+                val_tb_new, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
             
             end
         end
@@ -1291,7 +1330,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("nfroz: ", nfroz)
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
-                val, vect = eigen(ham_k[:,:,k,spin] )
+                val, vect = eigen(Hermitian(ham_k[:,:,k,spin] ))
                 val[1:nfroz] = EIGS[k,1:nfroz,spin]
                 if (abs(EIGS[k, nfroz+1,spin] - EIGS[k, nfroz,spin])< 1e-5) && nwan >= nfroz+1
                     val[nfroz+1] = EIGS[k,nfroz+1,spin]
@@ -1317,7 +1356,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     VECT = zeros(Complex{Float64}, p.bs.nks, p.nspin, nwan, nwan)
     for spin = 1:p.nspin
         for k = 1:p.bs.nks
-            val, vect = eigen(ham_k[:,:,k, spin])
+            val, vect = eigen(Hermitian(ham_k[:,:,k, spin]))
             VAL[k,:, spin] = val
             VECT[k,spin,:,:] = vect
         end
@@ -1352,7 +1391,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
-                val, vect = eigen((ham_k[:,:,k, spin] + ham_k[:,:,k,spin]')/2.0)
+                val, vect = eigen(Hermitian((ham_k[:,:,k, spin] + ham_k[:,:,k,spin]')/2.0))
                 VAL[k,:,spin] = val
                 VECT[k,spin,:,:] = vect
             end

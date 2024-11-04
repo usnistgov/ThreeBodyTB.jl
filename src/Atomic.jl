@@ -155,6 +155,16 @@ mutable struct atom
     U::Float64
     U3::Float64
     efermi::Float64
+    fullU::Bool
+    Us::Float64
+    Usp::Float64
+    Up::Float64
+    Upp::Float64
+    Ud::Float64
+    Usd::Float64
+    Upd::Float64
+    Udd::Float64
+    Umat::Array{Float64,2}
 end
 
 
@@ -181,7 +191,7 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0,U3=0.0)
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0,U3=0.0, fullU=false, Uarr=zeros(8))
     #vac potential in ryd
 
     orb2 = map(x->convert(Symbol, x), orbitals)
@@ -251,8 +261,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #        println("band_energy0 ", band_energy0, " ", efermi)
 #    end
 
-
-
+    
 
 #    shift = (0.0 - band_energy0)/nval
 
@@ -285,9 +294,45 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    band_energy_new = band_energy(EIGS .- band_energy0 / nval , [1.0], nval)#
 #
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
+
     
-    
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, U3,efermi)
+    if fullU == false
+        Umat = ones(nwan,nwan) * U
+    else
+        Umat = zeros(nwan,nwan)
+        if orb2 == [:s]
+            orblist = [:s]
+        elseif orb2 == [:s, :p]
+            orblist = [:s, :p, :p, :p]
+        elseif orb2 == [:s, :d, :p]
+            orblist = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
+        elseif orb2 == [:s, :p, :d]
+            orblist = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
+        end
+        for (c1,o1) in enumerate(orblist)
+            for (c2,o2) in enumerate(orblist)
+                if o1 == :s && o2 == :s
+                    Umat[c1,c2] = Uarr[1]
+                elseif (o1 == :s && o2 == :p) || (o1 == :p && o2 == :s)
+                    Umat[c1,c2] = Uarr[2]
+                elseif (o1 == :p && o2 == :p) && c1 == c2
+                    Umat[c1,c2] = Uarr[3]
+                elseif (o1 == :p && o2 == :p) && c1 != c2
+                    Umat[c1,c2] = Uarr[4]
+                elseif (o1 == :d && o2 == :d) && c1 == c2
+                    Umat[c1,c2] = Uarr[5]
+                elseif (o1 == :s && o2 == :d) || (o1 == :d && o2 == :s) 
+                    Umat[c1,c2] = Uarr[6]
+                elseif (o1 == :p && o2 == :d) || (o1 == :d && o2 == :p) 
+                    Umat[c1,c2] = Uarr[7]
+                elseif (o1 == :d && o2 == :d) && c1 != c2
+                    Umat[c1,c2] = Uarr[8]
+                end
+            end
+        end
+    end
+
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, U3,efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Umat)
     
 end
     

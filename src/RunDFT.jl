@@ -744,7 +744,12 @@ function loadXML_bs(d)
     kpts = zeros(nks, 3)
     weights = zeros(nks)    
     for b = 1:nks
-        ks = out["ks_energies"][b]
+
+        if b in keys(out["ks_energies"]) 
+            ks = out["ks_energies"][b]
+        else
+            ks = out["ks_energies"]
+        end
 
         weights[b] = parse(Float64, ks["k_point"][:weight] )
         kpts[b,:] = parse_str_ARR_float(ks["k_point"][""])

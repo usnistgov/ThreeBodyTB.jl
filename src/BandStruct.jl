@@ -535,10 +535,10 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             elseif plot_hk == :Simag
                 vals[i,:] = imag(sk[:])
             elseif plot_hk == :Seig
-                F=eigen(sk)
+                F=eigen(Hermitian(e)sk)
                 vals[i,:] = real(F.values)
             elseif plot_hk == :Heig
-                F=eigen(hk)
+                F=eigen(Hermitian(hk))
                 vals[i,:] = real(F.values)
             else
                 vals = calc_bands(h, K)

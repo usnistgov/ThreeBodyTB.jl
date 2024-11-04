@@ -384,7 +384,7 @@ function go_eig_sym_sparse(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3,
             catch err
                 println("eig failed")
                 typeof(err) == InterruptException && rethrow(err)
-                vals, vects = eigen( hk, sk)
+                vals, vects = eigen(Hermitian( hk),Hermitian( sk))
             end
             
             if maximum(abs.(imag.(vals))) > 1e-10
@@ -576,12 +576,12 @@ function Hk(h::tb_sparse, kpoint; spin=1)
     try
         if h.nonorth
             sk = 0.5*(sk[:,:] + sk[:,:]')
-            F=eigen(hk[:,:], sk[:,:])
+            F=eigen(Hermitian(hk[:,:]),Hermitian( sk[:,:]))
         else
             #        println("orth")
             #        println(typeof(hk))
             hk = 0.5*(hk[:,:] + hk[:,:]')            
-            F=eigen(hk[:,:]) #orthogonal
+            F=eigen(Hermitian(hk[:,:])) #orthogonal
         end
 
         vects = F.vectors
@@ -712,7 +712,7 @@ function go_sym_sparse(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind
                     hk += 0.5*sk .* (h1spin[spin,:,:] + h1spin[spin,:,:]')
                 end
                 
-                vals, vects = eigen(hk, sk)
+                vals, vects = eigen(Hermitian(hk),Hermitian( sk))
                 VALS[c, :,spin] = real(vals)
 
                 if return_more_info
@@ -730,7 +730,7 @@ function go_sym_sparse(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind
 
             println("error calc_energy_fft $k1 $k2 $k3 usually due to negative overlap eigenvalue")
             sk[:,:] = 0.5*(sk3[c] + sk3[c]')
-            valsS, vectsS = eigen(sk)
+            valsS, vectsS = eigen(Hermitian(sk))
             println(valsS)
 
             rethrow(error("BadOverlap"))

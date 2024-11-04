@@ -28,6 +28,9 @@ using Base.Threads
 using LoopVectorization
 
 
+EWALD_PARAMS = [0.0,0.0,0.0]
+EWALD_U = [0.0,0.0,0.0]
+
 """
    function getU(types)
 
@@ -35,12 +38,32 @@ Get values of `U` from `Atomdata`.
 """
 function getU(types)
 
-    U = zeros(length(types))
-    for (c,t) in enumerate(types)
-        U[c] = atoms[t].U
+
+    ntot = 0
+    Usize = zeros(length(types))
+    for (i,t) in enumerate(types)
+        at1 = atoms[t ]
+        nw1 = Int64(at1.nwan/2)
+        ntot += nw1
+        Usize[i] += at1.U
     end
 
-    return U
+    U = zeros(ntot, ntot)
+
+    counter = 0
+    for t1 in types
+        at1 = atoms[t1 ]
+        nw1 = Int64(at1.nwan/2)
+        for i = 1:nw1
+            for j = 1:nw1
+                U[i+counter,j+counter] = at1.Umat[i,j]
+            end
+        end
+        counter += nw1
+    end
+    
+
+    return U, Usize
 
 end
 
@@ -49,6 +72,7 @@ function getU3(types)
     U3 = zeros(length(types))
     for (c,t) in enumerate(types)
         U3[c] = atoms[t].U3
+        println("add U3 t ", U3[c], " " , atoms[t].U3 , " xxxxxxxxxxxxxxxxxxxxxxxxxxx")
     end
 
     return U3
@@ -60,9 +84,9 @@ end
 
 return Onsite terms, Coulumb `U`.
 """
-function get_onsite(crys::crystal, U::Array{Float64,1})
+#function get_onsite(crys::crystal, U::Array{Float64,1})
 
-    return diagm(U)
+#    return diagm(U)
 #    gamma_onsite = zeros(Float64, crys.nat, crys.nat)
 #
 #    for i = 1:crys.nat
@@ -71,7 +95,7 @@ function get_onsite(crys::crystal, U::Array{Float64,1})
 #
 #    return gamma_onsite
 
-end
+#end
 
 """
     function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0)
@@ -107,16 +131,17 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     
     if noU
         println("noU - FOR TESTING")
-        U = zeros(Float64, crys.nat)
+        #U = zeros(Float64, crys.nat)
+        U, Usize = getU(crys.types)
+        U .= 0.0
     else
-        U = getU(crys.types)
+        U, Usize = getU(crys.types)
         U = U * screening
     end
 
     starting_size_rspace = 1
     starting_size_kspace = 1
 
-    gamma_onsiteU = get_onsite(crys, U)
 
     T = typeof(crys.coords[1,1])
     gamma_rs = zeros(T, crys.nat, crys.nat)
@@ -127,11 +152,21 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     #can do these at same time.
     # can run real space and k-space in parallel with asyncronous parallelization. Only a minor improvement.
-    #println("rs")
+    println("rs")
     rs = begin 
-        gamma_rs, gamma_U = real_space_LV(crys, kappa, U, starting_size_rspace, factor)
+        gamma_rs, gamma_U, gamma_U_opt = real_space_LV(crys, kappa, Usize, starting_size_rspace, factor)
         #gamma_rs, gamma_U = real_space(crys, kappa, U, starting_size_rspace)
+        println("gamma_U_opt ", gamma_U_opt)
     end
+
+    #gamma_onsiteU = get_onsite(crys, U)
+    #for i = 1:crys.nat
+    #    if crys.stypes[i] != :F
+    #        println("$i old $(gamma_onsiteU[i]) add $(gamma_U_opt[i]) new $(gamma_onsiteU[i] + gamma_U_opt[i])")
+    #        gamma_onsiteU[i] += gamma_U_opt[i]##
+    #
+    #    end
+    #end
     
 #    println("gamma_rs")
 #    println(gamma_rs)
@@ -158,27 +193,28 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 #    wait(self)
 #    wait(rs)
     
-    if false #for debugging
+    if true #for debugging
         println("gamma_rs")
         println(gamma_rs)
         println("gamma_k")
         println(gamma_k)
         println("gamma_self")
         println(gamma_self)
-        println("gamma_onsiteU")
-        println(gamma_onsiteU)
-        println("gamma_U")
-        println(gamma_U)
+#        println("gamma_onsiteU")
+#        println(gamma_onsiteU)
+#        println("gamma_U")
+#        println(gamma_U)
         println()
         println("only 1/r")
         println(gamma_rs + gamma_k + gamma_self)
     end
-
+    println("gamma_rs + gamma_k + gamma_self + gamma_U ", [gamma_rs ,  gamma_k ,  gamma_self ,  gamma_U])
+    
     #rydberg units
     e2 = 2.0
 
     #    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
-    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU      #xxyy
+    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) #+ gamma_onsiteU      #xxyy
 
 
     
@@ -198,6 +234,32 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     gamma_tot += gamma_bc *2.0
 
+    gamma_tot_expand = U
+#    for a1 = 1:crys.nat
+#        for a2 = 1:crys.nat
+    if  !onlyU #for debugging
+
+        o1 = 1
+        for i = 1:crys.nat
+            at1 = atoms[crys.types[i]  ]
+            nw1 = Int64(at1.nwan/2)
+            o2 = 1
+            for j = 1:crys.nat
+                at2 = atoms[crys.types[j]]
+                nw2 = Int64(at2.nwan/2)
+                for c1 = o1:o1+nw1-1
+                    for c2 = o2:o2+nw2-1
+                        gamma_tot_expand[c1,c2] += gamma_tot[i,j]
+                    end
+                end
+                o2 += nw2
+                
+            end
+            o1 += nw1
+        end
+    end
+
+    
     background_charge_correction = 0.0
     for t = crys.stypes
         background_charge_correction += uniform_charge_interaction[t]
@@ -206,9 +268,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
        
 
     
-    if onlyU #for debugging
-        gamma_tot = gamma_onsiteU
-    end
+
 
     #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
 
@@ -218,7 +278,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     U3 .= getU3(crys.stypes)
     
     #   return gamma_tot, background_charge_correction
-    return gamma_tot, background_charge_correction, U3
+    return gamma_tot_expand, background_charge_correction, U3
 
 end
 
@@ -395,6 +455,8 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
 
     first_iter = true
     old_val = 0.0
+
+    gamma_U_opt = zeros(T, crys.nat)
     
     gamma_ij_tot = zeros(T, crys.nat, crys.nat)
     gamma_ij_new = zeros(T, crys.nat, crys.nat)
@@ -503,9 +565,9 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
                     R[:] .= At * Ra 
                     if first_iter == true || (abs(x) > Nxold || abs(y) > Nyold || abs(z) > Nzold )
                         if R0
-                            rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0)
+                            rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
                         else 
-                            rs_core_R0false_thread(crys.nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new_th, gamma_U_new_th, useU, R0)
+                            rs_core_R0false_thread(crys.nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new_th, gamma_U_new_th, useU, R0,gamma_U_opt)
                         end
 
                     end
@@ -553,11 +615,11 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
         
     end
 
-    return gamma_ij_tot, gamma_U_tot
+    return gamma_ij_tot, gamma_U_tot, gamma_U_opt 
 
 end
 
-function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0)
+function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
 
     @inbounds @simd for i = 1:crys.nat
         for j = i:crys.nat
@@ -565,30 +627,39 @@ function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_n
             r = (Rb'*Rb).^0.5
             if i != j ||  R0 == false
                 gamma_ij_new[i,j] += erfc( kappa * r) / r
+#                gamma_ij_new[i,j] += 5*exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])
+
                 gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+
+                #gamma_U_opt[i] += exp(-2.5*0.5 * r)* ( EWALD_U[1] + (1 - 2.5*r) * EWALD_U[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_U[3])
+                
             end
         end
     end
 
 end
 
-function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0)
+function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
     @inbounds @simd for i = 1:nat
         for j = i:nat
-           r=0.0
-           for a = 1:3
-               r += (coords_cartTij[a,i, j]  - R[a])^2
-           end
-           r=r^0.5
-           gamma_ij_new[i,j] += erfc( kappa * r) / r
-           gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
-       end
+            r=0.0
+            for a = 1:3
+                r += (coords_cartTij[a,i, j]  - R[a])^2
+            end
+            r=r^0.5
+            gamma_ij_new[i,j] += erfc( kappa * r) / r
+#            gamma_ij_new[i,j] += exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])
+
+            gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+#            gamma_U_opt[i] += exp(-2.5*0.5 * r)* ( EWALD_U[1] + (1 - 2.5*r) * EWALD_U[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_U[3])
+
+        end
     end
     
 end
 
-function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0)
-    @inbounds @threads for i = 1:nat
+function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
+    @inbounds for i = 1:nat #@threads
         id = threadid()
         for j = i:nat
            r=0.0
@@ -597,7 +668,11 @@ function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_
            end
            r=r^0.5
            gamma_ij_new[i,j,id] += erfc( kappa * r) / r
-           gamma_U_new[i,j,id] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+            gamma_U_new[i,j,id] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+
+#            gamma_ij_new[i,j,id] += exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])
+#            gamma_U_opt[i] += exp(-2.5*0.5 * r)* ( EWALD_U[1] + (1 - 2.5*r) * EWALD_U[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_U[3])
+            
        end
     end
     

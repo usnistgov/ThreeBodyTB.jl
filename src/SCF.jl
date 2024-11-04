@@ -270,8 +270,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
     
 
     if ismissing(e_den0)
-        e_den0 = eden_guess(tbc)
-        #e_den0 = deepcopy(tbc.eden)
+        #e_den0 = get_neutral_eden(tbc.crys, nspin=nspin, magnetic=magnetic)
+        #e_den0 = eden_guess(tbc)
+        e_den0 = deepcopy(tbc.eden)
     end
     if nspin == 2 && size(e_den0,1) == 1
         e_den0 = [e_den0;e_den0]
@@ -279,7 +280,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
     end    
 
-    dq = get_dq(tbc.crys, e_den0)
+    dq, dq_eden = get_dq(tbc.crys, e_den0)
 
 #    println("before ", e_den0)
     if abs(sum(e_den0) - nspin* tbc.nelec/2.0 ) > 1e-5
@@ -379,7 +380,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #    println("dq start", round.(dq; digits=2))
 
 
-    h1, dq = get_h1(tbc, e_den)
+    h1, dq, dq_eden = get_h1(tbc, e_den)
 
     Qpropose = deepcopy(dq)
     end
@@ -538,7 +539,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
 #            println(sum(e_denA) , " e_denA  before ", round.(e_denA, digits=4))
 
-            h1, dq = get_h1(tbc, e_denA)
+            h1, dq, dq_eden = get_h1(tbc, e_denA)
 
 #            println("new dq ", dq, " --------------------------------------------")
             
@@ -620,7 +621,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
 #            println("ewald dq $dq")
-            energy_charge, pot = ewald_energy(tbc, dq)
+            energy_charge = ewald_energy(tbc, dq, dq_eden)
 #            println("energy_charge, $energy_charge")
 
             if magnetic
@@ -706,7 +707,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                         mixA_temp = 0.5
                     end
                 end 
-                e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )  
+                println("eden old $e_denA $e_den_NEW")
+                e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )
+                println("edenA $e_denA  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!b")
             elseif iter <= 2
                 if iter == 1
                     if extend
@@ -1022,7 +1025,7 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
     #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
     
-    energy_charge, pot = ewald_energy(tbc, dq)
+    energy_charge = ewald_energy(tbc, dq)
 
     println("energy_charge ", energy_charge)
     
@@ -1189,7 +1192,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
         h1spin = zeros(2,tbcK.tb.nwan,tbcK.tb.nwan)
     end
     
-    energy_charge, pot = ewald_energy(tbcK, dq)
+    energy_charge = ewald_energy(tbcK, dq)
     println("tbcK.tb.nspin ", tbcK.tb.nspin)
     if tbcK.tb.nspin ==2
         energy_magnetic = magnetic_energy(tbcK, e_den)
@@ -1264,7 +1267,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
             hk[:,:] = Hk_new[:,:,k, spin]
             sk[:,:] = tbcK_new.tb.Sk[:,:,k]
             
-            vals, vects = eigen(0.5*(hk+hk'), 0.5*(sk+sk'))
+            vals, vects = eigen(Hermitian(0.5*(hk+hk')),Hermitian( 0.5*(sk+sk')))
             hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
             
             Hk_new[:,:,k,spin] = 0.5*(hk[:,:]  + hk[:,:]')
@@ -1393,7 +1396,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
 #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
     
-    energy_charge, pot = ewald_energy(tbc, dq)
+    energy_charge = ewald_energy(tbc, dq)
     if tbc.nspin == 2
         energy_magnetic = magnetic_energy(tbc, e_den)
         println("en mag $energy_magnetic")
@@ -1496,7 +1499,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
 #                    vals, vects = eigen(hk+t  , sk)
 
                     
-                    vals, vects = eigen(hk  , sk)
+                    vals, vects = eigen(Hermitian(hk)  ,Hermitian( sk))
                     hk =  sk*vects*diagm(vals .+ shift)*inv(vects)
 #                    hk =  sk*vects*diagm(vals .+ shift)*vects'
                     
