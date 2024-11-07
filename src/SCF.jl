@@ -1185,14 +1185,14 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
         e_den = e_den_new
     end
 
-    h1, dq = get_h1(tbcK, e_den)
+    h1, dq, dq_eden = get_h1(tbcK, e_den)
     if tbcK.tb.nspin == 2
         h1spin = get_spin_h1(tbcK, e_den)
     else
         h1spin = zeros(2,tbcK.tb.nwan,tbcK.tb.nwan)
     end
     
-    energy_charge = ewald_energy(tbcK, dq)
+    energy_charge = ewald_energy(tbcK, dq, dq_eden)
     println("tbcK.tb.nspin ", tbcK.tb.nspin)
     if tbcK.tb.nspin ==2
         energy_magnetic = magnetic_energy(tbcK, e_den)

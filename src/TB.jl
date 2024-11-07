@@ -4002,13 +4002,14 @@ end
 """
          function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
      """
-function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
+function ewald_energy(tbc::tb_crys_kspace, delta_q=missing, delta_q_eden=missing)
 
     background_charge_correction=tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
-
-    if ismissing(delta_q)
+    u3 = tbc.u3
+    
+    if ismissing(delta_q) || ismissing(delta_q_eden)
         delta_q, delta_q_eden =  get_dq(crys , sum(tbc.eden, dims=1))
     end
     #     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
@@ -4473,7 +4474,7 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
     gamma = tbc.gamma
     u3 = tbc.u3
     
-    epsilon = gamma * dq_eden
+    epsilon = gamma * dq_eden[:]
 
     h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     o1 = 1
@@ -4516,7 +4517,7 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
 
 
     
-    return  0.5*(h1 + h1'), dq  
+    return  0.5*(h1 + h1'), dq , dq_eden[:]
 
 end
 
@@ -4541,7 +4542,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     
     if tbcK.scf
         #        h1 = tbc.tb.h1
-        echarge, pot = ewald_energy(tbcK)
+        echarge = ewald_energy(tbcK)
     else
         #        h1 = missing
         echarge = 0.0
