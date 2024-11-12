@@ -72,7 +72,7 @@ function getU3(types)
     U3 = zeros(length(types))
     for (c,t) in enumerate(types)
         U3[c] = atoms[t].U3
-        println("add U3 t ", U3[c], " " , atoms[t].U3 , " xxxxxxxxxxxxxxxxxxxxxxxxxxx")
+#        println("add U3 t ", U3[c], " " , atoms[t].U3 , " xxxxxxxxxxxxxxxxxxxxxxxxxxx")
     end
 
     return U3
@@ -110,7 +110,7 @@ This is only run once for a given `tb_crys` object and stored.
 """
 function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0, factor = 1.0)
 #noU and onlyU are for testing purposes
-    println("factor $factor")
+#    println("factor $factor")
 #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 0.0)
 
 #    println("EWALD")
@@ -152,11 +152,11 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     #can do these at same time.
     # can run real space and k-space in parallel with asyncronous parallelization. Only a minor improvement.
-    println("rs")
+#    println("rs")
     rs = begin 
         gamma_rs, gamma_U, gamma_U_opt = real_space_LV(crys, kappa, Usize, starting_size_rspace, factor)
         #gamma_rs, gamma_U = real_space(crys, kappa, U, starting_size_rspace)
-        println("gamma_U_opt ", gamma_U_opt)
+#        println("gamma_U_opt ", gamma_U_opt)
     end
 
     #gamma_onsiteU = get_onsite(crys, U)
@@ -193,7 +193,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 #    wait(self)
 #    wait(rs)
     
-    if true #for debugging
+    if false #for debugging
         println("gamma_rs")
         println(gamma_rs)
         println("gamma_k")
@@ -208,7 +208,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
         println("only 1/r")
         println(gamma_rs + gamma_k + gamma_self)
     end
-    println("gamma_rs + gamma_k + gamma_self + gamma_U ", [gamma_rs ,  gamma_k ,  gamma_self ,  gamma_U])
+#    println("gamma_rs + gamma_k + gamma_self + gamma_U ", [gamma_rs ,  gamma_k ,  gamma_self ,  gamma_U])
     
     #rydberg units
     e2 = 2.0

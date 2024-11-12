@@ -663,7 +663,8 @@ function read_tb_crys_kspace(filename; directory=missing)
         gamma = parse_str_ARR_float(d["gamma"])
         s = Int64(round(sqrt(size(gamma)[1])))
         gamma = reshape(gamma, s, s)
-        
+
+        println("READ GAMMA ", gamma)
     end
 
     background_charge_correction = 0.0
@@ -773,7 +774,7 @@ function read_tb_crys_kspace(filename; directory=missing)
 
     tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
-    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction)
+    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction)
 
     return tbck
     
@@ -1026,7 +1027,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #            eden = zeros(nspin,ham.nwan)
 #        else
         eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
-        println("get_neutral_eden $eden")
+#        println("get_neutral_eden $eden")
             bv = eden .> 1e-5
 #            println("eden $eden sum $(sum(eden)) nelec $nelec")
             eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0)/crys.nat
@@ -3994,7 +3995,7 @@ function ewald_energy(tbc::tb_crys, delta_q=missing, delta_q_eden=missing)
     if ismissing(delta_q)
         delta_q, delta_q_eden =  get_dq(crys , tbc.eden)
     end
-    println("XXXXXXXXXXX $delta_q_eden $delta_q")
+#    println("XXXXXXXXXXX $delta_q_eden $delta_q")
     return ewald_energy(crys, gamma, u3, background_charge_correction, delta_q_eden, delta_q)
 
 end
@@ -4275,7 +4276,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
 
     nspin = size(chargeden)[1]
 
-    println("chargeden $chargeden size $(size(chargeden))")
+#    println("chargeden $chargeden size $(size(chargeden))")
     if size(chargeden)[1] == 1
         e_den = chargeden*2.0
     else
@@ -4284,18 +4285,18 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
         
     eden_neutral = get_neutral_eden(crys)
 
-    println("e_den $e_den eden_neutral $eden_neutral")
+#    println("e_den $e_den eden_neutral $eden_neutral")
 
     
     dq_eden = e_den - eden_neutral * 2.0
 
-    println("get dq eden_neutral $eden_neutral dq_eden $dq_eden")
+#    println("get dq eden_neutral $eden_neutral dq_eden $dq_eden")
     
     dq = zeros(crys.nat)
     counter = 0
     for (i,t) in enumerate(crys.stypes)
         for a = 1:Int64(atoms[t].nwan/2)
-            println("i $i t $t a $a counter $counter")
+#            println("i $i t $t a $a counter $counter")
             dq[i] += dq_eden[counter + a]
         end
         counter += Int64(atoms[t].nwan / 2)
@@ -4321,7 +4322,7 @@ end
 function get_h1(tbc, chargeden::Array{Float64,2})
 
     dq, dq_eden = get_dq(tbc.crys, chargeden)
-    println("size dq_eden ", size(dq_eden), ", typeof ", typeof(dq_eden))
+#    println("size dq_eden ", size(dq_eden), ", typeof ", typeof(dq_eden))
     h1 = get_h1_dq(tbc,dq, dq_eden)
     return h1, dq, dq_eden
 end
@@ -4408,7 +4409,7 @@ function get_h1_dq(nwan, crys, gamma, u3, dq::Array{Float64,1}, dq_eden::Array{F
 
     #    println("u3 $u3")
 #    println("gamma $gamma")    
-    println("size gamma $(size(gamma)) dq_eden $(size(dq_eden))")
+#    println("size gamma $(size(gamma)) dq_eden $(size(dq_eden))")
     epsilon = gamma * dq_eden
 
     h1 = zeros(Complex{Float64}, nwan, nwan)
@@ -4487,7 +4488,7 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
             nw2 = Int64(at2.nwan/2)
             for c1 = o1:o1+nw1-1
                 for c2 = o2:o2+nw2-1
-                    h1[c1,c2] = 0.5 * (epsilon[i] + epsilon[j])
+                    h1[c1,c2] = 0.5 * (epsilon[c1] + epsilon[c2])
                 end
             end
             o2 += nw2
@@ -4559,7 +4560,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     #     println("efermi $efermi")
     
     energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-    #     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
+    println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
     return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 

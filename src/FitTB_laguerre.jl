@@ -1839,6 +1839,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     H1     = zeros(NCALC, NWAN_MAX, NWAN_MAX)
     H1spin     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
     DQ     = zeros(NCALC, NAT_MAX)
+    DQ_EDEN     = zeros(NCALC, NWAN_MAX)
 
     ENERGY_SMEAR = zeros(NCALC)
 
@@ -1905,7 +1906,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
             electron_den[spin,:] = sum(denmat, dims=1) / sum(kweights)
         end
 #        println("size ", size(electron_den))
-        h1, dq = get_h1(tbc, electron_den)
+        h1, dq, dq_eden = get_h1(tbc, electron_den)
 #        println("electron_den $electron_den ", size(electron_den))
         if tbc.tb.scfspin
             h1spin = get_spin_h1(tbc, electron_den)
@@ -1916,7 +1917,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 #        h1a, dqa = get_h1(tbc, tbc.eden)
 #        println("dqa ", dqa)
         
-        return electron_den, h1, dq, h1spin
+        return electron_den, h1, dq, dq_eden, h1spin
         
     end
 
@@ -2051,6 +2052,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
             H1[c,1:nw, 1:nw] = tbc.tb.h1
             dq, dq_eden =  get_dq(tbc)
             DQ[c,1:tbc.crys.nat] = dq
+            DQ_EDEN[c,1:length(dq_eden)] = dq_eden
 #            println("SIZE tbc.tb.h1spin ", size(tbc.tb.h1spin))
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
         end
@@ -2164,7 +2166,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
 
-    return ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0
+    return ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0
 
 end
 
@@ -2174,9 +2176,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     sleep(10)
     
     if ismissing(topstuff)
-        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0 = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
+        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0 = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
     else
-        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
+        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
     end
 
     ks_weight_input = ks_weight
@@ -2285,9 +2287,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
                 dq = deepcopy(DQ[c,1:tbc.crys.nat])
+                dq_eden = deepcopy(DQ_EDEN[c,1:nw])
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
+                dq_eden = zeros(nw)
             end
             if tbc.tb.scfspin
                 h1spin = deepcopy(H1spin[c,:,1:nw,1:nw])
@@ -2380,7 +2384,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
-                    eden, h1_new, dq_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
+                    eden, h1_new, dq_new, dq_eden_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
 
 #                    println("EDEN DDDDDDDDDD ", eden)
                     
@@ -2393,16 +2397,18 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     if maximum(abs.(dq - dq_new)) > 0.1
                         mix = 0.02
                     end
-
+#                    println("size h1 $(size(h1)) h1_new $(size(h1_new)) dq $(size(dq)) dq_new $(size(dq_new)) dq_eden $(size(dq_eden)) dq_eden_new $(size(dq_eden_new)) h1spin $(size(h1spin)) h1spin $(size(h1spin))")
                     h1 = h1*(1-mix) + h1_new * mix
                     dq = dq*(1-mix) + dq_new * mix
+                    dq_eden = dq_eden*(1-mix) + dq_eden_new * mix
+#                    println("c $c dq_eden $dq_eden")
                     h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                     if solve_self_consistently == true
                         h1 = h1*(1-mix) + h1_new * mix
                         h1spin = h1spin*(1-mix) + h1spin_new * mix
 
-                        energy_charge = ewald_energy(tbc)
+                        energy_charge = ewald_energy(tbc, dq, dq_eden)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -2419,7 +2425,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     
                     energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
                         
-#                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
+                    #println( " scf $c_scf $c ", energy_new+etypes, "    $dq_eden charge   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
                     if abs(energy_new  - energy_old) < 1e-5
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
@@ -2438,16 +2444,24 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
                 H1[c,1:nw,1:nw] =  h1 
                 DQ[c,1:tbc.crys.nat] = dq
+                DQ_EDEN[c,1:nw] = dq_eden
                 H1spin[c,:,1:nw, 1:nw] = h1spin
                 
             elseif scf
 
-                h1 = (h1 + H1[c,1:nw,1:nw]) / 2.0   #mixing
-                dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
-                h1spin = (h1spin + H1spin[c,:,1:nw,1:nw]) / 2.0
-                H1[c,1:nw,1:nw] =  h1 
-                DQ[c,1:tbc.crys.nat] = dq
-                H1spin[c,:,1:nw, 1:nw] = h1spin
+                DQ[c,1:tbc.crys.nat] .= 0.0
+                DQ_EDEN[c,1:nw] .= 0.0
+                H1[c,1:nw,1:nw] .=  0.0 
+                H1spin[c,:,1:nw, 1:nw] .= 0.0
+
+
+#                h1 = (h1 + H1[c,1:nw,1:nw]) / 2.0   #mixing
+#                dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
+#                dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
+#                h1spin = (h1spin + H1spin[c,:,1:nw,1:nw]) / 2.0
+#                H1[c,1:nw,1:nw] =  h1 
+##                DQ[c,1:tbc.crys.nat] = dq
+#                H1spin[c,:,1:nw, 1:nw] = h1spin
 
 
             end
@@ -2485,7 +2499,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 
             
             if scf
-                energy_charge = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq, dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -2608,7 +2622,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             if scf
                 nat = list_of_tbcs[calc].crys.nat
-                energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+                #energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+                energy_charge = ewald_energy(list_of_tbcs[calc])
             else
                 energy_charge = 0.0
             end
@@ -4332,7 +4347,7 @@ function get_electron_density(tbc, kpoints, kweights, vects, occ, S)
         electron_den[spin,:] = sum(denmat, dims=1) / sum(kweights)
     end
     #        println("size ", size(electron_den))
-    h1, dq = get_h1(tbc, electron_den)
+    h1, dq, dq_eden = get_h1(tbc, electron_den)
     #        println("electron_den $electron_den ", size(electron_den))
     if tbc.tb.scfspin
         h1spin = get_spin_h1(tbc, electron_den)
@@ -4343,7 +4358,7 @@ function get_electron_density(tbc, kpoints, kweights, vects, occ, S)
     #        h1a, dqa = get_h1(tbc, tbc.eden)
     #        println("dqa ", dqa)
     
-    return electron_den, h1, dq, h1spin
+    return electron_den, h1, dq, dq_eden, h1spin
     
 end
 
@@ -4504,7 +4519,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
         println(typeof(tbc) )
         
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
-            eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            eden, h1, dq, dq_eden, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             H1[c,1:nw, 1:nw] = tbc.tb.h1
             DQ[c,1:tbc.crys.nat] = get_dq(tbc)
@@ -4512,7 +4527,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 
         end
         if !ismissing(tbc) && typeof(tbc) <: tb_crys_kspace
-            eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            eden, h1, dq, dq_eden, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
 #            println("x ", tbc.tb.h1)
             
@@ -4532,7 +4547,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
-                energy_charge = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq, dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -4815,7 +4830,9 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
-                dq = deepcopy(DQ[c,1:tbc.crys.nat])
+                #dq = deepcopy(DQ[c,1:tbc.crys.nat])
+                dq = zeros(tbc.crys.nat)
+                dq_eden = zeros(1, nw)
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
@@ -4911,7 +4928,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                     energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
-                    eden, h1_new, dq_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
+                    eden, h1_new, dq_new, dq_eden_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
 
                     #                    println("EDEN DDDDDDDDDD ", eden)
                     
@@ -4927,13 +4944,14 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
                     h1 = h1*(1-mix) + h1_new * mix
                     dq = dq*(1-mix) + dq_new * mix
+                    dq_eden = dq_eden*(1-mix) + dq_eden_new * mix
                     h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                     if solve_self_consistently == true
                         h1 = h1*(1-mix) + h1_new * mix
                         h1spin = h1spin*(1-mix) + h1spin_new * mix
 
-                        energy_charge = ewald_energy(tbc, dq)
+                        energy_charge = ewald_energy(tbc, dq, dq_eden)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -4950,7 +4968,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                     
                     energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
                     
-                    #                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
+                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq  dq_eden $dq_eden  $energy_charge $energy_band $energy_smear $energy_magnetic")
 
                     if abs(energy_new  - energy_old) < 1e-5
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
@@ -4975,6 +4993,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
                 h1 = (h1 + H1[c,1:nw,1:nw]) / 2.0   #mixing
                 dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
+                
                 h1spin = (h1spin + H1spin[c,:,1:nw,1:nw]) / 2.0
                 H1[c,1:nw,1:nw] =  h1 
                 DQ[c,1:tbc.crys.nat] = dq
@@ -5016,7 +5035,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             
             
             if scf
-                energy_charge = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq, dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -5553,7 +5572,8 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
         
         if scf
             nat = list_of_tbcs[calc].crys.nat
-            energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+            #energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+            energy_charge = ewald_energy(list_of_tbcs[calc])
         else
             energy_charge = 0.0
         end

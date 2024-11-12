@@ -212,7 +212,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 mix = 0.05
             else
                 if tbc.crys.nat <= 10 
-                    mix = 0.4
+                    mix = 0.25
                 else
                     mix = 0.1
                 end
@@ -225,9 +225,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 mix = 0.05
             else
                 if tbc.crys.nat <= 10 
-                    mix= 0.5
+                    mix= 0.25
                 else
-                    mix= 0.3
+                    mix= 0.1
                 end
             end
                 
@@ -707,9 +707,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                         mixA_temp = 0.5
                     end
                 end 
-                println("eden old $e_denA $e_den_NEW")
+#                println("eden old $e_denA $e_den_NEW")
                 e_denA = e_denA * (1 - mixA_temp ) + e_den_NEW * (mixA_temp )
-                println("edenA $e_denA  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!b")
+#                println("edenA $e_denA  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!b")
             elseif iter <= 2
                 if iter == 1
                     if extend
@@ -1186,6 +1186,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     end
 
     h1, dq, dq_eden = get_h1(tbcK, e_den)
+    println("h1 ", h1)
     if tbcK.tb.nspin == 2
         h1spin = get_spin_h1(tbcK, e_den)
     else
@@ -1383,7 +1384,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
         e_den = e_den2
     end
 
-    h1, dq = get_h1(tbc, e_den)
+    h1, dq, dq_eden = get_h1(tbc, e_den)
     if tbc.nspin == 2
         h1spin = get_spin_h1(tbc, e_den)
     else
@@ -1396,7 +1397,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
 #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
     
-    energy_charge = ewald_energy(tbc, dq)
+    energy_charge = ewald_energy(tbc, dq_eden)
     if tbc.nspin == 2
         energy_magnetic = magnetic_energy(tbc, e_den)
         println("en mag $energy_magnetic")
