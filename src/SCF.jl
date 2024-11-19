@@ -369,13 +369,16 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     conv = false
     
-    energy_tot = 0.0
-    dq = zeros(tbc.crys.nat)
-    dq_old = zeros(tbc.crys.nat)
-    dq_old2 = zeros(tbc.crys.nat)
-
-    efermi = 0.0
-
+        energy_tot = 0.0
+        dq = zeros(tbc.crys.nat)
+        dq_old = zeros(tbc.crys.nat)
+        dq_old2 = zeros(tbc.crys.nat)
+        efermi = 0.0       
+        energy_band_only = 0.0
+        energy_smear = 0.0
+        energy_charge = 0.0
+        energy_magnetic = 0.0
+        energy_types = 0.0
 
 #    println("dq start", round.(dq; digits=2))
 
@@ -495,7 +498,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
         energy_band = 0.0
         efermi = 0.0
-
+        
         error_flag = false
 
         magmom = 0.0
@@ -580,7 +583,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #                println("nelec ", tbc.nelec)
 
                 
-               energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
+               energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag, energy_band_only, energy_smear = calc_energy_charge_fft_band2_sym(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w, nk_red=nk_red, grid_ind=grid_ind, kweights=kweights)
 
 #                push!(DenMat, denmat)
 #                push!(HK, hk)
@@ -588,7 +591,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #                DIIS(min(iter, 5), HK, SK_w, DenMat, nk_red, grid_ind, kweights)
                 
             else
-                energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
+                energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag, energy_band_only, energy_smear = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
 #            println("e_den_NEW ", e_den_NEW, " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -622,7 +625,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             
 #            println("ewald dq $dq")
             energy_charge = ewald_energy(tbc, dq, dq_eden)
-#            println("energy_charge, $energy_charge")
+            println("energy_charge, $energy_charge")
 
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
@@ -632,7 +635,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
 
-#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
@@ -968,6 +971,11 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         tbc.tb.scf = true  #just double checking
         tbc.dq = dq #for convenience
         tbc.tot_charge=-sum(dq) #for convenience
+
+        tbc.energy_charge = energy_charge
+        tbc.energy_smear = energy_smear
+        tbc.energy_magnetic = energy_magnetic
+        tbc.energy_band = energy_band_only
         
         if magnetic
             h1spin = get_spin_h1(tbc, e_den)
@@ -1185,6 +1193,17 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
         e_den = e_den_new
     end
 
+    if true
+        ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
+        sgn, dat, SS, TT, atom_trans = get_symmetry(tbcK.crys, verbose=true);
+        for spin =1:tbcK.nspin
+            println("e_den old ", e_den[spin,:])
+            e_den[spin,:] = symmetrize_charge_den(tbcK.crys, e_den[spin,:] , SS, atom_trans, orb2ind)
+            println("e_den new ", e_den[spin,:])            
+        end
+    end
+
+    
     h1, dq, dq_eden = get_h1(tbcK, e_den)
     println("h1 ", h1)
     if tbcK.tb.nspin == 2
@@ -1222,7 +1241,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
             t = sk .* (h1 + h1spin[spin,:,:])
                        #        println(size(t), " t  " , size(Hk_new))
                        
-            Hk_new[:,:,k, spin] = tbcK.tb.Hk[:,:,k,spin] - 0.5 * (t + t')
+            Hk_new[:,:,k, spin] = tbcK.tb.Hk[:,:,k,spin] -  (t + t')*0.5
         end
     end
 

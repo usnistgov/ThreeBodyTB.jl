@@ -51,6 +51,8 @@ using ..ThreeBodyTB:convert_energy
 using ..ThreeBodyTB:global_energy_units
 
 using ..Symmetry:get_kgrid_sym
+using ..Symmetry:symmetrize_charge_den
+using ..Symmetry:get_symmetry
 
 export tb
 export tb_crys
@@ -173,6 +175,11 @@ mutable struct tb_crys_dense{T} <: tb_crys
     nspin::Int64
     tot_charge::Float64
     dq::Array{Float64,1}
+    energy_band::Float64
+    energy_smear::Float64
+    energy_types::Float64
+    energy_charge::Float64
+    energy_magnetic::Float64
 end
 
 
@@ -198,6 +205,8 @@ Base.show(io::IO, x::tb_crys_dense) = begin
         mm = get_magmom(x)
         println(io, "mag mom.: ", round.(mm * 100)/100)
     end
+    println(io)
+    print("ENERGY: $(x.energy)         energy_band $(x.energy_band) energy_smear $(x.energy_smear) energy_types $(x.energy_types) energy_charge $(x.energy_charge) energy_magnetic $(x.energy_magnetic)")
     println(io)
     println(io, x.tb)    
     println(io)
@@ -1018,7 +1027,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0 )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -1053,8 +1062,11 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     #    println("type eden " , typeof(eden))
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
+
+    energy_types = types_energy(crys)
+
     
-    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag)
 end
 
 """
@@ -2510,16 +2522,18 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
             
             max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
             energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
-            energy0 = sum(occ .* VALS0) / nk * 2.0
 
-            energy0 += energy_smear * nspin#
+            energy_band =  sum(occ .* VALS0) / nk * 2.0
+            energy_smear = energy_smear * nspin
+            
+            energy0 = energy_band + energy_smear
         else
 
             energy_smear = 0.0
             energy0 = 0.0
             efermi = minimum(VALS)
             occ = zeros(size(VALS))
-            
+            energy_band = 0.0
         end
         
             
@@ -2539,7 +2553,7 @@ function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missi
         energy0 = energy0 / 2.0
     end
     
-    return energy0, efermi, chargeden, VECTS, VALS, error_flag
+    return energy0, efermi, chargeden, VECTS, VALS, error_flag, energy_band, energy_smear
 
 
 end 
@@ -2693,7 +2707,11 @@ function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missin
         energy_smear = smearing_energy(VALS, ones(nk), efermi, smearing)
         #         println("energy band $energy")
         #         println("efermi $efermi")
-        energy0 = sum(occ .* VALS0) / nk * 2.0
+        energy_smear = energy_smear*nspin
+        energy_band = sum(occ .* VALS0) / nk * 2.0
+
+        energy0 = energy_band + energy_smear
+
 
         #         println("VALS0")
         #         println(VALS0)
@@ -2703,7 +2721,6 @@ function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missin
 
         #         println("energy0 $energy0")
         
-        energy0 += energy_smear * nspin#
 
         #         println("energy smear ", energy_smear*nspin)
         
@@ -2777,7 +2794,7 @@ function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missin
     
     #     println("sum chargeden ", sum(chargeden))
     
-    return energy0, efermi, chargeden, VECTS, VALS, error_flag
+    return energy0, efermi, chargeden, VECTS, VALS, error_flag, energy_band, energy_smear
 
 
 end 
@@ -2981,12 +2998,17 @@ function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
     end
 
 
-    eband, efermi, chargeden, VECTS, VALS, error_flag  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
+    eband, efermi, chargeden, VECTS, VALS, error_flag, energy_band, energy_smear  =  calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1 = h1, h1spin = h1spin)
     tbc.efermi = efermi
     tbc.eden[:,:] = chargeden[:,:]
+    tbc.energy_band = energy_band
+    tbc.energy_smear = energy_smear
+    tbc.energy_types = etypes
+    tbc.energy_charge =  echarge
+    tbc.energy_magnetic = emag
     #println("energy comps $eband $etypes $echarge $emag")
     energy = eband + etypes + echarge + emag
-
+    tbc.energy = energy
     #     println("end asdf")
 
     return energy, efermi, chargeden, VECTS, VALS, error_flag
@@ -4534,6 +4556,17 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
 
     bandenergy, eden, VECTS, VALS, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
 
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
+    sgn, dat, SS, TT, atom_trans = get_symmetry(tbcK.crys, verbose=true);
+    for spin =1:tbcK.nspin
+        println("e_den old ", eden[spin,:])
+        eden[spin,:] = symmetrize_charge_den(tbcK.crys, eden[spin,:] , SS, atom_trans, orb2ind)
+        println("e_den new ", eden[spin,:])            
+    end
+    
+
+    
     if tbcK.nspin == 1
         tbcK.eden[1,:] = eden[1,:]
     elseif tbcK.nspin == 2
@@ -4663,6 +4696,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
     electron_den[normal] .-= correction / sum(normal)
 
     
+    
     return energy0, electron_den, VECTS, VALS, efermi, error_flag
 
 end
@@ -4789,15 +4823,18 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
             max_occ = findlast(sum(occ, dims=[1,3]) .> 1e-8)[2]
             energy_smear = smearing_energy(VALS, kweights, efermi, smearing)
 
-            energy0 = sum(occ .* VALS0 .* kweights) 
-
-            energy0 += energy_smear * nspin#
+            energy_band = sum(occ .* VALS0 .* kweights)
+            energy_smear = energy_smear * nspin
+            
+            energy0 = energy_band + energy_smear
+            
         else
 
             energy_smear = 0.0
             energy0 = 0.0
             efermi = minimum(VALS)
             occ = zeros(size(VALS))
+            energy_band = 0.0
             
         end
         
@@ -4819,7 +4856,7 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
         energy0 = energy0 / 2.0
     end
     
-    return energy0, efermi, chargeden, VECTS, VALS, error_flag #, denmat, HK
+    return energy0, efermi, chargeden, VECTS, VALS, error_flag, energy_band, energy_smear #, denmat, HK
 
 
 end 

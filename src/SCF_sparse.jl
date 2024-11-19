@@ -160,7 +160,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
         end    
 
-        dq = get_dq(tbc.crys, e_den0)
+        dq, dq_eden = get_dq(tbc.crys, e_den0)
         if tbc.scf == false
             dq .= 0.0
         end
@@ -528,7 +528,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
 #            println("ewald dq $dq")
-            energy_charge, pot = ewald_energy(tbc, dq)
+            energy_charge = ewald_energy(tbc )
 #            println("energy_charge, $energy_charge")
 
             if magnetic

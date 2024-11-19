@@ -74,6 +74,11 @@ mutable struct tb_crys_sparse{T} <: tb_crys
     nspin::Int64
     tot_charge::Float64
     dq::Array{Float64,1}
+    energy_band::Float64
+    energy_smear::Float64
+    energy_types::Float64
+    energy_charge::Float64
+    energy_mag::Float64
 end
 
 
@@ -93,7 +98,7 @@ Base.show(io::IO, x::tb_crys_sparse) = begin
     println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
     println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
     println(io, "efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
-    dq = get_dq(x)
+    dq, dq_eden = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2
         mm = get_magmom(x)
@@ -147,7 +152,7 @@ function make_tb_crys_sparse
 
 Constructor function for `tb_crys_sparse`.
 """
-function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing,u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing,u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0 )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -164,7 +169,7 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
 #        println("start eden ", eden)
     end
 
-    dq = get_dq(crys, eden)
+    dq, dq_eden = get_dq(crys, eden)
     tot_charge = -sum(dq)
     
     
@@ -173,9 +178,29 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
         #        println("ismissing gamma")
         gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
-
+    
+    energy_types = types_energy(crys)
     nspin = ham.nspin
-    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    println()
+    println("start")
+    println(ham)
+    println(crys)
+    println(nelec)
+    println(dftenergy)
+    println(scf)
+    println(gamma)
+    println(u3)
+    println(background_charge_correction)
+    println(eden)
+    println(within_fit)
+    println(tb_energy)
+    println(fermi_energy)
+    println(nspin)
+    println(tot_charge)
+    println(dq)
+    println([energy_band, energy_smear , energy_types , energy_charge , energy_mag ])
+
+    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag )
 end
 
 function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
