@@ -29,6 +29,7 @@ using ..Atomdata:formation_energy_ref
 #include("Commands.jl")
 
 using ..DFToutMod:bandstructure
+using ..DFToutMod:make_empty_bs
 using ..DFToutMod:dftout
 using ..AtomicMod:atom
 using ..CrystalMod:crystal
@@ -53,6 +54,8 @@ using ..ThreeBodyTB:global_energy_units
 using ..Symmetry:get_kgrid_sym
 using ..Symmetry:symmetrize_charge_den
 using ..Symmetry:get_symmetry
+
+
 
 export tb
 export tb_crys
@@ -180,6 +183,7 @@ mutable struct tb_crys_dense{T} <: tb_crys
     energy_types::Float64
     energy_charge::Float64
     energy_magnetic::Float64
+    bs::bandstructure
 end
 
 
@@ -213,6 +217,22 @@ Base.show(io::IO, x::tb_crys_dense) = begin
     
 end   
 
+
+function get_kgrid(grid)
+    nk = prod(grid)
+    kpts = zeros(nk, 3)
+    for c = 1:nk
+        id = threadid()
+        k3 = mod(c-1 , grid[3])+1
+        k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
+        k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
+        kpts[c,1] = k1
+        kpts[c,2] = k2
+        kpts[c,3] = k3
+    end 
+    kweights = ones(nk) / nk * 2.0
+    return kpts, kweights
+end
 
 """
         mutable struct tb_k{T}
@@ -1027,7 +1047,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0, bs=missing )
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -1065,8 +1085,12 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 
     energy_types = types_energy(crys)
 
+    if ismissing(bs)
+        bs = make_empty_bs(nspin=nspin)
+    end
+                
     
-    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs)
 end
 
 """
@@ -3009,6 +3033,10 @@ function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
     #println("energy comps $eband $etypes $echarge $emag")
     energy = eband + etypes + echarge + emag
     tbc.energy = energy
+
+    kpts, kweights = get_kgrid(grid)
+    tbc.bs = makebs(tbc.nelec, tbc.efermi, kpts, kweights, grid, VALS, nspin=tbc.nspin)
+    
     #     println("end asdf")
 
     return energy, efermi, chargeden, VECTS, VALS, error_flag

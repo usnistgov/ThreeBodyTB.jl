@@ -915,12 +915,15 @@ function shift_eigenvalues(d::dftout)
 #    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, NBND)
 
     # setup data
+    println("nsemi $nsemi")
     for k = 1:d.bandstruct.nks
         counter = 0
-        for n = 1:d.bandstruct.nbnd
+        for n = (1+nsemi):d.bandstruct.nbnd
+
             #if !(n in INDSEMI[k, :])
             if true
                 counter += 1
+                println("k $k counter $counter k $k n  $n  EIGS  $(size(EIGS)) d $(size(d.bandstruct.eigs))  EIGS $(EIGS[k,counter]) = eigs $(d.bandstruct.eigs[k,n])")
                 EIGS[k,counter] = d.bandstruct.eigs[k,n]
 #                PROJ[k,:,counter] = p.proj[k,wan,n]
                 
@@ -938,7 +941,8 @@ function shift_eigenvalues(d::dftout)
 #        end
     end
 
-        
+    println("EIGS")
+    println(EIGS)
     println("shifting eigenvalues to match dft atomization energy")
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
     #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
@@ -960,7 +964,7 @@ function shift_eigenvalues(d::dftout)
     
     band_en = band_en 
     shift = (atomization_energy - band_en  )/nval
-    
+    println("shift $shift")
     
     EIGS = EIGS .+ shift
     
