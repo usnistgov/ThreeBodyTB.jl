@@ -1842,6 +1842,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     DQ_EDEN     = zeros(NCALC, NWAN_MAX)
 
     ENERGY_SMEAR = zeros(NCALC)
+    ENERGY_CHARGE = zeros(NCALC)
 
     OCCS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
     WEIGHTS     = zeros(NCALC,  nk_max, NWAN_MAX, SPIN_MAX)
@@ -2034,7 +2035,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 #        println("VALS ", VALS)
         
         energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
-        
+        ENERGY_SMEAR[c] = energy_smear
 
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
@@ -2071,7 +2072,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
             else
                 energy_charge = 0.0
             end
-
+            ENERGY_CHARGE[c] = energy_charge
 #            println("energy magnetic ", tbc.tb.scfspin)
             if tbc.tb.scfspin
                 energy_magnetic = magnetic_energy(tbc, eden)
@@ -2166,7 +2167,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
 
-    return ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0
+    return ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0, ENERGY_CHARGE
 
 end
 
@@ -2176,7 +2177,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     sleep(10)
     
     if ismissing(topstuff)
-        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0 = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
+        ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0, ENERGY_CHARGE = top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
     else
         ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
     end
@@ -2503,6 +2504,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             else
                 energy_charge = 0.0
             end
+            ENERGY_CHARGE[c] = energy_charge
+
             if tbc.tb.scfspin
                 energy_magnetic = magnetic_energy(tbc.crys, EDEN_FITTED[c, 1:tbc.nspin,1:nw])
 #                if c == 4
@@ -2645,6 +2648,16 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             vals_test_other = zeros(nw, ncols)
             vals_test_on = zeros(nw)
 
+            if !ismissing(list_of_tbcs[calc]) && scf
+                #println("try ", [ENERGY_CHARGE[calc], energy_charge, list_of_tbcs[calc].nelec])
+                vals0_shift = ( +ENERGY_CHARGE[calc] - energy_charge)/list_of_tbcs[calc].nelec
+                println("CALC $calc vals0_shift $vals0_shift ", [ENERGY_CHARGE[calc], energy_charge, list_of_tbcs[calc].nelec])
+                #ENERGY_CHARGE[calc] is the TB value we are fitting
+                #energy_charge is the tb_krys value
+            else
+                vals0_shift = 0.0
+            end
+
             for spin = 1:list_of_tbcs[calc].nspin
                 for k = 1:nk
                     for i = 1:nw
@@ -2714,7 +2727,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         NEWX[counter, :] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin]
                         X_TOTEN[:] +=   vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #* list_of_tbcs[calc].nspin
 
-                        NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i]) .* WEIGHTS[calc, k, i, spin]
+                        #                        NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i]) .* WEIGHTS[calc, k, i, spin]
+                        NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i] + vals0_shift ) .* WEIGHTS[calc, k, i, spin]
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 
 

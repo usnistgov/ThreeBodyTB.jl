@@ -1195,7 +1195,8 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing)
     println("ooooooooo $energy_orig")
 
-
+#    e_den_new = e_den_new * 0.9
+    
     if ismissing(e_den)
         e_den = e_den_new
     end
