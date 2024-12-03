@@ -165,6 +165,7 @@ mutable struct atom
     Upd::Float64
     Udd::Float64
     Umat::Array{Float64,2}
+    neutral_occ::Array{Float64,1}
 end
 
 
@@ -251,9 +252,9 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    println("EIGS after subtraction")
 #    println(EIGS)
 
-    band_energy0, efermi = band_energy(EIGS, [1.0], nval, returnef=true)
+    band_energy0, efermi, occ = band_energy(EIGS, [1.0], nval, returnboth=true)
     smear_energy = smearing_energy(EIGS, [1.0], efermi)
-
+    println("size occ $(size(occ)) ", occ)
 #    if name=="Ta"
 #        println("name $name")
 #        println("EIGS before subtraction")
@@ -308,6 +309,8 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
             orblist = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
         elseif orb2 == [:s, :p, :d]
             orblist = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
+        elseif orb2 == [:s, :d]
+            orblist = [:s, :d, :d, :d, :d, :d]
         end
         for (c1,o1) in enumerate(orblist)
             for (c2,o2) in enumerate(orblist)
@@ -332,7 +335,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
         end
     end
 
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, U3,efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Umat)
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, U3,efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Umat, occ[:])
     
 end
     

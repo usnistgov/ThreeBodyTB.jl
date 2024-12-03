@@ -4148,7 +4148,7 @@ end
 """
          function get_neutral_eden(crys::crystal, nwan=missing)
      """
-function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, dq_list = missing)
+function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, dq_list = missing, old_version = false)
 
 #    println("get_neutral_edenget_neutral_edenget_neutral_eden")
     
@@ -4179,86 +4179,110 @@ function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, d
 #            println("z_ion $i $z_ion")
             
             nwan = at.nwan
-            if nspin == 1
-                still_needA = [z_ion]
-            else
-                if magnetic
-                    if z_ion == 1 || nwan - z_ion == 1.0  #FM high spin magnetic heuristic
-                        still_needA = [z_ion + 0.5, z_ion-0.5]
-                    elseif z_ion == 2 || nwan - z_ion == 2.0  #FM high spin magnetic heuristic
-                        still_needA = [z_ion + 1.01, z_ion-1.01]
-                    else
-                        still_needA = [z_ion + 1.8, z_ion-1.8]
-                    end
+            if !old_version
+
+                eden[sp, (counter+1): (counter + Int64(at.nwan/2))] = at.neutral_occ
+                counter += Int64(at.nwan/2)
+
+            else #old_version
+                
+                if nspin == 1
+                    still_needA = [z_ion]
                 else
-                    still_needA = [z_ion , z_ion] #two spins but non-magnetic for some reason
+                    if magnetic
+                        if z_ion == 1 || nwan - z_ion == 1.0  #FM high spin magnetic heuristic
+                            still_needA = [z_ion + 0.5, z_ion-0.5]
+                        elseif z_ion == 2 || nwan - z_ion == 2.0  #FM high spin magnetic heuristic
+                            still_needA = [z_ion + 1.01, z_ion-1.01]
+                        else
+                            still_needA = [z_ion + 1.8, z_ion-1.8]
+                        end
+                    else
+                        still_needA = [z_ion , z_ion] #two spins but non-magnetic for some reason
+                    end
+
                 end
 
-            end
-
-            still_need = still_needA[sp]
-            for o in at.orbitals
-                if o == :s
-                    counter += 1
-                    if still_need <= 2.0 && still_need > 1e-5
-                        eden[sp, counter] = still_need/2.0
-                        still_need = 0.0
-                    elseif still_need >= 2.0 && still_need > 1e-5
-                        eden[sp, counter] = 1.0
-                        still_need = still_need - 2.0
-                    else
+                still_need = still_needA[sp]
+                for o in at.orbitals
+                    if o == :s
                         counter += 1
-                    end
-                elseif o == :p
-                    #                println("p")
-                    if still_need <= 6.0 && still_need > 1e-5
-                        eden[sp, counter+1] = (still_need/2.0)/3.0
-                        eden[sp, counter+2] = (still_need/2.0)/3.0
-                        eden[sp, counter+3] = (still_need/2.0)/3.0
-                        still_need = 0.0
-                        counter += 3
-                    elseif still_need >= 6.0 && still_need > 1e-5
-                        eden[sp, counter+1] = 1.0
-                        eden[sp, counter+2] = 1.0
-                        eden[sp, counter+3] = 1.0
-                        still_need = still_need - 6.0
-                        counter += 3
+                        if still_need <= 2.0 && still_need > 1e-5
+                            eden[sp, counter] = still_need/2.0
+                            still_need = 0.0
+                        elseif still_need >= 2.0 && still_need > 1e-5
+                            eden[sp, counter] = 1.0
+                            still_need = still_need - 2.0
+                        else
+                            counter += 1
+                        end
+                    elseif o == :p
+                        #                println("p")
+                        if still_need <= 6.0 && still_need > 1e-5
+                            eden[sp, counter+1] = (still_need/2.0)/3.0
+                            eden[sp, counter+2] = (still_need/2.0)/3.0
+                            eden[sp, counter+3] = (still_need/2.0)/3.0
+                            still_need = 0.0
+                            counter += 3
+                        elseif still_need >= 6.0 && still_need > 1e-5
+                            eden[sp, counter+1] = 1.0
+                            eden[sp, counter+2] = 1.0
+                            eden[sp, counter+3] = 1.0
+                            still_need = still_need - 6.0
+                            counter += 3
+                        else
+                            counter += 3
+                        end
+                    elseif  o == :d
+                        if still_need <= 10.0 && still_need > 1e-5
+                            eden[sp, counter+1] = (still_need/2.0)/5.0
+                            eden[sp, counter+2] = (still_need/2.0)/5.0
+                            eden[sp, counter+3] = (still_need/2.0)/5.0
+                            eden[sp, counter+4] = (still_need/2.0)/5.0
+                            eden[sp, counter+5] = (still_need/2.0)/5.0
+                            still_need = 0.0
+                            counter += 5
+                        elseif still_need >= 10.0 && still_need > 1e-5
+                            eden[sp, counter+1] = 1.0
+                            eden[sp, counter+2] = 1.0
+                            eden[sp, counter+3] = 1.0
+                            eden[sp, counter+4] = 1.0
+                            eden[sp, counter+5] = 1.0
+                            still_need = still_need - 10.0
+                            counter += 5
+                        else
+                            counter += 5
+                        end
                     else
-                        counter += 3
+                        println("bad orbital get_neutral_eden $o")
                     end
-                elseif  o == :d
-                    if still_need <= 10.0 && still_need > 1e-5
-                        eden[sp, counter+1] = (still_need/2.0)/5.0
-                        eden[sp, counter+2] = (still_need/2.0)/5.0
-                        eden[sp, counter+3] = (still_need/2.0)/5.0
-                        eden[sp, counter+4] = (still_need/2.0)/5.0
-                        eden[sp, counter+5] = (still_need/2.0)/5.0
-                        still_need = 0.0
-                        counter += 5
-                    elseif still_need >= 10.0 && still_need > 1e-5
-                        eden[sp, counter+1] = 1.0
-                        eden[sp, counter+2] = 1.0
-                        eden[sp, counter+3] = 1.0
-                        eden[sp, counter+4] = 1.0
-                        eden[sp, counter+5] = 1.0
-                        still_need = still_need - 10.0
-                        counter += 5
-                    else
-                        counter += 5
-                    end
-                else
-                    println("bad orbital get_neutral_eden $o")
                 end
             end
+            
         end
     end
 
-
-#    println("total $total sum eden $(sum(eden))")
+    if nspin == 2 && !old_version
+        for i = 1:size(eden,2)
+            if eden[1,i] > 0.2 && eden[1,i] < 0.8
+                eden[1,i] += 0.19
+                eden[2,i] -= 0.19
+            elseif eden[1,i] > 0.04999999 && eden[1,i] < (1 - 0.04999999)
+                eden[1,i] += 0.04999999
+                eden[2,i] -= 0.04999999
+            end
+        end
+    end
+        
+    
+    println("total $total sum eden $(sum(eden))")
     if nspin == 1
         eden = eden .- (sum(eden) - total/2.0) / size(eden,2) 
+    elseif nspin == 2
+
+        eden = eden .- (sum(eden[:]) - total/2)  / size(eden,2) / 2
     end
-    #eden = eden .- sum(total) / nspin / size(eden,2) / 2.0
+        #eden = eden .- sum(total) / nspin / size(eden,2) / 2.0
     
     return eden
 
