@@ -946,7 +946,7 @@ function shift_eigenvalues(d::dftout)
     println("shifting eigenvalues to match dft atomization energy")
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
     #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
-    band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
+    band_en = band_energy(EIGS, d.bandstruct.kweights, nval - d.tot_charge )
 
     #        println("d.crys")
     #        println(d.crys)
@@ -963,7 +963,7 @@ function shift_eigenvalues(d::dftout)
 #    println("atomization_energy $atomization_energy")
     
     band_en = band_en 
-    shift = (atomization_energy - band_en  )/nval
+    shift = (atomization_energy - band_en  )/ (nval - d.tot_charge)
     println("shift $shift")
     
     EIGS = EIGS .+ shift
@@ -1057,7 +1057,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("shifting eigenvalues to match dft atomization energy")
         ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
 #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
-        band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
+        band_en = band_energy(EIGS, d.bandstruct.kweights, nval - d.tot_charge)
 
         println("band_energy $band_en")
         println("EIGS  ", EIGS[1,:,1])
@@ -1080,7 +1080,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 #        println("atomization_energy $atomization_energy")
 
         band_en = band_en 
-        shift = (atomization_energy - band_en  )/nval
+        shift = (atomization_energy - band_en  )/(nval - d.tot_charge)
 
 #        println("shift $shift")
 #        return 0
@@ -1376,11 +1376,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         end
             
         
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval)
+        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
 
         println("band_en_old " , band_en)
 
-        shift = (atomization_energy - band_en)/nval
+        shift = (atomization_energy - band_en)/(nval - d.tot_charge)
         VAL = VAL .+ shift
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
@@ -1401,7 +1401,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             end
         end
             
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval)
+        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
         println("band_en_new " , band_en, " " , band_en+etypes)
 
 
