@@ -1625,7 +1625,7 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
     # I don't know why, you have to ask them.
     
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
-    nval = nval - dft.tot_charge
+    nval = nval - d.tot_charge
     
     OVERLAPS = deepcopy(p.overlaps)
     println("wan ", wan)
