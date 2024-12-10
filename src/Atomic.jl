@@ -192,7 +192,7 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0,U3=0.0, fullU=false, Uarr=zeros(8))
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0,U3=0.0, fullU=false, Uarr=zeros(8); total_en = 0.0)
     #vac potential in ryd
 
     orb2 = map(x->convert(Symbol, x), orbitals)
@@ -209,7 +209,8 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
         elseif o == :f
             nwan += 14
         else
-            exit("oribtal entry incorrect, good values are s p d f: ", orbitals, orb2)
+            nwan += 2
+#            exit("oribtal entry incorrect, good values are s p d f: ", orbitals, orb2)
         end
     end
 
@@ -242,12 +243,16 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
             EIGS[c-3,1] = eigs[i]*convert_ev_ryd
             EIGS[c-2,1] = eigs[i]*convert_ev_ryd
             EIGS[c-1,1] = eigs[i]*convert_ev_ryd
-            EIGS[c  ,1] = eigs[i]*convert_ev_ryd            
+            EIGS[c  ,1] = eigs[i]*convert_ev_ryd
+        else
+            c+=1
+            EIGS[c,1] = eigs[i]*convert_ev_ryd
+            
         end
     end
     
 
-    EIGS = EIGS .- vac_potential
+    EIGS = EIGS .- vac_potential .- total_en / nval
 
 #    println("EIGS after subtraction")
 #    println(EIGS)
@@ -267,7 +272,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    shift = (0.0 - band_energy0)/nval
 
     energy_offset = -(band_energy0+smear_energy)  #this is the atomic energy, no spin, after vac correction
-
+    println("energy offset $energy_offset from $band_energy0 $smear_energy")
     if name == "X" || name == "Xa"
         energy_offset = 0.0
     end
@@ -277,7 +282,8 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     d = Dict()
 
     for (o, i) in zip(orb2, eigs)
-#        d[o] = (i * convert_ev_ryd + shift)
+        println("o $o i $i")
+        #        d[o] = (i * convert_ev_ryd + shift)
         d[o] = (i * convert_ev_ryd - vac_potential)
         if o == :s
             d[1] = (i * convert_ev_ryd - vac_potential)
@@ -287,9 +293,35 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
             d[3] = (i * convert_ev_ryd - vac_potential)
         elseif o == :f
             d[4] = (i * convert_ev_ryd - vac_potential)
+
+        elseif o == :s1
+            d[1] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s2
+            d[2] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s3
+            d[3] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s4
+            d[4] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s5
+            d[5] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s6
+            d[6] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s7
+            d[7] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s8
+            d[8] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s9
+            d[9] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s10
+            d[10] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s11
+            d[11] = (i * convert_ev_ryd - vac_potential)
+        elseif o == :s12
+            d[12] = (i * convert_ev_ryd - vac_potential)
+            
         end
         
-#        println("d ", d[o], " ", o)
+        println("d ", d[o], " ", o)
     end
 
 #    band_energy_new = band_energy(EIGS .- band_energy0 / nval , [1.0], nval)#
@@ -311,6 +343,8 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
             orblist = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
         elseif orb2 == [:s, :d]
             orblist = [:s, :d, :d, :d, :d, :d]
+        else
+            orblist = deepcopy(orb2)
         end
         for (c1,o1) in enumerate(orblist)
             for (c2,o2) in enumerate(orblist)

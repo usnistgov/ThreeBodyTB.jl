@@ -155,7 +155,9 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     # can run real space and k-space in parallel with asyncronous parallelization. Only a minor improvement.
 #    println("rs")
     rs = begin 
-        gamma_rs, gamma_U, gamma_U_opt = real_space_LV(crys, kappa, Usize, starting_size_rspace, factor)
+        #gamma_rs, gamma_U, gamma_U_opt = real_space_LV(crys, kappa, [0.05, 0.05], starting_size_rspace, factor)
+        gamma_rs, gamma_U, gamma_U_opt = real_space_LV(crys, kappa, max.(Usize, 0.2), starting_size_rspace, factor)
+        
         #gamma_rs, gamma_U = real_space(crys, kappa, U, starting_size_rspace)
 #        println("gamma_U_opt ", gamma_U_opt)
     end
@@ -267,7 +269,9 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     
     background_charge_correction = 0.0
     for t = crys.stypes
-        background_charge_correction += uniform_charge_interaction[t]
+        if t in keys(uniform_charge_interaction)
+            background_charge_correction += uniform_charge_interaction[t]
+        end
     end
     background_charge_correction = background_charge_correction / abs(det(crys.A)) / crys.nat
        

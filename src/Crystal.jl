@@ -1409,7 +1409,11 @@ function orbital_index(c::crystal)
                 ind += 1
                 ind2orb[ind] = [i,t, :fy_3x2_y2]
             else
-                error("orbitals ????")
+                #error("orbitals warning $o")
+                println("warning orbital entererd : $o")
+                ind += 1
+                ind2orb[ind] = [i,t, o]
+                
             end
 
         end

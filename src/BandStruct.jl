@@ -861,18 +861,33 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
         vbm = efermi_tbc
     end
         
-        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
+    if bs.nks == 1
+        scatter!(ones(size(bs.eigs[:,1, spin])) .+ 0.1, convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange",  label="DFT", grid=false, legend=:topleft, MarkerSize=2)
+    else
+        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)
+    end
         if bs.nbnd > 1
             #        println("test ", vbmD)
             #        println(bs.eigs[:,2, spin] )
             #        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
-
-            plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)    
+            if bs.nks == 1
+                scatter!(ones(size(bs.eigs[:,2:end, spin])).+0.1, convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange",  label=missing, MarkerSize=2)
+            else
+                plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)
+            end
         end
 
-        plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")
+    if bs.nks == 1
+        scatter!( convert_energy(vals[:,1, spin] .- vbm), color="blue",   label="TB", MarkerSize=2)
+    else
+        plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")       
+    end
         if tbc.tb.nwan > 1
-            plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
+    if bs.nks == 1
+        scatter!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  label=missing, MarkerSize=2)
+    else
+        plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
+    end
         end
 
 

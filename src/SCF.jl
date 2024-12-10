@@ -1285,7 +1285,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 #    println("energy smear " , energy_smear)
 
 #    shift = (energy_orig - energy_charge - energy_magnetic - energy_new)/nval
-    shift = (energy_orig - energy_new) / nval
+    shift = (energy_orig - energy_new) / (tbcK.nelec)
 
     println("shift $shift  orig  $energy_orig new  $energy_new charge $energy_charge magnetic $energy_magnetic  $nval")
  #    println("shift $shift")

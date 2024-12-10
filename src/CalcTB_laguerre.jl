@@ -102,6 +102,8 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
+const n_ufit = 2
+
 EXP_a = [2.5]
 
 using ..CrystalMod:cutoff2X
@@ -159,7 +161,8 @@ mutable struct coefs
     version::Int64
     lim::Dict
     repval::Dict
-    
+    datU::Array{Float64,1}
+    sizeU::Int64
 end
 
 function construct_coef_string(co)
@@ -343,7 +346,7 @@ function read_coefs(filename, directory = missing)
         repval = missing
     end
         
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval)
+    co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval)
 
     return co
     
@@ -358,19 +361,19 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing)
 
 #    println("make coefs")
 #    sort!(at_list)
-
+    totU = 0
     if version == 2 || version == 3
-        totH,totS, data_info, orbs = get_data_info_v2(at_list, dim)
+        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim)
     elseif version == 1
         totH,totS, data_info, orbs = get_data_info_v1(at_list, dim)
     else
         println("warning, bad version $version")
         version = 2
-        totH,totS, data_info, orbs = get_data_info_v2(at_list, dim)
+        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim)
     end
 
 #    println("make_coefs ", at_list)
@@ -401,7 +404,11 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
             datS = ones(totS) * 0.1
         end
     end
+    if ismissing(datU)
+        datU = zeros(totU)
+    end
 
+    
     #    if length(datH) < totH
     #        println("dat convert ", at_list, dim)
     #        datH = fix_format_change(datH, totH, dim, at_list, data_info)
@@ -536,6 +543,10 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
                 repval[a] = 0.01
             end
         end
+
+
+            
+        
     elseif dim == 3
         at_arr = Symbol.([i for i in at_list])
         if length(at_list) == 1
@@ -568,11 +579,13 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
 
+
+    
 #    for x in [dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval]
 #        println(typeof(x))
 #        end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU)
 
 end
     
@@ -775,7 +788,7 @@ Loops over various combinations of orbitals and atoms and assigns them places in
 """
 function get_data_info_v2(at_set, dim)
     
-    
+    totU = 0
     data_info = Dict{Any, Array{Int64,1}}()
     orbs = []
     if dim == 0
@@ -789,17 +802,35 @@ function get_data_info_v2(at_set, dim)
         
         at_list = Symbol.([i for i in at_set])
         #        println(at_list)
+
+        nat = length(at_list)
+        
         if length(at_list) == 1
             at_list = [at_list[1], at_list[1]]
         end
         sort!(at_list)
         #        println(at_list)
+
+        at1 = at_list[1]
+        at2 = at_list[2]
+
+        
+        # u stuff
+        if nat == 1
+            totU = n_ufit
+            data_info[[at1,at2,:U]] = 1:n_ufit            
+        else
+            totU = 2 * n_ufit
+            data_info[[at1,at2,:U]] = 1:n_ufit
+            data_info[[at2,at1,:U]] = (1:n_ufit) .+ n_ufit
+        end
+        
+
+
         
         orbs1 = atoms[at_list[1]].orbitals
         orbs2 = atoms[at_list[2]].orbitals
 
-        at1 = at_list[1]
-        at2 = at_list[2]
 
         if at1 == at2
             same_at = true
@@ -936,6 +967,8 @@ function get_data_info_v2(at_set, dim)
             totHO = getonsite(at2, orbs2, totHO, n_2body_onsite)
         end
 
+
+        
     elseif dim == 3 #3body
         
         totS = 0 #no 3body overlap terms
@@ -1142,7 +1175,7 @@ function get_data_info_v2(at_set, dim)
     else
         println("error, only 2 or 3 body terms, you gave me : ", at_list)
     end
-    return totHO ,totS, data_info, orbs
+    return totHO ,totS, data_info, orbs, totU
 
 end            
 
@@ -3500,7 +3533,7 @@ Where
 - `dmin_types` - shortest 3body distances
 """
 
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing, use_eam=false)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, spin=1, factor_dict = missing, use_eam=false, use_umat = false)
 
     #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
     #    println(reference_tbc.crys)
@@ -3600,12 +3633,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
                 hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
                 smat = zeros(var_type, nkeep*nwan*nwan, coef.sizeS)
-
+                umat = zeros(var_type, crys.nat, coef.sizeU)
                 #                hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
                 #                smat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeS)
 
 
-                twobody_arrays[at_set] = [hmat, smat, coef]
+                twobody_arrays[at_set] = [hmat, smat, coef, umat]
 
             end
         end
@@ -3698,6 +3731,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         a1 = R_keep_ab[c,2]
         a2 = R_keep_ab[c,3]
 
+        
         if !(R_keep_ab[c,4:6] in keys(reference_tbc.tb.r_dict))
             continue
         end
@@ -3707,13 +3741,31 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         dist = dist_arr[a1,a2,cind,1]
         lmn[:] = dist_arr[a1,a2,cind,2:4]
 
+        t1 = crys.stypes[a1]
+        t2 = crys.stypes[a2]
+        cutoff2X = get_cutoff(t1,t2)[1]
+        if dist < cutoff2X - cutoff_length
+            cut = 1.0
+        else
+            cut = cutoff_fn(dist, cutoff2X - cutoff_length, cutoff2X)
+        end
+
+        at_set = Set((crys.stypes[a1], crys.stypes[a2]))
+        coef = twobody_arrays[at_set][3]
+
+        #umat
+        if use_umat
+            (h,s) = fit_twobody(:s,:s,dist,lmn)
+            iu = coef.inds[[t1,t2,:U]]
+            twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
+        end
+        
 
         for o1 = orb2ind[a1]
             a1a,t1,s1 = ind2orb[o1]
             sum1 = summarize_orb(s1)
             for o2 = orb2ind[a2]
                 a2a,t2,s2 = ind2orb[o2]
-                cutoff2X = get_cutoff(t1,t2)[1]
                 
                 sum2 = summarize_orb(s2)
                 at_set = Set((t1, t2))
@@ -3761,7 +3813,6 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
                 (h,s) = fit_twobody(s1,s2,dist,lmn)
 
-                coef = twobody_arrays[at_set][3]
 
                 ih = coef.inds[[t1,sum1,t2,sum2,:H]]
                 is = coef.inds[[t1,sum1,t2,sum2,:S]]
@@ -3802,7 +3853,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         hmat = hmat[1:counter,:]
         smat = smat[1:counter,:]
 
-        twobody_arrays[key] = [hmat, smat, coef]
+        twobody_arrays[key] = [hmat, smat, coef, twobody_arrays[key][4]]
     end
 
     if use_threebody || use_threebody_onsite
@@ -4154,7 +4205,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             th =  deepcopy(twobody_arrays[key][1][keep,:])
             ts =  deepcopy(twobody_arrays[key][2][keep,:])
             coef = deepcopy(twobody_arrays[key][3])
-            twobody_arrays[key] = [th, ts, coef]
+            twobody_arrays[key] = [th, ts, coef,deepcopy( twobody_arrays[key][4] )]
 
         end
 

@@ -1957,8 +1957,38 @@ function summarize_orb_num(orb::Symbol)
         return 1
     elseif orb == :d || orb == :dz2 || orb == :dxz || orb == :dyz || orb == :dx2_y2 || orb == :dxy
         return 2
+    elseif orb == :s1
+#    else
+#        println("not coded yet $orb summarize_orb")
+        return 0
+    elseif orb == :s2
+        return 1
+    elseif orb == :s3
+        return 2
+    elseif orb == :s4
+        return 3
+    elseif orb == :s5
+        return 4
+    elseif orb == :s6
+        return 5
+    elseif orb == :s7
+        return 6
+    elseif orb == :s8
+        return 7
+    elseif orb == :s9
+        return 8
+    elseif orb == :s10
+        return 9
+    elseif orb == :s11
+        return 10
+    elseif orb == :s12
+        return 11
+    elseif orb == :s13
+        return 12
     else
         println("not coded yet $orb summarize_orb")
+        return 0
+        
     end
 end
 
@@ -1995,8 +2025,34 @@ function orb_num(orb::Symbol)
         return 15
     elseif orb == :fy_3x2_y2
         return 16
+    elseif orb == :s1
+        return 1
+    elseif orb == :s2
+        return 2
+    elseif orb == :s3
+        return 3
+    elseif orb == :s4
+        return 4
+    elseif orb == :s5
+        return 5
+    elseif orb == :s6
+        return 6
+    elseif orb == :s7
+        return 7
+    elseif orb == :s8
+        return 8
+    elseif orb == :s9
+        return 9
+    elseif orb == :s10
+        return 10
+    elseif orb == :s11
+        return 11
+    elseif orb == :s12
+        return 12
     else
         println("not coded yet $orb orb_num")
+        return 0
+
     end
 end
 
@@ -4275,7 +4331,7 @@ function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, d
     end
         
     
-    println("total $total sum eden $(sum(eden))")
+#    println("total $total sum eden $(sum(eden))")
     if nspin == 1
         eden = eden .- (sum(eden) - total/2.0) / size(eden,2) 
     elseif nspin == 2
@@ -4606,7 +4662,7 @@ end
      """
 function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01)
 
-    bandenergy, eden, VECTS, VALS, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
+    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
 
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
@@ -4749,7 +4805,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
 
     
     
-    return energy0, electron_den, VECTS, VALS, efermi, error_flag
+    return energy0, electron_den, VECTS, VALS, efermi, error_flag, VALS0
 
 end
 
@@ -4761,7 +4817,9 @@ function get_formation_energy(energy, types)
 
     eform = energy
     for t in types
-        eform -= formation_energy_ref[t]
+        if t in keys(formation_energy_ref)
+            eform -= formation_energy_ref[t]
+        end
     end
     
     return eform / length(types) 

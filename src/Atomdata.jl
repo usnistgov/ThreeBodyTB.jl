@@ -15,6 +15,9 @@ using ..ThreeBodyTB:SRCDIR
 Periodic table information.
 """
 atoms = Dict()
+zatoms = Dict()
+
+function reset_atomdata()
 
 #      name                     name  Z  row col mass nval nsemi  orbitals total_energy    e_orb1, e_orb2
 #                                                (amu)                      (Ryd)             (eV)
@@ -165,6 +168,7 @@ atoms["Bi"] = makeatom("Bi", 83, 6, 5.0,  209.0,   5.0,   10,   [:s, :p], -184.6
 =#
 
 #new
+
 atoms["H" ] = makeatom("H" , 1, 1, 1, 1.0079,   1.0,   0,   [:s ],     -0.90531367, [-6.3176], 0.0,0.8460515582185013, -0.19732205267172007, true, [0.824806994015707, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
 atoms["Li"] = makeatom("Li", 3, 2, 1, 6.941,    1.0,   2,   [:s, :p], -14.23107803, [-2.7537, -0.99],0.0,0.36009932979919274, 0.04487366459656113, true, [0.3880469071872507, 0.3291573762719867, 0.2861715931622777, 0.2885786195886502, 0.0, 0.0, 0.0, 0.0]);
 atoms["Be"] = makeatom("Be", 4, 2, 2, 9.012,    2.0,   2,   [:s, :p], -27.80694399, [-5.5055, -1.9313],0.0,0.5795688438964781, 0.010559347031176532, true, [0.5740997282958443, 0.5562476336616233, 0.5849944109257113, 0.5834582863696387, 0.0, 0.0, 0.0, 0.0]);
@@ -232,13 +236,15 @@ atoms["Bi"] = makeatom("Bi", 83, 6, 5.0,  209.0,   5.0,   10,   [:s, :p], -184.6
 
 
 
-zatoms = Dict()
 
 for key in keys(atoms)
     atoms[Symbol(key)] = atoms[key]
     zatoms[atoms[key].Z] = key
 end
 
+end
+
+reset_atomdata()
 
 #U = IE - EA  (ionization energy - electron affinity
 
@@ -464,8 +470,16 @@ function get_cutoff(at1, at2)
     if (at1,at2) in keys(cutoff_dist)
         return cutoff_dist[(at1,at2)]
     else
-        rad1 = atom_radius[at1] / 0.529 / 100.0
-        rad2 = atom_radius[at2] / 0.529 / 100.0
+        if at1 in keys(atom_radius)
+            rad1 = atom_radius[at1] / 0.529 / 100.0
+        else
+            rad1 = 200/ 0.529 / 100.0
+        end
+        if at2 in keys(atom_radius)
+            rad2 = atom_radius[at2] / 0.529 / 100.0
+        else
+            rad2 = 200/ 0.529 / 100.0
+        end
         
 #        cutoff2X    = (rad1 + rad2) / 2.0 * 7.0
  #       cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0
@@ -504,9 +518,25 @@ function get_cutoff(at1, at2, at3)
     if (at1,at2,at3) in keys(cutoff_dist)
         return cutoff_dist[(at1,at2,at3)]
     else
-        rad1 = atom_radius[at1] / 0.529 / 100.0
-        rad2 = atom_radius[at2] / 0.529 / 100.0
-        rad3 = atom_radius[at3] / 0.529 / 100.0
+        if at1 in keys(atom_radius)
+            rad1 = atom_radius[at1] / 0.529 / 100.0
+        else
+            rad1 = 200/ 0.529 / 100.0
+        end
+        if at2 in keys(atom_radius)
+            rad2 = atom_radius[at2] / 0.529 / 100.0
+        else
+            rad2 = 200/ 0.529 / 100.0
+        end
+        if at3 in keys(atom_radius)
+            rad3 = atom_radius[at3] / 0.529 / 100.0
+        else
+            rad3 = 200/ 0.529 / 100.0
+        end
+
+        #        rad1 = atom_radius[at1] / 0.529 / 100.0
+#        rad2 = atom_radius[at2] / 0.529 / 100.0
+#        rad3 = atom_radius[at3] / 0.529 / 100.0
 
 #        cutoff3bX = minimum([rad1, rad2, rad3])*5.0
 #        cutoff3bX  = max(min(cutoff3bX,  13.51),  10.01) #3body
