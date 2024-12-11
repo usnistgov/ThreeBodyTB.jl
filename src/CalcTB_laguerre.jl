@@ -404,7 +404,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cuto
             datS = ones(totS) * 0.1
         end
     end
-    if ismissing(datU)
+    if ismissing(datU) || length(datU) == 0
         datU = zeros(totU)
     end
 
@@ -1516,6 +1516,10 @@ Base.show(io::IO, d::coefs) = begin
         i = d.inds[key]
         if key[end] == :S
             println(io, key, ": " , d.datS[i])
+        elseif key[end] == :U
+            if length(d.datU) > 0
+                println(io, key, ": " , d.datU[i])
+            end
         else
             println(io, key, ": " , d.datH[i])
         end
@@ -3754,10 +3758,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         coef = twobody_arrays[at_set][3]
 
         #umat
-        if use_umat
+        if use_umat && dist > 1e-3
             (h,s) = fit_twobody(:s,:s,dist,lmn)
             iu = coef.inds[[t1,t2,:U]]
             twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
+            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
         end
         
 
@@ -7572,7 +7577,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = false)
 
 
     #        verbose=true
@@ -7607,7 +7612,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     else
         prepare_for_fitting = true
     end
-    
+
+    UMAT = zeros(var_type, crys.nat)
 
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
@@ -7763,6 +7769,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                 DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
 
+                DAT_ARR_U = zeros(Float64, types_counter, types_counter, n_ufit )
+
 
                 cutoff_arr = zeros(crys.nat, crys.nat, 2)
                 cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
@@ -7807,6 +7815,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             indO, inO = coef.inds_int[[t1]]
                             DAT_IND_ARR_O[c1,c2,:,:,1] = inO
                             DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
+                            if use_umat
+                                DAT_ARR_U[c1,c2,:] = coef.datU[coef.inds[[t1,t2, :U]]]
+                            end
                         else
                             println("WARNING, ",(t1,t2), " database not found")
                             within_fit = false
@@ -7937,7 +7948,6 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
                     end
                     
-                    
                     if dist_a <  1e-5    # true onsite
 
                         for o1x = 1:norb[a1]
@@ -7963,6 +7973,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         laguerre_fast!(dist_a, lag_arr)
 
+                        if use_umat
+                            UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t1,1:n_ufit]) * cut_a
+                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t1,1:n_ufit], " ", cut_a)
+                        end
+
+                        
                         rho_th[a1, 1, id] += lag_arr[1] * cut_on
                         rho_th[a1, 2, id] += lag_arr[2] * cut_on
 
@@ -8171,7 +8187,25 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         #            end
     end
 
+    if use_umat
+        UMAT_ADD = zeros(nwan, nwan)
+        counter = 0
+        for t1 in crys.stypes
+            at1 = atoms[t1 ]
+            nw1 = Int64(at1.nwan/2)
+            for i = 1:nw1
+                for j = 1:nw1
+                    UMAT_ADD[i+counter,j+counter] = UMAT[counter+1]
+                end
+            end
+            counter += nw1
+        end
+        println("UMAT_ADD")
+        println(UMAT_ADD)
 
+    else
+        UMAT_ADD = missing
+    end
 
     if retmat
         #return H, S
@@ -8188,7 +8222,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             scf = false
         end
         #println("make")
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, u3=u3, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, u3=u3, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening, umat_add = UMAT_ADD)
         tbc.tot_charge = tot_charge
         tbc.nelec = tbc.nelec - tot_charge
     end

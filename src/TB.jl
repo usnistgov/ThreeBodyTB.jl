@@ -1047,7 +1047,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0, bs=missing )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0, bs=missing , umat_add = missing)
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -1075,6 +1075,10 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
 
+    if !ismissing(umat_add)
+        gamma += umat_add
+    end
+    
     nspin = ham.nspin
     
     #    println("type scf " , typeof(scf))
