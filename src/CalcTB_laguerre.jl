@@ -102,7 +102,7 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
-const n_ufit = 2
+const n_ufit = 3
 
 EXP_a = [2.5]
 
@@ -214,8 +214,10 @@ function write_coefs(filename, co::coefs; compress=true)
     addelement!(c, "dim", string(co.dim))
     addelement!(c, "datH", arr2str(co.datH))
     addelement!(c, "datS", arr2str(co.datS))
+    addelement!(c, "datU", arr2str(co.datU))
     addelement!(c, "sizeH", string(co.sizeH))
     addelement!(c, "sizeS", string(co.sizeS))
+    addelement!(c, "sizeU", string(co.sizeU))
 
     indsstr = construct_coef_string(co)
 
@@ -296,6 +298,12 @@ function read_coefs(filename, directory = missing)
     dim = parse(Int64, (d["coefs"]["dim"]))
     sizeH = parse(Int64, d["coefs"]["sizeH"])
     sizeS = parse(Int64, d["coefs"]["sizeS"])
+    sizeU = 0
+    try 
+        sizeU = parse(Int64, d["coefs"]["sizeU"])
+    catch
+        sizeU = 0
+    end
 
     if sizeH > 0
         datH = parse_str_ARR_float(d["coefs"]["datH"])
@@ -307,6 +315,18 @@ function read_coefs(filename, directory = missing)
     else
         datS = Float64[]
     end
+    datU = Float64[]
+    if sizeU > 0
+        try
+            datU = parse_str_ARR_float(d["coefs"]["datU"])
+        catch
+            datU = Float64[]
+            sizeU = 0
+        end
+    else
+        datU = Float64[]
+    end
+
     
 #    addelement!(c, "inds", string(co.inds))
     
@@ -7577,7 +7597,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = false)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true)
 
 
     #        verbose=true
@@ -7816,6 +7836,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             DAT_IND_ARR_O[c1,c2,:,:,1] = inO
                             DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
                             if use_umat
+                                println("addU $c1 $c2 $t1 $t2 inds $(coef.inds[[t1,t2, :U]]) $(coef.datU[coef.inds[[t1,t2, :U]]])")
                                 DAT_ARR_U[c1,c2,:] = coef.datU[coef.inds[[t1,t2, :U]]]
                             end
                         else
@@ -7974,8 +7995,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         laguerre_fast!(dist_a, lag_arr)
 
                         if use_umat
-                            UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t1,1:n_ufit]) * cut_a
-                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t1,1:n_ufit], " ", cut_a)
+                            UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a
+                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
                         end
 
                         
@@ -8188,17 +8209,21 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     end
 
     if use_umat
+        println("UMAT $UMAT")
         UMAT_ADD = zeros(nwan, nwan)
-        counter = 0
-        for t1 in crys.stypes
+
+        counter_wan = 0
+        for (counter_atom, t1) in enumerate(crys.stypes)
+
             at1 = atoms[t1 ]
             nw1 = Int64(at1.nwan/2)
             for i = 1:nw1
                 for j = 1:nw1
-                    UMAT_ADD[i+counter,j+counter] = UMAT[counter+1]
+                    UMAT_ADD[i+counter_wan,j+counter_wan] = UMAT[counter_atom]
                 end
             end
-            counter += nw1
+            counter_wan += nw1
+
         end
         println("UMAT_ADD")
         println(UMAT_ADD)

@@ -131,7 +131,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                     tbc_fake.tb.scfspin = true
                 end
                 tbc_fake.eden = tbc.eden
-                println("tbc_fake eded ", tbc_fake.eden)
+#                println("tbc_fake eded ", tbc_fake.eden)
             end
             push!(tbc_list, tbc_fake)
             push!(tbc_list_real, false)
@@ -2042,6 +2042,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 
         wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(tbc.crys)
         ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbc.crys)
+        nval = tbc.nelec
 
         NVAL[c] = nval
 
@@ -2336,8 +2337,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     function get_h1_umat(dq, crys, Xc_umat, X_umat, c_umat, c, h1_umat)
         energy = 0.0
-        println("size ", size(X_umat[c]), " " , size(c_umat) , " " , size(Xc_umat[c]))
-        println("c_umat ", c_umat)
+#        println("size ", size(X_umat[c]), " " , size(c_umat) , " " , size(Xc_umat[c]))
+#        println("c_umat ", c_umat)
         gamma_vec = X_umat[c] * c_umat + Xc_umat[c]
 #        println("c_umat ", c_umat)
 #        println("gamma_vec ", gamma_vec)
@@ -2401,6 +2402,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             c+=1
 
             nval = NVAL[c]
+#            println("NVAL $c  $nval  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
             etypes = types_energy(tbc.crys)
 
@@ -2465,7 +2467,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 dq = zeros(tbc.crys.nat)
                 dq_eden = zeros(nw) 
                 h1_umat = zeros(nw, nw)
-                eden =  deepcopy(E_DEN[c,1:nw])                    
+                eden =  deepcopy(E_DEN[c,1,1:nw])                    
             end
             if tbc.tb.scfspin
                 h1spin = deepcopy(H1spin[c,:,1:nw,1:nw])
@@ -2758,7 +2760,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     end
     NLAM = Int64(NLAM)
 
-
+    ENERGY_IND = zeros(Int64, NCALC)
     
     #    function construct_newXY(VECTS_FITTED::Array{Complex{Float64},4}, OCCS_FITTED::Array{Float64,3}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}; leave_out=-1)
     function construct_newXY(VECTS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_U::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}; leave_out=-1)
@@ -2831,12 +2833,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             X_TOTEN = zeros(ncols)
             Y_TOTEN = ENERGIES[calc]
-            println("Y_TOTEN ENERGIES[calc] $Y_TOTEN")
+            #println("Y_TOTEN ENERGIES[calc] $Y_TOTEN")
             
             if scf
                 nat = list_of_tbcs[calc].crys.nat
                 #energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
-                energy_charge = ewald_energy(list_of_tbcs[calc])
+                #energy_charge = ewald_energy(list_of_tbcs[calc])
+                energy_charge = ENERGY_CHARGE[calc]
             else
                 energy_charge = 0.0
             end
@@ -2858,8 +2861,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 end
             end
 
+
             
-            Y_TOTEN -= (energy_charge + etypes + energy_smear + energy_magnetic + energy_umat_fixed )
+            Y_TOTEN -= (energy_charge + etypes + energy_smear + energy_magnetic  )   #+ energy_umat_fixed
 #            println("Y_TOTEN subtract $Y_TOTEN ", [energy_charge , etypes , energy_smear , energy_magnetic , energy_umat_fixed , list_of_tbcs[calc].energy_band])
             
             VECTS = zeros(Complex{Float64}, nw, nw)
@@ -2870,7 +2874,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             if !ismissing(list_of_tbcs[calc]) && scf
                 #println("try ", [ENERGY_CHARGE[calc], energy_charge, list_of_tbcs[calc].nelec])
-                vals0_shift = ( +ENERGY_CHARGE[calc] - energy_charge)/list_of_tbcs[calc].nelec
+                #                vals0_shift = ( +ENERGY_CHARGE[calc] - energy_charge)/list_of_tbcs[calc].nelec
+                vals0_shift = 0.0
 #                println("CALC $calc vals0_shift $vals0_shift ", [ENERGY_CHARGE[calc], energy_charge, list_of_tbcs[calc].nelec])
                 #ENERGY_CHARGE[calc] is the TB value we are fitting
                 #energy_charge is the tb_krys value
@@ -2963,7 +2968,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 end
             end
             counter += 1
-#            X_TOTEN .= 0.0
+            ENERGY_IND[calc] =  counter
+            #            X_TOTEN .= 0.0
 #            println("SUM NEWX ", sum(abs.(NEWX)))
             NEWX[counter, 1:ncols] = X_TOTEN[:] * energy_weight * weights_list[calc]
 #            println("SUM NEWX ", sum(abs.(NEWX)))
@@ -3025,10 +3031,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         for iters = 1:NITERS #inner loop
 
             if iters > 2
-                mix = 0.06
+                mix = 0.02
             end
             if iters > 4
-                mix = 0.12
+                mix = 0.02
             end
 
             if scf
@@ -3064,7 +3070,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #          println(typeof(leave_out))
             println("construct_newXY")
             @time  NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_U, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-            println("SUM NEWX ", sum(abs.(NEWX)))
+#            println("SUM NEWX ", sum(abs.(NEWX)))
             VECTS_FITTED = Dict()
             #            VECTS_FITTED = []
             #            OCCS_FITTED = []
@@ -3084,13 +3090,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             @time begin
                 TOTX = NEWX
                 TOTY = NEWY
-                println("SUM TOTX ", sum(abs.(TOTX)))
+#                println("SUM TOTX ", sum(abs.(TOTX)))
                 
                 if rs_weight > 1e-5
                     TOTX = [X_H*rs_weight;TOTX]
                     TOTY = [Y_H*rs_weight;TOTY]
                 end            
-                println("SUM TOTX ", sum(abs.(TOTX)))
+#                println("SUM TOTX ", sum(abs.(TOTX)))
 
                 if iters == 4
                     ks_weight = ks_weight_input
@@ -3116,7 +3122,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     TOTY = [Y_Hnew_BIG[rind, 1]*ks_weight;TOTY]
                 end            
             end
-            println("SUM TOTX ", sum(abs.(TOTX)))
+ #           println("SUM TOTX ", sum(abs.(TOTX)))
             #            if lambda > 1e-10
             #                XX = zeros(length(threebody_inds), NCOLS)
             #                YY = zeros(length(threebody_inds))
@@ -3154,12 +3160,17 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             println("fit")
             @time ch_new = TOTX \ TOTY
             println("err XXXXXXXXXXXX ", sum(abs.(TOTX*ch_new - TOTY)) , " " , sum(abs.(NEWX*ch_new - NEWY)))
-            println("ch_new ", ch_new)
+
+            println("ENERGY ")
+            for c in 1:NCALC
+                println("$c ", (NEWX*ch_new)[ENERGY_IND[c]] - NEWY[ENERGY_IND[c]], "   ", NEWY[ENERGY_IND[c]], " " , (NEWX*ch_new)[ENERGY_IND[c]])
+            end
+            #            println("ch_new ", ch_new)
 #            println(TOTX)
 #            println()
-            println("TOT Y ")
-            println(TOTY)
-            println()
+#            println("TOT Y ")
+#            println(TOTY)
+#            println()
             
             #println([TOTX*ch_new    TOTY ])
             println()
@@ -3181,8 +3192,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
                 error_new_energy  = sum(abs.(TOTX * ch_new .- TOTY))
                 
-                println("ch_new $(size(ch_new))  TOTX $(size(TOTX)) TOTY $(size(TOTY))")
-                println("size ch_old $(size(ch_old))")
+#                println("ch_new $(size(ch_new))  TOTX $(size(TOTX)) TOTY $(size(TOTY))")
+#                println("size ch_old $(size(ch_old))")
                 chX = (ch_old * (1-mix) + ch_new * (mix) )
                 c_umat = chX[NCOLS+1:end]
 #                println("c_umat ", c_umat)
@@ -3190,8 +3201,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 chX = chX[1:NCOLS]
 
 
-                println("chX $ch")
-                println("c_umatX $c_umat")
+#                println("chX $ch")
+#                println("c_umatX $c_umat")
                 
                 #                error_new_rs  = sum((X_H * chX .- Y_H).^2)
 
@@ -3199,7 +3210,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 #                error_new = error_new_rs + error_new_energy
                 
                 #                println("errors rs     new $error_new_rs old $error_old_rs")
-                println("errors energy new $error_new_energy")
+#                println("errors energy new $error_new_energy")
                 #                println("errors tot    new $error_new old $error_old")
                 #                println()
                 #                println("energy counter")
@@ -3220,7 +3231,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 #                println()
             end
 
-            if abs(error_new_energy - err_old_en) < 0.5e-2 && iters >= 6
+            if abs(error_new_energy - err_old_en) < 0.5e-4 && iters >= 6
                 println("break")
                 break
             else
@@ -3252,12 +3263,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
         if fit_umat
             cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
-            println("size cu_big ", size(cu_big), " " , size(toupdate_inds_U),  " ", size(chX), " ", NCOLS, " " , NCOLS_U)
+#            println("size cu_big ", size(cu_big), " " , size(toupdate_inds_U),  " ", size(chX), " ", NCOLS, " " , NCOLS_U)
             cu_big[toupdate_inds_U] = c_umat
             cu_big[keep_inds_U] = cu_keep[:]
             cuX2 = cu_big
-            println("c_umat $(sum(abs.(c_umat))) $(sum(abs.(cu_big)))")
-            sleep(5)
+#            println("c_umat $(sum(abs.(c_umat))) $(sum(abs.(cu_big)))")
+#            sleep(5)
             
         else
             cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
