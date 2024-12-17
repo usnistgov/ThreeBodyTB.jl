@@ -248,7 +248,7 @@ function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, sme
         energy0 = sum(OCCS .* VALS0) / nk * 2.0
 
         if scf
-            eewald, pot = ewald_energy(crys_dual, gamma_dual, background_charge_correction, dq)
+            eewald = ewald_energy(crys_dual, gamma_dual, background_charge_correction, dq)
         else
             eewald = 0.0
         end
@@ -331,8 +331,11 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
     tbc0 = calc_tb_LV(crys, database, verbose=false, check_frontier=false, repel=repel, tot_charge=tot_charge)
     tbc0.tot_charge=tot_charge
 
-    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
+    energy_tot0, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc0, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.05, iters = 300,  use_sym=true)
 
+
+    
+#    return energy_tot0
 
     if stress_mode == false
         
@@ -347,7 +350,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
         tbc1.tot_charge=tot_charge
 
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.05, iters = 300, use_sym=true)
 
 
         crys2 = deepcopy(crys)
@@ -359,7 +362,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
         tbc2.tot_charge=tot_charge
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-10, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.05, iters = 300, use_sym=true)
         
         force = - (energy_tot1 - energy_tot2) / (2 * step)
 
@@ -380,7 +383,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         tbc1 = calc_tb_LV(crys1, database, verbose=false, check_frontier=false, repel=repel)
         tbc1.tot_charge=tot_charge
         
-        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
+        energy_tot1, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc1, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.05, iters = 300, use_sym=false)
 
 
         crys2 = deepcopy(crys)
@@ -393,7 +396,7 @@ function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, ste
         tbc2 = calc_tb_LV(crys2, database, verbose=false, check_frontier=false, repel=repel)
         tbc2.tot_charge=tot_charge
 
-        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.01, use_sym=false)
+        energy_tot2, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc2, smearing=smearing, grid=grid, conv_thr = 1e-7, nspin=nspin, verbose=false, mixing_mode=:simple, mix=0.05, iters = 300, use_sym=false)
 
         stress = -1.0* (energy_tot1 - energy_tot2) / (2 * step) / abs(det(crys.A))
 
@@ -669,8 +672,10 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
             crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
             
             kappa = estimate_best_kappa(FloatX.(ct.A))
-            gamma_dual, background_charge_correction = electrostatics_getgamma(crys_dual, kappa=kappa)
-            eewald, pot = ewald_energy(crys_dual, gamma_dual,background_charge_correction, dq)
+            gamma_dual, background_charge_correction,u3 = electrostatics_getgamma(crys_dual, kappa=kappa)
+            gamma_add = calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=false, use_threebody_onsite=false, use_umat = true, only_U = true,  gamma=zeros(T, ct.nat,ct.nat) , check_frontier= false, repel=false)
+
+            eewald = ewald_energy(crys_dual, gamma_add, u3, background_charge_correction, dq, dq_eden)
             ret[end] = eewald
             return ret
         end
@@ -950,7 +955,7 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
                     println("warning, trouble with eigenvectors/vals in initial step get_energy_force_stress")
                 end
             end
-            h1, dq = get_h1(tbc, e_den)
+            h1, dq, dq_eden = get_h1(tbc, e_den)
             if nspin == 2
                 h1spin = get_spin_h1(tbc, e_den)
             else
@@ -1003,7 +1008,7 @@ function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, sm
 
             #println("ew")
             EW = begin
-                FN_ew = x->ew(x,ct,FloatX, dq)
+                FN_ew = x->ew(x,ct,FloatX, dq, dq_eden, database, DIST)
                 if scf
                     cfg = ForwardDiff.JacobianConfig(FN_ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                     g_ew = ForwardDiff.jacobian(FN_ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
@@ -1174,7 +1179,7 @@ function ham(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, 
         #                gamma_dual=zeros(T, ct.nat,ct.nat)
         
         #        tbc_dual = calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, Hin=Hdual, Sin=Sdual, retmat=true)
-        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual)
+        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, use_umat = false, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual)
         begin
             ret = zeros(T, size_ret * 2 + 1)
 #            ret[1:size_ret] = real.(tbc_dual.tb.H[1,:,:,:][nz_arr])
@@ -1186,7 +1191,7 @@ function ham(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, 
     return ret
 end
 
-function ew(x :: Vector, ct, FloatX, dq)
+function ew(x :: Vector, ct, FloatX, dq, dq_eden, database, DIST)
     #            println("ew top")
     T=typeof(x[1])
     ret = zeros(T, 1)
@@ -1197,8 +1202,10 @@ function ew(x :: Vector, ct, FloatX, dq)
     crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
     
     kappa = estimate_best_kappa(FloatX.(ct.A))
-    gamma_dual, background_charge_correction = electrostatics_getgamma(crys_dual, kappa=kappa)
-    eewald, pot = ewald_energy(crys_dual, gamma_dual,background_charge_correction, dq)
+    gamma_dual, background_charge_correction, u3 = electrostatics_getgamma(crys_dual, kappa=kappa)
+    gamma_add = calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=false, use_threebody_onsite=false, use_umat = true, only_U = true,  gamma=zeros(T, ct.nat,ct.nat) , check_frontier= false, repel=false, DIST=DIST)
+    
+    eewald = ewald_energy(crys_dual, gamma_dual + gamma_add,u3, background_charge_correction, dq, dq_eden)
     ret[end] = eewald
     return ret
 end

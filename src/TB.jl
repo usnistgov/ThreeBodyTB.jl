@@ -54,7 +54,7 @@ using ..ThreeBodyTB:global_energy_units
 using ..Symmetry:get_kgrid_sym
 using ..Symmetry:symmetrize_charge_den
 using ..Symmetry:get_symmetry
-
+using ..DFToutMod:makebs
 
 
 export tb
@@ -4414,7 +4414,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
     if size(chargeden)[1] == 1
         e_den = chargeden*2.0
     else
-        e_den = sum(chargeden, dims=1)
+        e_den = sum(chargeden, dims=1)[:]
     end
         
     eden_neutral = get_neutral_eden(crys)
@@ -4422,7 +4422,7 @@ function get_dq(crys::crystal, chargeden::Array{Float64,2})
 #    println("e_den $e_den eden_neutral $eden_neutral")
 
     
-    dq_eden = e_den - eden_neutral * 2.0
+    dq_eden = e_den[:] - eden_neutral[:] * 2.0
 
 #    println("get dq eden_neutral $eden_neutral dq_eden $dq_eden")
     

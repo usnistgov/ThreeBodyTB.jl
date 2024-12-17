@@ -375,7 +375,7 @@ Calculate energy, force, and stress for a crystal.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 - `sparse = :auto`: Default is to use dense matricies for `nat < 100`. Can be `true` or `false` to force choice.
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0, sparse = :auto)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0, sparse = :auto, mix = -1.0, conv_thr = 1e-6, iters = 100)
 
     #nothing case
     if !do_tb && !do_classical
@@ -416,7 +416,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
         return energy_cl, force_cl, stress_cl, missing
     end
 #    println("tot_charge before 00000 ", tot_charge)
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge, sparse=sparse )
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin,  verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge, sparse=sparse, conv_thr=conv_thr, mix = mix, iters = iters )
 #    println("tot charge 11111111111 ", tbc.tot_charge, " " , tbc.nelec)
     
     if ismissing(database)

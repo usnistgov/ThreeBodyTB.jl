@@ -7597,7 +7597,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
 
 
     #        verbose=true
@@ -7971,6 +7971,11 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     
                     if dist_a <  1e-5    # true onsite
 
+                        if only_U
+                            continue
+                        end
+                        
+                        
                         for o1x = 1:norb[a1]
                             o1 = orbs_arr[a1,o1x,1]
                             sum1 = orbs_arr[a1,o1x,3]
@@ -7996,7 +8001,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         if use_umat
                             UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a
-                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
+                            #                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
+                            if only_U
+                                continue
+                            end
                         end
 
                         
@@ -8016,7 +8024,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         end
     end
     
-    if use_eam
+    if use_eam && !only_U
         rho = sum(rho_th, dims=3)
 #        println("rho $rho")
         for a = 1:crys.nat
@@ -8073,7 +8081,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             memory_TH = zeros(var_type, 8, nthreads())
         end
         
-        if use_threebody || use_threebody_onsite
+        if (use_threebody || use_threebody_onsite) && !only_U
 
             meta_count = []
             old = 1
@@ -8209,8 +8217,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     end
 
     if use_umat
-        println("UMAT $UMAT")
-        UMAT_ADD = zeros(nwan, nwan)
+#        println("UMAT $UMAT")
+        UMAT_ADD = zeros(var_type, nwan, nwan)
 
         counter_wan = 0
         for (counter_atom, t1) in enumerate(crys.stypes)
@@ -8225,9 +8233,13 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             counter_wan += nw1
 
         end
-        println("UMAT_ADD")
-        println(UMAT_ADD)
+#        println("UMAT_ADD")
+#        println(UMAT_ADD)
 
+        if only_U
+            return UMAT_ADD
+        end
+        
     else
         UMAT_ADD = missing
     end

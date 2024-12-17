@@ -649,7 +649,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
             elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
 
                 if mixing_mode != :DIIS || nreduce > 10
-                    mixA = max(mixA * 0.8, 0.0001)
+                    mixA = max(mixA * 0.8, 0.00000001)
                 end
 
                 nreduce += 1
@@ -842,6 +842,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 
             #            println("sum before e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
             e_denA = e_denA .- (sum(e_denA) -  nspin* tbc.nelec / 2.0) / (tbc.tb.nwan)  #tot charge is correct            
+            println("e_denA $e_denA")
             #            println("sum after  e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
 
             #            dcharge = sum(abs.(dq - dq_old ))            

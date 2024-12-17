@@ -36,7 +36,7 @@ EWALD_FACTOR = [1.0]
 
 Get values of `U` from `Atomdata`.
 """
-function getU(types)
+function getU(types, var_type=Float64)
 
 
     ntot = 0
@@ -48,7 +48,7 @@ function getU(types)
         Usize[i] += at1.U
     end
 
-    U = zeros(ntot, ntot)
+    U = zeros(var_type, ntot, ntot)
 
     counter = 0
     for t1 in types
@@ -67,9 +67,9 @@ function getU(types)
 
 end
 
-function getU3(types)
+function getU3(types, var_type=Float64)
 
-    U3 = zeros(length(types))
+    U3 = zeros(var_type, length(types))
     for (c,t) in enumerate(types)
         U3[c] = atoms[t].U3
 #        println("add U3 t ", U3[c], " " , atoms[t].U3 , " xxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -130,13 +130,15 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
 #    println("kappa ", kappa)
     
+    T = typeof(crys.coords[1,1])
+
     if noU
         println("noU - FOR TESTING")
         #U = zeros(Float64, crys.nat)
-        U, Usize = getU(crys.types)
+        U, Usize = getU(crys.types, T)
         U .= 0.0
     else
-        U, Usize = getU(crys.types)
+        U, Usize = getU(crys.types, T)
         U = U * screening
     end
 
@@ -144,7 +146,6 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     starting_size_kspace = 1
 
 
-    T = typeof(crys.coords[1,1])
     gamma_rs = zeros(T, crys.nat, crys.nat)
     gamma_U = zeros(T, crys.nat, crys.nat)
     gamma_k = zeros(T, crys.nat, crys.nat)
@@ -284,7 +285,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     #onsite only U3
     U3 = zeros(T, crys.nat)
-    U3 .= getU3(crys.stypes)
+    U3 .= getU3(crys.stypes, T)
     
     #   return gamma_tot, background_charge_correction
     return gamma_tot_expand, background_charge_correction, U3
