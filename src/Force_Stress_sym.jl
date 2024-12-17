@@ -939,7 +939,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 end
             end
             h1, dq, dq_eden = get_h1(tbc, e_den)
-            println("dq_eden", dq_eden, " " , typeof(dq_eden))
+#            println("dq_eden", dq_eden, " " , typeof(dq_eden))
             if nspin == 2
                 h1spin = get_spin_h1(tbc, e_den)
             else
@@ -997,7 +997,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 
             #println("ew")
             EW = begin
-                FN_ew = x->ew(x,ct,FloatX, dq, dq_eden, database)
+                FN_ew = x->ew(x,ct,FloatX, dq, dq_eden, database, DIST)
                 if scf
                     cfg = ForwardDiff.JacobianConfig(FN_ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                     g_ew = ForwardDiff.jacobian(FN_ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}

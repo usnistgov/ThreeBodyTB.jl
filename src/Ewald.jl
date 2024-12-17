@@ -220,10 +220,10 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
     gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) ####+ gamma_onsiteU      #xxyy
 
-    println("gamma_rs" , gamma_rs)
-    println("gamma_k", gamma_k)
-    println("gamma_self", gamma_self)
-    println("gamma_U", gamma_U)
+#    println("gamma_rs" , gamma_rs)
+#    println("gamma_k", gamma_k)
+#    println("gamma_self", gamma_self)
+#    println("gamma_U", gamma_U)
    
     #interaction of net charge with uniform background
     background_charge_correction = -e2 * pi  / (2 * abs(det(crys.A)) * kappa^2) 
@@ -242,7 +242,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     gamma_tot += gamma_bc *2.0
 
     gamma_tot_expand = U
-    println("gamma_tot_expand U ", gamma_tot_expand)
+#    println("gamma_tot_expand U ", gamma_tot_expand)
 #    for a1 = 1:crys.nat
 #        for a2 = 1:crys.nat
     if  !onlyU #for debugging

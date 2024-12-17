@@ -630,7 +630,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
             
             #            println("ewald dq $dq")
             energy_charge = ewald_energy(tbc, dq, dq_eden)
-            println("energy_charge, $energy_charge")
+#            println("energy_charge, $energy_charge")
 
             if magnetic
                 energy_magnetic = magnetic_energy(tbc, e_denA)
@@ -640,7 +640,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
                 energy_magnetic = 0.0
             end
 
-            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
@@ -842,7 +842,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
 
             #            println("sum before e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
             e_denA = e_denA .- (sum(e_denA) -  nspin* tbc.nelec / 2.0) / (tbc.tb.nwan)  #tot charge is correct            
-            println("e_denA $e_denA")
+#            println("e_denA $e_denA")
             #            println("sum after  e_denA ", sum(e_denA), " ", sum(e_denA, dims=2))
 
             #            dcharge = sum(abs.(dq - dq_old ))            
