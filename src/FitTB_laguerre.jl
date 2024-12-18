@@ -731,7 +731,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         rind = 1:l
     end
     
-    
+    println("sum abs X_Hnew_BIG Y_Hnew_BIG Xc_Hnew_BIG ", [sum(abs.(X_Hnew_BIG[rind,:])), sum(abs.(Y_Hnew_BIG[rind,:])), sum(abs.(Xc_Hnew_BIG[rind,:]))])
     @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
@@ -918,7 +918,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
             println("do plot k")
             rows1 = size(X_Hnew_BIG)[1]
             display(scatter(X_Hnew_BIG[1:rows1, :] * ch + Xc_Hnew_BIG , Y_Hnew_BIG[1:rows1] , color="green", MarkerSize=4))
-#            scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange")
+            display(scatter!(X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG, Y_Snew_BIG[1:rows1], MarkerSize=6, color="orange"))
 #            scatter!(X_S[1:rows1, :]*cs , Y_S  , MarkerSize=6, color="orange")
 #            plot(Xc_Snew_BIG, Y_Snew_BIG , "k.")
         end

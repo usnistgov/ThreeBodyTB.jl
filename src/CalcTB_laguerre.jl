@@ -3782,7 +3782,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             (h,s) = fit_twobody(:s,:s,dist,lmn)
             iu = coef.inds[[t1,t2,:U]]
             twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
-            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
+#            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
         end
         
 
