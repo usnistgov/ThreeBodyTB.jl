@@ -104,7 +104,7 @@ const n_3body_onsite_same = 5
 
 const n_ufit = 3
 
-EXP_a = [2.5]
+EXP_a = [2.0]
 
 using ..CrystalMod:cutoff2X
 using ..CrystalMod:cutoff3bX

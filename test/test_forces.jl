@@ -71,7 +71,7 @@ function test_force()
 
                     println("TBC list ", tbc_list)
                     println("DFT list ", dft_list)
-                    database_rec = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list,dft_list = dft_list,  fit_threebody=false, fit_threebody_onsite=false);
+                    database_rec = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list,dft_list = dft_list,  fit_threebody=false, fit_threebody_onsite=false, fit_umat = false);
 
 
                 x = 4;
@@ -124,7 +124,7 @@ function test_stress()
             println("DFT_list", dft_list)
             println("TBC_list", tbc_list)
 
-            database = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, dft_list = dft_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, niters=5);
+            database = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, dft_list = dft_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, niters=5, fit_umat = false);
 
             #        database = FitTB.do_fitting_recursive(tbc_list,dft_list = dft_list,  fit_threebody=true, fit_threebody_onsite=false);
 
