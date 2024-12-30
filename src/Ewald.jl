@@ -111,7 +111,7 @@ This is only run once for a given `tb_crys` object and stored.
 function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0, factor = 1.0)
 #noU and onlyU are for testing purposes
     factor = EWALD_FACTOR[1]
-    println("factor $factor")
+#    println("factor $factor")
 #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 0.0)
 
 #    println("EWALD")
