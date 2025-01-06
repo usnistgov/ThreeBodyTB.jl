@@ -102,7 +102,7 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
-const n_ufit = 2
+const n_ufit = 3
 
 EXP_a = [2.0]
 
@@ -7836,7 +7836,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             DAT_IND_ARR_O[c1,c2,:,:,1] = inO
                             DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
                             if use_umat
-                                println("addU $c1 $c2 $t1 $t2 inds $(coef.inds[[t1,t2, :U]]) $(coef.datU[:])")
+#                                println("addU $c1 $c2 $t1 $t2 inds $(coef.inds[[t1,t2, :U]]) $(coef.datU[:])")
                                 DAT_ARR_U[c1,c2,:] = coef.datU[coef.inds[[t1,t2, :U]]]
                             end
                         else
@@ -8233,8 +8233,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             counter_wan += nw1
 
         end
-        #println("UMAT_ADD")
-        #println(UMAT_ADD)
+        println("UMAT_ADD")
+        println(UMAT_ADD)
 
         if only_U
             return UMAT_ADD

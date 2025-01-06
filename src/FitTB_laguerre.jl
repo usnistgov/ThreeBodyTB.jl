@@ -2421,7 +2421,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             niter_scf = 1
         end
         println("solve scf $solve_self_consistently   $niter_scf")
-        
+        errerr = 0.0
         for (tbc, kpoints, kweights, dft, sym_info) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SYM_INFO)
             c+=1
 
@@ -2679,14 +2679,21 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         else
                             energy_magnetic = 0.0
                         end
-                    end
+                    else
+                        energy_charge = 0.0
+                        energy_magnetic = 0.0
+                        energy_umat  = 0.0
+                        h1_umat .= 0.0
+                        h1 .= 0.0
+                        h1spin .= 0.0
+                    end                        
 #                    else
 #                        h1 .= 0.0
 #                        h1spin .= 0.0
 #                        energy_charge = 0.0
 #                        energy_magnetic = 0.0
 #                        energy_umat = 0.0
-#                        h1_umat .= 0.0
+                        h1_umat .= 0.0
                     #end
                     
                     
@@ -2814,10 +2821,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
             #            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
             println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq " )
-            
+            errerr += abs(ENERGIES_FITTED[c] - ENERGIES[c])
 
         end
-
+        println("errerr $errerr")
         return ENERGIES_FITTED, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED
 
     end
@@ -3108,10 +3115,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         for iters = 1:NITERS #inner loop
 
             if iters > 2
-                mix = 0.06
+                mix = 0.01
             end
             if iters > 4
-                mix = 0.12
+                mix = 0.05
             end
 
             if scf
@@ -3323,7 +3330,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 #                println()
             end
             println("error_new_energy $error_new_energy err_old_en $err_old_en  diff $(err_old_en - error_new_energy)")
-            if abs(error_new_energy - err_old_en) < (1e-5 * NCALC) && iters >= 6
+            if abs(error_new_energy - err_old_en) < (1e-5 * NCALC) && iters >= 15
             #if false
                 println("break")
                 break

@@ -14,7 +14,7 @@
  /
 &system
     ibrav=  0, 
-    nat=  2 
+    nat=  2
     ntyp= 2
     ecutwfc= 45,
     ecutrho= 250,
