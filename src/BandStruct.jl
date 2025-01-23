@@ -97,6 +97,9 @@ function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5
 
 end
 
+function get_fermi(tbc::tb_crys)
+    return convert_energy(tbc.tb.efermi)
+end
 
 function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=-1, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
     println("plot_compare_tb ")
