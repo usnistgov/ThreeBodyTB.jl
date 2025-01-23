@@ -1031,6 +1031,10 @@ function band_summary(tbc, kpts, kweights, fermi=missing)
 
 end
 
+function get_fermi(tbc::tb_crys)
+    return convert_energy(tbc.tb.efermi)
+end
+
 function band_summary(dft::dftout)
     return band_summary(dft.bandstruct)
 end

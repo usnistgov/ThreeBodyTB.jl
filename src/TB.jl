@@ -4861,6 +4861,163 @@ function align_potentials(tbc1, tbc2)
     
 end
 
+
+"""
+         function Hk(h::tb, kpoint; spin=1)
+
+     Calculate band structure at a k-point from `tb`
+     """
+function Hk_derivative(h::tb, kpoint, A; spin=1)
+
+    T=typeof(real(h.H[1,1,1,1]))
+    #if we don't have a temp array
+    hktemp= zeros(Complex{T}, h.nwan, h.nwan)
+    sktemp= zeros(Complex{T}, h.nwan, h.nwan)    
+    dhktemp= zeros(Complex{T}, h.nwan, h.nwan,3)
+    dsktemp= zeros(Complex{T}, h.nwan, h.nwan,3)    
+    return Hk_derivative(hktemp, sktemp, dhktemp, dsktemp, h, kpoint, A, spin=spin)
+end
+
+"""
+         function Hk_derivative(h::tb_crys, kpoint; spin=1)
+
+     Calculate band structure at a k-point from `tb_crys`
+     """
+function Hk_derivative(tbc::tb_crys, kpoint; spin=1 )
+
+
+    return Hk_derivative(tbc.tb, kpoint, tbc.crys.A, spin=spin)
+
+end
+
+"""
+         function Hk_derivative(hk,sk, h::tb, kpoint; spin=1)
+
+     Hk function with pre-allocated memory hk, sk
+     """
+function Hk_derivative(hk,sk, dhk, dsk, h::tb, kpoint, A; spin=1)
+
+    kpoint = vec(kpoint)
+
+
+    fill!(hk, zero(Float64))
+
+    if h.nonorth  
+        fill!(sk, zero(Float64))
+    end
+
+    ##    Hk = zeros(Complex{Float64}, h.nwan, h.nwan)
+
+    hk0 = zeros(Complex{Float64}, size(hk))
+
+    
+    B = inv(A)'
+    
+    twopi_i = -1.0im*2.0*pi
+
+    #    println("repeat")
+    kmat = repeat(kpoint', h.nr,1)
+
+    #    println("exp")
+    exp_ikr = exp.(twopi_i * sum(kmat .* h.ind_arr,dims=2))
+    exp_ikr1 = twopi_i * h.ind_arr[:,1] .* exp_ikr
+    exp_ikr2 = twopi_i * h.ind_arr[:,2] .* exp_ikr
+    exp_ikr3 = twopi_i * h.ind_arr[:,3] .* exp_ikr
+
+    Rexp = [exp_ikr1 exp_ikr2 exp_ikr3] 
+    
+    for m in 1:h.nwan
+        for n in 1:h.nwan        
+            if h.nspin == 2
+                hk0[m,n] = h.H[spin,m,n,:]'*exp_ikr[:]
+                dhk[m,n,1] = h.H[spin,m,n,:]'*Rexp[:,1]
+                dhk[m,n,2] = h.H[spin,m,n,:]'*Rexp[:,2]
+                dhk[m,n,3] = h.H[spin,m,n,:]'*Rexp[:,3]
+            else
+                hk0[m,n] = h.H[1,m,n,:]'*exp_ikr[:]
+                dhk[m,n,1] = h.H[1,m,n,:]'*Rexp[:,1]
+                dhk[m,n,2] = h.H[1,m,n,:]'*Rexp[:,2]
+                dhk[m,n,3] = h.H[1,m,n,:]'*Rexp[:,3]
+            end
+            if h.nonorth
+                sk[m,n] = h.S[m,n,:]'*exp_ikr[:]
+                dsk[m,n,1] = h.S[m,n,:]'*Rexp[:,1]
+                dsk[m,n,2] = h.S[m,n,:]'*Rexp[:,2]
+                dsk[m,n,3] = h.S[m,n,:]'*Rexp[:,3]
+                
+            end
+        end
+    end
+    hk0 = 0.5*(hk0 + hk0')
+    sk = 0.5*(sk + sk')
+
+    hk .= hk0
+    
+    if h.scf
+        hk .+= sk .* h.h1
+    end
+    if h.scfspin
+        hk .+= sk .* h.h1spin[spin,:,:]
+    end
+
+    hk = 0.5*(hk[:,:] + hk[:,:]')
+
+    #    ex = 0.0 + im*0.0
+    #    for n = 1:h.nr
+    #       ex = exp(-twopi_i*(transpose(h.ind_arr[n,:])*kpoint))
+    #       hk .+= ex .* h.H[:,:,n]
+    #       if h.nonorth
+    #           sk .+= ex .* h.S[:,:,n]
+    #       end
+    #   end
+    #end
+
+
+
+
+    nw=size(hk)[1]
+    vects = zeros(nw,nw)
+    vals = zeros(nw)
+    vals0 = zeros(nw)
+
+#    try
+        if h.nonorth
+            sk = 0.5*(sk[:,:] + sk[:,:]')
+            F=eigen(hk[:,:], sk[:,:])
+        else
+            #        println("orth")
+            #        println(typeof(hk))
+            hk = 0.5*(hk[:,:] + hk[:,:]')            
+            F=eigen(hk[:,:]) #orthogonal
+        end
+
+        vects = F.vectors
+        vals = real(F.values)
+        vals0 = real.(diag(vects'*hk0*vects))
+
+
+
+ #   catch
+ #       println("warning eigen failed, ", kpoint)
+ #       vects = collect(I(nw))
+ #       vals = 1000.0 * ones(nw)
+ #       vals0 = 1000.0 * ones(nw)
+#
+ #   end
+
+    #    F=eigen(hk, sk)
+
+    #    println("hk")
+    #    println(hk)
+
+    #    println("hk vals")
+    #    println(vals)
+
+    return vects, vals, hk, sk, vals0, dhk, dsk
+
+end
+
+
 include("Magnetic.jl")
 
 include("TB_sparse.jl")
