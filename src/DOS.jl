@@ -474,6 +474,7 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
         nproj=0
         pdos=missing
         names=missing
+        proj=missing
     else
         do_proj=true
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym, nk_red=nk_red, grid_ind=grid_ind, kweights = kweights)
