@@ -815,8 +815,8 @@ function write_tb_crys(filename, tbc::tb_crys)
     addelement!(root, "background_charge_correction", string(tbc.background_charge_correction))
     addelement!(root, "eden", arr2str(tbc.eden))
 
-    addelement!(root, "efermi", string(tbc.energy))
-    addelement!(root, "energy", string(tbc.efermi))
+    addelement!(root, "efermi", string(tbc.efermi))
+    addelement!(root, "energy", string(tbc.energy))
 
     
     tightbinding = ElementNode("tightbinding")
