@@ -209,7 +209,13 @@ function setup_proto_data()
     CalcD["fourAtet"] =       ["$STRUCTDIR/fourAtet.in", "relax", "2Dxy", "vol-mid", "scf", false]
 
     CalcD["core_dimer"] =       ["$STRUCTDIR/binary/core_dimer.in", "relax", "2Dxy", "core_dimer", "nscf", false]
+    CalcD["core_trimer"] =       ["$STRUCTDIR/binary/core_trimer.in", "relax", "2Dxy", "core_trimer", "nscf", false]
+    CalcD["core_trimerA"] =       ["$STRUCTDIR/binary/core_trimerA.in", "relax", "2Dxy", "core_trimer", "nscf", false]
     CalcD["core_dimer_p"] =       ["$STRUCTDIR/binary/core_dimer2.in", "relax", "2Dxy", "core_dimer_p", "nscf", false]
+    CalcD["core_dimer_h"] =       ["$STRUCTDIR/binary/core_dimer.in", "relax", "2Dxy", "core_dimer_h", "nscf", false]
+    CalcD["core_dimer_g"] =       ["$STRUCTDIR/binary/core_dimer.in", "relax", "2Dxy", "core_dimer_g", "nscf", false] 
+    CalcD["core_dimer_g2"] =       ["$STRUCTDIR/binary/core_dimer.in", "relax", "2Dxy", "core_dimer_g2", "nscf", false]   
+    CalcD["core_atom"] =       ["$STRUCTDIR/core_atom.in", "scf", "2Dxy", "core_atom", "nscf", false]    
     
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
     CalcD["dimer_short"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords-short", "nscf", false]
@@ -282,6 +288,27 @@ function setup_proto_data()
     CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
+
+    CalcD["rocksalt_charge"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-charge", "nscf", false]
+    CalcD["cscl_charge"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-charge2", "nscf", false]
+    CalcD["hbn_charge"] =  ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "vol-charge", "nscf", false]
+    CalcD["znse_charge"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-charge", "nscf", false]
+    CalcD["dimer_charge"] = ["$STRUCTDIR/binary/dimer.in.small", "relax", "all", "dimer-charge", "nscf", false]
+    CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.small", "relax", "all", "dimer-charge-big", "nscf", false]
+
+    CalcD["dimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-verybig", "nscf", false]
+    CalcD["trimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "trimer-charge-verybig", "nscf", false]
+    CalcD["atom_charge_verybig1"] = ["$STRUCTDIR/binary/atom.in.big", "scf", "all", "atom-charge-verybig", "nscf", false]
+    CalcD["atom_charge_verybig2"] = ["$STRUCTDIR/binary/atom.in.big2", "scf", "all", "atom-charge-verybig", "nscf", false]
+
+    CalcD["trimer_charge"] = ["$STRUCTDIR/binary/trimer_charge.in", "relax", "all", "trimer-charge", "nscf", false]
+
+    CalcD["sc_charge"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "sc-charge", "nscf", false]
+    CalcD["sc_charge_big"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "sc-charge-big", "nscf", false]
+
+    
+
+
     CalcD["rocksalt"] = ["$STRUCTDIR/binary/rocksalt.in", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["rocksalta"] = ["$STRUCTDIR/binary/rocksalt.ina", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["rocksaltb"] = ["$STRUCTDIR/binary/rocksalt.inb", "vc-relax", "all", "vol-mid", "nscf", false]
@@ -703,6 +730,26 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length([ 0.94 1.0 ])
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
+        elseif newst == "vol-charge"
+            ncalc = 8
+        elseif newst == "sc-charge"
+            ncalc = 8
+        elseif newst == "sc-charge-big"
+            ncalc = 20
+        elseif newst == "vol-charge2"
+            ncalc = 8
+        elseif newst == "dimer-charge"
+            ncalc = 15
+        elseif newst == "dimer-charge-big"
+            ncalc = 20
+        elseif newst == "dimer-charge-verybig"
+            ncalc = 20
+        elseif newst == "trimer-charge-verybig"
+            ncalc = 20
+        elseif newst == "atom-charge-verybig"
+            ncalc = 4
+        elseif newst == "trimer-charge"
+            ncalc = 15
         elseif newst == "vol-mag"
             ncalc = length( [ 1.0 ])
         elseif newst == "vol-mag-more"
@@ -740,6 +787,26 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             ncalc = 28
+        elseif newst == "core_trimer"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 12
+        elseif newst == "core_atom"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 8
+        elseif newst == "core_dimer_h"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 4
+        elseif newst == "core_dimer_g"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 10
+        elseif newst == "core_dimer_g2"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+            ncalc = 10
         elseif newst == "core_dimer_p"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
@@ -937,7 +1004,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 println("START DFT.runSCF")
                 
                 if scf != "scf"
-                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="qe.relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                    dft_ref = ThreeBodyTB.DFT.runSCF(c, inputstr=name, nprocs=procs, prefix="qe.$(rand(1)).relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
                     
                     println("did dft, get new struct")
                     
@@ -948,7 +1015,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         println(c2)
                         println()
                         
-                        dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="qe.relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
+                        dft_ref = ThreeBodyTB.DFT.runSCF(c2, inputstr=name, nprocs=procs, prefix="qe.$(rand(1)).relax", directory="$dir", tmpdir="$dir", wannier=false, code="QE", skip=false, calculation=scf, dofree=free, cleanup=true, magnetic=magnetic)
                     end
                     try
                         rm("$dir/qe.relax.save", recursive=true)
@@ -1002,6 +1069,129 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
                 end
+            elseif newst == "vol-charge"
+                tot_charge = []
+                for x in [ 0.9 , 1.0 , 1.2 ]
+                    for charge = [-0.25, 0.0, 0.25]
+                        c = deepcopy(cnew)
+                        c.A = c.A * x
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "sc-charge"
+                tot_charge = []
+                for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.5, 2.0, 3.0 ]
+                    for charge = [0.0, 0.1, 0.25, 0.5, 0.75]
+                        c = deepcopy(cnew)
+                        c.A = c.A * x
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "sc-charge-big"
+                tot_charge = []
+                for x in [ 2.0, 3.0, 4.0 ]
+                    for charge = [0.0, 0.1, 0.25, 0.5, 0.75]
+                        c = deepcopy(cnew)
+                        c.A = c.A * x
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "vol-charge2"
+                tot_charge = []
+                for x in [ 0.85,  1.0 , 1.2, 2.0 ]
+                    for charge = [-0.25, 0.0, 0.25]
+                        c = deepcopy(cnew)
+                        c.A = c.A * x
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "dimer-charge"
+                tot_charge = []
+                for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.5  ]
+                    for charge = [-0.25, 0.0, 0.25, 0.5]
+                        c = deepcopy(cnew)
+                        c.A[3,3] = c.A[3,3] * x
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "dimer-charge-big"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.5, 2.0  ]
+                    for charge = [-0.25, 0.0, 0.1, 0.2, 0.3, 0.5]
+                        c = deepcopy(cnew)
+                        c.coords[2,3] =  cnew.coords[1,3] + x * dist
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "dimer-charge-verybig"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.3, 1.5, 2.0, 3.0  ]
+                    for charge = [-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                        c = deepcopy(cnew)
+                        c.coords[2,3] =  cnew.coords[1,3] + x * dist
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "trimer-charge-verybig"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                A = cnew.stypes[1]
+                B = cnew.stypes[2]
+                for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.3, 1.5, 2.0, 3.0  ]
+                    for charge = [-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                        c = makecrys(cnew.A, [0 0 0.5; 0 0 0.5+dist*x; 0 0 0.5-dist*x], [A, B, B])
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+                if A != B
+                    for x in [ 0.8 , 0.9, 1.0 , 1.1, 1.2, 1.3, 1.5, 2.0, 3.0  ]
+                        for charge = [-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                            c = makecrys(cnew.A, [0 0 0.5; 0 0 0.5+dist*x; 0 0 0.5-dist*x], [B, A,A])
+                            push!(torun, deepcopy(c))
+                            push!(tot_charge, charge)
+                        end
+                    end
+                end                    
+            elseif newst == "atom-charge-verybig"
+                tot_charge = []
+                for charge = [-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                    c = deepcopy(cnew)
+                    push!(torun, deepcopy(c))
+                    push!(tot_charge, charge)
+                end
+            elseif newst == "trimer-charge"
+                tot_charge = []
+                dist = cnew.A[3,3] * (cnew.coords[3,3] - cnew.coords[1,3])
+                
+                for x in [ 0.0 , 0.25, 0.5  ]
+                    for charge = [-0.1, 0.0, 0.1, 0.2]
+                        c = deepcopy(cnew)
+                        c.coords[3,3] = c.coords[3,3] + x * dist / c.A[3,3]
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+
+                cnew2 = makecrys(cnew.A, cnew.coords[[1,3], :], cnew.stypes[[1,3]])
+                for x in [ 0.0 , 0.25, 0.5  ]
+                    for charge = [-0.1, 0.0, 0.1, 0.2]
+                        c = deepcopy(cnew2)
+                        c.coords[2,3] = c.coords[2,3] + x * dist / c.A[3,3]
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+                
             elseif newst == "vol-oxygen"
                 cx = makecrys(cnew.A, cnew.coords[1:2,:], cnew.types[1:2])
 
@@ -1413,6 +1603,13 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
 
+            elseif newst == "core_atom"
+                tot_charge = []
+                for charge in [-0.25, -0.1, -0.02, 0.0, 0.02, 0.1, 0.25, 0.5, 0.75]
+                    c = deepcopy(cnew)
+                    push!(torun, deepcopy(c))
+                    push!(tot_charge, charge)
+                end
             elseif newst == "core_dimer"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
                 #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
@@ -1420,6 +1617,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 a = (cnew.coords[2,3] - cnew.coords[1,3]) * cnew.A[3,3]
                 #7 21 32 min
                 #15 26 37 max dist
+
+                #           1        2   3       4     5      6     7   8      9    10    11   12   13   14   15
                 for x in [-0.23, -0.18, -0.13, -0.1, -0.07, -0.02, 0.0, 0.02, 0.08, 0.15, 0.3, 0.5, 1.0, 1.5, 2.0]
                     c = deepcopy(cnew)
                     c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
@@ -1427,6 +1626,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                     push!(tot_charge, 0.0)
                 end
+                #           16    17     18     19    20    21   22    23    24   25  26
                 for x in [-0.20, -0.13, -0.1, -0.07, -0.03, 0.0, 0.03, 0.15, 0.3, 0.5, 1.0]
                     c = deepcopy(cnew)
                     c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
@@ -1434,6 +1634,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                     push!(tot_charge, 0.25)
                 end
+                #            27    28   29     30     31   32     33    34    35   36  37
                 for x in [-0.20, -0.13, -0.1, -0.07, -0.03, 0.0, 0.03, 0.15, 0.3, 0.5, 1.0]
                     c = deepcopy(cnew)
                     c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
@@ -1442,6 +1643,71 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(tot_charge, -0.25)
                 end
 
+            elseif newst == "core_trimer"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                tot_charge = []
+                a = abs((cnew.coords[2,3] - cnew.coords[1,3]) * cnew.A[3,3])
+                #7 21 32 min
+                #15 26 37 max dist
+                for charges = [0.0,0.1, 0.25,-0.25,0.4]
+                    for x in [0.0, -0.1, 0.2]
+                        c = deepcopy(cnew)
+                        c.coords[2,3] = 0.5 - a  / cnew.A[3,3] * (1 + x)
+                        c.coords[3,3] = 0.5 + a  / cnew.A[3,3] * (1 + x)
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charges)
+                    end
+                end
+
+            elseif newst == "core_dimer_h"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                tot_charge = []
+                a = (cnew.coords[2,3] - cnew.coords[1,3]) * cnew.A[3,3]
+                #7 21 32 min
+                #15 26 37 max dist
+                for charge in [0.5, 1.0]
+                    for x in [-0.1, 0.0]
+                        c = deepcopy(cnew)
+                        c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
+                        c.coords[2,3] = 0.5 + a / 2 / cnew.A[3,3] * (1 + x)
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "core_dimer_g"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                tot_charge = []
+                a = (cnew.coords[2,3] - cnew.coords[1,3]) * cnew.A[3,3]
+                #7 21 32 min
+                #15 26 37 max dist
+                for charge in [-0.25, -0.1, -0.02, 0.02, 0.1, 0.25, 0.5, 1.0]
+                    for x in [-0.1, 0.0]
+                        c = deepcopy(cnew)
+                        c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
+                        c.coords[2,3] = 0.5 + a / 2 / cnew.A[3,3] * (1 + x)
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "core_dimer_g2"
+#                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                tot_charge = []
+                a = (cnew.coords[2,3] - cnew.coords[1,3]) * cnew.A[3,3]
+                #7 21 32 min
+                #15 26 37 max dist
+                for charge in [-0.25, -0.1, -0.02, 0.02, 0.1, 0.25, 0.5, 1.0]
+                    for x in [0.1, 0.5]
+                        c = deepcopy(cnew)
+                        c.coords[1,3] = 0.5 - a / 2 / cnew.A[3,3] * (1 + x)
+                        c.coords[2,3] = 0.5 + a / 2 / cnew.A[3,3] * (1 + x)
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
             elseif newst == "core_dimer_p"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
                 #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]

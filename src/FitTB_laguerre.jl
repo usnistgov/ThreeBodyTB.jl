@@ -98,9 +98,9 @@ Used for simple linear fitting of coefficients. Interface for more complicated f
 - `fit_threebody_onsite=true` - Fit threebody onsite coefficients. See above.
 - `do_plot=false` - show simple plot comparing coefficients to tbc reference.
 """
-function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false)
+function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=Dict())
 
-    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot)
+    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, starting_database=starting_database )
     return ret[1]
 
 end
@@ -956,7 +956,7 @@ end
 Construct the `coefs` and database from final results of fitting.
 """
 function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, cu=missing, UIND = missing)
-    println("make_database")
+    println("make_database SCF is $scf")
 #    println("cu $cu")
     if ismissing(starting_database)
         database = Dict()
@@ -2292,6 +2292,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     else
         ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
     end
+    println("SCF1 is $scf")
 
     ks_weight_input = ks_weight
 
@@ -2299,6 +2300,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, rind, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_data
 
+    println("SCF2 is $scf")
+    
     ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, cu_keep, keep_inds_U, toupdate_inds_U = keepdata
     
     if fit_umat == false
@@ -2353,6 +2356,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        println("EC DIFF old $ec_old ec_new $ec_new  $(ec_old - ec_new)")
     end
 #    xxx
+
+    println("SCF3 is $scf")
     
     function get_h1_umat(dq, crys, Xc_umat, X_umat, c_umat, c, h1_umat)
         energy = 0.0
@@ -2394,6 +2399,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         return energy, h1_umat
     end
     
+    println("SCF4 is $scf")
         
     function construct_fitted(ch, c_umat, solve_self_consistently = false)
 
@@ -2842,6 +2848,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     NLAM = Int64(NLAM)
 
     ENERGY_IND = zeros(Int64, NCALC)
+
+    println("SCF5 is $scf")
+
     
     #    function construct_newXY(VECTS_FITTED::Array{Complex{Float64},4}, OCCS_FITTED::Array{Float64,3}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}; leave_out=-1)
     function construct_newXY(VECTS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_U::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}; leave_out=-1)
@@ -3098,9 +3107,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         return NEWX, NEWY, energy_counter
 
     end
+    println("SCF6 is $scf")
 
     solve_scf_mode = false
 
+    println("SCF7 is $scf")
 
     current_error = 0.0
     function do_iters(chX, NITERS; leave_out=-1)
@@ -3114,15 +3125,17 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         
         for iters = 1:NITERS #inner loop
 
+            println("SCF iters $iters is $scf")
+
             if iters > 2
                 mix = 0.01
             end
             if iters > 4
-                mix = 0.05
+                mix = 0.03
             end
 
             if scf
-                if iters == 2
+                if iters == 3
                     println("TURNING ON SCF SOLVE!!!!!!!!!!!!!!!!!!!!!!! ")
                     println()
                     solve_scf_mode = true
@@ -3136,7 +3149,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("DQ ", DQ)
             println("construct_fitted")
             @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(chX, c_umat, solve_scf_mode)
-#            println("after DQ ", DQ)            
+
+            println("SCF iters1 $iters is $scf")
+
+            #            println("after DQ ", DQ)            
 
             #            println("vals0 1 ", VALS0_FITTED[4,1,:,1])
             #            println("vals0 2 ", VALS0_FITTED[4,1,:,2])
@@ -3160,7 +3176,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #          println(typeof(leave_out))
             println("construct_newXY")
             @time  NEWX, NEWY, energy_counter = construct_newXY(VECTS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_U, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-#            println("SUM NEWX ", sum(abs.(NEWX)))
+
+            println("SCF iters2 $iters is $scf")
+
+            #            println("SUM NEWX ", sum(abs.(NEWX)))
             VECTS_FITTED = Dict()
             #            VECTS_FITTED = []
             #            OCCS_FITTED = []
@@ -3212,7 +3231,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     TOTY = [Y_Hnew_BIG[rind, 1]*ks_weight;TOTY]
                 end            
             end
- #           println("SUM TOTX ", sum(abs.(TOTX)))
+
+            println("SCF iters3 $iters is $scf")
+
+            #           println("SUM TOTX ", sum(abs.(TOTX)))
             #            if lambda > 1e-10
             #                XX = zeros(length(threebody_inds), NCOLS)
             #                YY = zeros(length(threebody_inds))
@@ -3258,6 +3280,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #println("ch_new ")
             #println(ch_new)
 
+            println("SCF iters4 $iters is $scf")
+
+            
 #            println("ENERGY ")
 #            for c in 1:NCALC
 #                println("$c ", (NEWX*ch_new)[ENERGY_IND[c]] - NEWY[ENERGY_IND[c]], "   ", NEWY[ENERGY_IND[c]], " " , (NEWX*ch_new)[ENERGY_IND[c]])
@@ -3330,7 +3355,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 #                println()
             end
             println("error_new_energy $error_new_energy err_old_en $err_old_en  diff $(err_old_en - error_new_energy)")
-            if abs(error_new_energy - err_old_en) < (1e-5 * NCALC) && iters >= 15
+            if abs(error_new_energy - err_old_en) < (1e-6 * NCALC) && iters >= 15
             #if false
                 println("break")
                 break
@@ -3347,6 +3372,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
         end
 
+        println("SCFX  is $scf")
+        
         #remerge the indexs we are updating with the other indexes
 
         ch_big = zeros(length(keep_inds) + length(toupdate_inds))
@@ -3386,6 +3413,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println("good")
         println(good)
         println("make database")
+        println("SCF before make is $scf")
 
         if returndatabase == false
             database =missing

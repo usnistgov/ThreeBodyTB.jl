@@ -60,7 +60,7 @@ using ..TB:tb_crys_kspace
 using ..TB:make_tb_crys_kspace
 using ..TB:make_tb_k
 using ..TB:write_tb_crys_kspace
-
+using ..TB:band_summary
 
 include("Commands.jl")
 using ..ThreeBodyTB:TEMPLATES
@@ -545,16 +545,16 @@ Steps:
         band_froz = Int64(round(dft_nscf.bandstruct.nelec/2))+1
 
 
-        en_froz = minimum(dft_nscf.bandstruct.eigs[:,band_froz,:])
+        en_froz = minimum(dft_nscf.bandstruct.eigs[:,band_froz,:]) + 0.02
         en_froz = max(en_froz, dft.bandstruct.efermi + 0.05)
-        println("en_froz: ", en_froz, " band froz $band_froz")
+        println("en_froz: ", en_froz, " band froz $band_froz versus fermi $(dft.bandstruct.efermi)")
         println("efermi energy ", dft.bandstruct.efermi)
         println("nk ", size(dft_nscf.bandstruct.kpts), "     ", size(dft_nscf.bandstruct.kweights))
-        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf, energy_froz=en_froz+.05, shift_energy=shift_energy);
+        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf, energy_froz=en_froz+.05, shift_energy=shift_energy, gamma_only=gamma_only);
         #A,B,C = AtomicProj.create_tb(p, dft, energy_froz=en_froz+.01); 
         #return A,B,C        
     else
-        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf);
+        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf, gamma_only=gamma_only);
     end
 
 #    println("done")
@@ -568,8 +568,11 @@ Steps:
 
 
     #get tight binding
-    tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening)
-
+    if gamma_only
+        tbck = prepare_ham_k(p, dft_nscf, [1,1,1] ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening, K = [0 0 0])
+    else
+        tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening)
+    end
 #    return tbck
     
     println(tbck.nspin, " after prepare P OVERLAPS ", size(p.overlaps))
@@ -581,7 +584,7 @@ Steps:
     end
 
     if !only_kspace
-        tbc = AtomicProj.get_ham_r(tbck)
+        tbc = AtomicProj.get_ham_r(tbck, dft.tot_charge)
         if !ismissing(writefile)
             println()
             println("Step #5 write_tb---------------------------------------------------------------------------")
@@ -991,7 +994,7 @@ Does the main creation of TB hamiltonian from DFT projection data in k-space.
 - `nfroz=0` number of frozen bands.
 - `shift_energy=true` if `true` shift eigenvalues so band energy `==` total energy
 """
-function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true)
+function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true, gamma_only = false)
 
 
 
@@ -1000,10 +1003,18 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
     efermi_dft = d.bandstruct.efermi
 
+    if gamma_only
+        NKS = 1
+        KWEIGHTS = [2.0]
+    else
+        NKS = p.bs.nks
+        KWEIGHTS = p.bs.kweights
+    end
+    
     #decide semicore
     p2 = zeros(p.bs.nbnd)
-    INDSEMI = zeros(Int64, p.bs.nks, p.nspin, nsemi)
-    for k = 1:p.bs.nks
+    INDSEMI = zeros(Int64, NKS, p.nspin, nsemi)
+    for k = 1:NKS
         for spin = 1:p.nspin
             p2[:] = real.(sum(p.proj[k,semicore,spin, :] .* conj.(p.proj[k, semicore,spin, :]) , dims=1))
             INDSEMI[k,spin,  :] = sortperm(p2, rev=true)[1:nsemi]
@@ -1020,11 +1031,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     #    println("INDSEMI ", INDSEMI)
 
     NBND = p.bs.nbnd - nsemi
-    EIGS = zeros(p.bs.nks,  NBND,p.nspin)
-    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, p.nspin, NBND)
+    EIGS = zeros(NKS,  NBND,p.nspin)
+    PROJ = zeros(Complex{Float64}, NKS, nwan, p.nspin, NBND)
 
     # setup data
-    for k = 1:p.bs.nks
+    for k = 1:NKS
         for spin = 1:p.nspin
             counter = 0
             for n = 1:p.bs.nbnd
@@ -1057,7 +1068,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("shifting eigenvalues to match dft atomization energy")
         ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
 #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
-        band_en = band_energy(EIGS, d.bandstruct.kweights, nval - d.tot_charge)
+        band_en = band_energy(EIGS, KWEIGHTS, nval - d.tot_charge)
 
         println("band_energy $band_en")
         println("EIGS  ", EIGS[1,:,1])
@@ -1104,8 +1115,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
     P = zeros(Complex{Float64}, NBND, NBND)  #p.bs.nbnd-nsemi,p.bs.nbnd-nsemi)
 
-    Pmat = zeros(Float64, p.bs.nks, NBND)
-    Nmat = zeros(Float64, p.bs.nks, nwan)
+    Pmat = zeros(Float64, NKS, NBND)
+    Nmat = zeros(Float64, NKS, nwan)
 
     Btilde = zeros(Complex{Float64}, nwan, NBND)
     B = zeros(Complex{Float64}, nwan, NBND)
@@ -1113,7 +1124,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     
     ham_dft = zeros(Float64, NBND)
 
-    ham_k = zeros(Complex{Float64},  p.natwfc-nsemi, p.natwfc-nsemi,p.bs.nks, p.nspin)
+    ham_k = zeros(Complex{Float64},  p.natwfc-nsemi, p.natwfc-nsemi,NKS, p.nspin)
 
 
     htemp = zeros(Complex{Float64}, nwan, nwan)
@@ -1143,7 +1154,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     
     badk=0
     for spin = 1:p.nspin
-        for k = 1:p.bs.nks
+        for k = 1:NKS
             #    for k = 1:nks
             
             #this avoids breaking symmetry by cutting off a symmetrically equivalent pair/triplet, etc because we include a finite number of bands
@@ -1232,8 +1243,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     end
 
     #decide if need to send serious warning to user.
-    if badk / p.bs.nks > 0.15
-        println("warning lots of bad kpoints ", badk, " of ", p.bs.nks)
+    if badk / NKS > 0.15
+        println("warning lots of bad kpoints ", badk, " of ", NKS)
         warn_badk=true
     else
         warn_badk=false
@@ -1251,7 +1262,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         energy_froz2 = energy_froz+0.25
         println("energy_froz: $energy_froz , $energy_froz2")
         for spin = 1:p.nspin
-            for k = 1:p.bs.nks
+            for k = 1:NKS
                 val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
                 val_tb = real(val_tbt)
                 val_tb_new = deepcopy(val_tb)
@@ -1333,7 +1344,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     if nfroz >= 1 && (ismissing(energy_froz))
         println("nfroz: ", nfroz)
         for spin = 1:p.nspin
-            for k = 1:p.bs.nks
+            for k = 1:NKS
                 val, vect = eigen(Hermitian(ham_k[:,:,k,spin] ))
                 val[1:nfroz] = EIGS[k,1:nfroz,spin]
                 if (abs(EIGS[k, nfroz+1,spin] - EIGS[k, nfroz,spin])< 1e-5) && nwan >= nfroz+1
@@ -1356,10 +1367,10 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
    
     #reshift to match dft total energy
     
-    VAL = zeros(Float64, p.bs.nks, nwan, p.nspin)
-    VECT = zeros(Complex{Float64}, p.bs.nks, p.nspin, nwan, nwan)
+    VAL = zeros(Float64, NKS, nwan, p.nspin)
+    VECT = zeros(Complex{Float64}, NKS, p.nspin, nwan, nwan)
     for spin = 1:p.nspin
-        for k = 1:p.bs.nks
+        for k = 1:NKS
             val, vect = eigen(Hermitian(ham_k[:,:,k, spin]))
             VAL[k,:, spin] = val
             VECT[k,spin,:,:] = vect
@@ -1376,14 +1387,14 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         end
             
         
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
+        band_en = band_energy(VAL, KWEIGHTS, nval - d.tot_charge)
 
         println("band_en_old " , band_en)
 
         shift = (atomization_energy - band_en)/(nval - d.tot_charge)
         VAL = VAL .+ shift
         for spin = 1:p.nspin
-            for k = 1:p.bs.nks
+            for k = 1:NKS
                 
                 val = VAL[k,:, spin]
                 vect = VECT[k,spin,:,:]
@@ -1394,14 +1405,14 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("done reshift")
 
         for spin = 1:p.nspin
-            for k = 1:p.bs.nks
+            for k = 1:NKS
                 val, vect = eigen(Hermitian((ham_k[:,:,k, spin] + ham_k[:,:,k,spin]')/2.0))
                 VAL[k,:,spin] = val
                 VECT[k,spin,:,:] = vect
             end
         end
             
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
+        band_en = band_energy(VAL, KWEIGHTS, nval - d.tot_charge)
         println("band_en_new " , band_en, " " , band_en+etypes)
 
 
@@ -1617,8 +1628,10 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
     if ismissing(K)
         K = p.bs.kpts
         nks = size(K)[1]
+        KWEIGHTS = p.bs.kweights
     else
         nks = size(K)[1]
+        KWEIGHTS = ones(nks) * 2 / nks
     end
     
     #fix mysterious sign error K-space. QE overlaps have weird signs in x and y direction
@@ -1681,10 +1694,10 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
 #        println("fourteen")
 #        println(Sk[:,:,14])
 
-        wtot = sum(p.bs.kweights)
+        wtot = sum(KWEIGHTS)
         SUMI = zeros(nwan)
         for i=1:nwan #normalize overlaps
-            SUMI[i] = sum(Sk[i,i,:] .* p.bs.kweights) / wtot
+            SUMI[i] = sum(Sk[i,i,:] .* KWEIGHTS) / wtot
         end
         println("old SUMI ", SUMI)
         SUMI = symm_by_orbitals(d.crys, SUMI) #this handles the fact the k-grid can break orbital symmetry
@@ -1718,7 +1731,7 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
             end
         end
 
-        tbk = make_tb_k(ham_kS, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=true)
+        tbk = make_tb_k(ham_kS, K, KWEIGHTS, Sk, grid=grid, nonorth=true)
         tbck = make_tb_crys_kspace(tbk, d.crys, nval, d.energy - etotal_atoms, scf=false, screening=screening)
 
 #        println("nspin k ", tbck.nspin)
@@ -1733,7 +1746,7 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
             Sk[i,:,:] = I(nwan)
         end
 
-        tbk = make_tb_k(ham_k, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=false)
+        tbk = make_tb_k(ham_k, K, KWEIGHTS, Sk, grid=grid, nonorth=false)
         tbck = make_tb_crys_kspace(tbk, d.crys, nval, d.energy - etotal_atoms, scf=false)
         
         return tbck
@@ -1752,7 +1765,7 @@ end
 
 Do fft to get the real-space ham. Requires tbck to be on a regular grid centered at Gamma with no symmetry.
 """
-function get_ham_r(tbck::tb_crys_kspace)
+function get_ham_r(tbck::tb_crys_kspace, tot_charge)
 """
 Do Fourier transform k->R. 
 """
@@ -1794,7 +1807,7 @@ Do Fourier transform k->R.
 
 #    renormalize_tb(d, tb)
 #    nelec=.bandstruct.nelec ##- nsemi * 2.0
-    nelec = nval
+    nelec = nval - tot_charge
 
     dftenergy=tbck.dftenergy
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbck.crys)

@@ -3779,9 +3779,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
         #umat
         if use_umat && dist > 1e-3
-            (h,s) = fit_twobody(:s,:s,dist,lmn)
+            #(h,s) = fit_twobody(:s,:s,dist,lmn)
+            lag = laguerre(dist)
+#            println("abcd lag 4.0 dist $dist lag $lag")
             iu = coef.inds[[t1,t2,:U]]
-            twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
+            #twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
+            twobody_arrays[at_set][4][a1,iu] += lag[1:n_ufit] * cut
 #            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
         end
         
@@ -4758,10 +4761,10 @@ end
 
 Calculate laguerre polynomials up to order `nmax`
 """
-function laguerre(dist, ind=missing; nmax=6, memory=missing)
+function laguerre(dist, ind=missing; nmax=6, memory=missing, a=EXP_a[1])
 
     #    a=2.0
-    a=EXP_a[1]
+    
 
 
 #    a=3.0
@@ -7997,15 +8000,18 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     else #normal case
                         
 
-                        laguerre_fast!(dist_a, lag_arr)
 
                         if use_umat
+                            laguerre_fast!(dist_a, lag_arr)
+
+                            
                             UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a
                             #                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
                             if only_U
                                 continue
                             end
                         end
+                        laguerre_fast!(dist_a, lag_arr)
 
                         
                         rho_th[a1, 1, id] += lag_arr[1] * cut_on

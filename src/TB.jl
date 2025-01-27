@@ -320,6 +320,7 @@ mutable struct tb_crys_kspace{T}
     background_charge_correction::T
     eden::Array{Float64,2}
     energy::Float64
+    efermi::Float64
 
 end
 
@@ -680,6 +681,11 @@ function read_tb_crys_kspace(filename; directory=missing)
         nspin = parse(Int64,d["nspin"])
     end
 
+    efermi = 0.0
+    if "efermi" in keys(d)
+        efermi = parse(Float64,d["efermi"])
+    end
+    
 
     #SCF stuff is optional
     scf = false
@@ -803,7 +809,7 @@ function read_tb_crys_kspace(filename; directory=missing)
 
     tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
-    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction)
+    tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction, efermi=efermi)
 
     return tbck
     
@@ -960,6 +966,7 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(root, "gamma", arr2str(tbc.gamma))
     addelement!(root, "background_charge_correction", string(tbc.background_charge_correction))
     addelement!(root, "eden", arr2str(tbc.eden))
+    addelement!(root, "efermi", string(tbc.efermi))
 
     tightbinding = ElementNode("tightbinding")
     link!(root, tightbinding)
@@ -1056,11 +1063,12 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #            eden = zeros(nspin,ham.nwan)
 #        else
         eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
-#        println("get_neutral_eden $eden")
+        println("nelec $nelec get_neutral_eden $eden sum ", sum(eden))
             bv = eden .> 1e-5
 #            println("eden $eden sum $(sum(eden)) nelec $nelec")
-            eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0)/crys.nat
-#            println("new ", eden)
+        println("bv $bv")
+        eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0) / sum(bv)
+        println("new ", eden, " sum ", sum(eden))
  #       end
 #        println("start eden ", eden)
     end
@@ -1070,7 +1078,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     
     #println("gamma")
-    if ismissing(gamma) 
+    if ismissing(gamma)  || ismissing(u3)
         #        println("ismissing gamma")
         gamma, background_charge_correction,u3 = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
@@ -1093,6 +1101,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         bs = make_empty_bs(nspin=nspin)
     end
                 
+    println([ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs])
     
     return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs)
 end
@@ -1102,7 +1111,7 @@ end
 
     Constructor function for `tb_crys_kspace` object
     """
-function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing,background_charge_correction=0.0, screening=1.0)
+function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, u3=missing,background_charge_correction=0.0, screening=1.0, efermi=0.0)
 
     nspin = hamk.nspin
     
@@ -1138,7 +1147,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     #    println(eden)
     #    println(size(gamma))
     #    println(size(eden))
-    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,u3,background_charge_correction,  eden, -999.0)
+    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,u3,background_charge_correction,  eden, -999.0, efermi)
 end
 
 
@@ -4102,10 +4111,17 @@ function ewald_energy(tbc::tb_crys, delta_q=missing, delta_q_eden=missing)
     crys = tbc.crys
     u3 = tbc.u3
     
-    if ismissing(delta_q)
+    if ismissing(delta_q) || ismissing(delta_q_eden)
         delta_q, delta_q_eden =  get_dq(crys , tbc.eden)
     end
 #    println("XXXXXXXXXXX $delta_q_eden $delta_q")
+#    println("crys ", crys)
+#    println("gamma ", gamma)
+#    println("u3 ", u3)
+#    println("background_charge_correction  ", background_charge_correction)
+#    println("delta_q_eden  ", delta_q_eden)
+#    println("delta_q ", delta_q)
+    
     return ewald_energy(crys, gamma, u3, background_charge_correction, delta_q_eden, delta_q)
 
 end
@@ -4181,7 +4197,9 @@ function ewald_energy(crys::crystal, gamma,u3, background_charge_correction, del
 
     energy = 0.5*pot
     energy += background_charge_correction * sum(delta_q)^2
-
+#
+#    println("background_charge_correction * sum(delta_q)^2", [background_charge_correction, sum(delta_q), sum(delta_q)^2])
+    
     for i = 1:crys.nat
         energy += 1.0/3.0 * u3[i] * delta_q[i]^3
     end
@@ -4664,10 +4682,23 @@ end
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = 0.0, use_scf = false, eden_start = missing)
 
-    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
+    if ismissing(eden_start)
+        eden_start = tbcK.eden
+        if sum(eden_start) < 1e-5
+            eden_start = get_neutral_eden(tbcK.crys, tbcK.tb.nwan, nspin=tbcK.tb.nspin)
+        end
+            
+        #        if abs(sum(eden_start) - (tbcK.nelec - tot_charge)/2.0) > 1e-3
+#            println("bad eden start ", [sum(eden_start), (tbcK.nelec - tot_charge)/2.0, tbcK.nelec,  tot_charge])
+#            eden_start = get_neutral_eden(tbcK.crys, tbcK.tb.nwan, nspin=tbcK.tb.nspin)
+#        end
+        
+    end
 
+    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, u3 = tbcK.u3, gamma = tbcK.gamma, crys = tbcK.crys)
+    tbcK.efermi = efermi
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
     sgn, dat, SS, TT, atom_trans = get_symmetry(tbcK.crys, verbose=true);
@@ -4717,7 +4748,7 @@ end
 
      K-space get energy and electron density from `tb_k`
      """
-function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
+function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, u3 = missing)
 
     temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
     denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
@@ -4727,86 +4758,189 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
     VECTS = zeros(Complex{Float64}, tb_k.nk, tb_k.nspin, tb_k.nwan, tb_k.nwan)
     SK = zeros(Complex{Float64}, tb_k.nk,  tb_k.nwan, tb_k.nwan)
 
-    error_flag = false
-    #     m = 1000.0
-    for spin = 1:tb_k.nspin
-        for k in 1:tb_k.nk
-            #             try
-            vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:], spin=spin)
-            VALS[k, :, spin] = vals
-            VECTS[k,spin, :,:] = vects
-            SK[k,:,:] = sk
-            VALS0[k, :,spin] = vals0
-            #            m = minimum(eigvals(sk))
-            if maximum(abs.(imag.(vals))) > 1e-10
-                println("warning imag ", max(abs.(imag.(vals))))
-                error_flag = true
-            end
-            
+    if !ismissing(crys)
+        ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+        sgn, dat, SS, TT, atom_trans = get_symmetry(crys, verbose=true);
+    end
 
-            #             catch e
-            #                 if e isa InterruptException
-            #                     println("user interrupt")
-            #                     rethrow(InterruptException)
-            #                 end
-            #                 println("warning, get_energy_electron_density_kspace error")
-            #                 error_flag = true
-            #             end
+    mix = 0.15
+    if use_scf == false
+        mix = 1.0
+    end
+    n_scf = 1
+    diff_old = 100000.0
+    if use_scf == true
+        n_scf = 200
+        if ismissing(eden_start)
+            eden_start = get_neutral_eden(crys, tb_k.nwan, nspin=tb_k.nspin)
         end
-    end
+        eden = deepcopy(eden_start)
 
-    
-    energy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
+        if tb_k.nspin == 1
+            eden = eden .+ (nelec/2  - sum( eden )) /  length(eden)
+        end
 
-    energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights)
-    if tb_k.nspin == 1
-        energy0 = energy0 * 2
-    end
-    
+        toobig = eden .> 1.0
+        normal = eden .< 1.0
+        eden[toobig] .= 1.0
 
-    
-    for spin = 1:tb_k.nspin
-        for k in 1:tb_k.nk
-            for a = 1:tb_k.nwan
-                for i = 1:tb_k.nwan
-                    for j = 1:tb_k.nwan
-                        temp[i,j] = VECTS[k,spin, i,a]' * SK[k,i,j] * VECTS[k,spin, j,a]
-                    end
-                end
-                temp = temp + conj(temp)
-                denmat[spin,:,:] += 0.5 * occs[k,a, spin] * real.(temp) * tb_k.kweights[k]
+        if tb_k.nspin == 1
+            correction = sum(eden) - nelec/2
+        else
+            correction = sum(eden) - nelec/2
+        end
+        eden[normal] .-= correction / sum(normal)
 
+        
+        if !ismissing(crys)
+            for spin =1:tb_k.nspin
+                eden[spin,:] = symmetrize_charge_den(crys, eden[spin,:] , SS, atom_trans, orb2ind)
             end
         end
+        
+        println("sum eden $(sum(eden)) start $eden")
+
+        
     end
 
     
-    #     println("denmat")
-    #     println(denmat)
-    
+    energy0 = 0.0
     electron_den = zeros(tb_k.nspin, tb_k.nwan)
-    electron_den[1,:] = sum(denmat[1,:,:], dims=2) / sum(tb_k.kweights)
-    #     electron_den = electron_den[:,1,:]
-    if tb_k.nspin == 2
-        electron_den[2,:] = sum(denmat[2,:,:], dims=2) / sum(tb_k.kweights)
-        #         energy0 = energy0
-    end
-    #     println("electron_den")
-    #     println(electron_den)
-
-    toobig = electron_den .> 1.0
-    normal = electron_den .< 1.0
-    electron_den[toobig] .= 1.0
+    efermi = 0.0
     
-    if tb_k.nspin == 2
-        tot = sum(electron_den)
-        correction = tot - nelec
-    elseif tb_k.nspin == 1
-        tot = sum(electron_den) * 2.0
-    end
-    correction = tot - nelec
-    electron_den[normal] .-= correction / sum(normal)
+    error_flag = false
+    for scf = 1:n_scf
+#        println("scf $scf")
+        if use_scf && !ismissing(crys) && !ismissing(gamma) && !ismissing(u3)
+            dq, dq_eden = get_dq(crys, eden)
+            h1 = get_h1_dq(tb_k.nwan, crys, gamma, u3, dq, dq_eden)
+            tb_k.h1 = h1
+#            println("update h1 ", h1)
+        end
+        
+        for spin = 1:tb_k.nspin
+            for k in 1:tb_k.nk
+                #             try
+                vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:], spin=spin)
+                VALS[k, :, spin] = vals
+                VECTS[k,spin, :,:] = vects
+                SK[k,:,:] = sk
+                VALS0[k, :,spin] = vals0
+                #            m = minimum(eigvals(sk))
+                if maximum(abs.(imag.(vals))) > 1e-10
+                    println("warning imag ", max(abs.(imag.(vals))))
+                    error_flag = true
+                end
+                
 
+                #             catch e
+                #                 if e isa InterruptException
+                #                     println("user interrupt")
+                #                     rethrow(InterruptException)
+                #                 end
+                #                 println("warning, get_energy_electron_density_kspace error")
+                #                 error_flag = true
+                #             end
+            end
+        end
+
+        
+        energy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
+
+        energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights)
+        if tb_k.nspin == 1
+            energy0 = energy0 * 2
+        end
+        
+
+        denmat .= 0.0
+        for spin = 1:tb_k.nspin
+            for k in 1:tb_k.nk
+                for a = 1:tb_k.nwan
+                    for i = 1:tb_k.nwan
+                        for j = 1:tb_k.nwan
+                            temp[i,j] = VECTS[k,spin, i,a]' * SK[k,i,j] * VECTS[k,spin, j,a]
+                        end
+                    end
+                    temp = temp + conj(temp)
+                    denmat[spin,:,:] += 0.5 * occs[k,a, spin] * real.(temp) * tb_k.kweights[k]
+
+                end
+            end
+        end
+
+        
+        #     println("denmat")
+        #     println(denmat)
+        
+#        electron_den = zeros(tb_k.nspin, tb_k.nwan)
+        electron_den[1,:] = sum(denmat[1,:,:], dims=2) / sum(tb_k.kweights)
+        #     electron_den = electron_den[:,1,:]
+        if tb_k.nspin == 2
+            electron_den[2,:] = sum(denmat[2,:,:], dims=2) / sum(tb_k.kweights)
+        end
+        #     println("electron_den")
+        #     println(electron_den)
+
+#        println("sum before ", sum(electron_den))
+#
+#        toobig = electron_den .> 0.99999999999
+#        normal = electron_den .<= 0.99999999999
+#        println("too big ", toobig, " ", electron_den[toobig])
+#        electron_den[toobig] .= 1.0
+#        println("correction factor ", (nelec/2.0 / sum(electron_den)))
+        
+
+
+        if tb_k.nspin == 2
+            electron_den = electron_den  * (nelec / sum(electron_den))
+        else
+            electron_den = electron_den  * (nelec/2.0 / sum(electron_den))            
+        end
+
+
+        #        println("sum after ", sum(electron_den))
+        
+#        if tb_k.nspin == 2
+#            tot = sum(electron_den)
+#            correction = tot - nelec
+#        elseif tb_k.nspin == 1
+#            tot = sum(electron_den) * 2.0
+#        end
+#        correction = tot - nelec
+#        println("correction $correction")
+#        electron_den[normal] .-= correction / sum(normal) / 2.0
+#        println("sum after ", sum(electron_den))
+
+        if n_scf == 1
+            break
+        end
+#        println("electron_den ", electron_den, " sum ", sum(electron_den))
+        if !ismissing(crys)
+            for spin =1:tb_k.nspin
+                electron_den[spin,:] = symmetrize_charge_den(crys, electron_den[spin,:] , SS, atom_trans, orb2ind)
+            end
+        end
+        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
+        diff_new = sum(abs.(electron_den  - eden))
+        if  diff_new < 1e-2
+            println("break scf $scf")
+            break
+        else
+            if diff_new > diff_old
+                mix = max(mix * 0.95, 0.001)
+                println("reduce mix $mix  $diff_new $diff_old")
+            end
+            diff_old = diff_new
+            eden = eden*(1 - mix) + electron_den * mix
+        end
+        #        println("eden ", eden, " sum ", sum(eden))
+
+        if scf == n_scf
+            println("warning, convergence not reached $diff_new")
+        end
+        
+    end
     
     
     return energy0, electron_den, VECTS, VALS, efermi, error_flag, VALS0
@@ -5357,5 +5491,143 @@ function ewald_guess(crys::crystal, gamma; tot_charge = 0.0)
 
 end
 
+"""
+    function band_summary(tbc, kgrid, fermi=missing)
+    
+Produces summary of band structure. See below functions for more
+specific versions of function that automatically generate the k-points.
+
+Note: gaps are not well-defined for non-magnetic systems with odd
+numbers of electrons, as they are required to be metals.
+
+Returns `direct_gap, indirect_gap, gaptype, bandwidth`
+
+-`direct_gap`: minimum gap at one k-point between nominally filled and empty bands. Can be non-zero in metals.  
+-`indirect_gap`: LUMO - HOMO. Can be negative if material has a direct gap everywhere, but the conduction band at some k-point is below the valence band at a different k-point. Physically these are indirect gap semimetals.  
+-`gaptype` : is `:metal` for all metals, `:direct` or `:indirect` for insulators.
+-`bandwidth` : HOMO - minimum_band_energy. Included semicore states if they are in the TB calculation.
+
+"""
+function band_summary(tbc, kpts, kweights, fermi=missing)
+
+
+    vals = calc_bands(tbc, kpts)    
+
+    if ismissing(fermi)
+        fermi = calc_fermi(vals, kweights, tbc.nelec)
+    end
+
+
+    
+    minband = minimum(vals[:,1])
+    
+    nelec = Int64(round(tbc.nelec/2.0))
+
+    if abs(nelec - tbc.nelec / 2.0) > 1e-5
+        println("WARNING, band_summary gaps don't work well with non-integer or odd electrons: ", tbc.nelec)
+        directgap = 0.0
+        indirectgap = 0.0
+        vbm = fermi
+        cbm = fermi
+        return directgap, indirectgap, :metal, convert_energy(vbm - minband), convert_energy.([vbm, cbm])
+        
+    end
+
+    #this if the even number of electrons case
+    
+    vbm = maximum(vals[:,nelec])
+    vbm = min(vbm, fermi)
+    
+    if nelec+1 <= tbc.tb.nwan
+        cbm = minimum(vals[:,nelec+1])
+        directgap = minimum(vals[:,nelec+1] - vals[:,nelec])
+
+    else
+        cbm = vbm
+        directgap = 0.0
+    end
+    
+    indirectgap = cbm - vbm
+
+    if directgap - indirectgap > 1e-5
+        gaptype = :indirect
+    else
+        gaptype = :direct
+    end
+
+    if indirectgap < 0.0
+        gaptype = :metal
+    end
+
+    bandwidth = vbm - minband
+    
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
+
+end
+
+function band_summary(dft::dftout)
+    return band_summary(dft.bandstruct)
+end
+
+function band_summary(bs::bandstructure)
+    println("bs $(bs.nelec)")
+    if abs(bs.nelec / 2.0) - round(bs.nelec/2.0) > 1e-5 && bs.nspin == 1
+        return 0.0, 0.0, :metal, convert_energy(bs.efermi - minimum(bs.eigs)), convert_energy([bs.efermi, bs.efermi])
+    end
+    println("asdf")
+    nelec = Int64(round(bs.nelec/2.0))
+
+    vbm = maximum(bs.eigs[:,nelec])
+    vbm = min(vbm, bs.efermi)
+
+    cbm = minimum(bs.eigs[:,nelec+1,1])
+    cbm = max(cbm, bs.efermi)
+    
+    directgap = 10000.0
+    for i = 1:bs.nks
+        directgap = min(bs.eigs[i,nelec+1,1] - bs.eigs[i,nelec,1], directgap)
+    end
+
+    indirectgap = cbm - vbm
+
+    if directgap - indirectgap > 1e-5
+        gaptype = :indirect
+    else
+        gaptype = :direct
+    end
+
+    bandwidth= bs.efermi - minimum(bs.eigs)
+    
+    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
+    
+end
+
+"""
+    function band_summary(tbc::tb_crys; kgrid=missing, kpts=missing)
+
+Will automatically generate standard k-grid by default.
+"""
+function band_summary(tbc::tb_crys; kpts=missing, kweights=missing, kgrid=missing)
+    if ismissing(kgrid) 
+        kgrid = get_grid(tbc.crys)
+    end
+    if ismissing(kpts) || ismissing( kweights)
+        println("using kgrid $kgrid")
+        kpts, kweights = make_kgrid(kgrid)
+    end
+    
+    return band_summary(tbc, kpts, kweights, tbc.efermi)
+end
+
+"""
+    function band_summary(tbc::tb_crys_kspace)
+
+Will use internal k-points by default.
+"""
+function band_summary(tbc::tb_crys_kspace)
+    kpts = tbc.tb.K
+    kw = tbc.tb.kweights
+    return band_summary(tbc, kpts, kw)
+end
 
 end #end module

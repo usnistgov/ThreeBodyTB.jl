@@ -58,6 +58,8 @@ using ..QE:loadXML
 export plot_compare_tb
 export plot_bandstr
 export plot_compare_dft
+
+using ..TB:band_summary
 export band_summary
 
 using ..ThreeBodyTB:no_display
@@ -787,7 +789,7 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
     
     vals = calc_bands(tbc.tb, kpts)
     
-    nelec = tbc.nelec
+    nelec = sum(tbc.eden) * 2.0
 
     nsemi = 0
     for t in tbc.crys.types
@@ -972,144 +974,6 @@ function run_dft_compare(tbc; nprocs=1, prefix="qe",   outdir="./", kpath=[0.5 0
 end
 
 
-"""
-    function band_summary(tbc, kgrid, fermi=missing)
-    
-Produces summary of band structure. See below functions for more
-specific versions of function that automatically generate the k-points.
-
-Note: gaps are not well-defined for non-magnetic systems with odd
-numbers of electrons, as they are required to be metals.
-
-Returns `direct_gap, indirect_gap, gaptype, bandwidth`
-
--`direct_gap`: minimum gap at one k-point between nominally filled and empty bands. Can be non-zero in metals.  
--`indirect_gap`: LUMO - HOMO. Can be negative if material has a direct gap everywhere, but the conduction band at some k-point is below the valence band at a different k-point. Physically these are indirect gap semimetals.  
--`gaptype` : is `:metal` for all metals, `:direct` or `:indirect` for insulators.
--`bandwidth` : HOMO - minimum_band_energy. Included semicore states if they are in the TB calculation.
-
-"""
-function band_summary(tbc, kpts, kweights, fermi=missing)
-
-
-    vals = calc_bands(tbc, kpts)    
-
-    if ismissing(fermi)
-        fermi = calc_fermi(vals, kweights, tbc.nelec)
-    end
-
-
-    
-    minband = minimum(vals[:,1])
-    
-    nelec = Int64(round(tbc.nelec/2.0))
-
-    if abs(nelec - tbc.nelec / 2.0) > 1e-5
-        println("WARNING, band_summary gaps don't work well with non-integer or odd electrons: ", tbc.nelec)
-        directgap = 0.0
-        indirectgap = 0.0
-        vbm = fermi
-        cbm = fermi
-        return directgap, indirectgap, :metal, convert_energy(vbm - minband), convert_energy.([vbm, cbm])
-        
-    end
-
-    #this if the even number of electrons case
-    
-    vbm = maximum(vals[:,nelec])
-    vbm = min(vbm, fermi)
-    
-    if nelec+1 <= tbc.tb.nwan
-        cbm = minimum(vals[:,nelec+1])
-        directgap = minimum(vals[:,nelec+1] - vals[:,nelec])
-
-    else
-        cbm = vbm
-        directgap = 0.0
-    end
-    
-    indirectgap = cbm - vbm
-
-    if directgap - indirectgap > 1e-5
-        gaptype = :indirect
-    else
-        gaptype = :direct
-    end
-
-    if indirectgap < 0.0
-        gaptype = :metal
-    end
-
-    bandwidth = vbm - minband
-    
-    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
-
-end
-
-function band_summary(dft::dftout)
-    return band_summary(dft.bandstruct)
-end
-
-function band_summary(bs::bandstructure)
-    println("bs $(bs.nelec)")
-    if abs(bs.nelec / 2.0) - round(bs.nelec/2.0) > 1e-5 && bs.nspin == 1
-        return 0.0, 0.0, :metal, convert_energy(bs.efermi - minimum(bs.eigs)), convert_energy([bs.efermi, bs.efermi])
-    end
-    println("asdf")
-    nelec = Int64(round(bs.nelec/2.0))
-
-    vbm = maximum(bs.eigs[:,nelec])
-    vbm = min(vbm, bs.efermi)
-
-    cbm = minimum(bs.eigs[:,nelec+1,1])
-    cbm = max(cbm, bs.efermi)
-    
-    directgap = 10000.0
-    for i = 1:bs.nks
-        directgap = min(bs.eigs[i,nelec+1,1] - bs.eigs[i,nelec,1], directgap)
-    end
-
-    indirectgap = cbm - vbm
-
-    if directgap - indirectgap > 1e-5
-        gaptype = :indirect
-    else
-        gaptype = :direct
-    end
-
-    bandwidth= bs.efermi - minimum(bs.eigs)
-    
-    return convert_energy(directgap), convert_energy(indirectgap), gaptype, convert_energy(bandwidth), convert_energy.([vbm, cbm])
-    
-end
-
-"""
-    function band_summary(tbc::tb_crys; kgrid=missing, kpts=missing)
-
-Will automatically generate standard k-grid by default.
-"""
-function band_summary(tbc::tb_crys; kpts=missing, kweights=missing, kgrid=missing)
-    if ismissing(kgrid) 
-        kgrid = get_grid(tbc.crys)
-    end
-    if ismissing(kpts) || ismissing( kweights)
-        println("using kgrid $kgrid")
-        kpts, kweights = make_kgrid(kgrid)
-    end
-    
-    return band_summary(tbc, kpts, kweights, tbc.efermi)
-end
-
-"""
-    function band_summary(tbc::tb_crys_kspace)
-
-Will use internal k-points by default.
-"""
-function band_summary(tbc::tb_crys_kspace)
-    kpts = tbc.tb.K
-    kw = tbc.tb.kweights
-    return band_summary(tbc, kpts, kw)
-end
 
 
 

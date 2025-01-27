@@ -328,24 +328,57 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
 
-    
+    norb = Int64(nwan/2)
     if fullU == false
-        Umat = ones(nwan,nwan) * U
+    #if true
+        Umat = ones(norb,norb) * U
+        Uarr = zeros(8)
     else
-        Umat = zeros(nwan,nwan)
+
+        Umat = zeros(norb,norb)
+
+        Uarr_t = deepcopy(Uarr)
+        Uarr = zeros(8)
+        
         if orb2 == [:s]
             orblist = [:s]
+            Uarr[1] = Uarr_t[1]
         elseif orb2 == [:s, :p]
             orblist = [:s, :p, :p, :p]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
         elseif orb2 == [:s, :d, :p]
             orblist = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
+            Uarr[5] = Uarr_t[4]
+            Uarr[6] = Uarr_t[5]
+            Uarr[7] = Uarr_t[6]
+            Uarr[8] = Uarr_t[4]#4 again
         elseif orb2 == [:s, :p, :d]
             orblist = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
+            Uarr[5] = Uarr_t[4]
+            Uarr[6] = Uarr_t[5]
+            Uarr[7] = Uarr_t[6]
+            Uarr[8] = Uarr_t[4] #4 again
         elseif orb2 == [:s, :d]
             orblist = [:s, :d, :d, :d, :d, :d]
+            Uarr[1] = Uarr_t[1]
+            Uarr[5] = Uarr_t[2] #d
+            Uarr[6] = Uarr_t[3] #sd
+            Uarr[8] = Uarr_t[2] #d
         else
             orblist = deepcopy(orb2)
         end
+        
         for (c1,o1) in enumerate(orblist)
             for (c2,o2) in enumerate(orblist)
                 if o1 == :s && o2 == :s

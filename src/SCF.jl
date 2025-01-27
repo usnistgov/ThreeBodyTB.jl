@@ -113,7 +113,7 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         tbc = calc_tb_LV_sparse(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
     end
     #println("done calc tb")
-    #    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
+    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     
@@ -131,6 +131,12 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
     """
     #    println("SCF_ENERGY TOT ", tbc.tot_charge)
 
+    if ismissing(tot_charge)
+        tot_charge = tbc.tot_charge
+    end
+    ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+    tbc.nelec = nval - tot_charge
+    
     println("START")
     begin
         
@@ -155,14 +161,11 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
         #println("mixing mode $mixing_mode")
         #println("before before ", tbc.eden)
 
-        if ismissing(tot_charge)
-            tot_charge=tbc.tot_charge
-        end
-        
-        if !ismissing(tot_charge)
-            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
-            tbc.nelec = nval - tot_charge
-        end
+
+
+
+        #tbc.tot_charge = tot_charge
+
         
         #println("e_den0 $e_den0")
         if tbc.nspin == 2
@@ -649,7 +652,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
             elseif iter > 3 && sum(abs.(delta_dq)) > sum(abs.(delta_dq2)) 
 
                 if mixing_mode != :DIIS || nreduce > 10
-                    mixA = max(mixA * 0.8, 0.00000001)
+                    mixA = max(mixA * 0.8, 0.0001)
                 end
 
                 nreduce += 1
@@ -1280,7 +1283,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.tb.h1spin = h1spin
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
-    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing)
+    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys))
     println("xxxxxxxxxxxxxxx $energy_new")
 #    energy_smear = smearing_energy(VALS_new, tbcK.tb.kweights, efermi_new, smearing)
 #    println("energy smear " , energy_smear)
@@ -1317,7 +1320,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     end
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
-    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing)
+    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing,  use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys))
     println("yyyyyyyy $energy_new")
 
 #    println("tbcK_new")
@@ -1365,8 +1368,18 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
 #    println("size(ham_r) ", size(ham_r))
     tb_new = make_tb(ham_r, ind_arr, r_dict, S_r, h1=h1, h1spin=h1spin )
 
+    println("tb_new ", tb_new)
+    println("tbc.crys ", tbc.crys)
+    println("tbc.nelec ", tbc.nelec)
+    println("tbc.dftenergy ", tbc.dftenergy)
+    println("tbc.eden ", tbc.eden)
+    println("tbc.gamma ", tbc.gamma)
+    println("tbc.background_charge_correction ", tbc.background_charge_correction)
+    println()
+    
+    
     #with charge density
-    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=tbc.eden, gamma = tbc.gamma, background_charge_correction = tbc.background_charge_correction)
+    tbc_new = make_tb_crys(tb_new, deepcopy(tbc.crys), tbc.nelec, tbc.dftenergy, scf=true, eden=tbc.eden, gamma = tbc.gamma, u3 = tbc.u3, background_charge_correction = tbc.background_charge_correction)
     tbc_new.efermi = efermi
     
 #    if false
@@ -1421,11 +1434,13 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     println("typeof(h1spin) ", typeof(h1spin))
 
     println("dq $dq")
+    println("dq_eden $dq_eden")
 #test
 #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
-    
-    energy_charge = ewald_energy(tbc, dq_eden)
+    println("tbc $tbc")
+    println("dq_eden $dq_eden")
+    energy_charge = ewald_energy(tbc, dq, dq_eden)
     if tbc.nspin == 2
         energy_magnetic = magnetic_energy(tbc, e_den)
         println("en mag $energy_magnetic")
@@ -1508,6 +1523,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     hk = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
 
 #    shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
+    nval = sum(e_den_NEW) * 2 / tbc.nspin
     shift = (energy_band_orig - energy_charge - energy_magnetic - energy_band_new)/nval
 
     println("shift $shift   $energy_band_orig $energy_charge $energy_band_new $nval")
