@@ -1658,6 +1658,8 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
     sk = zeros(Complex{Float64}, h.nwan, h.nwan)
     hk0 = zeros(Complex{Float64}, h.nwan, h.nwan)
 
+    failed = false
+    
     if kpoint in keys(h.k_dict)
         ind = h.k_dict[kpoint]
     else
@@ -1741,16 +1743,18 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
 
 
     catch
+        
         println("warning eigen failed, ", kpoint)
-        println("sk")
-        println(sk)
-        println(eigvals(sk))
+        failed = true
+        #        println("sk")
+#        println(sk)
+#        println(eigvals(sk))
         vects = collect(I(nw))
         vals = 1000.0 * ones(nw)
         vals0 = 1000.0 * ones(nw)
 
     end
-    return vects, vals, hk, sk, vals0
+    return vects, vals, hk, sk, vals0, failed
 
 end
 
@@ -4750,6 +4754,7 @@ end
      """
 function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, u3 = missing)
 
+
     temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
     denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
 
@@ -4821,7 +4826,11 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         for spin = 1:tb_k.nspin
             for k in 1:tb_k.nk
                 #             try
-                vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:], spin=spin)
+                vects, vals, hk, sk, vals0, failed = Hk(tb_k, tb_k.K[k,:], spin=spin)
+                if failed == true
+                    error_flag = true
+#                    println("failed $error_flag ", eigvals(sk))
+                end
                 VALS[k, :, spin] = vals
                 VECTS[k,spin, :,:] = vects
                 SK[k,:,:] = sk
@@ -4921,7 +4930,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
                 electron_den[spin,:] = symmetrize_charge_den(crys, electron_den[spin,:] , SS, atom_trans, orb2ind)
             end
         end
-        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
+        #        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
         diff_new = sum(abs.(electron_den  - eden))
         if  diff_new < 1e-2
             println("break scf $scf")
@@ -4936,8 +4945,9 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         end
         #        println("eden ", eden, " sum ", sum(eden))
 
-        if scf == n_scf
+        if scf == n_scf && n_scf != 1
             println("warning, convergence not reached $diff_new")
+            error_flag = true
         end
         
     end

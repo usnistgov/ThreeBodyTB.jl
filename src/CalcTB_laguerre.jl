@@ -4703,12 +4703,12 @@ function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memo
         memory[3] = (1 - ad_a) * exp_ab
         memory[4] = expa_0 *exp_ab
     elseif same_atom
-        memory[1] = exp_ab
-        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
-        memory[3] = expa_0 * exp_ab
-        memory[4] = (1 - ad_0)*expa_0 * exp_ab
-        memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab
-        memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
+        memory[1] = exp_ab                                       # 1 l0 l0
+        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))          # 1 (l1 l0 + l0 l1)
+        memory[3] = expa_0 * exp_ab                              # l0 l0 l0
+        memory[4] = (1 - ad_0)*expa_0 * exp_ab                   # l1 l0 l0
+        memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab                 # 1 l1 l1
+        memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))   # l0 (l1 l0 + l0 l1)
     else
         memory[1] = exp_ab
         memory[2] = exp_ab *(1 - ad_b)

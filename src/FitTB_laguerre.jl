@@ -1533,7 +1533,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing, fit_umat = false)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing, fit_umat = false, gen_add_ham = false)
 
     
     if !ismissing(dft_list)
@@ -1637,7 +1637,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, cs_start = cs_start, fit_umat = fit_umat)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, cs_start = cs_start, fit_umat = fit_umat, gen_add_ham = gen_add_ham)
 
 end
 
@@ -2280,7 +2280,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 
 end
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing, fit_umat = fit_umat)
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing, fit_umat = fit_umat, gen_add_ham = false)
 
     println("MAIN")
     #    sleep(10)
@@ -3358,6 +3358,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if abs(error_new_energy - err_old_en) < (1e-6 * NCALC) && iters >= 15
             #if false
                 println("break")
+                if gen_add_ham
+                    ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
+                end
                 break
             else
                 err_old_en = error_new_energy
@@ -3420,6 +3423,26 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         else
             database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
         end
+
+        if gen_add_ham
+            DATABASE = []
+            for chX in vcat([ch_mean], ch_arr)
+        #println(length(keep_inds), " " , length(toupdate_inds))
+
+                ch_big[toupdate_inds] = chX[:]
+                ch_big[keep_inds] = ch_keep[:]
+                chX2 = ch_big
+                
+                cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
+                cs_big[toupdate_inds_S] = cs_lin[:]
+                cs_big[keep_inds_S] = cs_keep[:]
+                csX2 = cs_big
+                database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
+                push!(DATABASE, database)
+            end
+            return database, chX, current_error, DATABASE
+        end
+        
         
         return database, chX, current_error
 
@@ -6210,7 +6233,40 @@ function do_fitting_optim(atom1, atom2, list_of_tbcs, dft_list; fit_threebody=fa
 
 end
                   
+function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
+
+    ch_all = TOTX \ TOTY
+    ninds = length(ch_all)
+
     
+    skip_inds = deepcopy(threebody_inds)
+    all_inds = 1:ninds
+    keep_inds = setdiff(all_inds, skip_inds)
+    
+    ch_2bdy = zeros(size(ch_all))
+    ch_2bdy[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
+
+
+   CH = [ch_final, ch_all, ch_2bdy]
+    for s in skip_inds
+        ch = zeros(size(ch_all))
+        keep_inds =	setdiff(all_inds, [s])
+        ch[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
+        push!(CH, ch)
+    end
+
+    ch_mean = zeros(size(ch_all))
+    for ch in CH
+        println("size $(size(ch))   $(size(ch_mean))")
+        ch_mean += ch
+    end
+    ch_mean = ch_mean / length(CH)
+
+    return ch_mean, CH
+    
+end
+
+
 
 #include("FitTB_laguerre_system.jl")
 
