@@ -35,10 +35,10 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
     norm = sum(weights)
 
     n2= Int64(round(nelec/2))
-    
+
 #    println(size(eigs), " n2 $n2")
 
-    if  abs(nelec - n2*2) < 1e-7
+    if  abs(nelec - n2*2) < 1e-7 && n2 > 0
         if length(size(eigs)) == 2 && size(eigs)[2] > 1
             gap  = minimum(eigs[:,n2+1]) - maximum(eigs[:,n2])   #large gaps become numerically unstable with small smearing
         else
