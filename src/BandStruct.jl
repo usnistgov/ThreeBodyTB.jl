@@ -777,7 +777,7 @@ The k-points are fixed by the `bs` object.
 
 `tbc2` is an optional second `tbc_crys`.
 """
-function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, spin=1, align=:vbm)
+function plot_compare_dft(tbc::tb_crys, bs; tbc2=missing, names=missing, locs=missing, spin=1, align=:vbm)
 
     if typeof(bs) == dftout
         bs = bs.bandstruct
@@ -924,6 +924,289 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
         ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
     end
 #    end
+
+
+end
+
+function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, spin=1, align=:vbm)
+
+    if typeof(bs) == dftout
+        bs = bs.bandstruct
+    end
+
+    kpts = bs.kpts
+    kweights = bs.kweights
+
+    
+    vals = calc_bands(tbc.tb, kpts)
+    
+    #nelec = sum(tbc.eden) * 2.0
+    nelec = bs.nelec
+    nsemi = 0
+    for t in tbc.crys.types
+        atom = atoms[t]
+        nsemi += atom.nsemicore
+        println("add $atom $(atom.nsemicore)")
+    end
+    nsemi = Int64(nsemi / 2)
+
+    println("nelec $nelec, nsemi = $(nsemi*2)")
+    
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
+    efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
+    
+    println("efermi ", [efermi_dft, efermi_tbc])
+
+    nk = size(kpts)[1]
+
+#    wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(tbc.crys)
+    println("nsemi ", nsemi)
+
+    
+    
+#    if align_min
+#        a = minimum(bs.eigs[:,nsemi+1:end])
+#        b = minimum(vals)
+#        plot(bs.eigs .- a, color="orange",  LineWidth=1.5)    
+#        plot!(vals .- b, color="blue", LineWidth=1.0)
+#
+#        plot!([0, nk], [efermi_tbc - b, efermi_tbc - b], color="red", linesyle=:dash)
+#        if !ismissing(tbc2)
+#            c = minimum(vals2)
+#            plot!(vals2 .- c, color="magenta", linestyle=:dash, markersize=3)
+#        end
+#
+#        display(plot!([0, nk], [efermi_dft - a, efermi_dft - a], color="cyan", linesyle=:dot))
+
+
+
+#    else
+    println("in $( [efermi_dft, efermi_tbc])")
+    vbmD, cbmD = find_vbm_cbm(bs.eigs , efermi_dft)
+    vbm, cbm = find_vbm_cbm(vals , efermi_tbc)
+
+    println("dft $efermi_dft   : ", vbmD," " ,  cbmD)
+    
+#    vbm = 0.0
+#    vbmD = 0.0
+
+    plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
+
+    if align == :fermi || align == "fermi" || align == :efermi || align == "efermi"
+        vbmD = efermi_dft
+        vbm = efermi_tbc
+    end
+
+    println("TRY $vbm  $(vals[:,1, spin])")
+    println("TRY $vbmD  $(bs.eigs[:,1, spin] )")
+        
+    if bs.nks == 1
+        scatter!(ones(size(bs.eigs[:,1, spin])) .+ 0.1, convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange",  label="DFT", grid=false, legend=:topleft, MarkerSize=2)
+    else
+        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)
+    end
+        if bs.nbnd > 1
+            #        println("test ", vbmD)
+            #        println(bs.eigs[:,2, spin] )
+            #        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
+            if bs.nks == 1
+                scatter!(ones(size(bs.eigs[:,2:end, spin])).+0.1, convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange",  label=missing, MarkerSize=2)
+            else
+                plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=4, label=missing)
+            end
+        end
+
+    if bs.nks == 1
+        scatter!( convert_energy(vals[:,1, spin] .- vbm), color="blue",   label="TB", MarkerSize=2)
+    else
+        plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label="TB")       
+    end
+        if tbc.tb.nwan > 1
+    if bs.nks == 1
+        scatter!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  label=missing, MarkerSize=2)
+    else
+        plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing)
+    end
+        end
+
+
+
+
+
+        plot!([0, nk], convert_energy([efermi_dft, efermi_dft] .- vbmD), color="red", linestyle=:dot, label="E_F DFT")
+        plot!([0, nk], convert_energy([efermi_tbc, efermi_tbc] .- vbm), color="black", linestyle=:dash, label="E_F TB")
+
+    
+    if global_energy_units == "eV"
+        ylabel!("Energy - VBM (eV)", guidefontsize=12)
+    else
+        ylabel!("Energy - VBM (Ryd.)", guidefontsize=12)
+    end
+
+    if !ismissing(names) && !ismissing(locs)
+        xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
+    end
+    
+
+    if ! no_display
+        display(ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01),  convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
+    else
+        ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
+    end
+#    end
+
+
+end
+
+
+
+function plot_compare_dft(TBC_list, bs; names=missing, locs=missing, spin=1, align=:vbm)
+
+    if typeof(bs) == dftout
+        bs = bs.bandstruct
+    end
+
+    kpts = bs.kpts
+    kweights = bs.kweights
+
+    plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
+    nelec = sum(TBC_list[1].eden) * 2.0
+
+    nk = size(kpts)[1]
+    nsemi = 0
+    for t in TBC_list[1].crys.types
+            atom = atoms[t]
+            nsemi += atom.nsemicore
+            println("add $atom $(atom.nsemicore)")
+        end
+    nsemi = Int64(nsemi / 2)
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
+
+
+    if align == :fermi || align == "fermi" || align == :efermi || align == "efermi"
+        vbmD = efermi_dft
+    end
+    vals = missing
+    vbm = missing
+    for (c,tbc) in enumerate(TBC_list)
+        vals = calc_bands(tbc.tb, kpts)
+        
+
+
+        println("nelec $nelec, nsemi = $(nsemi*2)")
+        
+        efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
+        
+
+
+
+        #    wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(tbc.crys)
+        println("nsemi ", nsemi)
+
+        
+        
+        #    if align_min
+        #        a = minimum(bs.eigs[:,nsemi+1:end])
+        #        b = minimum(vals)
+        #        plot(bs.eigs .- a, color="orange",  LineWidth=1.5)    
+        #        plot!(vals .- b, color="blue", LineWidth=1.0)
+        #
+        #        plot!([0, nk], [efermi_tbc - b, efermi_tbc - b], color="red", linesyle=:dash)
+        #        if !ismissing(tbc2)
+        #            c = minimum(vals2)
+        #            plot!(vals2 .- c, color="magenta", linestyle=:dash, markersize=3)
+        #        end
+        #
+        #        display(plot!([0, nk], [efermi_dft - a, efermi_dft - a], color="cyan", linesyle=:dot))
+
+
+
+        #    else
+        
+        vbmD, cbmD = find_vbm_cbm(bs.eigs , efermi_dft)
+        vbm, cbm = find_vbm_cbm(vals , efermi_tbc)
+
+        println("dft $efermi_dft   : ", vbmD," " ,  cbmD)
+        
+        #    vbm = 0.0
+        #    vbmD = 0.0
+
+
+        if align == :fermi || align == "fermi" || align == :efermi || align == "efermi"
+#            vbmD = efermi_dft
+            vbm = efermi_tbc
+        end
+        
+        if c == 1
+            label = "TB"
+        else
+            label = ""
+        end
+
+        
+        if bs.nks == 1
+            scatter!( convert_energy(vals[:,1, spin] .- vbm), color="blue",   label=label, MarkerSize=2, alpha=0.6)
+        else
+            plot!( convert_energy(vals[:,1, spin] .- vbm), color="blue",  lw=2, label=label, alpha=0.6)       
+        end
+        if tbc.tb.nwan > 1
+            if bs.nks == 1
+                scatter!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  label=missing, MarkerSize=2, alpha=0.6)
+            else
+                plot!(convert_energy(vals[:,2:end, spin] .- vbm), color="blue",  lw=2, label=missing, alpha=0.6)
+            end
+        end
+        if c == 1
+            label = "E_F TB"
+        else
+            label = ""
+        end
+        plot!([0, nk], convert_energy([efermi_tbc, efermi_tbc] .- vbm), color="black", linestyle=:dash, label=label, alpha = 0.6)
+
+        
+
+
+
+
+        
+    end    
+
+    plot!([0, nk], convert_energy([efermi_dft, efermi_dft] .- vbmD), color="red", linestyle=:dot, label="E_F DFT")
+    
+
+
+    if bs.nks == 1
+        scatter!(ones(size(bs.eigs[:,1, spin])) .+ 0.1, convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange",  label="DFT", grid=false, legend=:topleft, MarkerSize=2)
+    else
+        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=1.5, label="DFT", grid=false, legend=:topright)
+    end
+    if bs.nbnd > 1
+        #        println("test ", vbmD)
+        #        println(bs.eigs[:,2, spin] )
+        #        println(convert_energy(bs.eigs[:,2, spin] .- vbmD))
+        if bs.nks == 1
+            scatter!(ones(size(bs.eigs[:,2:end, spin])).+0.1, convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange",  label=missing, MarkerSize=2)
+        else
+            plot!(convert_energy(bs.eigs[:,2:end, spin] .- vbmD) , color="orange", lw=1.5, label=missing)
+        end
+    end
+
+    if global_energy_units == "eV"
+        ylabel!("Energy - VBM (eV)", guidefontsize=12)
+    else
+        ylabel!("Energy - VBM (Ryd.)", guidefontsize=12)
+    end
+
+    if !ismissing(names) && !ismissing(locs)
+        xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
+    end
+    
+    if ! no_display
+        display(ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01),  convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 )))
+    else
+        ylims!(convert_energy(minimum(vals .- vbm)*1.05 - 0.01), convert_energy(min(maximum(vals .- vbm), 0.8) * 1.05 ))
+    end
+
 
 
 end

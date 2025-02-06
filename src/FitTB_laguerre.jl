@@ -2303,6 +2303,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     println("SCF2 is $scf")
     
     ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, cu_keep, keep_inds_U, toupdate_inds_U = keepdata
+
+    ch_mean = missing
+    ch_arr = missing
+    TOTX = missing
+    TOTY = missing
     
     if fit_umat == false
         NCOLS_U = 0
@@ -3088,7 +3093,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             for ind3 = 1:nlam
                 counter += 1
                 if counter in threebody_inds
-                    NEWX[counter,ind3] = lambda 
+                    NEWX[counter,ind3] = lambda  * 100
                 else
                     NEWX[counter,ind3] = lambda 
                 end
@@ -3131,7 +3136,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 mix = 0.01
             end
             if iters > 4
-                mix = 0.03
+                mix = 0.25
             end
 
             if scf
@@ -3358,9 +3363,6 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if abs(error_new_energy - err_old_en) < (1e-6 * NCALC) && iters >= 15
             #if false
                 println("break")
-                if gen_add_ham
-                    ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
-                end
                 break
             else
                 err_old_en = error_new_energy
@@ -3375,6 +3377,15 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
         end
 
+        chX = TOTX \ TOTY
+        
+        if gen_add_ham
+            ch_mean = missing
+            ch_arr = missing
+            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
+        end
+
+        
         println("SCFX  is $scf")
         
         #remerge the indexs we are updating with the other indexes
@@ -3437,10 +3448,22 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 cs_big[toupdate_inds_S] = cs_lin[:]
                 cs_big[keep_inds_S] = cs_keep[:]
                 csX2 = cs_big
-                database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
-                push!(DATABASE, database)
+                #databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
+                databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], cu=cu_big, UIND=UIND)
+                for k in keys(databaseX)
+                    if typeof(k) <: Tuple
+                        if typeof(k) == Tuple{Symbol, Symbol}
+                            databaseX[k].min_dist =  database[k].min_dist
+                            databaseX[k].dist_frontier =  deepcopy(database[k].dist_frontier)
+                        elseif typeof(k) == Tuple{Symbol, Symbol, Symbol}
+                            databaseX[k].min_dist =  database[k].min_dist
+                            databaseX[k].dist_frontier =  deepcopy(database[k].dist_frontier)
+                        end
+                    end
+                end
+                push!(DATABASE, databaseX)
             end
-            return database, chX, current_error, DATABASE
+            return database, DATABASE
         end
         
         
@@ -3460,7 +3483,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     if leave_one_out == false && returnstuff == false
         println("do iters size ", size(ch))
-        database, ch, current_error =  do_iters(ch, niters)
+        if gen_add_ham
+            database, DATABASE =  do_iters(ch, niters)
+            return database, DATABASE
+        else
+            database, ch, current_error =  do_iters(ch, niters)
+        end
         println("return")
         return database
     elseif returnstuff == true
@@ -6235,6 +6263,7 @@ end
                   
 function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
 
+    println("in generate_additional_hams")
     ch_all = TOTX \ TOTY
     ninds = length(ch_all)
 
@@ -6243,18 +6272,43 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
     all_inds = 1:ninds
     keep_inds = setdiff(all_inds, skip_inds)
     
-    ch_2bdy = zeros(size(ch_all))
-    ch_2bdy[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
+#    ch_2bdy = zeros(size(ch_all))
+#    ch_2bdy[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
 
+#    skip_chunk  = []
+#    chunk_start = 1
+#    for c in 1:(length(skip_inds)-1)
+#        println(c)
+#        println(skip_inds[c+1], " ",  skip_inds[c])
+#        if ( skip_inds[c+1] - skip_inds[c] != 1)
+#            push!(skip_chunk, skip_inds[chunk_start:c])
+#            chunk_start = c+1
+#        end
+#    end
+#    push!(skip_chunk, skip_inds[chunk_start:end])
+#    println("skip_chunk ", skip_chunk)
 
-   CH = [ch_final, ch_all, ch_2bdy]
-    for s in skip_inds
+    CH = [ch_all]
+    
+    
+    for c in 1:3:length(skip_inds)
+        s = skip_inds[c:min(c+2,length(skip_inds)) ]
         ch = zeros(size(ch_all))
-        keep_inds =	setdiff(all_inds, [s])
+        keep_inds =	setdiff(all_inds, s)
         ch[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
         push!(CH, ch)
     end
 
+    ch_all_1 = [TOTX[1:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[1:3:end]; TOTY[end - ninds-1:end]]
+    ch_all_2 = [TOTX[2:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[2:3:end]; TOTY[end - ninds-1:end]]
+    ch_all_3 = [TOTX[3:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[3:3:end]; TOTY[end - ninds-1:end]]
+#    ch_all_1 = TOTX[1:3:end, :]\  TOTY[1:3:end]
+#    ch_all_2 = TOTX[2:3:end, :] \ TOTY[2:3:end]
+#    ch_all_3 = TOTX[3:3:end, :] \ TOTY[3:3:end]
+    push!(CH, ch_all_1)
+    push!(CH, ch_all_2)
+    push!(CH, ch_all_3)
+    
     ch_mean = zeros(size(ch_all))
     for ch in CH
         println("size $(size(ch))   $(size(ch_mean))")
