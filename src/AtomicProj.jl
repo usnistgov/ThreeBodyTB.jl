@@ -1101,9 +1101,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
         if !(ismissing(energy_froz))
             println("energy_froz before $energy_froz")
-#            energy_froz = energy_froz + shift
-            energy_froz = efermi_dft + shift
-            
+            energy_froz = energy_froz + shift
+            #energy_froz = efermi_dft + shift
+
 
         end
         println("energy_froz after $energy_froz")
