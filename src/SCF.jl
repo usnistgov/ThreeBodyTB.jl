@@ -1197,6 +1197,15 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 #    energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing)
 
     energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing)
+    if error_flag == true
+        energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing, mix = 0.05)
+        if error_flag == true
+            energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing, mix = 0.5)
+            if error_flag == true
+                energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing, mix = 0.02)
+            end
+        end
+    end
     println("ooooooooo $energy_orig")
 
 #    e_den_new = e_den_new * 0.9
@@ -1284,7 +1293,17 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
     energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys))
-    println("xxxxxxxxxxxxxxx $energy_new")
+    if error_flag == true
+        energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys), mix = 0.05)
+        if error_flag == true
+            energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys), mix = 0.5)
+            if error_flag == true
+                energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf = true, eden_start = get_neutral_eden(tbcK_new.crys), mix = 0.02)
+            end
+        end
+    end
+    
+        println("xxxxxxxxxxxxxxx $energy_new")
 #    energy_smear = smearing_energy(VALS_new, tbcK.tb.kweights, efermi_new, smearing)
 #    println("energy smear " , energy_smear)
 

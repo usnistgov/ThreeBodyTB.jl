@@ -102,7 +102,7 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
-const n_ufit = 3
+const n_ufit = 2
 
 EXP_a = [2.0]
 
@@ -163,6 +163,7 @@ mutable struct coefs
     repval::Dict
     datU::Array{Float64,1}
     sizeU::Int64
+    datH_ensemble::Array{Float64,1}
 end
 
 function construct_coef_string(co)
@@ -242,7 +243,8 @@ function write_coefs(filename, co::coefs; compress=true)
     if !isempty(co.repval)
         addelement!(c, "repval", dict2str(co.repval))
     end
-    
+
+    addelement!(c, "datH_ensemble", arr2str(co.datH_ensemble))    
 
     if compress
         io=gzopen(filename*".gz", "w")
@@ -365,8 +367,14 @@ function read_coefs(filename, directory = missing)
     else
         repval = missing
     end
-        
-    co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval)
+
+    if haskey(d["coefs"], "datH_ensemble")
+        datH_ensemble  = parse_str_ARR_float(d["coefs"]["datH_ensemble"])
+    else
+        datH_ensemble = deepcopy(datH)
+    end
+    
+    co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, datH_ensemble = datH_ensemble)
 
     return co
     
@@ -381,7 +389,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, datH_ensemble = missing)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -600,12 +608,15 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cuto
     end
 
 
+    if ismissing(datH_ensemble)
+        datH_ensemble = deepcopy(datH)
+    end
     
 #    for x in [dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval]
 #        println(typeof(x))
 #        end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU, datH_ensemble)
 
 end
     
@@ -3780,11 +3791,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         #umat
         if use_umat && dist > 1e-3
             #(h,s) = fit_twobody(:s,:s,dist,lmn)
-            lag = laguerre(dist)
+            lag = laguerre(dist, a = 4.0)
 #            println("abcd lag 4.0 dist $dist lag $lag")
             iu = coef.inds[[t1,t2,:U]]
             #twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
-            twobody_arrays[at_set][4][a1,iu] += lag[1:n_ufit] * cut
+            twobody_arrays[at_set][4][a1,iu] += lag[1:n_ufit] * cut * 10.0
 #            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
         end
         
@@ -8002,10 +8013,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
 
                         if use_umat
-                            laguerre_fast!(dist_a, lag_arr)
+                            laguerre_fast!(dist_a, lag_arr, a = 4.0)
 
                             
-                            UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a
+                            UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a * 10.0
                             #                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
                             if only_U
                                 continue
@@ -8239,8 +8250,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             counter_wan += nw1
 
         end
-        println("UMAT_ADD")
-        println(UMAT_ADD)
+#        println("UMAT_ADD")
+#        println(UMAT_ADD)
 
         if only_U
             return UMAT_ADD

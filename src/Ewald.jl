@@ -64,7 +64,7 @@ function getU(types, var_type=Float64)
         counter += nw1
     end
     
-
+#    println("getU $U")
     return U, Usize
 
 end
@@ -224,6 +224,8 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
     gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U ) ####+ gamma_onsiteU      #xxyy
 
+#    println("gamma_U", gamma_U)
+    
     gamma_tot = gamma_tot + diagm(gamma_U_opt)
 #    println("gamma_rs" , gamma_rs)
 #    println("gamma_k", gamma_k)
@@ -488,28 +490,46 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
    
     gamma_pairs = zeros(T, crys.nat, crys.nat,ewald_pairs_num)
 
-    Uconst = zeros(T, crys.nat, crys.nat)
+    Uconst = zeros(T, crys.nat, crys.nat,3)
 
     if sum(abs.(U)) > 1e-5
         useU = true
         for i = 1:crys.nat
-            Fi = sqrt( 8* log(2)/pi ) / (U[i]/2.0) #rydberg units, U in Ryd , we divide by 2, and multiply by e^2 layer. For Hartree formula, see koskinen comp mater sci 47 (2009) 237
             for j = 1:crys.nat
 #                Uconst[i,j] = sqrt(pi/2 * (U[i]^2 * U[j]^2 / (U[i]^2 + U[j]^2)))
 
-                Fj = sqrt( 8* log(2)/pi ) / (U[j]/2.0)
-                Uconst[i,j] = sqrt(4 * log(2) / (Fi^2 + Fj^2)) * factor
-                if use_pairs
-                    if (crys.stypes[i],crys.stypes[j]) in keys(ewald_pairs)
-                        gamma_pairs[i,j,1:ewald_pairs_num] = ewald_pairs[(crys.stypes[i],crys.stypes[j])]
-                    end
+                if [crys.stypes[i], crys.stypes[j]] in keys(ewald_pairs)
+
+                    
+                    datU = ewald_pairs[[crys.stypes[i], crys.stypes[j]]]
+                    Fij2 = datU[1]
+                    dist_min = datU[2]
+                    Uval = datU[3]
+                    Uconst[i,j,1] = sqrt(4 * log(2) / ( Fij2 )) * factor
+                    Uconst[i,j,2] = dist_min
+                    Uconst[i,j,3] = Uval
+                    
+                else
+                                       
+                    
+                    Fi = sqrt( 8* log(2)/pi ) / (U[i]/2.0) #rydberg units, U in Ryd , we divide by 2, and multiply by e^2 layer. For Hartree formula, see koskinen comp mater sci 47 (2009) 237
+                    Fj = sqrt( 8* log(2)/pi ) / (U[j]/2.0)
+                
+                    Uconst[i,j,1] = sqrt(4 * log(2) / (Fi^2 + Fj^2)) * factor
+                    
                 end
+#                if use_pairs
+#                    if (crys.stypes[i],crys.stypes[j]) in keys(ewald_pairs)
+#                        gamma_pairs[i,j,1:ewald_pairs_num] = ewald_pairs[(crys.stypes[i],crys.stypes[j])]
+#                    end
+#                end
                 
             end
         end
     else
         useU = false
         Uconst .= 300.0 #for debug
+        Uconst[:,3] .= 0.0
     end
 
 #    println("Uconst ")
@@ -656,10 +676,15 @@ function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_n
                 gamma_ij_new[i,j] += erfc( kappa * r) / r
 #                gamma_ij_new[i,j] += 5*exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])
 
-                gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+                gamma_U_new[i,j] += -erfc( Uconst[i,j,1] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+                #
 
-                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
-                gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
+#                gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
+#                gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
+
+                #                println("add       $i $(Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])) ", [Uconst[i,j,3]Uconst[i,j,3], r, Uconst[i,j,2]])
+#                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
+#                gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
                 
             end
         end
@@ -680,10 +705,14 @@ function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, ga
 
             gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
+#            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
+#            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
+            
+#            println("add R0false $i $(Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])) ", [Uconst[i,j,3]Uconst[i,j,3], r, Uconst[i,j,2]])            
 #            gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3])
             #           gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3])
-                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
-                gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
+#                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
+#                gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
             
 
         end
@@ -703,11 +732,14 @@ function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_
             gamma_ij_new[i,j,id] += erfc( kappa * r) / r
             gamma_U_new[i,j,id] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
+#            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
+#            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
+            
 #            gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3])
 #            gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3])                
 
-            gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4])
-            gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
+#            gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4])
+#            gamma_U_opt[j] += exp(-2.0*0.5 * r)* ( gamma_pairs[j,i,1]  + (1 - 2.0*r) * gamma_pairs[j,i,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[j,i,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[j,i,4])                
 
             
 #            gamma_ij_new[i,j,id] += exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])

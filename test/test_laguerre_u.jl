@@ -45,7 +45,7 @@ function test1()
           #          newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = false)
           newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = false, lambda = 1e-3, starting_database = database_start);   
           @test sum(abs.(newdatabase[(:H, :H)].datU )) < 1e-7
-
+          #newdatabase[(:H, :H)].datU = [10.0, 10.0]
           begin
               x = 0.03; c1a = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5-x; 0.5 0.5 0.5+x; 0.0 0.0 0.0], [:H, :H, :Li])
               x = 0.04; c3a = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5-x; 0.5 0.5 0.5+x; 0.0 0.0 0.0], [:H, :H, :Li])
@@ -83,7 +83,7 @@ function test1()
                   en, tbc, flag = scf_energy(tbc , mix = 0.05, iters = 300, repel=false,   conv_thr = 1e-8)
                   push!(EN, en)
                   push!(tbc_list_new, tbc)
-                  tbc = ThreeBodyTB.CalcTB.calc_tb_LV(c, newdatabase, use_threebody=false, use_threebody_onsite=false, repel = false, use_umat = false) 
+                  tbc = ThreeBodyTB.CalcTB.calc_tb_LV(c, newdatabase, use_threebody=false, use_threebody_onsite=false, repel = false, use_umat = true) 
                   en, tbc, flag = scf_energy(tbc , mix = 0.05, iters = 300, repel = false, conv_thr = 1e-8)
                   push!(EN_OLD, en)
               end

@@ -1714,6 +1714,7 @@ function Hk(h::tb_k, kpoint; scf=missing, spin=1)
     if scf
         #         println("add SCF  kxkx")
         hk = hk0 + 0.5 * sk .* (h.h1 + h.h1')
+#        println("if scf ", (h.h1 + h.h1'))
     else
         hk[:,:] = hk0[:,:]
     end
@@ -4686,7 +4687,7 @@ end
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = 0.0, use_scf = false, eden_start = missing)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = 0.0, use_scf = false, eden_start = missing, mix = 0.15)
 
     if ismissing(eden_start)
         eden_start = tbcK.eden
@@ -4701,7 +4702,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
         
     end
 
-    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, u3 = tbcK.u3, gamma = tbcK.gamma, crys = tbcK.crys)
+    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, u3 = tbcK.u3, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
     tbcK.efermi = efermi
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
@@ -4741,7 +4742,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     
     energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
-
+    tbcK.energy = bandenergy + etypes + echarge + energy_smear + emag
     return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
 
 
@@ -4752,7 +4753,7 @@ end
 
      K-space get energy and electron density from `tb_k`
      """
-function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, u3 = missing)
+function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, u3 = missing, mix = 0.15)
 
 
     temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
@@ -4768,14 +4769,14 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         sgn, dat, SS, TT, atom_trans = get_symmetry(crys, verbose=true);
     end
 
-    mix = 0.15
+
     if use_scf == false
         mix = 1.0
     end
     n_scf = 1
     diff_old = 100000.0
     if use_scf == true
-        n_scf = 200
+        n_scf = 500
         if ismissing(eden_start)
             eden_start = get_neutral_eden(crys, tb_k.nwan, nspin=tb_k.nspin)
         end

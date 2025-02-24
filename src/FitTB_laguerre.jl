@@ -2328,8 +2328,9 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         #        sleep(10)
     end
 
-    c_umat = zeros(NCOLS_U)
-    #c_umat = ones(NCOLS_U) * 10.0
+    #kfg abc
+    #c_umat = zeros(NCOLS_U)
+    c_umat = ones(NCOLS_U) * 10.0
     #c_umat = ones(NCOLS_U) * 0.0
     #println("start ch $ch")
     #println("start c_umat $c_umat")
@@ -3390,10 +3391,14 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         
         #remerge the indexs we are updating with the other indexes
 
-        ch_big = zeros(length(keep_inds) + length(toupdate_inds))
-        #println(length(keep_inds), " " , length(toupdate_inds))
-
-        ch_big[toupdate_inds] = chX[:]
+        ch_big = zeros(length(keep_inds) + length(toupdate_inds) + length(toupdate_inds_U))
+        #println("keep inds ", length(keep_inds), " update inds " , length(toupdate_inds), " length(toupdate_inds_U) " , length(toupdate_inds_U))
+        #println("size(ch_big) ", size(ch_big))
+        #println("size chX ", size(chX))
+        #println("max toupdate_inds ", maximum(toupdate_inds))
+        #println("max keep_inds ", maximum(keep_inds))
+        ch_big[toupdate_inds] = chX[1:length(toupdate_inds)]
+        ch_big[toupdate_inds_U] = chX[length(toupdate_inds) + 1 : end]
         ch_big[keep_inds] = ch_keep[:]
         chX2 = ch_big
         
