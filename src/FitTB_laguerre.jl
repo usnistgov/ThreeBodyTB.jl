@@ -61,6 +61,8 @@ using ..Atomdata:atoms
 
 using ..Ewald:electrostatics_getgamma
 
+
+
 #using ..CrystalMod:orbital_index
 
 #using ..TB:get_grid
@@ -754,13 +756,13 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 #        end
 #    end#
 
-    println("ind_BIG prepare")
-    println(ind_BIG)
+ #   println("ind_BIG prepare")
+ #   println(ind_BIG)
     flush(stdout)
     sleep(0.001)
 
-    println("Xc_Unew_BIG_list")
-    println(Xc_Unew_BIG_list)
+#    println("Xc_Unew_BIG_list")
+#    println(Xc_Unew_BIG_list)
 #    sleep(10)
     
     return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO
@@ -2292,7 +2294,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     else
         ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, list_of_tbcs, dft_list, KPOINTS, KWEIGHTS, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, SPIN_MAX, NAT_MAX, NCALC, VALS, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, X_Snew_BIG, Xc_Snew_BIG, NCOLS_orig, NCOLS, ch, keep_bool, NVAL, NAT, scf, VALS0        = topstuff
     end
-    println("SCF1 is $scf")
+#    println("SCF1 is $scf")
 
     ks_weight_input = ks_weight
 
@@ -2300,7 +2302,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, rind, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_data
 
-    println("SCF2 is $scf")
+#    println("SCF2 is $scf")
     
     ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, cu_keep, keep_inds_U, toupdate_inds_U = keepdata
 
@@ -2329,11 +2331,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     end
 
     #kfg abc
-    #c_umat = zeros(NCOLS_U)
-    c_umat = ones(NCOLS_U) * 10.0
-    #c_umat = ones(NCOLS_U) * 0.0
-    #println("start ch $ch")
-    #println("start c_umat $c_umat")
+    c_umat = zeros(NCOLS_U)
+#    c_umat = ones(NCOLS_U) * 1.0
+#    c_umat = ones(NCOLS_U) * 0.0
+    println("start ch $ch")
+    println("start c_umat $c_umat")
     
     Ys = Ys_new + Xc_Snew_BIG
     
@@ -2363,7 +2365,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     end
 #    xxx
 
-    println("SCF3 is $scf")
+#    println("SCF3 is $scf")
     
     function get_h1_umat(dq, crys, Xc_umat, X_umat, c_umat, c, h1_umat)
         energy = 0.0
@@ -2379,7 +2381,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         epsilon = gamma * dq[:]
         for i = 1:crys.nat
             for j = 1:crys.nat            
-                energy += 0.5 * dq[i] * dq[i] *  gamma[i,j]
+                energy += 0.5 * dq[i] * dq[j] *  gamma[i,j]
             end
         end
         
@@ -2405,7 +2407,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         return energy, h1_umat
     end
     
-    println("SCF4 is $scf")
+#    println("SCF4 is $scf")
         
     function construct_fitted(ch, c_umat, solve_self_consistently = false)
 
@@ -2488,7 +2490,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 
                 Smat[k,:,:] = S
                 H0mat[k,:,:] = H0
-                
+#                println("H0 k $k  ")
+#                println(H0)
+#                println()
+#                println()
+#                println()
+#                println("Xc ", Xc)
+#                println("h_on[c] " , h_on[c])
                 
             end
 #            println("scf $scf")
@@ -2535,7 +2543,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             function get_eigen(h1_in, h1spin_in, nspin, h_umat, nw, nk, sym_info)
 #                println("eden $eden")
-                #                println("get_eigen")
+#                println("get_eigen start")
 #                println()
 #                println("h1_in ", h1_in)
 #                println()
@@ -2558,6 +2566,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                             H = H0 + h1_in .* S
                             if fit_umat
                                 H += h_umat .* S
+#                                println("add h_umat k $k ", h_umat)
+                                #                                println()
                             end
                         else
                             H[:,:] = H0[:,:]
@@ -2600,12 +2610,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("dq start $dq  dq eden $(dq_eden)")
 
             for c_scf = 1:niter_scf
-#                println("c_scf $c_scf")
+#                println("c_scf $c_scf   scf $scf h1_umat $h1_umat")
                 #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
 #                h1, dq, dq_eden = get_h1(tbc, electron_den)
             #    println("before get_eigen h1      $h1")
             #    println("before get_eigen h1_umat  $h1_umat")
                 get_eigen(h1, h1spin, tbc.tb.nspin, h1_umat, nw, nk, sym_info)
+#                println("done c_scf $c_scf   scf $scf h1_umat $h1_umat")
 
                 
                 #                if c_scf == 1
@@ -2705,7 +2716,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                        energy_charge = 0.0
 #                        energy_magnetic = 0.0
 #                        energy_umat = 0.0
-                        h1_umat .= 0.0
+                #        h1_umat .= 0.0
                     #end
                     
                     
@@ -2713,7 +2724,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                    println("energy new $energy_new")
                     #println( " scf $c_scf $c ", energy_new+etypes, "    $dq_eden charge   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
-                    if abs(energy_new  - energy_old) < 1e-6
+                    if abs(energy_new  - energy_old) < 1e-5
                     #if false
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
                         conv = true
@@ -2757,6 +2768,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
 #            println("before second eig h1      $h1")
 #            println("before second eig h1_umat $h1_umat")
+#            println("get_eigen end h1_umat $h1_umat")
             get_eigen(h1, h1spin, tbc.tb.nspin, h1_umat, nw, nk, sym_info)
 
             energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true)             
@@ -2823,12 +2835,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if fit_umat
                 for a = 1:tbc.crys.nat
                     energy_umat_fixed += 0.5 * Xc_Unew_BIG_list[c][a] * dq[a]^2
-            #        println("a $a Xc_Unew_BIG_list $( Xc_Unew_BIG_list[calc][a]) $(DQ[calc, a])")
+ #                   println("a $a Xc_Unew_BIG_list $( Xc_Unew_BIG_list[c][a]) $(DQ[c, a])")
                 end
             end
+#            println("final energy_umat_fixed $energy_umat_fixed ------------------------------------------------------")
             
-            
-            ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic + energy_umat_fixed
+            ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic + energy_umat_fixed + energy_umat
             #            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=8))
             #            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
             #            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
@@ -2855,7 +2867,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
     ENERGY_IND = zeros(Int64, NCALC)
 
-    println("SCF5 is $scf")
+#    println("SCF5 is $scf")
 
     
     #    function construct_newXY(VECTS_FITTED::Array{Complex{Float64},4}, OCCS_FITTED::Array{Float64,3}, ncalc::Int64, ncols::Int64, nlam::Int64, ERROR::Array{Int64,1}; leave_out=-1)
@@ -3053,6 +3065,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         #NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i]) .* WEIGHTS[calc, k, i, spin]
 
                         NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i] ) .* WEIGHTS[calc, k, i, spin] # vals_0_shift
+#                        println("VALS0 calc k i spin $calc $k $i $spin  ", VALS0[calc,k,i, spin] - vals_test_on[i])
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 #                        println("addnormal Y_TOTEN ", -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]), " " , [vals_test_on[i], KWEIGHTS[calc][k], OCCS_FITTED[calc,k,i, spin]])
                         ytemp += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) 
@@ -3073,6 +3086,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("SUM NEWX ", sum(abs.(NEWX)))
             #            println("X_TOTEN ", X_TOTEN[:], " energy_weight $energy_weight weights_list $(weights_list[calc])")
 #            println("ytemp $ytemp")
+            
             if fit_umat
                 for a = 1:list_of_tbcs[calc].crys.nat
                     NEWX[counter, ncols+1:end] += 0.5 * X_Unew_BIG_list[calc][a,:] * energy_weight * DQ[calc,a]^2 * weights_list[calc]
@@ -3085,7 +3099,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #            println("ADD DATA $counter $ncols $(size(NEWX))  ", sum(abs.(NEWX[counter, ncols+1:end] )))
 
             
-            NEWY[counter] = Y_TOTEN * energy_weight * weights_list[calc] 
+            NEWY[counter] = Y_TOTEN * energy_weight * weights_list[calc]
+#            println("ADD Y counter $counter ", Y_TOTEN * energy_weight * weights_list[calc], " ",  [Y_TOTEN , energy_weight , weights_list[calc]])
             push!(nonzero_ind, counter)
             push!(energy_counter, counter)
         end
@@ -3113,11 +3128,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         return NEWX, NEWY, energy_counter
 
     end
-    println("SCF6 is $scf")
+#    println("SCF6 is $scf")
 
     solve_scf_mode = false
 
-    println("SCF7 is $scf")
+#    println("SCF7 is $scf")
 
     current_error = 0.0
     function do_iters(chX, NITERS; leave_out=-1)
@@ -3379,47 +3394,72 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         end
 
         chX = TOTX \ TOTY
-        
-        if gen_add_ham
-            ch_mean = missing
-            ch_arr = missing
-            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
-        end
+#        println("chX ", chX)
 
+#        save("TOTX.jld", "TOTX", TOTX)
+#        save("TOTY.jld", "TOTY", TOTY)
+#        if true #abc
+#            println("mix ", mix)
+#            println("chX ", chX)
+#            println()
+#            println("TOTX ", TOTX)
+#            println()
+#            println("TOTY ", TOTY)
+#            println()
+#        end
         
-        println("SCFX  is $scf")
+        
+#        println("SCFX  is $scf")
         
         #remerge the indexs we are updating with the other indexes
 
-        ch_big = zeros(length(keep_inds) + length(toupdate_inds) + length(toupdate_inds_U))
-        #println("keep inds ", length(keep_inds), " update inds " , length(toupdate_inds), " length(toupdate_inds_U) " , length(toupdate_inds_U))
-        #println("size(ch_big) ", size(ch_big))
-        #println("size chX ", size(chX))
-        #println("max toupdate_inds ", maximum(toupdate_inds))
-        #println("max keep_inds ", maximum(keep_inds))
-        ch_big[toupdate_inds] = chX[1:length(toupdate_inds)]
-        ch_big[toupdate_inds_U] = chX[length(toupdate_inds) + 1 : end]
-        ch_big[keep_inds] = ch_keep[:]
-        chX2 = ch_big
-        
+        function sort_out_index(CHX)
+
+            ch_big = zeros(length(keep_inds) + length(toupdate_inds) + length(toupdate_inds_U))
+            ch_big[toupdate_inds] = CHX[1:length(toupdate_inds)]
+            ch_big[keep_inds] = ch_keep[:]
+            chX2 = ch_big
+            
+            if fit_umat
+                c_umat = CHX[NCOLS+1:end]
+                cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
+                cu_big[toupdate_inds_U] = c_umat
+                cu_big[keep_inds_U] = cu_keep[:]
+                cuX2 = cu_big
+            else
+                cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
+                
+            end
+            return chX2, cu_big
+        end
+
+        chX2, cu_big = sort_out_index(chX)
+
         cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
         cs_big[toupdate_inds_S] = cs_lin[:]
         cs_big[keep_inds_S] = cs_keep[:]
         csX2 = cs_big
 
-        if fit_umat
-            cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
-#            println("size cu_big ", size(cu_big), " " , size(toupdate_inds_U),  " ", size(chX), " ", NCOLS, " " , NCOLS_U)
-            cu_big[toupdate_inds_U] = c_umat
-            cu_big[keep_inds_U] = cu_keep[:]
-            cuX2 = cu_big
-#            println("c_umat $(sum(abs.(c_umat))) $(sum(abs.(cu_big)))")
-#            sleep(5)
-            
-        else
-            cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
 
+        chX2_arr = []
+        cu_big_arr = []
+
+        if gen_add_ham
+            ch_mean = missing
+            ch_arr = missing
+            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
+
+            
+            for ch in ch_arr
+                chX2_t, cu_big_t = sort_out_index(ch)
+                push!(chX2_arr, chX2_t)
+                push!(cu_big_arr, cu_big_t)
+                #    chX2_arr = vcat(chX2_arr, chX2_t)
+                #    cu_big_arr = vcat(cu_big_arr, cu_big_t)
+            end
         end
+
+        
         #        else
         #            chX2 = deepcopy(chX)
         #            csX2 = deepcopy(cs_lin)
@@ -3434,26 +3474,34 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println("make database")
         println("SCF before make is $scf")
 
+#        if gen_add_ham
+#        end
+
+        
         if returndatabase == false
             database =missing
         else
-            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
+            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND )
         end
 
         if gen_add_ham
+
+
             DATABASE = []
-            for chX in vcat([ch_mean], ch_arr)
+            #for chX in vcat([ch_mean], ch_arr)
+            for (chX2, cu_big) in zip(chX2_arr, cu_big_arr)
         #println(length(keep_inds), " " , length(toupdate_inds))
 
-                ch_big[toupdate_inds] = chX[:]
-                ch_big[keep_inds] = ch_keep[:]
-                chX2 = ch_big
+#                ch_big[toupdate_inds] = chX[:]
+#                ch_big[keep_inds] = ch_keep[:]
+#                chX2 = ch_big
                 
-                cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
-                cs_big[toupdate_inds_S] = cs_lin[:]
-                cs_big[keep_inds_S] = cs_keep[:]
-                csX2 = cs_big
+ #               cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
+ #               cs_big[toupdate_inds_S] = cs_lin[:]
+ #               cs_big[keep_inds_S] = cs_keep[:]
+ #               csX2 = cs_big
                 #databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
+#                println("typeof xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", [typeof(chX2), typeof(csX2), typeof(cu_big)])
                 databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], cu=cu_big, UIND=UIND)
                 for k in keys(databaseX)
                     if typeof(k) <: Tuple
@@ -3468,7 +3516,27 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 end
                 push!(DATABASE, databaseX)
             end
-            return database, DATABASE
+
+#            println("typeof database ", typeof(database))
+            for k in keys(database)
+                if typeof(k) == Symbol || typeof(k) == String
+                    continue
+                end
+                DATH = zeros(0)
+                DATU = zeros(0)
+                for D in DATABASE
+                    datH = D[k].datH
+                    datU = D[k].datU
+                    DATH = vcat(DATH, datH)
+                    DATU = vcat(DATU, datU)
+                end
+                database[k].datH_ensemble = DATH
+                database[k].datU_ensemble = DATU
+                database[k].n_ensemble = length(DATABASE)
+            end
+            #            return database, DATABASE
+ #           println("F typeof database ", typeof(database))
+            return database, chX, current_error
         end
         
         
@@ -3488,12 +3556,14 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
     
     if leave_one_out == false && returnstuff == false
         println("do iters size ", size(ch))
-        if gen_add_ham
-            database, DATABASE =  do_iters(ch, niters)
-            return database, DATABASE
-        else
-            database, ch, current_error =  do_iters(ch, niters)
-        end
+#        if gen_add_ham
+#            database =  do_iters(ch, niters)
+#            return database, DATABASE
+#        else
+
+        database, ch, current_error =  do_iters(ch, niters)
+
+        #        end
         println("return")
         return database
     elseif returnstuff == true
@@ -5387,7 +5457,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             conv = false
 
             for c_scf = 1:niter_scf
-                #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
+#                                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
                 get_eigen(h1, h1spin, tbc.tb.nspin)
 
                 
@@ -6271,7 +6341,7 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
     println("in generate_additional_hams")
     ch_all = TOTX \ TOTY
     ninds = length(ch_all)
-
+    println("ninds $ninds")
     
     skip_inds = deepcopy(threebody_inds)
     all_inds = 1:ninds
@@ -6293,9 +6363,9 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
 #    push!(skip_chunk, skip_inds[chunk_start:end])
 #    println("skip_chunk ", skip_chunk)
 
-    CH = [ch_all]
+    CH = []
     
-    
+#=    
     for c in 1:3:length(skip_inds)
         s = skip_inds[c:min(c+2,length(skip_inds)) ]
         ch = zeros(size(ch_all))
@@ -6303,16 +6373,29 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
         ch[keep_inds] = (@view TOTX[:,keep_inds]) \ TOTY
         push!(CH, ch)
     end
+    =#
 
-    ch_all_1 = [TOTX[1:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[1:3:end]; TOTY[end - ninds-1:end]]
-    ch_all_2 = [TOTX[2:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[2:3:end]; TOTY[end - ninds-1:end]]
-    ch_all_3 = [TOTX[3:3:end, :]; TOTX[end - ninds-1:end, :]] \ [TOTY[3:3:end]; TOTY[end - ninds-1:end]]
+    ch_all_1 = [TOTX[1:5:end, :]; TOTX[end - ninds+1:end, :]] \ [TOTY[1:5:end]; TOTY[end - ninds+1:end]]
+    ch_all_2 = [TOTX[2:5:end, :]; TOTX[end - ninds+1:end, :]] \ [TOTY[2:5:end]; TOTY[end - ninds+1:end]]
+    ch_all_3 = [TOTX[3:5:end, :]; TOTX[end - ninds+1:end, :]] \ [TOTY[3:5:end]; TOTY[end - ninds+1:end]]
+    ch_all_4 = [TOTX[4:5:end, :]; TOTX[end - ninds+1:end, :]] \ [TOTY[4:5:end]; TOTY[end - ninds+1:end]]
+    ch_all_5 = [TOTX[5:5:end, :]; TOTX[end - ninds+1:end, :]] \ [TOTY[5:5:end]; TOTY[end - ninds+1:end]]
+
 #    ch_all_1 = TOTX[1:3:end, :]\  TOTY[1:3:end]
 #    ch_all_2 = TOTX[2:3:end, :] \ TOTY[2:3:end]
 #    ch_all_3 = TOTX[3:3:end, :] \ TOTY[3:3:end]
     push!(CH, ch_all_1)
     push!(CH, ch_all_2)
     push!(CH, ch_all_3)
+    push!(CH, ch_all_4)
+    push!(CH, ch_all_5)
+
+#higher lambda value
+    ch_all_lam = [TOTX[1:1:end, :]; 10*TOTX[end - ninds+1:end, :] ] \ [TOTY[1:1:end]; TOTY[end - ninds+1:end]]
+    push!(CH, ch_all_lam)
+    ch_all_lam = [TOTX[1:1:end, :]; 100*TOTX[end - ninds+1:end, :] ] \ [TOTY[1:1:end]; TOTY[end - ninds+1:end]]
+    push!(CH, ch_all_lam)
+
     
     ch_mean = zeros(size(ch_all))
     for ch in CH
@@ -6321,6 +6404,8 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final)
     end
     ch_mean = ch_mean / length(CH)
 
+    push!(CH, ch_mean)
+    
     return ch_mean, CH
     
 end

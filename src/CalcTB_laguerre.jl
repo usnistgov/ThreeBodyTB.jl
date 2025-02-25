@@ -103,6 +103,7 @@ const n_3body_onsite = 2
 const n_3body_onsite_same = 5
 
 const n_ufit = 2
+const a_ufit = 3.0
 
 EXP_a = [2.0]
 
@@ -164,6 +165,8 @@ mutable struct coefs
     datU::Array{Float64,1}
     sizeU::Int64
     datH_ensemble::Array{Float64,1}
+    datU_ensemble::Array{Float64,1}
+    n_ensemble::Int64
 end
 
 function construct_coef_string(co)
@@ -245,6 +248,7 @@ function write_coefs(filename, co::coefs; compress=true)
     end
 
     addelement!(c, "datH_ensemble", arr2str(co.datH_ensemble))    
+    addelement!(c, "datU_ensemble", arr2str(co.datU_ensemble))    
 
     if compress
         io=gzopen(filename*".gz", "w")
@@ -373,6 +377,12 @@ function read_coefs(filename, directory = missing)
     else
         datH_ensemble = deepcopy(datH)
     end
+
+    if haskey(d["coefs"], "datU_ensemble")
+        datU_ensemble  = parse_str_ARR_float(d["coefs"]["datU_ensemble"])
+    else
+        datU_ensemble = deepcopy(datU)
+    end
     
     co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, datH_ensemble = datH_ensemble)
 
@@ -389,7 +399,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, datH_ensemble = missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, datH_ensemble = missing, datU_ensemble = missing)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -611,12 +621,17 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cuto
     if ismissing(datH_ensemble)
         datH_ensemble = deepcopy(datH)
     end
+    if ismissing(datU_ensemble)
+        datU_ensemble = deepcopy(datU)
+    end
+
+    n_ensemble = Int64(round(length(datH_ensemble) / length(datH)))
     
 #    for x in [dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval]
 #        println(typeof(x))
 #        end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU, datH_ensemble)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU, datH_ensemble, datU_ensemble, n_ensemble)
 
 end
     
@@ -3791,12 +3806,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         #umat
         if use_umat && dist > 1e-3
             #(h,s) = fit_twobody(:s,:s,dist,lmn)
-            lag = laguerre(dist, a = 4.0)
-#            println("abcd lag 4.0 dist $dist lag $lag")
+            lag = laguerre(dist, a = a_ufit)
+#            println("abcd lag $a_ufit dist $dist lag $lag")
             iu = coef.inds[[t1,t2,:U]]
             #twobody_arrays[at_set][4][a1,iu] += h[1:n_ufit] * cut
             twobody_arrays[at_set][4][a1,iu] += lag[1:n_ufit] * cut * 10.0
-#            println("prepare umat $a1 ",  h[1:n_ufit], " " , cut)
+            println("prepare umat $a1 ",   cut, " from ", lag[1:n_ufit])
         end
         
 
@@ -8013,11 +8028,11 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
 
                         if use_umat
-                            laguerre_fast!(dist_a, lag_arr, a = 4.0)
+                            laguerre_fast!(dist_a, lag_arr, a = a_ufit)
 
                             
                             UMAT[a1] += sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a * 10.0
-                            #                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a)
+#                            println("UMAT ", lag_arr[1:n_ufit], " ", DAT_ARR_U[t1,t2,1:n_ufit], " ", cut_a, " tot ", sum(lag_arr[1:n_ufit] .* DAT_ARR_U[t1,t2,1:n_ufit]) * cut_a * 10.0)
                             if only_U
                                 continue
                             end
