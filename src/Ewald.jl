@@ -679,8 +679,8 @@ function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_n
                 gamma_U_new[i,j] += -erfc( Uconst[i,j,1] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
                 #
 
-#                gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
-#                gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
+                gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
+                gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
 
                 #                println("add       $i $(Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])) ", [Uconst[i,j,3]Uconst[i,j,3], r, Uconst[i,j,2]])
 #                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
@@ -705,6 +705,10 @@ function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, ga
 
             gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
+
+            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
+            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
+            
 #            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
 #            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
             
@@ -732,6 +736,9 @@ function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_
             gamma_ij_new[i,j,id] += erfc( kappa * r) / r
             gamma_U_new[i,j,id] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
+            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
+            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
+            
 #            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
 #            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
             
