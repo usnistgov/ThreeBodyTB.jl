@@ -32,6 +32,8 @@ using ..Symmetry:get_kgrid_sym
 using ..DFToutMod:dftout
 using ..DFToutMod:bandstructure
 using ..TB:find_vbm_cbm
+using ..AtomicProj:proj_dat
+using ..TB:tb_indexes
 
 function get_projtype(tbc, ptype=missing)
 
@@ -301,6 +303,150 @@ function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=miss
 
     dos_atom = zeros(length(energies), c.nat)
     for n = 1:tbc.tb.nwan
+        at,t, orb = ind2orb[n]
+        dos_atom[:,at] += pdos[:,n]
+    end
+    dos_atoms_grid = zeros(energy_grid, c.nat)
+    #new_grid = collect(minimum(energies) : (maximum(energies)-minimum(energies)) / energy_grid: (maximum(energies)+1e-10))
+
+    println("grid width ",  (energy_lims[2]-energy_lims[1]) / energy_grid)
+    
+    new_grid = collect( energy_lims[1] : (energy_lims[2]-energy_lims[1]) / energy_grid: (energy_lims[2]+1e-10) )
+
+    println("size(new_grid), $(size(new_grid))")
+    for en = 1:energy_grid
+        ind = energies .> new_grid[en] .&& energies .<= new_grid[en+1]
+        dos_atoms_grid[en,:] = sum(dos_atom[ind,:], dims=[1])
+    end
+    max_den = maximum(dos_atom) * 1.0
+
+    rectangle(w, h, x, y) = Shape(x .+ [0,w,w,0], y .+ [0,0,h,h])
+
+    height = (energy_lims[2]-energy_lims[1]) / energy_grid
+    xmin = minimum(coords_cart) - width/2
+    xmax = maximum(coords_cart) + width/2
+
+    plot([xmin, xmax], [0.0, 0.0], linestyle=:dash, linewidth=1, color="grey", label="")
+    xlims!(xmin, xmax + width*2)
+    ylims!(energy_lims[1], energy_lims[2])
+
+    println([ minimum(coords_cart) - width,maximum(coords_cart) + width])
+    println([minimum(new_grid) - 0.01, maximum(new_grid) + 0.01])
+    
+    for at = 1:c.nat
+        for ind = 1:energy_grid
+            x = coords_cart[at] - width/2
+            plot!(rectangle(width, height, x, new_grid[ind] - height/2), opacity= dos_atoms_grid[ind, at] / max_den , color=atom_colors[c.stypes[at]], label="" )
+            #            println("plot $width, $height, $x, $(new_grid[ind] - height/2)")
+        end
+    end
+
+    for at = keys(atom_colors)
+        plot!(rectangle(0.0,0.0 , coords_cart[1] - width/2, new_grid[1] - height/2), color=atom_colors[at], label=String(at))
+    end
+
+    xlabel!("Atom positions ($global_length_units)",  guidefontsize=12)
+    display(ylabel!("Energy - Fermi ($global_energy_units)", guidefontsize=12))
+    return new_grid, dos_atoms_grid, coords_cart
+
+end
+
+
+"""
+    function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+
+Makes an atom and spatially resoloved DOS-style plot. Along `direction=1,2,3` (lattice vector 1,2,3) the atoms are plotted, using transparancy to denote DOS amplitude. Try it out to see. Potentially useful for interfaces. Example usage:
+`c = makecrys([8.0 0 0; 0 8.0 0; 0 0 10.0], [0 0 0; 0 0 0.5], [:Li, :Cl]) #quasi 1D LiCl chain`
+`en, tbc, flag = scf_energy(c*[1,1,10])                                   #ten unit cells`
+`dos_realspace(tbc, direction=3)`
+
+Adjust the `energy_grid` and `width` to adjust plotting parameters.
+Scissors shift in energy unit to certain atoms will add scissors shift to open band gaps is desired.
+"""
+function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+    if ismissing(width)
+        width= convert_length(3.0)
+    end
+    if ismissing(energy_lims)
+        energy_lims = convert_energy([-0.3, 0.3])
+    end
+    
+    colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+    colors = [colors; colors; colors]
+    atom_colors = Dict()
+    for c in colors
+        for s in Set(dft.crys.stypes)
+            if !(s in keys(atom_colors))
+                atom_colors[s] = c
+                println("color $s $c ")
+                break
+            end
+        end
+    end
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(dft.crys)
+    wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(dft)
+    
+    vmin = minimum(p.bs.eigs) - 0.1
+    vmax = maximum(p.bs.eigs) + 0.1
+
+    println("v $vmin $vmax ")
+
+#    vmax = min(maximum(vals), 5.0)
+    r = vmax - vmin
+
+    if ismissing(npts)
+        npts = Int64(round(r * 100 ))
+    end
+    
+    energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
+
+    energies = energies .- dft.bandstruct.efermi
+
+#    energies,DOS, pdos, names, proj = dos(tbc, grid=missing, smearing=smearing, npts=missing, do_display=false, use_sym=use_sym, proj_type=:all, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
+#
+ #   pdos=sum(pdos, dims=[3])
+    c = dft.crys
+    coords_cart = convert_length(c.coords[:,direction] * sqrt(sum(c.A[direction,:].^2)))
+
+#    pdos = zeros( length(energies), c.nat, 
+#    for k = 1:p.bs.nks
+#        for spin = 1:p.bs.nspin
+#            for orb = 1:p.natwfc
+#                atom = wan_atom[orb]
+#                
+#            end
+#        end
+#    end
+    
+    pdos = zeros(length(energies), nwan, p.bs.nspin)
+    
+    for spin = 1:p.bs.nspin
+#        for (c,e) in enumerate(energies)
+#            DOS[c,spin] = sum(KW .*  exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) ) / 2.0 * nk
+#        end
+        
+#        if do_proj
+#            println(size(proj))
+        for (i,w) in enumerate(wan)
+            for (c,e) in enumerate(energies)
+                for k = 1:p.bs.nks
+                    for b = 1:p.bs.nbnd
+                        pdos[c, i] += real(p.proj[k,w,spin,b] .*  exp.( -0.5 * (p.bs.eigs[k,b,spin] - dft.bandstruct.efermi .- e).^2 / smearing^2 ) ) * p.bs.kweights[k]
+                    end
+                end
+            end
+        end
+    end
+    
+    pdos = pdos / smearing / (2.0*pi)^0.5 / p.bs.nks
+        
+    
+
+    dos_atom = zeros(length(energies), c.nat)
+    for n = 1:nwan
         at,t, orb = ind2orb[n]
         dos_atom[:,at] += pdos[:,n]
     end
