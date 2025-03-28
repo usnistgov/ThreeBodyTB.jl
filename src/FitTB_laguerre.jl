@@ -112,7 +112,7 @@ end
 
 Make lots of preperations for fitting. Moves things around, put stuff in materices, etc.
 """
-function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, factor_dict = missing, fit_umat = false)
+function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, factor_dict = missing, fit_umat = false, fit_eam = false)
 
     println("prepare_for_fitting $fit_umat")
 #    sleep(10)
@@ -189,9 +189,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #        for spin = 1:tbc.nspin
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1 ,factor_dict = factor_dict, use_umat = fit_umat)
+        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, use_eam = fit_eam, spin = 1 ,factor_dict = factor_dict, use_umat = fit_umat)
         if tbc.nspin == 2
-            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2,factor_dict = factor_dict, use_umat = fit_umat)
+            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, use_eam = fit_eam, spin = 2,factor_dict = factor_dict, use_umat = fit_umat)
         end
         #            println("INDVEC ", INDvec)
         
@@ -788,7 +788,7 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, factor_dict = missing, rind = missing, fit_umat = false)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, factor_dict = missing, rind = missing, fit_umat = false, fit_eam = false)
 
     println("MODE $mode")
 
@@ -809,7 +809,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     end
 
     println("before setup matricies")
-    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database, factor_dict=factor_dict, fit_umat = fit_umat)
+    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, starting_database=starting_database, refit_database=refit_database, factor_dict=factor_dict, fit_umat = fit_umat, fit_eam = fit_eam)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -1535,7 +1535,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing, fit_umat = false, gen_add_ham = false)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5; 0 0 0.25; 0 0.25 0; 0.25 0 0 ; 0.25 0.25 0.25; 0.25 0 0.25], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, use_factor_dict = false, cs_start = missing, fit_umat = false, gen_add_ham = false, fit_eam = false)
 
     
     if !ismissing(dft_list)
@@ -1632,7 +1632,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
             starting_database_t = starting_database
         end
 
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, factor_dict = factor_dict, fit_umat = fit_umat)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, fit_eam=fit_eam, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, factor_dict = factor_dict, fit_umat = fit_umat)
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
@@ -2651,7 +2651,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         eden_new[spin,:] = symmetrize_charge_den(tbc.crys, eden_new[spin,:] , SS, atom_trans, orb2ind)
                     end
                     
-                    #println("eden_new $eden_new")
+#                    println("eden_new $eden_new")
                     
                     #                    println("EDEN DDDDDDDDDD ", eden)
                     
@@ -3418,7 +3418,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             ch_big = zeros(length(keep_inds) + length(toupdate_inds) + length(toupdate_inds_U))
             ch_big[toupdate_inds] = CHX[1:length(toupdate_inds)]
             ch_big[keep_inds] = ch_keep[:]
-            chX2 = ch_big
+            chX2_t = ch_big
             
             if fit_umat
                 c_umat = CHX[NCOLS+1:end]
@@ -3430,11 +3430,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 cu_big = zeros(length(keep_inds_U) + length(toupdate_inds_U))
                 
             end
-            return chX2, cu_big
+            return chX2_t, cu_big
         end
 
         chX2, cu_big = sort_out_index(chX)
 
+#        println("chX2 v1 ", chX2)
+        
         cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
         cs_big[toupdate_inds_S] = cs_lin[:]
         cs_big[keep_inds_S] = cs_keep[:]
@@ -3447,7 +3449,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         if gen_add_ham
             ch_mean = missing
             ch_arr = missing
-            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, chX)
+            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, deepcopy(chX2))
 
             
             for ch in ch_arr
@@ -3459,6 +3461,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             end
         end
 
+#        println("chX2 v2 ", chX2)
+        
         
         #        else
         #            chX2 = deepcopy(chX)
@@ -3484,12 +3488,16 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND )
         end
 
+#        println("chX2 v3 ", chX2)
+#        println("chX2 database ", database[(:Al, :Al)].datH)
+
+        
         if gen_add_ham
 
 
             DATABASE = []
             #for chX in vcat([ch_mean], ch_arr)
-            for (chX2, cu_big) in zip(chX2_arr, cu_big_arr)
+            for (chX2a, cu_big) in zip(chX2_arr, cu_big_arr)
         #println(length(keep_inds), " " , length(toupdate_inds))
 
 #                ch_big[toupdate_inds] = chX[:]
@@ -3502,7 +3510,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
  #               csX2 = cs_big
                 #databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND)
 #                println("typeof xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", [typeof(chX2), typeof(csX2), typeof(cu_big)])
-                databaseX = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], cu=cu_big, UIND=UIND)
+                databaseX = make_database(chX2a, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], cu=cu_big, UIND=UIND)
                 for k in keys(databaseX)
                     if typeof(k) <: Tuple
                         if typeof(k) == Tuple{Symbol, Symbol}
@@ -3516,6 +3524,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 end
                 push!(DATABASE, databaseX)
             end
+#            println("chX2 v4 ", chX2)
 
 #            println("typeof database ", typeof(database))
             for k in keys(database)
@@ -3534,12 +3543,17 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 database[k].datU_ensemble = DATU
                 database[k].n_ensemble = length(DATABASE)
             end
+#            println("chX2 v5 ", chX2)
+#            println("chX2 database ", database[(:Al, :Al)].datH)
+
+            
             #            return database, DATABASE
  #           println("F typeof database ", typeof(database))
             return database, chX, current_error
+            println("done return")
         end
         
-        
+        println("other return")        
         return database, chX, current_error
 
     end

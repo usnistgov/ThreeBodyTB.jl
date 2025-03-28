@@ -1,7 +1,7 @@
 module Relax
 
 using ..SCF:scf_energy
-#using ..Force_Stress:get_energy_force_stress_fft
+using ..Force_Stress:get_energy_force_stress_fft
 using ..Force_Stress:get_energy_force_stress_fft_LV_sym_SINGLE
 using ..Force_Stress:safe_mode_energy
 using ..CrystalMod:get_grid

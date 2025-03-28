@@ -4931,14 +4931,14 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
                 electron_den[spin,:] = symmetrize_charge_den(crys, electron_den[spin,:] , SS, atom_trans, orb2ind)
             end
         end
-        #        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
+        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
         diff_new = sum(abs.(electron_den  - eden))
         if  diff_new < 1e-2
             println("break scf $scf")
             break
         else
             if diff_new > diff_old
-                mix = max(mix * 0.95, 0.001)
+                mix = max(mix * 0.75, 0.001)
                 println("reduce mix $mix  $diff_new $diff_old")
             end
             diff_old = diff_new

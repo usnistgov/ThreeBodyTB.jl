@@ -801,7 +801,7 @@ function plot_compare_dft(tbc::tb_crys, bs; tbc2=missing, names=missing, locs=mi
 
     println("nelec $nelec, nsemi = $(nsemi*2)")
     
-    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi)
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
     
     if !ismissing(tbc2)
@@ -809,7 +809,7 @@ function plot_compare_dft(tbc::tb_crys, bs; tbc2=missing, names=missing, locs=mi
         efermi_tbc2 = calc_fermi(vals2, kweights, nelec)
 #        println("efermi_dft $efermi_dft efermi_tbc $efermi_tbc efermi_tbc2 $efermi_tbc2")
 
-        en_dft = band_energy(bs.eigs, kweights, nelec+nsemi)
+        en_dft = band_energy(bs.eigs, kweights, nelec+nsemi*2)
         en_1 = band_energy(vals, kweights, nelec)
         en_2 = band_energy(vals2, kweights, nelec)
 #        println("energy_dft $en_dft en_1 $en_1 en_2 $en_2")
@@ -940,8 +940,8 @@ function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, 
     
     vals = calc_bands(tbc.tb, kpts)
     
-    #nelec = sum(tbc.eden) * 2.0
-    nelec = bs.nelec
+    nelec = sum(tbc.eden)*2
+    #nelec = bs.nelec
     nsemi = 0
     for t in tbc.crys.types
         atom = atoms[t]
@@ -950,9 +950,9 @@ function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, 
     end
     nsemi = Int64(nsemi / 2)
 
-    println("nelec $nelec, nsemi = $(nsemi*2)")
+    println("nelec $nelec, nsemi = $(nsemi)")
     
-    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2 ) #+nsemi*2
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
     
     println("efermi ", [efermi_dft, efermi_tbc])

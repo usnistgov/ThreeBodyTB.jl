@@ -215,6 +215,12 @@ Base.:(==)(c1::crystal, c2::crystal) = begin
 
 end   
 
+Base.:hash(c::crystal) = begin
+
+    hash([hash(round.(c.A, digits=10) ), hash(round.(c.coords, digits=10)), hash(c.stypes)])
+    
+end
+
 
 Base.:*(a::Real, c::crystal) = begin
 

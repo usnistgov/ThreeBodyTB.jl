@@ -44,7 +44,8 @@ function test1()
 
             database = Dict()
             database[(:Li, :Li)] = ThreeBodyTB.CalcTB.make_coefs(Set(["Li", "Li"]), 2)
-            
+            database[(:Li, :Li)].datS[1] = 0.1
+            database[(:Li, :Li)].datS[2:end] .= 0.0
             tbc1 = ThreeBodyTB.CalcTB.calc_tb_fast(c1, database, use_threebody=false);
             tbc2 = ThreeBodyTB.CalcTB.calc_tb_fast(c2, database, use_threebody=false);
             tbc3 = ThreeBodyTB.CalcTB.calc_tb_fast(c3, database, use_threebody=false);

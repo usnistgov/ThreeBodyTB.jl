@@ -18,7 +18,7 @@ Electrostatics
 #include("Atomdata.jl")
 using ..Atomdata:atoms
 using ..Atomdata:ewald_pairs
-using ..Atomdata:ewald_pairs_num
+#using ..Atomdata:ewald_pairs_num
 using ..Atomdata:uniform_charge_interaction
 
 using LinearAlgebra
@@ -317,7 +317,7 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
     gamma_U_tot = zeros(T, crys.nat, crys.nat)
     gamma_U_new = zeros(T, crys.nat, crys.nat)
 
-    gamma_pairs = zeros(T, crys.nat, crys.nat,3)
+#    gamma_pairs = zeros(T, crys.nat, crys.nat,3)
     
     
     Uconst = zeros(T, crys.nat, crys.nat)
@@ -338,6 +338,8 @@ function real_space(crys::crystal, kappa::Float64, U::Array{Float64}, starting_s
         useU = false
     end
 
+
+    
     #    R = zeros(T,1, 3)
     R = zeros(T, 3)
     Ra = zeros(T, 3)
@@ -488,7 +490,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
     gamma_ij_new_th = zeros(T, crys.nat, crys.nat, nthreads())
     gamma_U_new_th = zeros(T, crys.nat, crys.nat, nthreads())
    
-    gamma_pairs = zeros(T, crys.nat, crys.nat,ewald_pairs_num)
+#    gamma_pairs = zeros(T, crys.nat, crys.nat,ewald_pairs_num)
 
     Uconst = zeros(T, crys.nat, crys.nat,3)
 
@@ -532,6 +534,8 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
         Uconst[:,3] .= 0.0
     end
 
+    println("Uconst $Uconst")
+    
 #    println("Uconst ")
 #    println(Uconst)
     
@@ -612,9 +616,9 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
                     R[:] .= At * Ra 
                     if first_iter == true || (abs(x) > Nxold || abs(y) > Nyold || abs(z) > Nzold )
                         if R0
-                            rs_core(               crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt, gamma_pairs)
+                            rs_core(               crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
                         else 
-                            rs_core_R0false_thread(crys.nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new_th, gamma_U_new_th, useU, R0,gamma_U_opt, gamma_pairs)
+                            rs_core_R0false_thread(crys.nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new_th, gamma_U_new_th, useU, R0,gamma_U_opt)
                         end
 
                     end
@@ -666,7 +670,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
 
 end
 
-function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt, gamma_pairs)
+function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
 
     @inbounds @simd for i = 1:crys.nat
         for j = i:crys.nat
@@ -679,8 +683,8 @@ function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_n
                 gamma_U_new[i,j] += -erfc( Uconst[i,j,1] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
                 #
 
-                gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
-                gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
+                gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,3]) *  exp(-1.5 * r )
+                gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,3]) *  exp(-1.5 * r )
 
                 #                println("add       $i $(Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])) ", [Uconst[i,j,3]Uconst[i,j,3], r, Uconst[i,j,2]])
 #                gamma_U_opt[i] += exp(-2.0*0.5 * r)* ( gamma_pairs[i,j,1]  + (1 - 2.0*r) * gamma_pairs[i,j,2] + 0.5*((2.0*r).^2 .- 4.0*(2.0*r) .+ 2) * gamma_pairs[i,j,3] + 1.0/6.0*(-(2*r).^3 .+ 9.0*(2*r).^2 .- 18.0*(2*r) .+ 6.0) * gamma_pairs[i,j,4]  )
@@ -692,7 +696,7 @@ function rs_core(crys, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_n
 
 end
 
-function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt, gamma_pairs)
+function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
     @inbounds @simd for i = 1:nat
         for j = i:nat
             r=0.0
@@ -703,11 +707,11 @@ function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, ga
             gamma_ij_new[i,j] += erfc( kappa * r) / r
 #            gamma_ij_new[i,j] += exp(-2.5*0.5 * r)* ( EWALD_PARAMS[1] + (1 - 2.5*r) * EWALD_PARAMS[2] + 0.5*((2.5*r).^2 .- 4.0*(2.5*r) .+ 2) *  EWALD_PARAMS[3])
 
-            gamma_U_new[i,j] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+            gamma_U_new[i,j] += -erfc( Uconst[i,j,1] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
 
-            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
-            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
+            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,3]) *  exp(-1.5 * r )
+            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,3]) *  exp(-1.5 * r )
             
 #            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
 #            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
@@ -724,7 +728,7 @@ function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, ga
     
 end
 
-function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt, gamma_pairs)
+function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0, gamma_U_opt)
     @inbounds for i = 1:nat #@threads
         id = threadid()
         for j = i:nat
@@ -734,10 +738,10 @@ function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_
             end
             r=r^0.5
             gamma_ij_new[i,j,id] += erfc( kappa * r) / r
-            gamma_U_new[i,j,id] += -erfc( Uconst[i,j] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
+            gamma_U_new[i,j,id] += -erfc( Uconst[i,j,1] * r) / r  #see eq 3 in prb 66 075212, or koskinen comp mater sci 47 (2009) 237
 
-            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,2]) *  exp(-1.5 * r )
-            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,2]) *  exp(-1.5 * r )
+            gamma_U_new[i,i] +=  (Uconst[i,j,2] +  (1 - 2.0*r*1.5) * Uconst[i,j,3]) *  exp(-1.5 * r )
+            gamma_U_new[j,j] +=  (Uconst[j,i,2] +  (1 - 2.0*r*1.5) * Uconst[j,i,3]) *  exp(-1.5 * r )
             
 #            gamma_U_new[i,i] +=  Uconst[i,j,3]*exp(-3.0 * r / Uconst[i,j,2])
 #            gamma_U_new[j,j] +=  Uconst[j,i,3]*exp(-3.0 * r / Uconst[j,i,2])
