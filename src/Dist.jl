@@ -1262,8 +1262,8 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
 
 end
 
-function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0)
-    #    println("cutoff $cutoff $cutoff2")
+function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
+        println("cutoff $cutoff $cutoff2")
 
     begin
         
@@ -1407,19 +1407,35 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         found_arr_TT = zeros(Bool, nr1, nr2, nr3)
         found_arr_TT_ab = zeros(Bool, nr1, nr2, nr3,nat,nat)
 
-         for a = 1:crys.nat
-            for b = 1:crys.nat
-                found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .|     (dist_TT[:,:,:,a,b,1] .< cutoff_arr[a,b,1])
-                for r1 = eachindex(rf1)
-                    for r2 = eachindex(rf2)
-                        for r3 = eachindex(rf3)
-                            found_arr_TT_ab[r1,r2,r3,a,b] = dist_TT[r1,r2,r3,a,b,1] < cutoff_arr[a,b,1]
+        if keep_extra
+            for a = 1:crys.nat
+                for b = 1:crys.nat
+                    found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .|     (dist_TT[:,:,:,a,b,1] .< max(cutoff_arr[a,b,1], cutoff) )
+                    for r1 = eachindex(rf1)
+                        for r2 = eachindex(rf2)
+                            for r3 = eachindex(rf3)
+                                found_arr_TT_ab[r1,r2,r3,a,b] = dist_TT[r1,r2,r3,a,b,1] < max(cutoff_arr[a,b,1], cutoff)
+                            end
+                        end
+                    end
+                end
+            end
+
+        else
+            
+            for a = 1:crys.nat
+                for b = 1:crys.nat
+                    found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .|     (dist_TT[:,:,:,a,b,1] .< cutoff_arr[a,b,1])
+                    for r1 = eachindex(rf1)
+                        for r2 = eachindex(rf2)
+                            for r3 = eachindex(rf3)
+                                found_arr_TT_ab[r1,r2,r3,a,b] = dist_TT[r1,r2,r3,a,b,1] < cutoff_arr[a,b,1]
+                            end
                         end
                     end
                 end
             end
         end
-
 #        println("sum found_arr_TT ", sum(found_arr_TT))
         
         nz_ind = zeros(Bool, nr)
