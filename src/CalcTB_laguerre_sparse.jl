@@ -210,13 +210,16 @@ end
 
 Main sparse matrix tight binding Hamiltonian calculator.
 """
-function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1)
+function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, atom = -1, cut_dist =missing)
 
 
     #        verbose=true
     #    println("test")
     #    @time twobody(10)
 
+    if ismissing(cut_dist)
+        cut_dist = cutoff2X
+    end
     
     At = crys.A'
     
@@ -259,11 +262,11 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
         else
             if (use_threebody || use_threebody_onsite ) && !ismissing(database)
-                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
+                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cut_dist, cutoff3bX,var_type=var_type, return_floats=false, keep_extra=true)
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
 
             else
-                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, 0.0,var_type=var_type, return_floats=false)
+                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cut_dist, 0.0,var_type=var_type, return_floats=false, keep_extra=true)
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3             
             end
         end
@@ -674,8 +677,8 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
             H[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Harr[k][1:counter_arr[k]-1] .+ 1.234, nwan, nwan ) #this adding 1.234 is a trick to prevent the sparse array from deciding that the dual number is zero accidently if the real part is zero
             S[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Sarr[k][1:counter_arr[k]-1] .+ 1.234, nwan , nwan)
         else
-            H[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Harr[k][1:counter_arr[k]-1], nwan, nwan )
-            S[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], Sarr[k][1:counter_arr[k]-1], nwan , nwan)
+            H[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], round.(Harr[k][1:counter_arr[k]-1], digits=12), nwan, nwan )
+            S[k] += sparse(INDarr[k][1:counter_arr[k]-1,1], INDarr[k][1:counter_arr[k]-1,2], round.(Sarr[k][1:counter_arr[k]-1], digits=12), nwan , nwan)
         end
     end
 
@@ -932,7 +935,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
             scf = false
         end
         #println("make")
-        tbc = make_tb_crys_sparse(tb, crys, nval, 0.0, scf=scf, gamma=gamma, u3=u3,background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys_sparse(tb, crys, nval, 0.0, scf=scf, gamma=gamma, u3=u3,background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening, R_keep_ab = R_keep_ab, dist_arr = dist_arr, cut_dist=cut_dist)
         tbc.tot_charge = tot_charge
         tbc.nelec = tbc.nelec - tot_charge
     end

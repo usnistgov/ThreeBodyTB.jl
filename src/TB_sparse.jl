@@ -3,6 +3,8 @@ using SparseArrays
 
 #Contains sparse matrix implementations of severals structs and functions in parallel to the main TB.jl
 
+using ..CrystalMod:cutoff2X
+
 """
     mutable struct tb_sparse{T}
 
@@ -80,6 +82,9 @@ mutable struct tb_crys_sparse{T} <: tb_crys
     energy_charge::Float64
     energy_mag::Float64
     bs::bandstructure
+    R_keep_ab::Array{Int64, 2}
+    dist_arr::Array{T, 1}
+    cut_dist::Float64
 end
 
 
@@ -153,7 +158,7 @@ function make_tb_crys_sparse
 
 Constructor function for `tb_crys_sparse`.
 """
-function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing,u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0 , bs = missing)
+function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing,u3=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0, energy_band= 0.0, energy_smear = 0.0, energy_types = 0.0, energy_charge = 0.0, energy_mag = 0.0 , bs = missing, R_keep_ab = missing, dist_arr = missing, cut_dist = missing)
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -182,31 +187,40 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
     
     energy_types = types_energy(crys)
     nspin = ham.nspin
-    println()
-    println("start")
-    println(ham)
-    println(crys)
-    println(nelec)
-    println(dftenergy)
-    println(scf)
-    println(gamma)
-    println(u3)
-    println(background_charge_correction)
-    println(eden)
-    println(within_fit)
-    println(tb_energy)
-    println(fermi_energy)
-    println(nspin)
-    println(tot_charge)
-    println(dq)
-    println([energy_band, energy_smear , energy_types , energy_charge , energy_mag ])
+#    println()
+#    println("start")
+#    println(ham)
+#    println(crys)
+#    println(nelec)
+#    println(dftenergy)
+#    println(scf)
+#    println(gamma)
+#    println(u3)
+#    println(background_charge_correction)
+#    println(eden)
+#    println(within_fit)
+#    println(tb_energy)
+#    println(fermi_energy)
+#    println(nspin)
+#    println(tot_charge)
+#    println(dq)
+#    println([energy_band, energy_smear , energy_types , energy_charge , energy_mag ])
 
     if ismissing(bs)
         bs = make_empty_bs(nspin=nspin)
     end
-        
+
+    if ismissing(cut_dist)
+        cut_dist = cutoff2X
+    end
     
-    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs )
+    if ismissing(R_keep_ab) || ismissing(dist_arr)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cut_dist, 0.0,var_type=T, return_floats=true, keep_extra=true)
+    end
+
+    println("typeof ", [typeof(R_keep_ab),typeof(dist_arr),typeof(cut_dist)])
+    
+    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs, R_keep_ab, dist_arr[:,1][:], cut_dist )
 end
 
 function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
