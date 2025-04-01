@@ -534,7 +534,7 @@ function real_space_LV(crys::crystal, kappa::Float64, U::Array{Float64}, startin
         Uconst[:,3] .= 0.0
     end
 
-    println("Uconst $Uconst")
+#    println("Uconst $Uconst")
     
 #    println("Uconst ")
 #    println(Uconst)
