@@ -4708,9 +4708,9 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
     sgn, dat, SS, TT, atom_trans = get_symmetry(tbcK.crys, verbose=true);
     for spin =1:tbcK.nspin
-        println("e_den old ", eden[spin,:])
+#        println("e_den old ", eden[spin,:])
         eden[spin,:] = symmetrize_charge_den(tbcK.crys, eden[spin,:] , SS, atom_trans, orb2ind)
-        println("e_den new ", eden[spin,:])            
+#        println("e_den new ", eden[spin,:])            
     end
     
 
@@ -5639,6 +5639,47 @@ function band_summary(tbc::tb_crys_kspace)
     kpts = tbc.tb.K
     kw = tbc.tb.kweights
     return band_summary(tbc, kpts, kw)
+end
+
+function delete_atoms(tbc::tb_crys_kspace, atoms)
+    allatoms = 1:tbc.crys.nat
+    remainatoms = allatoms .∉  Ref(atoms)
+    
+    c = makecrys(tbc.crys.A,  tbc.crys.coods[remainatoms, :], tbc.crys.stypes[remainatoms])
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+    ind2orbN, orb2indN, etotalN, nvalN = orbital_index(c)
+
+    nk = tbc.tb.nk
+    nwan = length(keys(ind2orbN))
+    Hk_new = zeros(Complex{Float64}, nwan, nwan, nk, tbc.tb.nspin)
+    Sk_new = zeros(Complex{Float64}, nwan, nwan, nk)
+
+    h1_new = zeros(Float64, nwan, nwan)
+    h1spin_new = zeros(Float64, nwan, nwan, tbc.tb.spin)
+    for (ind_new, ind_old) in enumerate(remainatoms)
+        for (ind_new2, ind_old2) in enumerate(remainatoms)
+            for k = 1:nk
+                Sk_new[orb2indN[ind_new], orb2indN[ind_new2]] = tbc.tb.Sk[orb2ind[ind_old], orb2ind[ind_old2],k]
+                for spin = 1:tbc.tb.nspin
+                    Sk_new[orb2indN[ind_new], orb2indN[ind_new2], spin] = tbc.tb.Sk[orb2ind[ind_old], orb2ind[ind_old2],k, spin]
+                end
+            end
+
+            h1_new[orb2indN[ind_new], orb2indN[ind_new2]] = tbc.tb.h1[orb2ind[ind_old], orb2ind[ind_old2]]
+            for spin = 1:tbc.tb.nspin
+                h1spin_new[orb2indN[ind_new], orb2indN[ind_new2]] = tbc.tb.h1_spin[orb2ind[ind_old], orb2ind[ind_old2]]
+            end
+
+        end
+        
+    end
+
+    tbk = make_tb_k(Hk_new, tbc.tb.K, tbc.tb.kweights, Sk_new; tbc.tb.grid, nonorth=tbc.tb.nonorth, h1 = h1_new, h1spin=h1_spin_new)
+
+    tbck = make_tb_crys_kspace(tbk, c, nvalN, 0.0, scf=tbc.scf)
+
+    return tbck
 end
 
 end #end module

@@ -89,10 +89,10 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
     dirlist = []
     if !ismissing(directory)
         push!(dirlist, directory)
-    end
-    push!(dirlist, datdir1)
-    push!(dirlist, datdir2)
-    
+    else
+        push!(dirlist, datdir1)
+        push!(dirlist, datdir2)
+    end        
 
     at_arr = collect(s)
     if length(s) == 1
@@ -138,7 +138,8 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
                             #                    jldopen(f)                    
                             dat = read_coefs(f)
                             database_cached[(a1, a1, a1)] = dat
-                            #                        println("added to cache ", (a1, a1, a1))
+                            #println("added to cache ", (a1, a1, a1))
+                            #println(keys(database_cached ))
                             loaded == true
                         catch
                             println("WARNING - error loading $f")

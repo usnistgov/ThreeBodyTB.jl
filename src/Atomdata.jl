@@ -1358,6 +1358,7 @@ function get_cutoff(at1, at2)
 #    println("asdf")
 #    return [25.0, 20.0]
     if (at1,at2) in keys(cutoff_dist)
+#        println("asdf2")
         return cutoff_dist[(at1,at2)]
     else
         if at1 in keys(atom_radius)
@@ -1383,21 +1384,28 @@ function get_cutoff(at1, at2)
 #        cutoff2X   = max(min(cutoff2X,   21.01), 18.01) #2body
 #        cutoff_onX = max(min(cutoff_onX, 20.51), 17.51) #onsite
 
-        cutoff2X    = (rad1 + rad2) / 2.0 * 6.5
-        cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0
+        cutoff2X    = (rad1 + rad2) / 2.0 * 6.5 #+ 2.0
+        cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0 #+ 2.0
 
+#        println("asdf3 cutoff2X $cutoff_onX")
+        
+        
         cutoff2X   = max(min(cutoff2X,   18.51), 14.01) #2body
         cutoff_onX = max(min(cutoff_onX, 17.51), 13.01) #onsite
 
         cutoff2X = cutoff2X-0.25 + 1.5/2 
         cutoff_onX = cutoff_onX-0.25 + 1.5/2 
+
+        
+        println("asdf4 $at1 $at2 $cutoff2X $cutoff_onX")
         
         cutoff_dist[(at1,at2)] = [cutoff2X, cutoff_onX]
         cutoff_dist[(at2,at1)] = [cutoff2X, cutoff_onX]
         
 #        return [cutoff2X, cutoff_onX]
 
-        return [cutoff2X, cutoff_onX]        
+        
+        return [cutoff2X, cutoff_onX]
 
         #        return [25.0, 20.0]
     end
@@ -1437,8 +1445,11 @@ function get_cutoff(at1, at2, at3)
         cutoff3bX = minimum([rad1, rad2, rad3])*4.5
         cutoff3bX  = max(min(cutoff3bX,  12.01),  9.01) #3body
 
+        
         cutoff3bX = cutoff3bX-0.25 + 2.0/2
 
+#        cutoff3bX = cutoff3bX + 1.0
+        
         
         cutoff_dist[(at1,at2,at3)] = cutoff3bX
         cutoff_dist[(at1,at3,at2)] = cutoff3bX

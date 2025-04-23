@@ -1218,9 +1218,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
         ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
         sgn, dat, SS, TT, atom_trans = get_symmetry(tbcK.crys, verbose=true);
         for spin =1:tbcK.nspin
-            println("e_den old ", e_den[spin,:])
+#            println("e_den old ", e_den[spin,:])
             e_den[spin,:] = symmetrize_charge_den(tbcK.crys, e_den[spin,:] , SS, atom_trans, orb2ind)
-            println("e_den new ", e_den[spin,:])            
+#            println("e_den new ", e_den[spin,:])            
         end
     end
 
@@ -1234,7 +1234,7 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     end
     
     energy_charge = ewald_energy(tbcK, dq, dq_eden)
-    println("tbcK.tb.nspin ", tbcK.tb.nspin)
+#    println("tbcK.tb.nspin ", tbcK.tb.nspin)
     if tbcK.tb.nspin ==2
         energy_magnetic = magnetic_energy(tbcK, e_den)
     else

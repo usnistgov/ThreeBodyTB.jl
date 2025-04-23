@@ -799,10 +799,12 @@ function plot_compare_dft(tbc::tb_crys, bs; tbc2=missing, names=missing, locs=mi
     end
     nsemi = Int64(nsemi / 2)
 
-    println("nelec $nelec, nsemi = $(nsemi*2)")
+    println("nelec $nelec, nsemi = $(nsemi)")
     
-    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi)
+    efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2)
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
+
+    println("efermi_dft efermi_tbc $efermi_dft $efermi_tbc")
     
     if !ismissing(tbc2)
         vals2 = calc_bands(tbc2.tb, kpts)
@@ -862,10 +864,12 @@ function plot_compare_dft(tbc::tb_crys, bs; tbc2=missing, names=missing, locs=mi
         vbmD = efermi_dft
         vbm = efermi_tbc
     end
-        
+
+
     if bs.nks == 1
         scatter!(ones(size(bs.eigs[:,1, spin])) .+ 0.1, convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange",  label="DFT", grid=false, legend=:topleft, MarkerSize=2)
     else
+        println("eigs ", bs.eigs[:,1, spin] .- vbmD , " vbmD ", vbmD)
         plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)
     end
         if bs.nbnd > 1
@@ -941,6 +945,9 @@ function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, 
     vals = calc_bands(tbc.tb, kpts)
     
     nelec = sum(tbc.eden)*2
+    if nelec < 1e-5
+        nelec = bs.nelec
+    end
     #nelec = bs.nelec
     nsemi = 0
     for t in tbc.crys.types
@@ -952,6 +959,7 @@ function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, 
 
     println("nelec $nelec, nsemi = $(nsemi)")
     
+    println("efermi dft inputs ", nelec+nsemi*2 )
     efermi_dft = calc_fermi_sp(bs.eigs, kweights, nelec+nsemi*2 ) #+nsemi*2
     efermi_tbc = calc_fermi_sp(vals, kweights, nelec)
     
@@ -981,10 +989,13 @@ function plot_compare_dft(tbc::tb_crys_kspace, bs; names=missing, locs=missing, 
 
 
 #    else
-    println("in $( [efermi_dft, efermi_tbc])")
+#    println("in $( [efermi_dft, efermi_tbc])")
+#    println("input ", bs.eigs, "ef ", efermi_dft)
     vbmD, cbmD = find_vbm_cbm(bs.eigs , efermi_dft)
     vbm, cbm = find_vbm_cbm(vals , efermi_tbc)
 
+    println("vbmD, cbmD vbm, cbm ", [ vbmD, cbmD, vbm, cbm])
+    
     println("dft $efermi_dft   : ", vbmD," " ,  cbmD)
     
 #    vbm = 0.0

@@ -206,8 +206,7 @@ end
 
 
 function parse_str_ARR_float(sp)
-
-    if typeof(sp) == String
+   if typeof(sp) == String
         return map(x->parse(Float64,x),split(sp))
     else
         return map(x->parse(Float64,x),sp)

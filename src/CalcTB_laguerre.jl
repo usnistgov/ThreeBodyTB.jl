@@ -102,6 +102,9 @@ const n_3body_onsite = 2
 #const n_3body_onsite_same = 4
 const n_3body_onsite_same = 5
 
+const n_eam = 3
+
+
 const n_ufit = 2
 const a_ufit = 3.0
 
@@ -167,6 +170,7 @@ mutable struct coefs
     datH_ensemble::Array{Float64,1}
     datU_ensemble::Array{Float64,1}
     n_ensemble::Int64
+    use_eam::Bool
 end
 
 function construct_coef_string(co)
@@ -250,6 +254,8 @@ function write_coefs(filename, co::coefs; compress=true)
     addelement!(c, "datH_ensemble", arr2str(co.datH_ensemble))    
     addelement!(c, "datU_ensemble", arr2str(co.datU_ensemble))    
 
+    addelement!(c, "use_eam", "$(co.use_eam)" )
+    
     if compress
         io=gzopen(filename*".gz", "w")
     else
@@ -367,6 +373,7 @@ function read_coefs(filename, directory = missing)
         lim = missing
     end
     if haskey(d["coefs"], "repval")
+#        println(d["coefs"]["repval"])
         repval = str2tuplesdict(eval(d["coefs"]["repval"]))
     else
         repval = missing
@@ -378,13 +385,19 @@ function read_coefs(filename, directory = missing)
         datH_ensemble = deepcopy(datH)
     end
 
-    if haskey(d["coefs"], "datU_ensemble")
-        datU_ensemble  = parse_str_ARR_float(d["coefs"]["datU_ensemble"])
-    else
-        datU_ensemble = deepcopy(datU)
+#    if haskey(d["coefs"], "datU_ensemble")
+#        datU_ensemble  = parse_str_ARR_float(d["coefs"]["datU_ensemble"])
+#    else
+#        datU_ensemble = deepcopy(datU)
+#    end
+
+    use_eam = false
+    if haskey(d["coefs"], "use_eam")
+        use_eam = parse(Bool, d["coefs"]["use_eam"])
     end
     
-    co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, datH_ensemble = datH_ensemble)
+    
+    co = make_coefs(names,dim, datH=datH, datS=datS, datU=datU, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, datH_ensemble = datH_ensemble, use_eam=use_eam)
 
     return co
     
@@ -399,19 +412,19 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, datH_ensemble = missing, datU_ensemble = missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, datH_ensemble = missing, datU_ensemble = missing, use_eam=false)
 
 #    println("make coefs")
 #    sort!(at_list)
     totU = 0
     if version == 2 || version == 3
-        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim)
+        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim, use_eam=use_eam)
     elseif version == 1
         totH,totS, data_info, orbs = get_data_info_v1(at_list, dim)
     else
         println("warning, bad version $version")
         version = 2
-        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim)
+        totH,totS, data_info, orbs, totU = get_data_info_v2(at_list, dim, use_eam=use_eam)
     end
 
 #    println("make_coefs ", at_list)
@@ -631,7 +644,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, datU=missing, cuto
 #        println(typeof(x))
 #        end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU, datH_ensemble, datU_ensemble, n_ensemble)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, datU, totU, datH_ensemble, datU_ensemble, n_ensemble, use_eam)
 
 end
     
@@ -659,7 +672,7 @@ function plot_database(database, entry, t=missing)#::coefs)
         return st
     end
 
-    dist = collect(4.0:0.1:21)
+    dist = collect(4.0:0.2:21)
 
     cut2 = cutoff_fn.(dist, cutoff2X-cutoff_length, cutoff2X)
     cut3 = cutoff_fn.(dist, cutoff3bX-cutoff_length, cutoff3bX)
@@ -670,7 +683,7 @@ function plot_database(database, entry, t=missing)#::coefs)
 #    styles = ["-b", "-g", "-r", "-c", "-m", "-k", "-y","--b", "--g", "--r", "--c", "--m", "--k", "--y", ":b", ":g", ":r", ":c", ":m", ":k", ":y"]
 #    ns = length(styles)
     linew = [2.5, 2.5,  2.5,  2.5, 2.0, 2.0,	2.0,  2.0, 1.5, 1.5,	1.5,  1.5, 1.0, 1.0,	1.0,  1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-    
+    linew = [linew; linew; linew]
     cs=1
     handels = String[]
     plts = []
@@ -728,16 +741,17 @@ function plot_database(database, entry, t=missing)#::coefs)
                 end
             end
 
-            if key[3] == :O 
+            if key[end] == :O 
 #            if false
 
                 d = dat.datH
-                if key[1] == key[2]
+                if true
+                #                if key[1] == key[2]
 
                     a = two_body_O(dist, d[ind[1:n_2body_onsite]])
 #                    s = styles[cs%ns + 1]
                     cs += 1
-                    plot!(dist, a.*cut_on,  label=legendS, LineWidth=linew[cs])
+                    plot!(dist, a.*cut_on,  label=legendS, LineWidth=linew[cs], linestyle=:dash)
                 end
                 if (key[1] == :s && key[2] == :p) ||    (key[2] == :s && key[1] == :p)
                     b = two_body_O(dist, d[1:n_2body_onsite])
@@ -832,15 +846,15 @@ Figure out the arrangement of data in a `coefs` file.
 
 Loops over various combinations of orbitals and atoms and assigns them places in `datH` and `datS`, depending on the terms included in the model and the dimensionaly.
 """
-function get_data_info_v2(at_set, dim)
+function get_data_info_v2(at_set, dim; use_eam=false)
     
     totU = 0
     data_info = Dict{Any, Array{Int64,1}}()
     orbs = []
     if dim == 0
-        at_list = Symbol.(collect(at_set))
-        data_info[[:eam, at_list[1]]] = [1,2,3]
-        return 3 ,0, data_info, orbs
+        #at_list = Symbol.(collect(at_set))
+        #data_info[[:eam, at_list[1]]] = [1,2,3]
+        #return 3 ,0, data_info, orbs
 
         #return totHO ,totS, data_info, orbs
         
@@ -944,7 +958,7 @@ function get_data_info_v2(at_set, dim)
                 end
             end
             return tot
-        end
+        end            
 
         totH = get2bdy(n_2body, :H)
         totS = get2bdy(n_2body_S, :S)
@@ -993,6 +1007,20 @@ function get_data_info_v2(at_set, dim)
                     end
                 end
             end
+            if use_eam 
+                if same_at == true
+                    for orb in orbs1
+                        data_info[[at1, at2, :eam, orb]] = tot+1:tot+n_eam
+                        tot += n_eam
+                    end
+                else
+                    data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
+                    tot += n_eam
+                    data_info[[at2, at1, :eam]] = tot+1:tot+n_eam
+                    tot += n_eam
+                end
+            end 
+            
             return tot
         end
 
@@ -3673,7 +3701,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             if !haskey(twobody_arrays, at_set)
 
-                coef = make_coefs(at_set, 2)
+                coef = make_coefs(at_set, 2, use_eam=use_eam)
 
                 #                println("2bdy $at_set")                
                 #                println("atset ", at_set)
@@ -3718,20 +3746,20 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     end
 
 
-    eam_arrays = Dict()
-
-    if use_eam
-
-        for c in crys.stypes
-            at_set = Set((c, ))
-            if !haskey(eam_arrays, at_set)
-                coef = make_coefs(at_set, 0)
-                hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
-                eam_arrays[at_set] = [hmat, coef]
-            end
-            
-        end
-    end
+#    eam_arrays = Dict()
+#
+#    if use_eam
+#
+#        for c in crys.stypes
+#            at_set = Set((c, ))
+#            if !haskey(eam_arrays, at_set)
+#                coef = make_coefs(at_set, 0)
+#                hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
+#                eam_arrays[at_set] = [hmat, coef]
+#            end
+#            
+#        end
+#    end
     
 
 
@@ -4063,10 +4091,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             if dist > 1e-5
                 ad = EXP_a[1]*dist
                 expa=exp.(-0.5*ad)
-            
-                rho[a1, 1] += (1.0 * expa) * cut
-                rho[a1, 2] += (1.0 .- ad) * expa * cut
-            #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
+
+                if use_eam
+                    rho[a1, 1] += (1.0 * expa) * cut
+                    rho[a1, 2] += (1.0 .- ad) * expa * cut
+                end
+                #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
             end
             
             for o1 = orb2ind[a1]
@@ -4124,22 +4154,42 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             end
         end
     end
-
     if use_eam
         for a in 1:crys.nat
+            t1 = crys.stypes[a]
+            at_set = Set((t1,t1)) #fix later
+            coef = twobody_arrays[at_set][3]
+            println("coef")
+            println(coef)
+            #            for o = orb2ind[a]
             for o = orb2ind[a]
+                a2a,t2a,s2 = ind2orb[o]
+                sum2 = summarize_orb(s2)
+
+                
+                io = coef.inds[[t1,t1,:eam, sum2]] #fix later
+
                 aa,t,s = ind2orb[o]
                 ind = ind_conversion[(o,o,c_zero)]
+                twobody_arrays[at_set][1][ind,io] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+            end
+        end
+    end
+#    if use_eam
+#        for a in 1:crys.nat
+#            for o = orb2ind[a]
+#                aa,t,s = ind2orb[o]
+#                ind = ind_conversion[(o,o,c_zero)]
 #                println("t $t ", typeof(t))
-                at_set = Set((t,))
+#                at_set = Set((t,))
 #                println(at_set)
 #                println("at_set ", at_set)
 #                println(keys(eam_arrays))
 #                println("RHO $(rho[a,:])    vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])")
-                eam_arrays[at_set][1][ind,:] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
-            end
-        end
-    end    
+#                eam_arrays[at_set][1][ind,:] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+#            end
+#        end
+#    end    
     
     ########Check for duplicates. For fitting purposes, we don't need symmetrically equivalent entries. Memory saver.
     println("time duplicates")
@@ -4272,14 +4322,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
         end
 
-        for key in keys(eam_arrays)
-
-            th =  deepcopy(eam_arrays[key][1][keep,:])
-            coef = deepcopy(eam_arrays[key][2])
-
-            eam_arrays[key] = [th, coef]
-
-        end
+#        for key in keys(eam_arrays)
+#
+#            th =  deepcopy(eam_arrays[key][1][keep,:])
+#            coef = deepcopy(eam_arrays[key][2])#
+#
+#            eam_arrays[key] = [th, coef]#
+#
+#        end
         
         hvec = hvec[keep]
         svec = svec[keep]
@@ -4302,9 +4352,9 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     for k in keys(threebody_arrays)
         threebody_arrays[k][1] = sparse(threebody_arrays[k][1])
     end
-    for k in keys(eam_arrays)
-        eam_arrays[k][1] = sparse(eam_arrays[k][1])
-    end
+#    for k in keys(eam_arrays)
+#        eam_arrays[k][1] = sparse(eam_arrays[k][1])
+#    end
 
 
     #    println("test correlation")
@@ -4322,7 +4372,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     #        end
     #    end
 
-    return twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_conversion, dmin_types, dmin_types3, eam_arrays
+    return twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_conversion, dmin_types, dmin_types3 #, eam_arrays
 
 end
 ################################################################################################################################ppp
@@ -7626,7 +7676,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=false, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
 
 
     #        verbose=true
@@ -8040,9 +8090,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         laguerre_fast!(dist_a, lag_arr)
 
                         
-                        rho_th[a1, 1, id] += lag_arr[1] * cut_on
-                        rho_th[a1, 2, id] += lag_arr[2] * cut_on
-
+                        if use_eam
+                            rho_th[a1, 1, id] += lag_arr[1] * cut_on
+                            rho_th[a1, 2, id] += lag_arr[2] * cut_on
+                        end
 #                        println("add rho $a1 dist $dist_a 1 $(lag_arr[1] * cut_on) 2 $(lag_arr[2] * cut_on)")
                         
                         core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS)
@@ -8061,15 +8112,31 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 #        println("rho $rho")
         for a = 1:crys.nat
             t = crys.stypes[a]
-            d = database[(:eam, t)].datH
-            temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
-#            println("a $a d $d rho[a,:] $(rho[a,:])  temp $temp     vals $([rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]])  ")
-            for ox = 1:norb[a]
-                oxx = orbs_arr[a,ox,1]
-                H[ oxx, oxx, c_zero] += temp
+            co  = database[(t,t)]
+            if co.use_eam
+                for o = orb2ind[a]
+                    a2a,t2a,s2 = ind2orb[o]
+                    sum2 = summarize_orb(s2)
+
+
+                #                for o1 = 1:norb[a]
+ #                   sum1 = orbs_arr[a,o1,3]
+ #                   oxx = orbs_arr[a,o1,1]
+                    println("try to add $([t,t,:eam, sum2])~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                    if [t,t,:eam, sum2] in keys(co.inds)
+                        
+                        
+                        d = co.datH[co.inds[[t,t,:eam, sum2]]]
+                        println("try to o $o  add d $(d)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                        temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
+                        
+                        H[ o, o, c_zero] += temp
+                    end
+                end
             end
         end
     end
+
         #o = orbs_arr[a,ox,1]
             #s = orbs_arr[a,ox,2]
             #sum1 = orbs_arr[a,ox,3]

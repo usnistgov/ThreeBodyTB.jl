@@ -179,6 +179,11 @@ function setup_proto_data()
     CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "scf", "nscf", false]
 
     CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2", "nscf", false]
+    CalcD["line_big"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2big", "nscf", false]
+    
+
+    CalcD["line_double"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol_double", "nscf", false]
+
     CalcD["line_rumple"] = ["$STRUCTDIR/line.in.rumple.up", "vc-relax", "z", "scf", "nscf", false]
 
 
@@ -195,9 +200,11 @@ function setup_proto_data()
     CalcD["hcp"] = ["$STRUCTDIR/hcp.in.up", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["diamond"] = ["$STRUCTDIR/diamond.in.up", "vc-relax", "all", "vol-mid", "nscf", false]
     CalcD["graphene"] = ["$STRUCTDIR/fake_graphene.in", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
+    CalcD["buckle_graphene"] = ["$STRUCTDIR/buckle_graphene.in", "vc-relax", "2Dxy", "vol2", "nscf", false]
     CalcD["hex"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
     CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "scf", "nscf", false]
+    CalcD["square_big"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "vol2big", "nscf", false]
 
 
     CalcD["el_party"] =       ["$STRUCTDIR/dimer.in.small", "relax", "2Dxy", "el_party", "nscf", false]
@@ -219,6 +226,9 @@ function setup_proto_data()
     CalcD["core_atom2"] =       ["$STRUCTDIR/core_atom.in", "scf", "2Dxy", "core_atom2", "nscf", false]
     CalcD["core_atom3"] =       ["$STRUCTDIR/core_atom.in", "scf", "2Dxy", "core_atom3", "nscf", false]    
     CalcD["core_atom_tet"] =       ["$STRUCTDIR/core_atom_tet.in", "scf", "2Dxy", "core_atom_tet", "nscf", false]    
+
+
+    CalcD["dimer_trimer"] =       ["$STRUCTDIR/dimer_big.in", "relax", "2Dxy", "dimer_trimer", "nscf", false]
     
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
     CalcD["dimer_short"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords-short", "nscf", false]
@@ -234,9 +244,13 @@ function setup_proto_data()
 
     CalcD["bcc_tet"] = ["$STRUCTDIR/bcc_tet.in", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "relax", "all", "scf", "nscf", false]
+    CalcD["trimer_relax"] =       ["$STRUCTDIR/trimer_relax.in", "relax", "all", "vol2", "nscf", false]
 
-    CalcD["trimer"] =       ["$STRUCTDIR/atom_small.in", "none", "2Dxy", "coords_trimer", "nscf", false]
+    CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "relax", "all", "vol2", "nscf", false]
+    CalcD["trimer_hex_big"] =       ["$STRUCTDIR/trimer.in.hex", "relax", "all", "vol2big", "nscf", false]
+    CalcD["trimer_line_big"] =       ["$STRUCTDIR/trimer.in" , "relax", "all", "vol2big", "nscf", false]
+    CalcD["trimer_tet_big"] =       ["$STRUCTDIR/trimer_tet.in" , "relax", "all", "vol2big", "nscf", false]
+
     CalcD["trimerX"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerX", "scf", false]
     CalcD["trimerY"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_trimerY", "scf", false]
 
@@ -622,7 +636,7 @@ function setup_proto_data()
 
 
 
-    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min",  "bcc_3lay", "fcc_3lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line"]
+    core_mono = [     "sc", "atom",     "bcc",     "bcc_inv",     "fcc",     "hcp",  "diamond",     "graphene",     "hex",     "square",     "dimer" ,"tri_min",  "bcc_3lay", "fcc_3lay", "hex_2lay", "bcc_2lay", "fcc_dense", "bcc_dense", "znse_dense", "line", "trimer_hex"]
 
 
 
@@ -747,6 +761,10 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length([ 0.95 1.0 1.05])
         elseif newst == "vol2"
             ncalc = length([ 0.94 1.0 ])
+        elseif newst == "vol_double"
+            ncalc = 1
+        elseif newst == "vol2big"
+            ncalc = 6
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
         elseif newst == "vol-charge"
@@ -808,10 +826,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [0.80 0.83])
         elseif newst == "shape"
             ncalc = length( [-0.06 -0.03 0.03 0.06])
+        elseif newst == "dimer_trimer"
+            ncalc = 15
         elseif newst == "coords"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
-            ncalc = 10
+            ncalc = 11
         elseif newst == "core_dimer"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
@@ -1091,6 +1111,17 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
             elseif newst == "vol2"
                 for x in [ 0.91 1.0 ]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "vol_double"
+                c = deepcopy(cnew)
+                c.A[3,3] = c.A[3,3] * 1.9
+                push!(torun, deepcopy(c))
+
+            elseif newst == "vol2big"
+                for x in [ 0.91, 0.94, 0.97,  1.0, 1.05, 1.2 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1742,16 +1773,54 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
 
+            elseif newst == "dimer_trimer"
+                c = deepcopy(cnew)
+                dist = c.coords[2,3] - c.coords[1,3]
+                for x in [-0.05, 0.0, 0.05, 0.1, 0.5, 0.7, 0.8]
+                    c = deepcopy(cnew)
+                    c.coords[1,3] = 0.5 - dist/2 * (1 + x)
+                    c.coords[2,3] = 0.5 + dist/2 * (1 + x)
+                    push!(torun, deepcopy(c))
+
+                    c = deepcopy(cnew)
+                    ct = makecrys(c.A, [0 0.5 0.5-dist/2*(1 + x); 0 0.5 0.5+dist/2* (1 + x); 0 0.5 + dist*sqrt(3)/2* (1 + x)   0.5 ], [c.stypes[1],c.stypes[1],c.stypes[1]])
+                    push!(torun, deepcopy(ct))
+                    
+                end
+
+                c = deepcopy(cnew)
+                x = 0.8
+                ct = makecrys(c.A, [0 0.5 0.5; 0 0.5 0.5+dist*(1+x); 0 0.5 0.5-dist*(1+x)], [c.stypes[1],c.stypes[1],c.stypes[1]])
+                push!(torun, deepcopy(ct))
+
+                c = deepcopy(cnew)
+                x = 0.7
+                ct = makecrys(c.A, [0 0.5 0.5; 0 0.5 0.5+dist*(1+x); 0 0.5 0.5-dist*(1+x)], [c.stypes[1],c.stypes[1],c.stypes[1]])
+                push!(torun, deepcopy(ct))
+
+                c = deepcopy(cnew)
+                x = 0.5
+                ct = makecrys(c.A, [0 0.5 0.5; 0 0.5 0.5+dist*(1+x); 0 0.5 0.5-dist*(1+x)], [c.stypes[1],c.stypes[1],c.stypes[1]])
+                push!(torun, deepcopy(ct))
+                
+                
             elseif newst == "coords"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
                 #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
-                for x in [-0.06 -0.04 -0.03 -0.02 -0.00 0.02 0.04 0.1 0.2 0.3]
+                for x in [-0.06 -0.04 -0.03 -0.02 -0.00 0.02 0.04 0.1 0.2 0.3 ]
                     c = deepcopy(cnew)
                     c.coords[1,3] = c.coords[1,3] * (1 - x)
                     c.coords[2,3] = c.coords[2,3] * (1 + x)
                     push!(torun, deepcopy(c))
                 end
 
+                c = deepcopy(cnew)
+                c.coords[1,3] = c.coords[1,3] * (1 - 0.2)
+                c.coords[2,3] = c.coords[2,3] * (1 + 0.2)
+                c.A[3,3] = c.A[3,3] * 1.3
+                push!(torun, deepcopy(c))
+
+                
             elseif newst == "core_atom3"
                 tot_charge = []
                 for s in [0.80, 0.90]

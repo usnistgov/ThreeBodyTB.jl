@@ -53,10 +53,16 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
 
     tbc = missing
     flag =true
+    en = 0.0
 
-    en, tbc, flag = scf_energy(c_start, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
-    println("c start ")
-    println(c_start)
+    for f = 1:0.1:2
+        try
+            c_work = deepcopy(c_start*f)
+            en, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
+            break
+        catch
+        end        
+    end
     println("en start $en")
     en_new = 0.0
     energies = zeros(nsteps)
@@ -94,15 +100,22 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
       #      println(c_current)
       #      println("c_work after")
        #     println(c_work)
-            
+
+            en_new = 0.0
             @suppress begin
                 if !ismissing(tbc)
                     eden = tbc.eden
                 else
                     eden = missing
                 end
-                    
-                en_new, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, eden = tbc.eden)
+                try
+                    en_new, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, eden = tbc.eden)
+                catch err
+                    println("err ", err)
+                    println("c_work")
+                    println(c_work)
+                    flag = false
+                end
             end
 #            println("en_new $en_new")
             
@@ -140,8 +153,9 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
 #            println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         end
         println("step $step accept $accept en $en         step_size $(round(step_size*1000)/1000) step_size_strain $(round(step_size_strain*1000)/1000)   ")        
+        flush(stdout)
         if adjust_step
-            if accept[2]
+            if accept[end]
                 step_size = step_size * 1.08
             else
                 step_size = step_size * 0.90

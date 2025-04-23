@@ -100,9 +100,9 @@ Used for simple linear fitting of coefficients. Interface for more complicated f
 - `fit_threebody_onsite=true` - Fit threebody onsite coefficients. See above.
 - `do_plot=false` - show simple plot comparing coefficients to tbc reference.
 """
-function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=Dict())
+function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=Dict(), fit_eam=false)
 
-    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, starting_database=starting_database )
+    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, starting_database=starting_database, fit_eam=fit_eam )
     return ret[1]
 
 end
@@ -114,8 +114,8 @@ Make lots of preperations for fitting. Moves things around, put stuff in materic
 """
 function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, factor_dict = missing, fit_umat = false, fit_eam = false)
 
-    println("prepare_for_fitting $fit_umat")
-#    sleep(10)
+    println("prepare_for_fitting $fit_eam !!!!!!!!!!!!!!!!")
+    #sleep(10)
     
     tbc_list = []
     tbc_list_real = []
@@ -904,7 +904,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     
     if return_database
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] )
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam)
     else
         database = Dict()
     end
@@ -957,9 +957,10 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, cu=missing, UIND = missing)
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, cu=missing, UIND = missing, fit_eam = false)
     println("make_database SCF is $scf")
-#    println("cu $cu")
+    println("cu $cu")
+    println("UIND $UIND")
     if ismissing(starting_database)
         database = Dict()
     else
@@ -1010,9 +1011,9 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
 
         
         if !ismissing(UIND) 
-            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, datU=cu[uind])
+            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, datU=cu[uind], use_eam=fit_eam)
         else
-            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier)
+            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam)
         end            
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
@@ -1639,7 +1640,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, cs_start = cs_start, fit_umat = fit_umat, gen_add_ham = gen_add_ham)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, cs_start = cs_start, fit_umat = fit_umat, gen_add_ham = gen_add_ham, fit_eam=fit_eam)
 
 end
 
@@ -2282,7 +2283,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 
 end
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing, fit_umat = fit_umat, gen_add_ham = false)
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, returnstuff=false, topstuff=missing, returndatabase=true, cs_start=missing, fit_umat = fit_umat, gen_add_ham = false, fit_eam=false)
 
     println("MAIN")
     #    sleep(10)
@@ -3485,7 +3486,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         if returndatabase == false
             database =missing
         else
-            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND )
+            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], cu=cu_big, UIND=UIND, fit_eam=fit_eam )
         end
 
 #        println("chX2 v3 ", chX2)
