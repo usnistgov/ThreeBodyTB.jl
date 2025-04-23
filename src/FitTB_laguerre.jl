@@ -230,7 +230,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
             end
             println("goodmin == true")
             keepind = [keepind;counter]
-            println(keepind)
+#            println(keepind)
         else
             keepind = [keepind;counter]
         end
@@ -1855,8 +1855,10 @@ end
 
 function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starting_database ,  update_all , fit_threebody, fit_threebody_onsite, do_plot, energy_weight, rs_weight, ks_weight , niters, lambda, leave_one_out, RW_PARAM, KPOINTS, KWEIGHTS, nk_max, start_small, fit_to_dft_eigs, returnstuff)
 
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_data
-    
+#    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_data
+   
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, rind, X_Unew_BIG_list, Xc_Unew_BIG_list, UIND, SYM_INFO  = prepare_data
+ 
     println("AAAAAAAA ch_lin ", ch_lin)
     
     println("keepind " , length(keepind), " " , sum(keepind))
@@ -1987,7 +1989,7 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     
 
 
-    function get_electron_density(tbc, kpoints, kweights, vects, occ, S)
+    function get_electron_density_inside(tbc, kpoints, kweights, vects, occ, S)
 
         nk = size(kpoints)[1]
         nw = size(S)[3]
@@ -2027,12 +2029,16 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
     end
 
     #PREPARE REFERENCE ENERGIES / EIGENVALUES
+    println("SYM_INFO ", SYM_INFO)
+    println("typeof ", typeof(SYM_INFO))
+    println("len ", length(SYM_INFO))
+    println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
     println("prepare reference eigs")
     #println([length(list_of_tbcs), length(KPOINTS), length(KWEIGHTS), length(dft_list), length(SPIN)])
     c=0
     NVAL = zeros(Float64, length(list_of_tbcs))
     NAT = zeros(Int64, length(list_of_tbcs))
-    @time for (tbc, kpoints, kweights, d, spin ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
+    @time for (tbc, kpoints, kweights, d, spin, sym_info ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, SYM_INFO)
         c+=1
 
         println("$c tbc")
@@ -2158,8 +2164,22 @@ function top(list_of_tbcs, prepare_data, weights_list, dft_list, kpoints, starti
 
         end
         if !ismissing(tbc) && typeof(tbc) <: tb_crys_kspace
-            eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            eden, h1, dq, h1spin = get_electron_density_inside(tbc, kpoints, kweights, vmat, occs, smat)
+            eden2, h12, dq2, h1spin2 = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+#            println("eden diff ", eden - eden2)
+            #println("before ", eden[1:9] - eden[10:18])
+            for spin =1:tbc.tb.nspin
+                SS, atom_trans, orb2ind = sym_info
+                eden[spin,:] = symmetrize_charge_den(tbc.crys, eden[spin,:] , SS, atom_trans, orb2ind)
+            end
+#            println("eden diff ", eden - eden2)
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
+#            println("assign initial eden ", eden)
+#            println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")#
+
+ #           println()
+
+            
 #            println("x ", tbc.tb.h1)
             
             H1[c,1:nw, 1:nw] = tbc.tb.h1
@@ -2507,6 +2527,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 dq_eden = deepcopy(DQ_EDEN[c,1:nw])
                 h1_umat = zeros(nw, nw)
                 eden =  deepcopy(E_DEN[c,1, 1:nw])
+#                println("eden start ", eden)
+#                println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!x")
             else
                h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
@@ -2577,6 +2599,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                             H += h1spin_in[spin,:,:] .* S
                         end
                         try
+#                            println("H")
+#                            println(0.5*(H+H'))
+#                            println()
+#                            println("S")
+#                            println(S)
+#                            println()
                             vals, vects = eigen(0.5*(H+H'), S)
 #                            println("vals !!!!!  ", vals)
                         catch
@@ -2647,6 +2675,8 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
                     eden_new, h1_new, dq_new, dq_eden_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
 
+#                    println("eden_new ", eden_new)
+                    
                     for spin =1:tbc.tb.nspin
                         SS, atom_trans, orb2ind = sym_info
                         eden_new[spin,:] = symmetrize_charge_den(tbc.crys, eden_new[spin,:] , SS, atom_trans, orb2ind)
@@ -2680,6 +2710,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     #dq_eden = dq_eden*(1-mix) + dq_eden_new[:] * mix
                     eden = eden*(1-mix) + eden_new[:] * mix
 #                    println("eden ", eden)
+#                    println()
                     EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
                     #                    println("c $c dq_eden $dq_eden")
                     #h1spin = h1spin*(1-mix) + h1spin_new * mix
@@ -3140,7 +3171,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        println("size chX do_iters ", size(chX))
         err_old_en = 1.0e6
 
-        mix = 0.03
+        mix = 0.05
 
 
 
@@ -3150,10 +3181,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             println("SCF iters $iters is $scf")
 
             if iters > 2
-                mix = 0.01
+                mix = 0.05
             end
-            if iters > 4
-                mix = 0.25
+            if iters >= 4
+                mix = 0.4
             end
 
             if scf
