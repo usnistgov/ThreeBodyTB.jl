@@ -656,8 +656,10 @@ Steps:
                         println("...")
                     end
                     try
-                        cmd=`\rm $d/$f`
-                        s = read(cmd, String)
+                        #cmd=`\rm $d/$f`
+                        #s = read(cmd, String)
+                        rm("$d/$f")
+
                         tot += 1
                     catch
                         println("failed to delete $d/$f")
