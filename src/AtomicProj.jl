@@ -424,7 +424,12 @@ Steps:
 
 
     end
-        
+
+    if maximum(abs.(dft_nscf.bandstruct.eigs[:,1,:] - dft.bandstruct.eigs[:,1,:])) > 1e-2
+        println("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
+        throw("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
+    end
+    
 #    catch
 #        println("failed nscf")
 #        println(s)
@@ -550,6 +555,12 @@ Steps:
         println("en_froz: ", en_froz, " band froz $band_froz versus fermi $(dft.bandstruct.efermi)")
         println("efermi energy ", dft.bandstruct.efermi)
         println("nk ", size(dft_nscf.bandstruct.kpts), "     ", size(dft_nscf.bandstruct.kweights))
+
+
+#    println("EIGS START b")
+#    println(d.bandstruct.eigs[61,:,1])
+#    sleep(2)
+
         ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf, energy_froz=en_froz+.05, shift_energy=shift_energy, gamma_only=gamma_only);
         #A,B,C = AtomicProj.create_tb(p, dft, energy_froz=en_froz+.01); 
         #return A,B,C        
@@ -997,7 +1008,9 @@ Does the main creation of TB hamiltonian from DFT projection data in k-space.
 function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true, gamma_only = false)
 
 
-
+#    println("EIGS START")
+#    println(d.bandstruct.eigs[61,:,1])
+#    sleep(2)
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
 
@@ -1049,7 +1062,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 end
             end
         end
-#        if k < 20
+
+
+        #        if k < 20
 #            println("$k EIGS ", EIGS[k,1:5])
 #        end
         
@@ -1062,6 +1077,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     end
 
     #    println(p.nspin, " PROJ check ", PROJ[1,1,1,1])
+
+#    println("EIGS 61 b ", EIGS[61,:,1])
+#    sleep(2.0)
     
     if shift_energy
         
@@ -1111,7 +1129,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     else
         println("no shift: match dft eigenvals")
     end
-    
+
+#    println("EIGS 61 ", EIGS[61,:,1])
+#    sleep(2.0)
 
     P = zeros(Complex{Float64}, NBND, NBND)  #p.bs.nbnd-nsemi,p.bs.nbnd-nsemi)
 
@@ -1252,7 +1272,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
     println("Min Palt: $Palt_min")
 
-    println("EIG TEST ", eigvals(ham_k[:,:,1,1]))
+#    println("EIG TEST ", eigvals(ham_k[:,:,1,1]))
     
 
     #here we shift the eigenvalues around to match DFT eigenvalues below a cutoff.
@@ -1308,16 +1328,19 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 end
 
 #acutally do the change
+
                 for n in 1:nwan
                     if val_pw[order[n]] < energy_froz
+#                        println("k $k n $n old ", [val_pw[order[n]], val_tb[n] ])
                         val_tb_new[n] = val_pw[order[n]]
+
                     elseif val_pw[order[n]] < energy_froz2
                         x=cutoff(val_tb[n], energy_froz, energy_froz2)
                         val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
                     end
                     
                 end
-
+#                println()
 #resym
                 for n = 1:nwan-1
                     c= [n]
