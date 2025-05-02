@@ -1151,6 +1151,33 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
 end
 
 
+function create_tb_crys_kspace_from_tbc(tbc, kpts, kweights; kgrid = [1,1,1])
+    nk = length(kweights)
+    nspin = tbc.tb.nspin
+    nwan = tbc.tb.nwan
+    
+    Hk_arr = zeros(Complex{Float64}, nwan, nwan, nk, nspin)
+    Sk = zeros(Complex{Float64}, nwan, nwan, nk)
+
+    for spin = 1:nspin
+        for k = 1:nk
+            kpt = kpts[k,:]
+            kw = kweights[k]
+            tbc_temp  = deepcopy(tbc)
+#            tbc_temp.tb.h1 .= 0.0
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpt)
+            Hk_arr[:,:,k,spin ] = hk - tbc.tb.h1 .* sk
+            Sk[:,:,k,spin ] = sk
+        end
+    end
+
+    tbk =  make_tb_k(Hk_arr, kpts, kweights, Sk, h1 = tbc.tb.h1 ,h1spin = tbc.tb.h1spin, grid=kgrid)
+
+    return make_tb_crys_kspace(tbk, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden = tbc.eden, gamma = tbc.gamma, u3 = tbc.u3, background_charge_correction=tbc.background_charge_correction, efermi = tbc.efermi)
+
+    
+end
+
 """
         function make_tb(H, ind_arr, r_dict::Dict; h1=missing)
 
