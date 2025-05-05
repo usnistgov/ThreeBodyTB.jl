@@ -1171,7 +1171,13 @@ function create_tb_crys_kspace_from_tbc(tbc, kpts, kweights; kgrid = [1,1,1])
         end
     end
 
-    tbk =  make_tb_k(Hk_arr, kpts, kweights, Sk, h1 = tbc.tb.h1 ,h1spin = tbc.tb.h1spin, grid=kgrid)
+    if tbc.tb.scfspin == false && tbc.tb.nspin == 1
+        h1spin = missing
+    else
+        h1spin = tbc.tb.h1spin
+    end
+       
+    tbk =  make_tb_k(Hk_arr, kpts, kweights, Sk, h1 = tbc.tb.h1 ,h1spin = h1spin, grid=kgrid)
 
     return make_tb_crys_kspace(tbk, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden = tbc.eden, gamma = tbc.gamma, u3 = tbc.u3, background_charge_correction=tbc.background_charge_correction, efermi = tbc.efermi)
 
