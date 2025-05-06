@@ -176,7 +176,7 @@ function setup_proto_data()
     CalcD["bcc_inv"] = ["$STRUCTDIR/bcc_atom2.in", "vc-relax", "all", "break_inv", "nscf", false]
     CalcD["fcc"] = ["$STRUCTDIR/fcc.in.up", "vc-relax", "all", "vol-mid", "nscf", false]
 
-    CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "scf", "nscf", false]
+    CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "vol2big", "nscf", false]
 
     CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2", "nscf", false]
     CalcD["line_big"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2big", "nscf", false]
@@ -303,6 +303,7 @@ function setup_proto_data()
 
     #    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
     CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "scf", "nscf", false]
+    CalcD["cscl_big"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
     CalcD["cscl_layers"] = ["$STRUCTDIR/binary/cscl_layers.in", "vc-relax", "all", "scf", "nscf", false]
     CalcD["cscl_inv"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "break_inv", "nscf", false]
 
@@ -366,7 +367,7 @@ function setup_proto_data()
 
 
     CalcD["znse_shear"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "shear", "nscf", false]
-    CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "scf", "nscf", false]
+    CalcD["hbn"] =  ["$STRUCTDIR/binary/hbn.in", "vc-relax", "2Dxy", "vol-mid", "nscf", false]
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
 
     CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
@@ -405,8 +406,8 @@ function setup_proto_data()
 
     CalcD["p2ca3"] = ["$STRUCTDIR/binary/POSCAR_p2ca3", "vc-relax", "all", "scf", "nscf", false]
 
-    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle.in", "relax", "all", "scf", "nscf", false]
-    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle2.in", "relax", "all", "scf", "nscf", false]
+    CalcD["triangle"] = ["$STRUCTDIR/binary/triangle.in", "relax", "all", "vol2", "nscf", false]
+    CalcD["triangle2"] = ["$STRUCTDIR/binary/triangle2.in", "relax", "all", "vol2", "nscf", false]
 
 
     CalcD["beta_sn2"] = ["$STRUCTDIR/binary/beta_sn.in.up", "vc-relax", "all", "vol2", "nscf", false]
@@ -767,6 +768,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 6
         elseif newst == "vol-mid"
             ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
+        elseif newst == "vol-big"
+            ncalc = length( [ 0.9 0.95 1.0 1.05 1.1 ])
         elseif newst == "vol-charge"
             ncalc = 12
         elseif newst == "sc-charge"
@@ -810,7 +813,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "vol-verydense"
             ncalc = length( [0.77 0.82 0.75 0.70 0.65 0.60 0.55 0.50])
         elseif newst == "vol-big"
-            ncalc = length( [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ])
+            ncalc = 8
         elseif newst == "vol-huge"
             ncalc = length( [0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 2.0 2.5 3.0 3.5 4.0 5.0])
         elseif newst == "2D_tern"
@@ -1110,7 +1113,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "vol2"
-                for x in [ 0.91 1.0 ]
+                for x in [ 0.95, 1.0, 1.2 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1121,7 +1124,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 push!(torun, deepcopy(c))
 
             elseif newst == "vol2big"
-                for x in [ 0.91, 0.94, 0.97,  1.0, 1.05, 1.2 ]
+                for x in [ 0.9, 0.95, 1.0, 1.05, 1.2, 1.5 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1140,6 +1143,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
             elseif newst == "vol-mid"
                 for x in [ 0.9 0.95 1.0 1.05 1.1 ]
+                    c = deepcopy(cnew)
+                    c.A = c.A * x
+                    push!(torun, deepcopy(c))
+                end
+            elseif newst == "vol-big"
+                for x in [ 0.9 0.95 1.0 1.05 1.1 1.3 1.5 1.7]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1406,12 +1415,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
                 end
-            elseif newst == "vol-big"
-                for x in [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ]
-                    c = deepcopy(cnew)
-                    c.A = c.A * x
-                    push!(torun, deepcopy(c))
-                end
+#            elseif newst == "vol-big"
+#                for x in [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ]
+#                    c = deepcopy(cnew)
+#                    c.A = c.A * x
+#                    push!(torun, deepcopy(c))
+#                end
             elseif newst == "vol-huge"
                 for x in [0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 2.0 2.5 3.0 3.5 4.0 5.0]
                     c = deepcopy(cnew)
@@ -1807,18 +1816,19 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             elseif newst == "coords"
 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
                 #for x in [-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
-                for x in [-0.06 -0.04 -0.03 -0.02 -0.00 0.02 0.04 0.1 0.2 0.3 ]
+                for x in [-0.17 -0.13 -0.10 -0.05 -0.00 0.05  0.1 0.2 0.3 0.5 0.7]
                     c = deepcopy(cnew)
-                    c.coords[1,3] = c.coords[1,3] * (1 - x)
-                    c.coords[2,3] = c.coords[2,3] * (1 + x)
+                    dist = c.coords[2,3] - c.coords[1,3]
+                    c.coords[1,3] = 0.5 - min(dist / 2 * (1 + x), 0.25)
+                    c.coords[2,3] = 0.5 + min(dist / 2 * (1 + x), 0.25)
                     push!(torun, deepcopy(c))
                 end
 
-                c = deepcopy(cnew)
-                c.coords[1,3] = c.coords[1,3] * (1 - 0.2)
-                c.coords[2,3] = c.coords[2,3] * (1 + 0.2)
-                c.A[3,3] = c.A[3,3] * 1.3
-                push!(torun, deepcopy(c))
+#                c = deepcopy(cnew)
+#                c.coords[1,3] = c.coords[1,3] * (1 - 0.2)
+#                c.coords[2,3] = c.coords[2,3] * (1 + 0.2)
+#                c.A[3,3] = c.A[3,3] * 1.3
+ #               push!(torun, deepcopy(c))
 
                 
             elseif newst == "core_atom3"
@@ -2164,9 +2174,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords-small"
-                for x in [ -0.15  -0.10 -0.05  0.0 0.05 0.10  0.15  ]
+                for x in [ -0.10  -0.05  0.0 0.05 0.10  0.25  0.5  ]
                     c = deepcopy(cnew)
-                    c.coords = c.coords * (1+x)
+                    c.A = c.A * (1 + x)
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "coords-small-charge"

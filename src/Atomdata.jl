@@ -1907,7 +1907,10 @@ for key in keys(uniform_charge_interaction)
 end
 
 
-include("U_pairs.jl")
+data_temp = Dict()
+                 
+ewald_pairs = Dict()
+#include("U_pairs.jl")
 
 #neutral_fermi = Dict()
 #for k in keys(atoms)
