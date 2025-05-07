@@ -60,7 +60,7 @@ function test1()
               coefHLi = ThreeBodyTB.CalcTB.make_coefs(Set([:Li, :H]), 2, fillzeros=true)
               coefLi = ThreeBodyTB.CalcTB.make_coefs(Set([:Li, :Li]), 2, fillzeros=true)
 
-              coef.datU = [10.0, 10.0]
+              coef.datU = [100.0, 100.0]
               #coef.datU = [0.0, 0.0]
               coefHLi.datU = [0.0, 0.0, 0.0, 0.0]
               coefLi.datU = [0.0, 0.0]
@@ -79,16 +79,20 @@ function test1()
               EN_OLD = []
               tbc_list_new = deepcopy(tbc_list)
               for c in [c1,c2,c3,c4,c5,c6,c7,c8,c1a,c3a,c5a,c7a,c8a,c9a]
+              #tbc_list_new = []
+              #tbc_list_old = []
+              #for c in [c1a]
                   tbc = ThreeBodyTB.CalcTB.calc_tb_LV(c, database_trivialU, use_threebody=false, use_threebody_onsite=false, repel = false, use_umat = true) 
                   en, tbc, flag = scf_energy(tbc , mix = 0.05, iters = 300, repel=false,   conv_thr = 1e-8)
                   push!(EN, en)
                   push!(tbc_list_new, tbc)
-                  tbc = ThreeBodyTB.CalcTB.calc_tb_LV(c, newdatabase, use_threebody=false, use_threebody_onsite=false, repel = false, use_umat = true) 
+                  tbc = ThreeBodyTB.CalcTB.calc_tb_LV(c, database_trivial, use_threebody=false, use_threebody_onsite=false, repel = false, use_umat = true) 
                   en, tbc, flag = scf_energy(tbc , mix = 0.05, iters = 300, repel = false, conv_thr = 1e-8)
                   push!(EN_OLD, en)
+                  push!(tbc_list_old, tbc)                  
               end
           end
-          newdatabaseU = ThreeBodyTB.FitTB.do_fitting_recursive(deepcopy(tbc_list_new), fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = true, lambda = 1e-10, starting_database=database_start);          
+          newdatabaseU = ThreeBodyTB.FitTB.do_fitting_recursive(deepcopy(tbc_list_new), fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = true, lambda = 1e-10, starting_database=database_start, weights_list = ones(length(tbc_list_new)), energy_weight = 1.0, NLIM = 1, niters = 1);          
           
           EN_TEST = []
 

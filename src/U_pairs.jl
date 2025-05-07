@@ -2756,7 +2756,10 @@ function prepare(ewald_data)
 
     for line in split(ewald_data, "\n")
         sp = split(line)
-#        println("sp $sp")
+        if length(sp) == 0
+            continue
+        end
+        #        println("sp $sp")
         if length(sp) == 3
 #            println("x ",  (Symbol(sp[1]), Symbol(sp[2])), parse(Float64, sp[3]))
             ewald_pairs[(Symbol(sp[1]), Symbol(sp[2]))] = [parse(Float64, sp[3]), 0.0, 0.0]

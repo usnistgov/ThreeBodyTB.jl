@@ -113,7 +113,7 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
         tbc = calc_tb_LV_sparse(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge);
     end
     #println("done calc tb")
-    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
+#    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
     
