@@ -29,6 +29,11 @@ using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:global_length_units
 using ..ThreeBodyTB:no_display
 using ..Symmetry:get_kgrid_sym
+using ..DFToutMod:dftout
+using ..DFToutMod:bandstructure
+using ..TB:find_vbm_cbm
+using ..AtomicProj:proj_dat
+using ..TB:tb_indexes
 
 function get_projtype(tbc, ptype=missing)
 
@@ -346,6 +351,150 @@ function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=miss
 
 end
 
+
+"""
+    function dos_realspace(tbc; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+
+Makes an atom and spatially resoloved DOS-style plot. Along `direction=1,2,3` (lattice vector 1,2,3) the atoms are plotted, using transparancy to denote DOS amplitude. Try it out to see. Potentially useful for interfaces. Example usage:
+`c = makecrys([8.0 0 0; 0 8.0 0; 0 0 10.0], [0 0 0; 0 0 0.5], [:Li, :Cl]) #quasi 1D LiCl chain`
+`en, tbc, flag = scf_energy(c*[1,1,10])                                   #ten unit cells`
+`dos_realspace(tbc, direction=3)`
+
+Adjust the `energy_grid` and `width` to adjust plotting parameters.
+Scissors shift in energy unit to certain atoms will add scissors shift to open band gaps is desired.
+"""
+function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smearing=0.005, npts=missing, do_display=true, use_sym=false, energy_grid=100, width=missing, energy_lims=missing, scissors_shift=0.0, scissors_shift_atoms=[])
+
+    if ismissing(width)
+        width= convert_length(3.0)
+    end
+    if ismissing(energy_lims)
+        energy_lims = convert_energy([-0.3, 0.3])
+    end
+    
+    colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
+    colors = [colors; colors; colors]
+    atom_colors = Dict()
+    for c in colors
+        for s in Set(dft.crys.stypes)
+            if !(s in keys(atom_colors))
+                atom_colors[s] = c
+                println("color $s $c ")
+                break
+            end
+        end
+    end
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(dft.crys)
+    wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(dft)
+    
+    vmin = minimum(p.bs.eigs) - 0.1
+    vmax = maximum(p.bs.eigs) + 0.1
+
+    println("v $vmin $vmax ")
+
+#    vmax = min(maximum(vals), 5.0)
+    r = vmax - vmin
+
+    if ismissing(npts)
+        npts = Int64(round(r * 100 ))
+    end
+    
+    energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
+
+    energies = energies .- dft.bandstruct.efermi
+
+#    energies,DOS, pdos, names, proj = dos(tbc, grid=missing, smearing=smearing, npts=missing, do_display=false, use_sym=use_sym, proj_type=:all, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
+#
+ #   pdos=sum(pdos, dims=[3])
+    c = dft.crys
+    coords_cart = convert_length(c.coords[:,direction] * sqrt(sum(c.A[direction,:].^2)))
+
+#    pdos = zeros( length(energies), c.nat, 
+#    for k = 1:p.bs.nks
+#        for spin = 1:p.bs.nspin
+#            for orb = 1:p.natwfc
+#                atom = wan_atom[orb]
+#                
+#            end
+#        end
+#    end
+    
+    pdos = zeros(length(energies), nwan, p.bs.nspin)
+    
+    for spin = 1:p.bs.nspin
+#        for (c,e) in enumerate(energies)
+#            DOS[c,spin] = sum(KW .*  exp.( -0.5 * (vals[:,:,spin] .- e).^2 / smearing^2 ) ) / 2.0 * nk
+#        end
+        
+#        if do_proj
+#            println(size(proj))
+        for (i,w) in enumerate(wan)
+            for (c,e) in enumerate(energies)
+                for k = 1:p.bs.nks
+                    for b = 1:p.bs.nbnd
+                        pdos[c, i] += real(p.proj[k,w,spin,b] .*  exp.( -0.5 * (p.bs.eigs[k,b,spin] - dft.bandstruct.efermi .- e).^2 / smearing^2 ) ) * p.bs.kweights[k]
+                    end
+                end
+            end
+        end
+    end
+    
+    pdos = pdos / smearing / (2.0*pi)^0.5 / p.bs.nks
+        
+    
+
+    dos_atom = zeros(length(energies), c.nat)
+    for n = 1:nwan
+        at,t, orb = ind2orb[n]
+        dos_atom[:,at] += pdos[:,n]
+    end
+    dos_atoms_grid = zeros(energy_grid, c.nat)
+    #new_grid = collect(minimum(energies) : (maximum(energies)-minimum(energies)) / energy_grid: (maximum(energies)+1e-10))
+
+    println("grid width ",  (energy_lims[2]-energy_lims[1]) / energy_grid)
+    
+    new_grid = collect( energy_lims[1] : (energy_lims[2]-energy_lims[1]) / energy_grid: (energy_lims[2]+1e-10) )
+
+    println("size(new_grid), $(size(new_grid))")
+    for en = 1:energy_grid
+        ind = energies .> new_grid[en] .&& energies .<= new_grid[en+1]
+        dos_atoms_grid[en,:] = sum(dos_atom[ind,:], dims=[1])
+    end
+    max_den = maximum(dos_atom) * 1.0
+
+    rectangle(w, h, x, y) = Shape(x .+ [0,w,w,0], y .+ [0,0,h,h])
+
+    height = (energy_lims[2]-energy_lims[1]) / energy_grid
+    xmin = minimum(coords_cart) - width/2
+    xmax = maximum(coords_cart) + width/2
+
+    plot([xmin, xmax], [0.0, 0.0], linestyle=:dash, linewidth=1, color="grey", label="")
+    xlims!(xmin, xmax + width*2)
+    ylims!(energy_lims[1], energy_lims[2])
+
+    println([ minimum(coords_cart) - width,maximum(coords_cart) + width])
+    println([minimum(new_grid) - 0.01, maximum(new_grid) + 0.01])
+    
+    for at = 1:c.nat
+        for ind = 1:energy_grid
+            x = coords_cart[at] - width/2
+            plot!(rectangle(width, height, x, new_grid[ind] - height/2), opacity= dos_atoms_grid[ind, at] / max_den , color=atom_colors[c.stypes[at]], label="" )
+            #            println("plot $width, $height, $x, $(new_grid[ind] - height/2)")
+        end
+    end
+
+    for at = keys(atom_colors)
+        plot!(rectangle(0.0,0.0 , coords_cart[1] - width/2, new_grid[1] - height/2), color=atom_colors[at], label=String(at))
+    end
+
+    xlabel!("Atom positions ($global_length_units)",  guidefontsize=12)
+    display(ylabel!("Energy - Fermi ($global_energy_units)", guidefontsize=12))
+    return new_grid, dos_atoms_grid, coords_cart
+
+end
+
 function projection(tbcK::tb_crys_kspace, vects, SK; ptype=missing)    
 
     names, PROJ, pwan = get_projtype(tbcK, ptype)
@@ -391,9 +540,9 @@ end
 
 Gaussian smearing DOS is now the main DOS. Tetraheral method is still coded, but it is a bit wonky.
 """
-function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[])
+function gaussian_dos(tbc::tb_crys; grid=missing, smearing=0.04, npts=missing, proj_type=missing, do_display=true, scissors_shift=0.0, scissors_shift_atoms=[], align=:efermi)
 
-    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
+    return dos(tbc, grid=grid, smearing=smearing, npts=npts, proj_type=proj_type, do_display=do_display, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms, align=align)
     
 end
 
@@ -412,7 +561,7 @@ See also `dos`
 
 `return energies, dos, projected_dos, pdos_names`
 """
-function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[])
+function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=missing, do_display=true, use_sym=false, scissors_shift=0.0, scissors_shift_atoms=[], align=:efermi)
 
 
     if typeof(tbc) <: tb_crys_sparse
@@ -436,8 +585,13 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
 #    println("precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
     
     #prelim
-    vals = vals .- efermi
-
+    if align == :efermi
+        vals = vals .- efermi
+    else
+        vbm, cbm = find_vbm_cbm(vals, efermi)
+        vals = vals .- vbm
+    end
+    
     nk = size(vals)[1]
     
     vmin = minimum(vals) - 0.05
@@ -468,13 +622,13 @@ function dos(tbc::tb_crys; grid=missing, smearing=0.03, npts=missing, proj_type=
         nproj = size(proj)[3]
 #        println("proj $proj names $names pwan $pwan")
         pdos = zeros(length(energies),nproj, nspin)
-        
+
     elseif proj_type == "none" ||  proj_type == :none
         do_proj=false
         nproj=0
         pdos=missing
         names=missing
-        proj=missing
+        proj = missing
     else
         do_proj=true
         proj, names, pwan =  projection(tbc, vects, sk3, grid, ptype=proj_type, use_sym=use_sym, nk_red=nk_red, grid_ind=grid_ind, kweights = kweights)
@@ -548,7 +702,7 @@ end
 
 
 
-function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true)
+function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
 
 
     @time bandenergy, eden, vects, vals, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=0.01)
@@ -559,7 +713,13 @@ function dos(tbcK::tb_crys_kspace; smearing=0.03, npts=missing, proj_type=missin
 #    println("precheck ", sum(vects[1,:,:]' * sk3[:,:,1,1,1] * vects[1,:,:]))
     
     #prelim
-    vals = vals .- efermi
+    if align == :efermi
+        vals = vals .- efermi
+    else
+        vbm, cbm = find_vbm_cbm(vals, efermi)
+        vals = vals .- vbm
+    end
+
 
     nk = size(vals)[1]
     nspin = size(vects)[2]
@@ -1076,10 +1236,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1089,10 +1251,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, pdos[:,i,1], color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1100,10 +1264,12 @@ function plot_dos(energies, dos, pdos, names; filename=missing, do_display=true)
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(energies, -pdos[:,i,2], color=color, lw=3, label=false)
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(energies, -pdos[:,i,2], color=color, lw=3, label=false)
+                end
             end
         end    
     end
@@ -1167,10 +1333,12 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
         if !ismissing(names)
             colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!( pdos[:,i,1], energies, color=color, lw=3, label=names[i])
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!( pdos[:,i,1], energies, color=color, lw=3, label=names[i])
+                end
             end
         end    
 
@@ -1181,12 +1349,14 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
         if !ismissing(names)
             #colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
             colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
-                p = ylims!(yrange[1], yrange[2])
-                
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!(pdos[:,i,1], energies,  color=color, lw=3, label=names[i])
+                    p = ylims!(yrange[1], yrange[2])
+                    
+                end
             end
         end    
 
@@ -1194,12 +1364,14 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 
         if !ismissing(names)
             colors = ["blue", "magenta", "cyan", "orange", "green",  "red", "yellow"]
-            for i in 1:size(pdos)[2]
-                color = colors[i%7+1]
-                #            println("i $i $color", names[i])
-                plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
-                p = ylims!(yrange[1], yrange[2])
-                
+            if !ismissing(pdos)
+                for i in 1:size(pdos)[2]
+                    color = colors[i%7+1]
+                    #            println("i $i $color", names[i])
+                    plot!( -pdos[:,i,2], energies, color=color, lw=3, label=false)
+                    p = ylims!(yrange[1], yrange[2])
+                    
+                end
             end
         end    
     end
@@ -1243,6 +1415,132 @@ function plot_dos_flip(energies, dos, pdos, names; filename=missing, do_display=
 #    if !ismissing(filename)
 #        savefig(filename)
     #    end
+    
+end
+
+
+function dos(dft::dftout; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
+
+    return dos(dft.bandstruct, smearing=smearing, do_display=do_display, align=align)
+end
+
+function dos(bs::bandstructure; smearing=0.03, npts=missing, proj_type=missing, do_display=true, align=:efermi)
+    
+    
+    #prelim
+    if align == :efermi
+        vals = bs.eigs .- bs.efermi
+    else
+        vbm, cbm = find_vbm_cbm(bs.eigs, bs.efermi)
+        vals = bs.eigs .- vbm
+    end
+    
+    
+
+    nk = size(vals)[1]
+    nspin = size(vals)[3]
+    
+    vmin = minimum(vals) - 0.1
+    vmax = maximum(vals) + 0.1
+
+    r = vmax - vmin
+
+    if ismissing(npts)
+        npts = Int64(round(r * 100 ))
+    end
+    
+    energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
+    
+    dos = zeros(length(energies), nspin)
+
+    W = repeat(bs.kweights, 1, bs.nbnd)
+
+    for spin = 1:nspin
+        for (c,e) in enumerate(energies)
+            dos[c, spin] = sum(exp.( -0.5 * (vals[:,:, spin] .- e).^2 / smearing^2 ) .* W ) 
+        end
+    end
+    dos = dos / smearing / (2.0*pi)^0.5 / 2
+
+    println("Int DOS " , sum(dos) * (energies[2]-energies[1]) )
+
+    ind = energies .< 0
+
+    for spin = 1:nspin
+        println("$spin Int DOS occ " , sum(dos[ind, spin]) * (energies[2]-energies[1]) )
+        
+    end    
+    energies = convert_energy(energies)
+    dos = convert_dos(dos)
+    
+    plot_dos(energies, dos, missing, [], do_display=do_display)
+
+
+    
+    return energies, dos * bs.nspin
+
+    
+end
+
+function compare_dos_dft(tbc::tb_crys, dft::dftout; smearing = 0.03, do_display=true, align=:vbm)
+
+    grid = dft.bandstruct.kgrid
+    energies_dft, dos_dft = dos(dft, do_display=false, align=align)
+    energies_tb , dos_tb  = dos(tbc, grid = grid, do_display=false, align=align)
+    
+    if ismissing(names)
+        plot(legend=false, grid=false, framestyle=:box)
+    else 
+        plot(legend=true, grid=false, framestyle=:box)
+    end
+
+    if dft.nspin == 1
+        plot!(energies_dft, dos_dft[:,1], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, dos_tb[:,1], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+    else
+
+        plot!(energies_dft, dos_dft[:,1], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, dos_tb[:,1], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_dft, -dos_dft[:,2], color="black", lw=4, label="DFT", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+        plot!(energies_tb, -dos_tb[:,2], color="red", lw=4, linestyle=:dash, label="TB3", legend=:topleft, xtickfontsize=12,ytickfontsize=12, legendfontsize=10)
+
+    end
+
+    if global_energy_units == "eV"
+        ylabel!("DOS  ( 1 / eV )", guidefontsize=16)
+        if align == :efermi
+            xlabel!("Energy - E_F ( eV )", guidefontsize=16)
+        else
+            xlabel!("Energy - VBM ( eV )", guidefontsize=16)            
+        end
+    else
+        ylabel!("DOS  ( 1 / Ryd. )", guidefontsize=16)
+        if align == :efermi
+            xlabel!("Energy - E_F ( Ryd. )", guidefontsize=16)
+        else
+            xlabel!("Energy - VBM ( Ryd. )", guidefontsize=16)            
+        end
+
+    end
+
+        
+    if dft.nspin == 1
+        ylims!(0.0, max(maximum(dos_dft), maximum(dos_tb)) * 1.1)
+    elseif dft.nspin == 2
+        d = max(maximum(abs.(dos_dft)), maximum(abs.(dos_tb)))
+        ylims!(-d*1.1, d*1.1)
+    end
+
+    d = max(maximum(abs.(dos_dft)),maximum(abs.(dos_tb)))
+    if do_display && ! no_display
+        display(plot!([0,0], [-d * 1.1, d * 1.1], color="black", linestyle=:dash, label=""))
+    else
+
+        plot!([0,0], [- d * 1.1, d * 1.1], color="black", linestyle=:dash, label="")
+
+    end        
+                    
+        
     
 end
 
