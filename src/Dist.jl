@@ -1275,8 +1275,9 @@ end
 
 #end
 
-function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= false)
+function distances_subgrid(crys; cutoff=missing, threebody=true, keep_extra= false)
 
+    
     if ismissing(cutoff)
         cutoff = cutoff2X
     end
@@ -1312,14 +1313,14 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
 
 
     
-    println("subgrid $subgrid")
+#    println("subgrid $subgrid")
     gridlength = [sqrt(sum(crys.A[1,:].^2 )), sqrt(sum(crys.A[2,:].^2 )),sqrt(sum(crys.A[3,:].^2 ))] ./ subgrid
     gridlength = maximum(gridlength)
 
 #    return subgrid
     
     subgrid_dict = Dict()
-    @time for g1 = 1:subgrid[1]
+    for g1 = 1:subgrid[1]
         for g2 = 1:subgrid[2]
             for g3 = 1:subgrid[3]
                 subgrid_dict[g1,g2,g3] = Int64[]
@@ -1329,7 +1330,7 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
     
     crys.coords = mod.(crys.coords, 1.0)
     subgrid_atoms = zeros(Int64, crys.nat, 3)
-    @time for a = 1:crys.nat
+    for a = 1:crys.nat
 #        println("a $a")
         for i = 1:3
             for g = 1:subgrid[i]
@@ -1357,7 +1358,7 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
     grid_coords = zeros(prod(subgrid), 3)
     c = 0
     subgrid_num = zeros(Int64,prod(subgrid), 3)
-@time    for g1 = 1:subgrid[1]
+    for g1 = 1:subgrid[1]
         for g2 = 1:subgrid[2]
             for g3 = 1:subgrid[3]
                 c += 1
@@ -1367,16 +1368,16 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
             end
         end
     end
-    println("grid_coords")
-    println(grid_coords)
+    #println("grid_coords")
+    #println(grid_coords)
 #    println("subgrid_num")
 #    println(subgrid_num)
     
     fake_crys = makecrys(crys.A, grid_coords, repeat([:H], prod(subgrid)))
-    println("fake_crys")
-    println(fake_crys)
-    println("fake")
-    @time     nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV(fake_crys, max(gridlength*2.001, 2.001*cutoff ), -0.1; var_type=Float64, return_floats=false, keep_extra=true)
+    #println("fake_crys")
+    #println(fake_crys)
+    #println("fake")
+    nz_inds, R_keep_ab_TT, nz_ind3, dist3_nonzero, dist_arr_TT, c_zero_tt, dmin_types_TT, dmin_types3_TT = distances_etc_3bdy_parallel_LV_old(fake_crys, max(gridlength*2.001, 2.001*cutoff ), -0.1; var_type=Float64, return_floats=false, keep_extra=true)
 
 #    println("R_keep_ab_TT")
 #    println(R_keep_ab_TT)
@@ -1384,7 +1385,7 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
 #    R_keep_ab_TT_big = zeros(Int64, 0,7)
     counter = 0
     At = collect((crys.A)')
-    println("final")
+    #println("final")
     R_keep_ab_TT_big = zeros(Int64, 100000, 7)
     dist2_list = zeros(Float64, 100000)
     dist = 0.0
@@ -1405,7 +1406,7 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
 
     Ar  = zeros(3)
     Ar_t  = zeros(3)
-    @time    for c_ab = 1:size(R_keep_ab_TT)[1]
+    for c_ab = 1:size(R_keep_ab_TT)[1]
         (n,sg1,sg2, r1,r2,r3,q) = R_keep_ab_TT[c_ab,:]
 #        println("sg1 $sg1 sg2 $sg2 [$r1 $r2 $r3]")
 
@@ -1476,7 +1477,7 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
 
     s = Set(crys.stypes)
     dmin_types_TT = Dict()
-    @time for s1 in s
+    for s1 in s
         for s2 in s
             ss = Set([s1,s2])
             dmin_types_TT[ss] = 1000000000000.0
@@ -1495,76 +1496,90 @@ function distances_subset(crys; cutoff=missing, threebody=false, keep_extra= fal
     end
     
     if threebody
-        println("threebody")
-        @time nz_inds3 = threebody_dist_subgrid(crys, R_keep_ab_TT_big, R_dict, dist2_list, c_zero)
+        #println("threebody")
+        nz_inds3 = threebody_dist_subgrid(crys, R_keep_ab_TT_big, R_dict, dist2_list, c_zero)
     else
         nz_inds3 = missing
     end
-    return nz_inds2, R_keep_ab_TT_big, nz_inds3, missing, missing, c_zero, dmin_types_TT, missing, missing
+    return nz_inds2, R_keep_ab_TT_big, nz_inds3, missing, sqrt.(dist2_list), c_zero, dmin_types_TT, missing, missing
     
 end
 
 function threebody_dist_subgrid(crys, R_keep_ab, R_dict, dist2_list, c_zero)
-    println("inside 3")
+#    println("inside 3")
 #    println("c_zero $c_zero")
     nab = size(R_keep_ab)[1]
 
     inds_by_atom= Dict()
-    @time for a = 1:crys.nat
+    for a = 1:crys.nat
         inds_by_atom[a] = Int64[]
     end
     
-    @time for ind1 = 1:nab
-        a1 = R_keep_ab[ind1,2]
+    for ind1 = 1:nab
+#        a1 = R_keep_ab[ind1,2]
+        #        a2 = R_keep_ab[ind1,3]
+        c_temp, a1 ,a2 ,r1, r2, r3, q = R_keep_ab[ind1,:]            
+        if a1 == a2 && R_dict[r1,r2,r3] == c_zero
+            continue
+        end
+        
         push!(inds_by_atom[a1], ind1)
     end
 
-    twobody_dict = Dict()
-    @time for ind1 = 1:nab
+    twobody_dict = Dict{Tuple{Int64,Int64, Int64, Int64, Int64}, Float64}()
+    for ind1 = 1:nab
         counter, a1 ,a2 ,r1, r2, r3, q = R_keep_ab[ind1,:]            
         twobody_dict[a1,a2,r1,r2,r3] = dist2_list[ind1]
     end
 
 
     
-    @time nz_ind3 = zeros(Int64, 100000, 5)
-    println("main")
+    nz_ind3 = zeros(Int64, 100000, 5)
+#    println("main")
     counter = 0
-    @time for a1 = 1:crys.nat
+    for a1 = 1:crys.nat
         ta1 = crys.stypes[a1]
         for ind12 = inds_by_atom[a1]
             c_temp, a1a ,a2 ,r1, r2, r3, q = R_keep_ab[ind12,:]            
 
-            if twobody_dict[a1,a2,r1,r2,r3] > get_cutoff(ta1, crys.stypes[a2] )[1]^2
-                continue
-            end
+#            if twobody_dict[a1,a2,r1,r2,r3] > get_cutoff(ta1, crys.stypes[a2] )[1]^2
+#                continue
+#            end
                 
-            if a1 == a2 && R_dict[r1,r2,r3] == c_zero
+#            if a1 == a2 && R_dict[r1,r2,r3] == c_zero
 #                println("continue")
-                continue
-            end
+#                continue
+#            end
 
             for ind13 = inds_by_atom[a1]
                 if ind12 == ind13
                     continue
                 end
                 c_temp_3, a1b ,a3 ,r1_3, r2_3, r3_3, q_3 = R_keep_ab[ind13,:]
-                if a1 == a3 && R_dict[r1_3,r2_3,r3_3] == c_zero
-                    continue
-                end
+#                if a1 == a3 && R_dict[r1_3,r2_3,r3_3] == c_zero
+#                    continue
+#                end
 
-                if (a2,a3,r1_3 - r1,r2_3 - r2,r3_3 - r3) in keys(twobody_dict)
+                #                if (a2,a3,r1_3 - r1,r2_3 - r2,r3_3 - r3) in keys(twobody_dict)
+                if haskey(twobody_dict, (a2,a3,r1_3 - r1,r2_3 - r2,r3_3 - r3))
+#                    x = true
+#                end
+                #if false
 
 #                    println(" twobody_dict[a1,a3,r1_3,r2_3,r3_3] ", twobody_dict[a1,a3,r1_3,r2_3,r3_3])
 #                    println(" get_cutoff[ta1, crys.stypes[a3]][2]^2 ",  get_cutoff(ta1, crys.stypes[a3])[2]^2 )
-                    if twobody_dict[a1,a3,r1_3,r2_3,r3_3] > get_cutoff(ta1, crys.stypes[a2], crys.stypes[a3])[1]^2
+                    d13 = twobody_dict[a1,a3,r1_3,r2_3,r3_3]
+                    if d13 > get_cutoff(ta1, crys.stypes[a2], crys.stypes[a3])[1]^2
                         continue
                     end
-                    if twobody_dict[a2,a3,r1_3 - r1,r2_3 - r2,r3_3-r3] > get_cutoff(ta1, crys.stypes[a2], crys.stypes[a3])[1]^2
+                    d23 = twobody_dict[a2,a3,r1_3 - r1,r2_3 - r2,r3_3-r3]
+                    if d23 > get_cutoff(ta1, crys.stypes[a2], crys.stypes[a3])[1]^2
                         continue
                     end
                     
-                       
+                    if  exp(-aX2*sqrt(d13))*exp(-aX2*sqrt(d23))*1000 < 0.2e-6
+                        continue
+                    end
                     
                     counter += 1
 #                    println("add $counter ; $([a1, a2, a3, R_dict[r1,r2,r3], R_dict[r1_3,r2_3,r3_3]])")
@@ -1584,14 +1599,33 @@ function threebody_dist_subgrid(crys, R_keep_ab, R_dict, dist2_list, c_zero)
     end
                 
         #counter, a1 ,a2 ,r1, r2, r3, q = R_keep_ab[ind1,:]
-    println("done")
+#    println("done")
     return nz_ind3[1:counter,:]
 
 end
 
 
 function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
-        println("cutoff $cutoff $cutoff2")
+
+    if crys.nat < 10 || cutoff4 > 1e-5
+        return distances_etc_3bdy_parallel_LV_old(crys, cutoff, cutoff2; var_type=var_type, return_floats=return_floats, shrink = shrink, R=R, cutoff4 = cutoff4, keep_extra = keep_extra)
+    else
+        if ismissing(cutoff2)
+            cutoff3 = true
+        elseif cutoff2 > 1e-5
+            cutoff3 = true
+        else
+            cutoff3 = false
+        end
+        println("distances_subgrid ", [cutoff, cutoff3, keep_extra])
+        return distances_subgrid(crys; cutoff=cutoff, threebody=cutoff3, keep_extra= keep_extra)
+    end
+
+
+end
+
+function distances_etc_3bdy_parallel_LV_old(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
+    #        println("cutoff $cutoff $cutoff2")
 
     begin
         
@@ -1649,7 +1683,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 #        println("get_cutoff_pre")
 #        println(get_cutoff_pre)
         
-        @time for a = 1:crys.nat
+        for a = 1:crys.nat
             ta = crys.stypes[a]
             for b = 1:crys.nat
                 tb = crys.stypes[b]            
@@ -1689,8 +1723,8 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 #        println(" R ", R)
 #        println("size coords ", size(coords_ab_TT))
         
-        @time dist_TT = zeros(var_type, nr1,nr2,nr3,nat, nat,4)
-        @time @turbo for r1 = eachindex(rf1) 
+        dist_TT = zeros(var_type, nr1,nr2,nr3,nat, nat,4)
+        @turbo for r1 = eachindex(rf1) 
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat
@@ -1705,8 +1739,8 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
             end
         end
 
-        println("slow")
-        @time @fastmath @inbounds @simd   for r1 = eachindex(rf1) #1
+        #println("slow")
+        @fastmath @inbounds @simd   for r1 = eachindex(rf1) #1
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat
@@ -1718,7 +1752,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
                 end
             end
         end
-        @time @turbo  for r1 = eachindex(rf1) #1
+        @turbo  for r1 = eachindex(rf1) #1
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     for a = 1:nat
@@ -1732,11 +1766,11 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
             end
         end
 
-        @time found_arr_TT = zeros(Bool, nr1, nr2, nr3)
-        println("mem")
-        @time found_arr_TT_ab = zeros(Bool, nr1, nr2, nr3,nat,nat)
-        println("decide")
-        @time if keep_extra
+        found_arr_TT = zeros(Bool, nr1, nr2, nr3)
+        #println("mem")
+        found_arr_TT_ab = zeros(Bool, nr1, nr2, nr3,nat,nat)
+        #println("decide")
+        if keep_extra
             for a = 1:crys.nat
                 for b = 1:crys.nat
                     found_arr_TT[:,:,:] = found_arr_TT[:,:,:]  .|     (dist_TT[:,:,:,a,b,1] .< max(cutoff_arr[a,b,1], cutoff) )
@@ -1774,7 +1808,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 
         c=0
         cfound = 0
-        @time for r1 = eachindex(rf1)
+        for r1 = eachindex(rf1)
             for r2 = eachindex(rf2)
                 for r3 = eachindex(rf3)
                     c += 1
@@ -1814,7 +1848,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         dist_arr_TT = zeros(var_type, ctt,6)    
         c = 0
 
-        @time for a = 1:crys.nat
+        for a = 1:crys.nat
             for b = 1:crys.nat
                 for r1 = eachindex(rf1)
                     for r2 = eachindex(rf2)
@@ -1846,7 +1880,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 
         s = Set(crys.stypes)
         dmin_types_TT = Dict()
-        @time for s1 in s
+        for s1 in s
             for s2 in s
                 ss = Set([s1,s2])
                 dmin_types_TT[ss] = 1000000000000.0
@@ -1942,7 +1976,8 @@ function dist_threebody(crys, nz_ints, nat, cutoff_arr, coords_ab_TT, At, dist_T
                     d23 = dist3a[a,i_b,i_c]
                     
                     #                        if i_c <= max_ind_a[a] && d12 > 1e-3 && d13 > 1e-3 && d23  > 1e-3 && d12 < cutoff_arr[a, nz_ab[a,i_b,4],1] && d13 < cut3 && d23 < cut3
-                    if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3 #&& ( exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 || exp(-aX2*d13)*exp(-aX2*d12)*1000 > 0.2e-6)   #fixme
+                    #if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3 && ( exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 || exp(-aX2*d13)*exp(-aX2*d12)*1000 > 0.2e-6)   #fixme
+                    if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3 &&  exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 
                         counter += 1
                         NZ[counter,1] = a
                         NZ[counter,2] = i_b

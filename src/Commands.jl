@@ -64,8 +64,8 @@ and mpi commands (if any)
     #proj_command_serial=`mpirun -np 1 $qebin/projwfc.x -input `
     #proj_command_parallel=`mpirun -np 1 $qebin/projwfc.x -input `
 
-    proj_command_serial=`$mpi 1 $qebin/projwfc.x -input `
-    proj_command_parallel=`$mpi 1 $qebin/projwfc.x -input `
+    proj_command_serial=` $qebin/projwfc.x -input `
+    proj_command_parallel=` $qebin/projwfc.x -input `
     
     
     #w90 (serial)

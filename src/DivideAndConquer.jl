@@ -8,8 +8,10 @@ using ..CrystalMod:orbital_index
 using ..CrystalMod:makecrys
 using ..Atomdata:atoms
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
+using ..BandTools:gaussian
+using ..Utility:cutoff_fn_fast
 
-function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
+function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing, smearing=0.01)
 
     if ismissing(cut_dist)
         cut_dist = tbc.cut_dist
@@ -58,9 +60,9 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
     at_oldnew = Dict()
     at_newold = Dict()
     OTHER_ATOMS = []
+    DIST_ARR = Dict()
     @time for a = 1:tbc.crys.nat
         #        at_nz_sort[a] = sort(collect(at_nz[a]))
-
 
         #push!(OTHER_ATOMS, Set())
         s = Set()
@@ -72,6 +74,15 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
                 if dist < cut_dist
                     push!(s, a1)
                     push!(s, a2)
+                    if (a1,a2) in keys(DIST_ARR)
+
+                        DIST_ARR[a1,a2] = min(dist, DIST_ARR[a1,a2])
+                        DIST_ARR[a2,a1] = min(dist, DIST_ARR[a2,a1])
+                    else
+                        DIST_ARR[a1,a2] = dist
+                        DIST_ARR[a2,a1] = dist
+                    end
+                    
                 end
             end
         end
@@ -138,6 +149,7 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
         HH = zeros(norb, norb)
         SS = zeros(norb, norb)
         c_small = makecrys(tbc.crys.A, tbc.crys.coords[OTHER_ATOMS[a], :], tbc.crys.stypes[OTHER_ATOMS[a]])
+#        println("c_small ", c_small.nat)
         ind2orb_small, orb2ind_small, etotal_small, nval_small = orbital_index(c_small)
         push!(IND2ORB_SMALL, ind2orb_small)
         
@@ -158,7 +170,7 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
             cnew = ind2orb_small_reverse[anew1, orb_name1]
             rnew = ind2orb_small_reverse[anew2, orb_name2]
                 
-                HH[rnew, cnew] = vals[counter]
+            HH[rnew, cnew] = vals[counter] #* cutoff_fn_fast(DIST_ARR[at1,at2], cut_dist-1.0, cut_dist) #smooth the hamiltonian cutoff
         end
         for counter in ROWSCOLS_S[a]
             at1, at_type1, orb_name1 = ind2orb[colsS[counter]]
@@ -169,7 +181,7 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
             cnew = ind2orb_small_reverse[anew1, orb_name1]
             rnew = ind2orb_small_reverse[anew2, orb_name2]
                 
-            SS[rnew, cnew] = valsS[counter]
+            SS[rnew, cnew] = valsS[counter] # * cutoff_fn_fast(DIST_ARR[at1,at2], cut_dist-1.0, cut_dist)
         end
         push!(HARR, HH)
         push!(SARR, SS)
@@ -229,12 +241,15 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
     VALS = []
     VECTS = []
     println("eig")
+    norb_max = 0
     @time for (h,s) in zip(HARR, SARR)
-        vals, vects = eigen(h,s);
+#        println("h $(sum(abs.(h - h'))) s $(sum(abs.(s - s')))")
+        norb_max = max(norb_max, size(h)[1])
+        vals, vects = eigen(0.5(h+h'),0.5*(s+s'));
         push!(VALS, vals)
         push!(VECTS, vects)
     end
-
+    println("norb_max $norb_max")
 
     @time DENMAT = spzeros(tbc.tb.nwan, tbc.tb.nwan)
 #    println("size DENMAT ", size(DENMAT))
@@ -242,9 +257,9 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
     println("b")
     @time for (a, (vals, vects, s)) in enumerate(zip(VALS, VECTS, SARR))
 #        println("a $a aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        denmat = zeros(Complex{Float64}, size(vects))
-        dind = (vals .<= efermi)
-        denmat = vects[:,dind] * vects[:,dind]'
+#        denmat = zeros(Complex{Float64}, size(vects))
+#        dind = (vals .<= efermi)
+        denmat = vects * diagm(gaussian(vals .- efermi, smearing))  * vects'
 #        println("trace denmat ", tr(denmat * s))
         c=0
         I = zeros(Int64, prod(size(vects)))
@@ -278,7 +293,9 @@ function get_hams(tbc::tb_crys_sparse, efermi; cut_dist=missing)
         
     end
 
-
+    H = 0.5*(H + H')
+    S = 0.5*(S + S')
+    DENMAT = 0.5*(DENMAT + DENMAT')
     return HARR, SARR, H, S, VALS, VECTS, DENMAT
 
 end

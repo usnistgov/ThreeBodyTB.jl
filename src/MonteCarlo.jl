@@ -9,7 +9,7 @@ using ..ThreeBodyTB:set_units
 using Suppressor
 using LinearAlgebra
 
-function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, adjust_strain = true, nsteps = 1000, nsteps_thermal = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
+function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, adjust_strain = true, nsteps = 1000, nsteps_thermal = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
 
     old_units = set_units()
     set_units(both="atomic")
@@ -21,6 +21,10 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
 
     println("thermalization")
     step_size_strain = 0.01
+
+    if mix < 0.0
+        mix = 0.02
+    end
     
     energies_thermal, c_thermal, step_size_thermal,step_size_strain_thermal = mc_helper(c_start, beta, true, step_size, step_size_strain, adjust_strain = adjust_strain, nsteps = nsteps_thermal, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
 
@@ -46,7 +50,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
 end
 
 
-function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 2e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
+function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
 
     c_current = deepcopy(c_start)
     c_work = deepcopy(c_start)
@@ -58,7 +62,7 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
     for f = 1:0.1:2
         try
             c_work = deepcopy(c_start*f)
-            en, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
+            en, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr/5.0, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
             break
         catch
         end        

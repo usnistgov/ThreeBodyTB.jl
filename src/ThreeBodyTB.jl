@@ -132,7 +132,7 @@ export get_standard_crys
 
 
 include("FitTB_laguerre.jl")
-
+include("DivideAndConquer.jl")
 
 """
     function set_units(;energy=missing, length=missing, both=missing)

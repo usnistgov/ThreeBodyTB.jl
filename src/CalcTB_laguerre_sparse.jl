@@ -253,7 +253,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
     if verbose println("distances") end
-    begin
+    @time begin
         
         use_dist_arr = true
         if !ismissing(DIST)
@@ -262,7 +262,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 
         else
             if (use_threebody || use_threebody_onsite ) && !ismissing(database)
-                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cut_dist, cutoff3bX,var_type=var_type, return_floats=false, keep_extra=true)
+                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV_old(crys,cut_dist, cutoff3bX,var_type=var_type, return_floats=false, keep_extra=true)
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
 
             else
@@ -271,7 +271,9 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
             end
         end
 
-        
+        if ismissing(dist_arr) || length(size(dist_arr)) == 1
+            use_dist_arr = false
+        end
         
         within_fit = true
         
@@ -542,7 +544,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
     if verbose println("2body LV") end
 
 
-    twobody_LV = begin
+    @time twobody_LV = begin
 
 #        println("nonsense")
         begin
@@ -699,7 +701,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
         
 
 
-    threebdy_LV = begin
+    @time threebdy_LV = begin
 
         #println("threebody prepare")
         if use_threebody || use_threebody_onsite
@@ -903,8 +905,8 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
 #    println(INDarr3)
     
 
-    
-    if use_threebody || use_threebody_onsite
+
+    @time if use_threebody || use_threebody_onsite
         #println("sparsify3")
         for k in  1:nkeep
             if retmat
@@ -925,7 +927,7 @@ function calc_tb_LV_sparse(crys::crystal, database=missing; reference_tbc=missin
     
 
     if verbose println("make") end
-    if true
+    @time if true
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
         #println("maketb")
         tb = make_tb_sparse( H , ind_arr, r_dict,  S)

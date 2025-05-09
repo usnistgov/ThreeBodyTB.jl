@@ -38,6 +38,7 @@ using ..CrystalMod:distances_etc_3bdy_parallel_old
 using ..CrystalMod:distances_etc_3bdy_parallel
 using ..CrystalMod:distances_etc_3bdy_parallel2
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
+using ..CrystalMod:distances_etc_3bdy_parallel_LV_old
 using ..CrystalMod:get_dist
 
 using ..TB:make_tb_crys
@@ -7676,7 +7677,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
 
 
     #        verbose=true
@@ -7734,7 +7735,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3             
             end
         end
-
+        if ismissing(dist_arr) || length(size(dist_arr)) == 1
+            use_dist_arr = false
+        end
         
         
         within_fit = true
@@ -8122,12 +8125,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 #                for o1 = 1:norb[a]
  #                   sum1 = orbs_arr[a,o1,3]
  #                   oxx = orbs_arr[a,o1,1]
-                    println("try to add $([t,t,:eam, sum2])~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+#                    println("try to add $([t,t,:eam, sum2])~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     if [t,t,:eam, sum2] in keys(co.inds)
                         
                         
                         d = co.datH[co.inds[[t,t,:eam, sum2]]]
-                        println("try to o $o  add d $(d)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+#                        println("try to o $o  add d $(d)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                         temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
                         
                         H[ o, o, c_zero] += temp

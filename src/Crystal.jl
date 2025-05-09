@@ -383,9 +383,7 @@ function makecrys(A,coords,types; units=missing, type=missing)
     
     A = convert(Array{T,2}, A)
     coords = convert(Array{T,2}, coords)
-
-
-#    coords = mod.(coords, 1.0)
+    coords = mod.(coords, 1.0)
     
     if size(coords)[1] != length(types)
         error("Error making crys, types and coords sizes don't match")

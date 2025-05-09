@@ -218,9 +218,12 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
         R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cut_dist, 0.0,var_type=T, return_floats=true, keep_extra=true)
     end
 
+    if length(size(dist_arr)) == 2
+        dist_arr = dist_arr[:,1]
+    end    
     println("typeof ", [typeof(R_keep_ab),typeof(dist_arr),typeof(cut_dist)])
     
-    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs, R_keep_ab, dist_arr[:,1][:], cut_dist )
+    return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma,u3, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs, R_keep_ab, dist_arr[:], cut_dist )
 end
 
 function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )

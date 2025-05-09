@@ -369,9 +369,9 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
     if ismissing(width)
         width= convert_length(3.0)
     end
-    if ismissing(energy_lims)
-        energy_lims = convert_energy([-0.3, 0.3])
-    end
+#    if ismissing(energy_lims)
+#        energy_lims = convert_energy([-0.3, 0.3])
+#    end
     
     colors = ["blue", "orange", "green", "magenta", "cyan", "red", "yellow"]
     colors = [colors; colors; colors]
@@ -389,8 +389,8 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
     ind2orb, orb2ind, etotal, nval = orbital_index(dft.crys)
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(dft)
     
-    vmin = minimum(p.bs.eigs) - 0.1
-    vmax = maximum(p.bs.eigs) + 0.1
+    vmin = minimum(p.bs.eigs[:,nsemi+1:end,:]) - 0.1
+    vmax = maximum(p.bs.eigs[:,nsemi+1:end,:]) + 0.1
 
     println("v $vmin $vmax ")
 
@@ -403,7 +403,7 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
     
     energies = collect(vmin - r*0.02 : r*1.04 / npts    : vmax + r*0.02 + 1e-7)
 
-    energies = energies .- dft.bandstruct.efermi
+#    energies = energies #.- dft.bandstruct.efermi
 
 #    energies,DOS, pdos, names, proj = dos(tbc, grid=missing, smearing=smearing, npts=missing, do_display=false, use_sym=use_sym, proj_type=:all, scissors_shift=scissors_shift, scissors_shift_atoms=scissors_shift_atoms)
 #
@@ -431,17 +431,20 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
 #        if do_proj
 #            println(size(proj))
         for (i,w) in enumerate(wan)
-            for (c,e) in enumerate(energies)
+            println("proj wan $i $w")
+#            for (c,e) in enumerate(energies)
                 for k = 1:p.bs.nks
+                #for k = 1:1
                     for b = 1:p.bs.nbnd
-                        pdos[c, i] += real(p.proj[k,w,spin,b] .*  exp.( -0.5 * (p.bs.eigs[k,b,spin] - dft.bandstruct.efermi .- e).^2 / smearing^2 ) ) * p.bs.kweights[k]
+                        pdos[:, i] += real(p.proj[k,w,spin,b]*conj(p.proj[k,w,spin,b]) .*  exp.( -0.5 * (p.bs.eigs[k,b,spin]  .- energies).^2 / smearing^2 ) ) * p.bs.kweights[k]
+#                        println("energy $e k $k b $b wan $w $(p.proj[k,w,spin,b])  $(p.bs.eigs[k,b,spin])  $(e)   exp $(exp.( -0.5 * (p.bs.eigs[k,b,spin]  .- e).^2 / smearing^2 ))")
                     end
                 end
             end
         end
-    end
+#    end
     
-    pdos = pdos / smearing / (2.0*pi)^0.5 / p.bs.nks
+    pdos = pdos / smearing / (2.0*pi)^0.5 / sum(p.bs.kweights)
         
     
 
@@ -450,10 +453,17 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
         at,t, orb = ind2orb[n]
         dos_atom[:,at] += pdos[:,n]
     end
+    #plot(energies, sum(dos_atom, dims=2))
+    #return energies, sum(dos_atom, dims=2)
+    
     dos_atoms_grid = zeros(energy_grid, c.nat)
     #new_grid = collect(minimum(energies) : (maximum(energies)-minimum(energies)) / energy_grid: (maximum(energies)+1e-10))
 
-    println("grid width ",  (energy_lims[2]-energy_lims[1]) / energy_grid)
+    energies = energies .- dft.bandstruct.efermi
+    if ismissing(energy_lims)
+        energy_lims = [minimum(energies), maximum(energies)]
+    end
+    #println("grid width ",  (energy_lims[2]-energy_lims[1]) / energy_grid)
     
     new_grid = collect( energy_lims[1] : (energy_lims[2]-energy_lims[1]) / energy_grid: (energy_lims[2]+1e-10) )
 
@@ -478,10 +488,11 @@ function dos_realspace(p::proj_dat, dft::dftout; direction=3, grid=missing, smea
     println([minimum(new_grid) - 0.01, maximum(new_grid) + 0.01])
     
     for at = 1:c.nat
+        println("plotting at $at")
         for ind = 1:energy_grid
             x = coords_cart[at] - width/2
             plot!(rectangle(width, height, x, new_grid[ind] - height/2), opacity= dos_atoms_grid[ind, at] / max_den , color=atom_colors[c.stypes[at]], label="" )
-            #            println("plot $width, $height, $x, $(new_grid[ind] - height/2)")
+#            println("at $at energy $(new_grid[ind] - height/2) ind $ind x $x width $width height $height opacity $(dos_atoms_grid[ind, at] / max_den)")
         end
     end
 
