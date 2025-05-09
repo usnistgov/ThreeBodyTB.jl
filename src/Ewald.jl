@@ -224,6 +224,15 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
     gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U ) ####+ gamma_onsiteU      #xxyy
 
+    println("gamma_rs")
+    println(gamma_rs)
+    println("gamma_k")
+    println(gamma_k)
+    println("gamma_self")
+    println(gamma_self)
+    println("gamma_U")
+    println(gamma_U)
+    println("gamma_U_opt ", gamma_U_opt)
 #    println("gamma_U", gamma_U)
     
     gamma_tot = gamma_tot + diagm(gamma_U_opt)
