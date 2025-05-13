@@ -3932,7 +3932,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
         end
         #chX = ch_new
-        #chX = TOTX \ TOTY
+        chX = TOTX \ TOTY
         
 #        println("chX ", chX)
 

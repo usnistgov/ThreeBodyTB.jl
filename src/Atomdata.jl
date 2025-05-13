@@ -1910,8 +1910,10 @@ end
 data_temp = Dict()
                  
 ewald_pairs = Dict()
-include("U_pairs.jl")
-
+function load_upairs()
+    include("U_pairs.jl")
+end
+load_upairs()
 #neutral_fermi = Dict()
 #for k in keys(atoms)
 #    a = atoms[k]

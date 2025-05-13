@@ -329,10 +329,16 @@ function makecrys(A,coords,types; units=missing, type=missing)
 
     A = A * factor
 
-    if T == Float64 || T == Float32
-        if rank(A) != 3
-            println("WARNING, possible linearly degenerate lattice vectors ....")
+#    println("T $T")
+#    println(["test $(typeof(A))  ",  T == Float64 ,  T == Float32])
+    if T <: Float64 || T <: Float32
+        try
+            if rank(A) != 3
+                println("WARNING, possible linearly degenerate lattice vectors ....")
+            end
+        catch
         end
+        coords = mod.(coords, 1.0)
     end
     
     if isa(types,Array) && length(size(types)) == 2  # if are accidently given a 1 x nat types array 
@@ -383,7 +389,6 @@ function makecrys(A,coords,types; units=missing, type=missing)
     
     A = convert(Array{T,2}, A)
     coords = convert(Array{T,2}, coords)
-    coords = mod.(coords, 1.0)
     
     if size(coords)[1] != length(types)
         error("Error making crys, types and coords sizes don't match")

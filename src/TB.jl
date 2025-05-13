@@ -1063,12 +1063,12 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #            eden = zeros(nspin,ham.nwan)
 #        else
         eden = get_neutral_eden(crys, ham.nwan, nspin=nspin)
-        println("nelec $nelec get_neutral_eden $eden sum ", sum(eden))
+#        println("nelec $nelec get_neutral_eden $eden sum ", sum(eden))
             bv = eden .> 1e-5
 #            println("eden $eden sum $(sum(eden)) nelec $nelec")
-        println("bv $bv")
+#        println("bv $bv")
         eden[bv] = eden[bv] .-  (sum(eden) - nelec / 2.0) / sum(bv)
-        println("new ", eden, " sum ", sum(eden))
+#        println("new ", eden, " sum ", sum(eden))
  #       end
 #        println("start eden ", eden)
     end
@@ -1101,7 +1101,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
         bs = make_empty_bs(nspin=nspin)
     end
                 
-    println([ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs])
+#    println([ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs])
     
     return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, u3,background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, energy_band, energy_smear , energy_types , energy_charge , energy_mag, bs)
 end

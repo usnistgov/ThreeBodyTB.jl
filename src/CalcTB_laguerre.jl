@@ -38,7 +38,7 @@ using ..CrystalMod:distances_etc_3bdy_parallel_old
 using ..CrystalMod:distances_etc_3bdy_parallel
 using ..CrystalMod:distances_etc_3bdy_parallel2
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
-using ..CrystalMod:distances_etc_3bdy_parallel_LV_old
+#using ..CrystalMod:distances_etc_3bdy_parallel_LV_old
 using ..CrystalMod:get_dist
 
 using ..TB:make_tb_crys
@@ -7678,7 +7678,7 @@ end
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=false, var_type=missing, use_threebody=true, use_threebody_onsite=true,use_eam=true, gamma=missing,u3=missing, background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = false, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_umat = true, only_U = false)
-
+#    println("use_umat ", use_umat, " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     #        verbose=true
     #    println("test")
@@ -7723,6 +7723,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         use_dist_arr = true
         if !ismissing(DIST)
             use_dist_arr = false
+            dist_arr = missing
             R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
 
         else

@@ -167,7 +167,7 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
         #        println("else; step size ", step * step_size * 1.5, " x step $step step_size $step_size a $a b $b")
         
 #        println("MY LS NORMAL $step")
-        return x + dx * step * step_size, step * step_size * 1.5, true
+        return x + dx * step * step_size, step * step_size * 1.25, true
     end
     
 

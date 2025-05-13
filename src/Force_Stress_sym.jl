@@ -9,7 +9,7 @@ Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_
 """
 function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
-#    println("get_energy_force_stress_fft")
+#    println("inside get_energy_force_stress_fft_LV_sym")
 
     do_scf = true
     
@@ -153,6 +153,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 #                Sdual = zeros(ForwardDiff.Dual{FloatX}, tbc.tb.nwan, tbc.tb.nwan, tbc.tb.nr)
                 
                 FN_ham = x->ham(x,ct,database,dontcheck, repel, DIST, nz_arr, FloatX, size_ret, tbc.tb.nwan, tbc.tb.nr)
+#                println("FN_ham")
                 
                 chunksize=min(15, 3*ct.nat + 6)
                 cfg = ForwardDiff.JacobianConfig(FN_ham, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
@@ -718,7 +719,7 @@ end
 
 
 function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, size_ret, nwan, nr, atom, memory)
-#    println("HS atom $atom")
+    println("HS atom $atom")
     begin
 #        println("begin")
         begin
@@ -747,13 +748,21 @@ function ham_SINGLE(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, F
                 A = FloatX.(ct.A) * (I(3) + x_r_strain)            
             end
         end        
+#        println("ct.A")
+#        println(ct.A)
+#        println("boring A $A !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #crys_boring = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=Float64)
+#        println("boring ", crys_boring)
+        #htb = calc_tb_LV(crys_boring, database; verbose=false, var_type=T, use_threebody=false, use_threebody_onsite=false, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, atom = 0) #FIX
+#        println("test H ", sum(abs.(htb.tb.H)))
+        
         #println("dual")
         crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr", type=eltype(x))
         #println("calc_tb_LV")
-        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=true, use_threebody_onsite=true, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = 0)
+        calc_tb_LV(crys_dual, database; verbose=false, var_type=T, use_threebody=false, use_threebody_onsite=false, gamma=zeros(T, ct.nat,ct.nat) , check_frontier= !dontcheck, repel=repel, DIST=DIST, retmat=true, Hin=Hdual, Sin=Sdual, atom = 0) #FIX
 
-#        println("atom $atom S sum abs $(sum(abs.(Sdual[:,:,32])))")
-#        println("atom $atom H sum abs $(sum(abs.(Hdual[:,:,32])))")
+#        println("atom $atom S sum abs $(abs.(Sdual[:,:,16]))")
+#        println("atom $atom H sum abs $(abs.(Hdual[:,:,16]))")
         
         #println("move_mem")
         begin
@@ -858,7 +867,7 @@ end
 
 function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
-#    println("SINGLE tot", tbc.tot_charge)
+    println("get_energy_force_stress_fft_LV_sym_SINGLE ")
 #    println("get_energy_force_stress_fft")
 
     do_scf = true
@@ -1136,7 +1145,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     g = gstress
                     find = 1:6
                 end                    
-                #println("sum abs gz ", sum(abs.(g)))
+                println("sum abs gz ", sum(abs.(g)))
 #                println("done atom; find")
                 for FIND in find
 

@@ -429,7 +429,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = 0.01
     end
     
     println()
-    println("Calculate Force, Stress")
+    println("Calculate Force, Stress ; use_sym $use_sym")
     if use_sym
 #        println("use sym")
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database, do_scf=false, smearing=smearing, grid=grid, nspin=nspin, repel=repel)

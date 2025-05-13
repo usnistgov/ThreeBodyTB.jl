@@ -1605,7 +1605,7 @@ function threebody_dist_subgrid(crys, R_keep_ab, R_dict, dist2_list, c_zero)
 end
 
 
-function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
+function distances_etc_3bdy_parallel_LV_new(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
 
     if crys.nat < 10 || cutoff4 > 1e-5
         return distances_etc_3bdy_parallel_LV_old(crys, cutoff, cutoff2; var_type=var_type, return_floats=return_floats, shrink = shrink, R=R, cutoff4 = cutoff4, keep_extra = keep_extra)
@@ -1624,7 +1624,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
 
 end
 
-function distances_etc_3bdy_parallel_LV_old(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
+function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0, keep_extra = false)
     #        println("cutoff $cutoff $cutoff2")
 
     begin
