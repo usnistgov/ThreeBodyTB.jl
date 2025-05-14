@@ -3685,10 +3685,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             println("SCF iters $iters is $scf")
 
             if iters > 2
-                mix = 0.1
+                mix = 0.05
             end
             if iters >= 6
-                mix = 0.2
+                mix = 0.1
             end
 
             if scf
