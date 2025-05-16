@@ -132,7 +132,9 @@ function test2()
           database_start[(:Li, :Li)] = coefLi
           
           
-          database_trivial = Dict(); database_trivial["scf"] = true; database_trivial["SCF"] = true;
+          database_trivial = deepcopy(database_start); database_trivial["scf"] = true; database_trivial["SCF"] = true;
+          database_trivial[(:H, :H)]  = coef
+          
           c0 = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5], [:H])
           en, tbc0, flag = scf_energy(c0, database=database_trivial, repel=false)
           
@@ -160,7 +162,7 @@ function test2()
           newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = false, lambda = 1e-3, starting_database = database_start);   
           @test sum(abs.(newdatabase[(:H, :H)].datU )) < 1e-7
 
-          begin
+#          begin
               x = 0.03; c1a = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5-x; 0.5 0.5 0.5+x; 0.0 0.0 0.0], [:H, :H, :Li])
               x = 0.04; c3a = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5-x; 0.5 0.5 0.5+x; 0.0 0.0 0.0], [:H, :H, :Li])
               x = 0.05; c5a = makecrys([100 0 0; 0 100 0; 0 0 100], [0.5 0.5 0.5-x; 0.5 0.5 0.5+x; 0.0 0.0 0.0], [:H, :H, :Li])
@@ -174,7 +176,7 @@ function test2()
               coefHLi = ThreeBodyTB.CalcTB.make_coefs(Set([:Li, :H]), 2, fillzeros=true)
               coefLi = ThreeBodyTB.CalcTB.make_coefs(Set([:Li, :Li]), 2, fillzeros=true)
 
-              coef.datU = [10.0, 10.0]
+              coef.datU = [9.0, 9.0]
               #coef.datU = [0.0, 0.0]
               coefHLi.datU = [0.0, 0.0, 0.0, 0.0]
               coefLi.datU = [0.0, 0.0]
@@ -203,7 +205,7 @@ function test2()
                   en, tbc, flag = scf_energy(tbc , mix = 0.05, iters = 300, repel = false, conv_thr = 1e-8)
                   push!(EN_OLD, en)
               end
-          end
+#          end
           newdatabaseU = ThreeBodyTB.FitTB.do_fitting_recursive(deepcopy(tbc_list_new), fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_umat = true, lambda = 1e-7, starting_database=database_start);          
           
           EN_TEST = []
