@@ -11,7 +11,7 @@
 [![Build Status](https://travis-ci.com/kfgarrity/ThreeBodyTB.jl.svg?branch=main)](https://travis-ci.com/kfgarrity/ThreeBodyTB.jl)
 -->
 
-# ThreeBodyTB.jl
+# ThreeBodyTB.jl - working branch
 
 <img align="right" src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
 
