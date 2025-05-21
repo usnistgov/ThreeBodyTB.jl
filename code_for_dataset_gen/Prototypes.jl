@@ -207,6 +207,9 @@ function setup_proto_data()
     CalcD["square_big"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "vol2big", "nscf", false]
 
 
+    CalcD["dimer_mix"] =       ["$STRUCTDIR/dimer_mix.in", "relax", "2Dxy", "dimer_mix", "nscf", false]
+
+    
     CalcD["el_party"] =       ["$STRUCTDIR/dimer.in.small", "relax", "2Dxy", "el_party", "nscf", false]
     CalcD["bin_party"] =       ["$STRUCTDIR/binary/dimer.in.small", "relax", "2Dxy", "bin_party", "nscf", false]
     CalcD["tern_party"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "2Dxy", "tern_party", "nscf", false]
@@ -835,6 +838,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             ncalc = 11
+        elseif newst == "dimer_mix"
+            ncalc = 12
         elseif newst == "core_dimer"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
             #ncalc = length([-0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
@@ -1830,6 +1835,23 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #                c.A[3,3] = c.A[3,3] * 1.3
  #               push!(torun, deepcopy(c))
 
+            elseif newst == "dimer_mix"
+                c = deepcopy(cnew)
+                for ATOM in [:Li, :F]
+                    for x in [-0.2, -0.1, -0.05, 0.0, 0.1, 0.3]
+                        dist = c.coords[2,3] - c.coords[1,3]
+                        coords = [0.5 0.5 0; 0 0 0.5 - min(dist / 2 * (1 + x), 0.25); 0 0 0.5 + min(dist / 2 * (1 + x), 0.25)]
+                        cnew = makecrys([24 0 0; 0 14 0; 0 0 18], coords, [ATOM, c.stypes[1], c.stypes[2]])
+                        push!(torun, deepcopy(cnew))
+                    end
+                end
+
+#                c = deepcopy(cnew)
+#                c.coords[1,3] = c.coords[1,3] * (1 - 0.2)
+#                c.coords[2,3] = c.coords[2,3] * (1 + 0.2)
+#                c.A[3,3] = c.A[3,3] * 1.3
+ #               push!(torun, deepcopy(c))
+                
                 
             elseif newst == "core_atom3"
                 tot_charge = []

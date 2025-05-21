@@ -32,6 +32,7 @@ if isdir("/lab/hpc/raritan/") #we are on blackbird
 else #we are on raritan
     global MPI_STRING="srun --mpi=pmi2  -n  "
 end
+println("MPI_STRING $MPI_STRING ")
 #global MPI_STRING=" "
 #global QE_BIN_DIR_STRING="/home/kfg/codes/q-e-qe-6.5/bin/"
 #global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"

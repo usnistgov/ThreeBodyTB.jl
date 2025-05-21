@@ -1166,7 +1166,9 @@ function extract_database(database_old,nh,ns, KEYS, HIND, SIND; nu = 0, UIND = m
         if t in keys(database_old)
             println("YES found key ", t)
             coef = database_old[t]
-            ch[hind] = coef.datH[:]
+            ztemp = zeros(length(ch[hind]))
+            ztemp[1:length(coef.datH)] = coef.datH[:]
+            ch[hind] = ztemp
             cs[sind] = coef.datS[:]
             if !ismissing(UIND)  && (length(coef.datU) > 0)  && nu > 0
                 cu[uind] = coef.datU[:]
@@ -3688,11 +3690,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 mix = 0.05
             end
             if iters >= 6
-                mix = 0.1
+                mix = 0.2
             end
 
             if scf
-                if iters == 1
+                if iters == 4
                     println("TURNING ON SCF SOLVE!!!!!!!!!!!!!!!!!!!!!!! ")
                     println()
                     solve_scf_mode = true

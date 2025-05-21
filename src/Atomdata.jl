@@ -1913,7 +1913,8 @@ ewald_pairs = Dict()
 function load_upairs()
     include("U_pairs.jl")
 end
-load_upairs()
+#load_upairs()
+
 #neutral_fermi = Dict()
 #for k in keys(atoms)
 #    a = atoms[k]
