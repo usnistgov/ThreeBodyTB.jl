@@ -520,6 +520,22 @@ function loadXML(savedir)
     
     d= makedict(savedir)
 
+    calctype = d["espresso"]["input"]["control_variables"]["calculation"]
+    
+    if "convergence_achieved" in keys(d["espresso"]["output"]["convergence_info"]["scf_conv"])
+        convergence = d["espresso"]["output"]["convergence_info"]["scf_conv"]["convergence_achieved"]
+        if convergence == "false" && calctype != "nscf"
+            println("error dft $savedir convergence false")
+            return missing
+        end
+    elseif "scf_error" in keys(d["espresso"]["output"]["convergence_info"]["scf_conv"])
+        scf_error = parse(Float64, d["espresso"]["output"]["convergence_info"]["scf_conv"]["scf_error"])
+        if abs(scf_error) > 1e-6
+            println("error dft $savedir convergence false $scf_error")
+            return missing
+        end
+    end
+    
 
     stin = d["espresso"]["output"]["atomic_structure"]
     stout = d["espresso"]["output"]["atomic_structure"]
