@@ -866,7 +866,7 @@ end
 Construct the `coefs` and database from final results of fitting.
 """
 function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false)
-    println("make_database")
+    println("make_database function")
     if ismissing(starting_database)
         database = Dict()
     else
@@ -1058,7 +1058,9 @@ function extract_database(database_old,nh,ns, KEYS, HIND, SIND)
         if t in keys(database_old)
             println("YES found key ", t)
             coef = database_old[t]
-            ch[hind] = coef.datH[:]
+            z = zeros(length(hind))
+            z[1:length(coef.datH)] = coef.datH #edit
+            ch[hind] = z
             cs[sind] = coef.datS[:]            
         else
             println("        NO  found key ", t)
@@ -1460,7 +1462,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 
 end
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false)
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=0.0, leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false)
 
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
@@ -1998,6 +2000,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         else
                             H[:,:] = H0[:,:]
                         end
+                        if c == 1 && k == 1
+                            println("H ", H)
+                            println("H0 ", H0)
+                            println("S ", S)                            
+                        end
                         if tbc.tb.scfspin
                             H += h1spin_in[spin,:,:] .* S
                         end
@@ -2037,7 +2044,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             for c_scf = 1:niter_scf
 #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
                 get_eigen(h1, h1spin, tbc.tb.nspin)
-
+                
                 
 #                if c_scf == 1
 #                    println("$c VALS_FITTED k0 ", VALS_FITTED[c,1,1:nw])
@@ -2047,7 +2054,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 #if solve_self_consistently == true
                 if true
                     
-                    mix = 0.7 * 0.92^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
+                    mix = 0.3 * 0.91^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
 
                     
 #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
@@ -2074,7 +2081,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                     #                    println("energy_band ", occs[1] , " " ,  VALS0_FITTED[1], " ", kweights[1])
                     
                     if maximum(abs.(dq - dq_new)) > 0.1
-                        mix = 0.02
+                        mix = mix * 0.5
                     end
 
                     h1 = h1*(1-mix) + h1_new * mix
@@ -2101,10 +2108,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         
                     
                     energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
-                        
+                    if c == 34
+                        println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
+                    end
+                    
 #                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
-                    if abs(energy_new  - energy_old) < 1e-5
+                    if abs(energy_new  - energy_old) < 1e-5 && c_scf >= 2
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
                         conv = true
                         break
@@ -2594,7 +2604,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                println()
             end
 
-            if abs(error_new_energy - err_old_en) < 2e-2 && iters >= 6
+            if abs(error_new_energy - err_old_en) < 2e-2 && iters >= 15
                 println("break")
                 break
             else
@@ -2639,6 +2649,11 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         println(good)
         println("make database")
 
+        if optimS
+            println("skip_database")
+            return chX
+        end
+        
         database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam)
 
         return database, chX
@@ -2654,6 +2669,12 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #        Y_Hnew_BIG = nothing
 #    end            
 
+
+    if optimS
+        println("optim s")
+        ch =  do_iters(ch, niters)
+        return ch
+    end
     
     if leave_one_out == false
         database, ch =  do_iters(ch, niters)
@@ -5341,6 +5362,8 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
     return NEWX, NEWY, energy_counter
 
 end
+
+include("FitTB_laguerre_S.jl")
 
 #include("FitTB_laguerre_system.jl")
 
