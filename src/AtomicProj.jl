@@ -164,7 +164,7 @@ run projwfc.x QE command
     println("projwfc.x command")
     println(command)
     println()
-
+    flush(stdout)
     try
         println("Running projwfc.x")
         s = read(command, String)
