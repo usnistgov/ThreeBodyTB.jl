@@ -78,6 +78,7 @@ and mpi commands (if any)
         command_dict["pw2wan"] = pw2wan_command_serial        
         command_dict["og"] = og_command_serial
         command_dict["proj"] = proj_command_serial
+        command_dict["proj_serial"] = proj_command_parallel
 
     else
 
@@ -85,8 +86,8 @@ and mpi commands (if any)
         command_dict["qe_backup"] = pwscf_command_parallel_backup
         command_dict["pw2wan"] = pw2wan_command_parallel        
         command_dict["og"] = og_command_parallel
-#        command_dict["proj"] = proj_command_parallel        
-        command_dict["proj"] = proj_command_serial
+        command_dict["proj"] = proj_command_parallel        
+        command_dict["proj_serial"] = proj_command_serial
 
     end
 

@@ -175,10 +175,26 @@ run projwfc.x QE command
         println("Ran projwfc.x")
         println()
     catch
-        println("Failed to run projwfc.x ")
-        #println(s)
-        return -1
+
+        try
+            println("try proj again")
+            proj = c_dict["proj_serial"]
+            command = `$proj $directory/$projfile `
+            println("projwfc.x command")
+            println(command)
+            flush(stdout)
+            command = `$proj $directory/$projfile `
+            println("projwfc.x command")
+        catch
+            println("failed proj twice")
+        end
+        
+        
     end
+    println("Failed to run projwfc.x ")
+    
+    return -1
+end
 
 end
 
