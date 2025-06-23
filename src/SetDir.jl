@@ -27,8 +27,8 @@ DOCSDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "docs")
 
 
 global MPI_STRING="mpirun -np"
-#global QE_BIN_DIR_STRING="/home/kfg/codes/q-e-qe-6.5/bin/"
-global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"
+global QE_BIN_DIR_STRING="/home/kfg/codes/q-e-qe-6.5/bin/"
+#global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"
 global PSEUDOS=PSEUDODIR
 global TEMPLATES=TEMPLATEDIR
 
