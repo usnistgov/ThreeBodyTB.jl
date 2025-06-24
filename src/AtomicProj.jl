@@ -155,8 +155,8 @@ function run_projwfcx(projfile="proj.in"; directory="./", nprocs=1)
 run projwfc.x QE command
 """
 
-    nprocs = 1
-    println("set nprocs $nprocs")
+#    nprocs = 1
+#    println("set nprocs $nprocs")
     
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]

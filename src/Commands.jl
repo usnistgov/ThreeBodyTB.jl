@@ -57,8 +57,8 @@ and mpi commands (if any)
     #    og_command_parallel=`$mpi $nprocs $qebin/open_grid.x -input `
 
     #qe-project-wavefunction code
-    proj_command_serial=`$qebin/projwfc.x -input `
-    proj_command_parallel=`$mpi $nprocs $qebin/projwfc.x -input `
+    proj_command_serial=`$qebin/projwfc.x -nd 1 -input `
+    proj_command_parallel=`$mpi $nprocs $qebin/projwfc.x -nd 1 -input `
 
     
     #w90 (serial)
