@@ -187,15 +187,14 @@ run projwfc.x QE command
             println("projwfc.x command")
         catch
             println("failed proj twice")
+            println("Failed to run projwfc.x ")
         end
         
-        
+
     end
-    println("Failed to run projwfc.x ")
+    
     
     return -1
-end
-
 end
 
 
