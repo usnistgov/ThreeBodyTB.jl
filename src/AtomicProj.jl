@@ -295,6 +295,21 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
             println("gunzipped $tounzip")
             
         end
+        if isfile("$olddir/charge-density.hdf5")
+            cp("$olddir/charge-density.hdf5", "$nscfdir/charge-density.hdf5" )
+        end
+        if isfile("$olddir/charge-density.hdf5.gz")
+            cp("$olddir/charge-density.hdf5.gz", "$nscfdir/charge-density.hdf5.gz" )
+            
+            
+            tounzip = "$nscfdir/charge-density.hdf5.gz"
+            command = `gunzip $tounzip`
+            s = read(command, String)
+            println("gunzipped $tounzip")
+            
+            
+        end
+
         
         
     catch
