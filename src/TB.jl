@@ -494,7 +494,7 @@ function read_tb_crys(filename; directory=missing, sparse=false)
 
     if "eden" in keys(d)
         eden  = parse_str_ARR_float(d["eden"])
-        eden = reshape(eden, nspin, nwan)
+        eden = reshape(eden, nspin, Int64(length(eden)/nspin))
     end
     
     function readstr(st)
@@ -668,15 +668,18 @@ function read_tb_crys_kspace(filename; directory=missing)
     end
 
     
-    #    if "eden" in keys(d)
-    #        eden  = parse_str_ARR_float(d["eden"])
-    #    end
     
 
     ##tb
     
     nk = parse(Int64,d["tightbinding"]["nk"])
     nwan = parse(Int64,d["tightbinding"]["nwan"])
+
+    if "eden" in keys(d)
+        eden  = parse_str_ARR_float(d["eden"])
+        eden = reshape(eden, nspin, nwan)
+    end
+
     
     nonorth = parse(Bool,d["tightbinding"]["nonorth"])
     
@@ -769,6 +772,14 @@ function read_tb_crys_kspace(filename; directory=missing)
 
     tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
+    println("start checking")
+    println(tb)
+    println(typeof(tb))
+    println("crys " , crys)
+    println("nelec $nelec")
+    println("scf $scf")
+    println("eden $eden")
+    println("background_charge_correction $background_charge_correction")
     tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction)
 
     return tbck
@@ -4338,7 +4349,9 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
     #     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
-    return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
+    etot = bandenergy + etypes + echarge + energy_smear + emag
+    
+    return convert_energy(etot), eden, VECTS, VALS, error_flag
 
 
 end

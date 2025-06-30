@@ -161,7 +161,7 @@ run projwfc.x QE command
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]
     command = `$proj $directory/$projfile `
-    println("projwfc.x command")
+    println("projwfc.x command 1")
     println(command)
     println()
     flush(stdout)
@@ -177,17 +177,50 @@ run projwfc.x QE command
     catch
 
         try
-            println("try proj again")
-            proj = c_dict["proj_serial"]
-            command = `$proj $directory/$projfile `
-            println("projwfc.x command")
-            println(command)
-            flush(stdout)
-            command = `$proj $directory/$projfile `
-            println("projwfc.x command")
+                proj = c_dict["proj_serial"]
+                command = `$proj $directory/$projfile `
+                println("projwfc.x command 4")
+                println(command)
+                flush(stdout)
+                s = read(command, String)
+                f = open(directory*"/"*projfile*".out", "w")
+                write(f, s)
+                close(f)
+                flush(stdout)
+                command = `$proj $directory/$projfile `
         catch
             println("failed proj twice")
-            println("Failed to run projwfc.x ")
+            try
+                proj = c_dict["proj_serial_backup"]
+                command = `$proj $directory/$projfile `
+                println("projwfc.x command 4")
+                println(command)
+                flush(stdout)
+                s = read(command, String)
+                f = open(directory*"/"*projfile*".out", "w")
+                write(f, s)
+                close(f)
+                flush(stdout)
+                command = `$proj $directory/$projfile `
+
+            catch
+                try
+                    proj = c_dict["proj_backup"]
+                    command = `$proj $directory/$projfile `
+                    println("projwfc.x command 4")
+                    println(command)
+                    flush(stdout)
+                    s = read(command, String)
+                    f = open(directory*"/"*projfile*".out", "w")
+                    write(f, s)
+                    close(f)
+                    flush(stdout)
+                    command = `$proj $directory/$projfile `
+
+                catch
+                    println("all proj failed")
+                end
+            end
         end
         
 

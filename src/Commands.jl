@@ -60,6 +60,9 @@ and mpi commands (if any)
     proj_command_serial=`$qebin/projwfc.x -nd 1 -input `
     proj_command_parallel=`$mpi $nprocs $qebin/projwfc.x -nd 1 -input `
 
+    proj_command_serial_backup=`$qebin/projwfc.x  -input `
+    proj_command_parallel_backup=`$mpi $nprocs $qebin/projwfc.x  -input `
+    
     
     #w90 (serial)
     wannier90_command=`$w90bin/wannier90.x `
@@ -79,6 +82,8 @@ and mpi commands (if any)
         command_dict["og"] = og_command_serial
         command_dict["proj"] = proj_command_serial
         command_dict["proj_serial"] = proj_command_parallel
+        command_dict["proj_backup"] = proj_command_serial
+        command_dict["proj_serial_backup"] = proj_command_parallel
 
     else
 
@@ -88,6 +93,8 @@ and mpi commands (if any)
         command_dict["og"] = og_command_parallel
         command_dict["proj"] = proj_command_parallel        
         command_dict["proj_serial"] = proj_command_serial
+        command_dict["proj_backup"] = proj_command_serial
+        command_dict["proj_serial_backup"] = proj_command_parallel
 
     end
 
