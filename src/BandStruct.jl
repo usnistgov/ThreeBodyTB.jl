@@ -401,7 +401,6 @@ Returns the tight-binding object and the plot.
 """
 
 
-
 See `plot_bandstr` and `dos`
 """
 function plot_bandstr_dos(tbc::tb_crys;
