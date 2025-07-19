@@ -363,6 +363,92 @@ function plot_bandstr_dos(tbc::tb_crys;
 end
 
 
+
+"""
+    function plot_bandstr_dos(tbc::tb_crys)
+
+This function will plot the band dispersion along a provided 
+kpoint path and DOS layed out side-by-side. This version takes 
+in `tb_crys` object from a previous SCF calculation. 
+
+k-path specified by a kpath array and names.
+
+Must do scf calculation before plotting.
+
+# Arguments
+- `h::tb_crys` - The tight-biding object we want to plot bands from. Only required argument.
+- `kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5]` - `nk` × 3 array k-point path (high symmetry points).
+- `npts=30,` - number of points between high-symmetry k-points.
+- `names=missing` - `nk` string array. Names of the high-symmetry k-points 
+- `proj_types=missing` - types to project onto. Either `proj_types="H"` or `proj_types=["H", "O"]` are valid.
+- `proj_orbs=missing` - orbitals to project onto. either `proj_orbs=:s` or `proj_orbs=[:s, :p]`.
+- `proj_nums=missing` - atom numbers to project onto. Either `proj_nums=1` or `proj_nums=[1, 2]`
+- `efermi=missing` - allows you to specify fermi energy. Default is to take from `h`
+- `color="blue"` - specify line color
+- `MarkerSize=missing"` - specify markersize
+- `yrange=missing"` - specify y-range. e.g. `yrange=[-0.7, 0.3]`
+- `plot_hk=false` - plot things besides the normal band structure. Can be one of `:Seig, :Heig, :Hreal, :Himag, :Sreal, :Simag` to plot H or S eigvals or components. Primarily for debugging.
+- `align="vbm"` - default or `"valence"` is to align valence band max to zero energy. Can also be `"min"`, which aligns on the minimum eigenvalue, or `"fermi"` or `"ef"`, which align on the Fermi level,
+- `clear_pervious=true` - clears the plot before adding new stuff.
+- `do_display=true` - display the plot. If `false`, can be used with display-less nodes. You can still use `savefig` from `Plots` to produce saved images.
+- `nspin = 1` - Number of spins
+- `smearing = 0.025` - Guassian smearing
+
+
+Returns the tight-binding object and the plot.
+
+    tbc, p = plot_bandstr_dos(tb_crys, kpath=kpath, names=knames)
+"""
+
+
+
+See `plot_bandstr` and `dos`
+"""
+function plot_bandstr_dos(tbc::tb_crys;
+                          kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5],
+                          names = missing,
+                          npts=-1,
+                          efermi = missing,
+                          color="blue",
+                          MarkerSize=missing,
+                          yrange=missing,
+                          plot_hk=false,
+                          align = "fermi",
+                          proj_types = missing,
+                          proj_orbs = missing,
+                          proj_nums=missing,
+                          clear_previous=true,
+                          do_display=true,
+                          color_spin = ["green", "orange"],
+                          spin = :both,
+                          nspin = 1,
+                          database=missing,
+                          smearing = 0.025)
+
+
+    p_band = plot_bandstr(tbc, kpath=kpath, names=names, npts=npts, efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
+
+    ylimsX = ylims(p_band)
+
+    energies,DOS, pdos, names, proj =  dos(tbc, do_display=false, smearing=smearing)
+
+    p_dos = plot_dos_flip(energies, DOS, pdos, names, do_display=false, yrange=ylimsX)
+
+
+    l = @layout [ x{0.6w} y]
+    p = plot(p_band, p_dos, layout=l, size=(900, 400), margin = 4.0Plots.mm)
+
+    if do_display && no_display == false
+        display(p)
+    end
+   
+    return tbc, p
+
+end
+
+
+
+
 """
     function setup_proj(crys, nwan, proj_types, proj_orbs, proj_nums)
 
