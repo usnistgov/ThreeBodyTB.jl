@@ -4553,18 +4553,12 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     #     println("efermi $efermi")
     
     energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-<<<<<<< HEAD
-    
-    println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ",bandenergy + etypes + echarge + energy_smear + emag)
-    tbcK.energy = bandenergy + etypes + echarge + energy_smear + emag
-    return bandenergy + etypes + echarge + energy_smear + emag, eden, VECTS, VALS, error_flag
-=======
     #     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
     etot = bandenergy + etypes + echarge + energy_smear + emag
     
     return convert_energy(etot), eden, VECTS, VALS, error_flag
->>>>>>> b53534b711b494cbd5922c6c2b96341d392bdfed
+
 
 
 end
