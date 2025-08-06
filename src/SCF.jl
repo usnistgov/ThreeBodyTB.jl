@@ -63,6 +63,9 @@ using ..Symmetry:get_symmetry
 using ..Symmetry:symmetrize_charge_den
 
 using ..Classical:calc_energy_cl
+using ..ThreeBodyTB:set_units
+
+
 
 export scf_energy
 
@@ -1163,6 +1166,9 @@ This function takes a `tbc_crys_kspace` object that does not require scf and adj
 so that it does require scf, but gives the same energy and band structure.
 """
 function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missing)
+
+    old_units1, old_units2 = set_units()
+    set_units(both="atomic")
     
     hk3 = deepcopy(tbcK.tb.Hk)
     sk3 = deepcopy(tbcK.tb.Sk)
@@ -1286,6 +1292,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     println("yyyyyyyyyyyyyyyyyyy $energy_new e_den_new $e_den_new")
 
 
+    set_units(energy=old_units1, length=old_units2)
+
+    
 #    println("tbcK_new")
 #    println(tbcK_new)
     return tbcK_new
@@ -1304,6 +1313,8 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
         return tbc
     end
  
+    old_units1, old_units2=    set_units()
+    set_units(both="atomic")
 
 
     hk3, sk3 = myfft_R_to_K(tbc, grid)
@@ -1343,6 +1354,9 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
 #        println("sk3 diff ", sum(abs.(sk3_A - sk3)))
 #    end
 
+    set_units(energy=old_units1, length=old_units2)
+
+    
     return tbc_new
 
 end
@@ -1360,7 +1374,9 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
         if you then do an scf solution to the new tbc, you should get the old tbc back.
     """
 
-    println("1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq size hk3 ", size(hk3))
+    old_units1, old_units2=    set_units()
+    set_units(both="atomic")
+
 
 #    hk3a = deepcopy(hk3)
 
@@ -1513,6 +1529,8 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     
 #    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
 #    println("energy check ", energy_band_new)
+
+    set_units(energy=old_units1, length=old_units2)
     
     return hk3, sk3, e_den_NEW, h1, h1spin, efermi
 

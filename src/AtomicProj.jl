@@ -155,13 +155,13 @@ function run_projwfcx(projfile="proj.in"; directory="./", nprocs=1)
 run projwfc.x QE command
 """
 
-    nprocs = 1
-    println("set nprocs $nprocs")
+#    nprocs = 1
+#    println("set nprocs $nprocs")
     
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]
     command = `$proj $directory/$projfile `
-    println("projwfc.x command")
+    println("projwfc.x command 1")
     println(command)
     println()
     flush(stdout)
@@ -175,11 +175,59 @@ run projwfc.x QE command
         println("Ran projwfc.x")
         println()
     catch
-        println("Failed to run projwfc.x ")
-        #println(s)
-        return -1
-    end
 
+        try
+                proj = c_dict["proj_serial"]
+                command = `$proj $directory/$projfile `
+                println("projwfc.x command 4")
+                println(command)
+                flush(stdout)
+                s = read(command, String)
+                f = open(directory*"/"*projfile*".out", "w")
+                write(f, s)
+                close(f)
+                flush(stdout)
+                command = `$proj $directory/$projfile `
+        catch
+            println("failed proj twice")
+            try
+                proj = c_dict["proj_serial_backup"]
+                command = `$proj $directory/$projfile `
+                println("projwfc.x command 4")
+                println(command)
+                flush(stdout)
+                s = read(command, String)
+                f = open(directory*"/"*projfile*".out", "w")
+                write(f, s)
+                close(f)
+                flush(stdout)
+                command = `$proj $directory/$projfile `
+
+            catch
+                try
+                    proj = c_dict["proj_backup"]
+                    command = `$proj $directory/$projfile `
+                    println("projwfc.x command 4")
+                    println(command)
+                    flush(stdout)
+                    s = read(command, String)
+                    f = open(directory*"/"*projfile*".out", "w")
+                    write(f, s)
+                    close(f)
+                    flush(stdout)
+                    command = `$proj $directory/$projfile `
+
+                catch
+                    println("all proj failed")
+                end
+            end
+        end
+        
+
+    end
+    
+    
+    return -1
 end
 
 
@@ -280,6 +328,21 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
             println("gunzipped $tounzip")
             
         end
+        if isfile("$olddir/charge-density.hdf5")
+            cp("$olddir/charge-density.hdf5", "$nscfdir/charge-density.hdf5" )
+        end
+        if isfile("$olddir/charge-density.hdf5.gz")
+            cp("$olddir/charge-density.hdf5.gz", "$nscfdir/charge-density.hdf5.gz" )
+            
+            
+            tounzip = "$nscfdir/charge-density.hdf5.gz"
+            command = `gunzip $tounzip`
+            s = read(command, String)
+            println("gunzipped $tounzip")
+            
+            
+        end
+
         
         
     catch

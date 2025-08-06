@@ -28,6 +28,68 @@ include("AtomicMag.jl")
 include("Crystal.jl")
 include("Symmetry.jl")
 
+
+"""
+    function set_units(;energy=missing, length=missing, both=missing)
+
+Set global units for energy/length. Run with no arguments to check/return current units.
+
+- Default units are `"eV"` and `"Angstrom"` (or `"Å"` or `"Ang"` ).
+- Choose atomic units by setting `energy="Ryd"` and `length="Bohr"`.
+- Set both at the same time with `both="atomic"` or `both="eVAng"`
+- Internally, all units are atomic. Only main public facing functions actually change units.
+"""
+function set_units(a=missing;energy=missing, length=missing, both=missing)
+
+    if !ismissing(a)
+        both = a
+    end
+    
+    if !ismissing(both)
+        both = String(both)
+        if both == "atomic" || both == "Atomic" || both == "au" || both == "a.u."
+            energy="Ryd."
+            length="Bohr"
+        elseif both == "eVang" || both == "AngeV" || both == "eVAng" || both == "evang"
+            energy="eV"
+            length="Å"
+        else
+            println("I don't understand both : ", both)
+        end
+            
+    end
+    
+    if !ismissing(length)
+        length = String(length)
+        if length == "A" || length == "Ang" || length == "Ang." || length == "Angstrom" || length == "a" || length == "ang" || length == "ang." || length == "angstrom" || length == "Å"
+
+            global global_length_units="Å"
+        elseif length == "Bohr" || length == "bohr" || length == "au" || length == "a.u." || length == "atomic"
+            global global_length_units="Bohr"
+        else
+            println("I don't understand length : ", length)
+        end
+    end
+
+    if !ismissing(energy)
+        energy = String(energy)
+        if energy == "eV" || energy == "ev" || energy == "EV" || energy == "electronvolts"
+            global global_energy_units="eV"
+        elseif energy == "Rydberg" || energy == "Ryd." || energy == "Ryd" || energy == "atomic" || energy == "au" || energy == "a.u." || energy == "rydberg" || energy == "ryd" || energy == "ryd."
+            global global_energy_units="Ryd."
+        else
+            println("I don't understand energy : ", energy)
+        end
+            
+    end
+
+    println("Units are now $global_energy_units and $global_length_units ")
+
+    return deepcopy(global_energy_units), deepcopy(global_length_units)
+    
+end
+
+
 using Suppressor
 
 using Printf
@@ -128,65 +190,6 @@ export plot
 include("FitTB_laguerre.jl")
 
 
-"""
-    function set_units(;energy=missing, length=missing, both=missing)
-
-Set global units for energy/length. Run with no arguments to check/return current units.
-
-- Default units are `"eV"` and `"Angstrom"` (or `"Å"` or `"Ang"` ).
-- Choose atomic units by setting `energy="Ryd"` and `length="Bohr"`.
-- Set both at the same time with `both="atomic"` or `both="eVAng"`
-- Internally, all units are atomic. Only main public facing functions actually change units.
-"""
-function set_units(a=missing;energy=missing, length=missing, both=missing)
-
-    if !ismissing(a)
-        both = a
-    end
-    
-    if !ismissing(both)
-        both = String(both)
-        if both == "atomic" || both == "Atomic" || both == "au" || both == "a.u."
-            energy="Ryd."
-            length="Bohr"
-        elseif both == "eVang" || both == "AngeV" || both == "eVAng" || both == "evang"
-            energy="eV"
-            length="Å"
-        else
-            println("I don't understand both : ", both)
-        end
-            
-    end
-    
-    if !ismissing(length)
-        length = String(length)
-        if length == "A" || length == "Ang" || length == "Ang." || length == "Angstrom" || length == "a" || length == "ang" || length == "ang." || length == "angstrom" || length == "Å"
-
-            global global_length_units="Å"
-        elseif length == "Bohr" || length == "bohr" || length == "au" || length == "a.u." || length == "atomic"
-            global global_length_units="Bohr"
-        else
-            println("I don't understand length : ", length)
-        end
-    end
-
-    if !ismissing(energy)
-        energy = String(energy)
-        if energy == "eV" || energy == "ev" || energy == "EV" || energy == "electronvolts"
-            global global_energy_units="eV"
-        elseif energy == "Rydberg" || energy == "Ryd." || energy == "Ryd" || energy == "atomic" || energy == "au" || energy == "a.u." || energy == "rydberg" || energy == "ryd" || energy == "ryd."
-            global global_energy_units="Ryd."
-        else
-            println("I don't understand energy : ", energy)
-        end
-            
-    end
-
-    println("Units are now $global_energy_units and $global_length_units ")
-
-    return deepcopy(global_energy_units), deepcopy(global_length_units)
-    
-end
 
 
 
