@@ -51,9 +51,12 @@ function make_mag(str)
 
     nwan = Int64(atoms[name].nwan/2)
 
-    W = zeros(nwan,nwan)
-    X = zeros(nwan,nwan)
+#    W = zeros(nwan,nwan)
+#    X = zeros(nwan,nwan)
 
+    W = zeros(9,9)
+    X = zeros(9,9)
+    
     Wss = mag_arr[1]
     Wsp = mag_arr[2]
     Wsd = mag_arr[3]
@@ -71,7 +74,8 @@ function make_mag(str)
     XpD = mag_arr[15]    
     XdD = mag_arr[16]    
 
-#    println("name $name ", atoms[name].orbitals)
+    println("name $name ", atoms[name].orbitals)
+    inds = []
     if atoms[name].orbitals == [:s]
         inds = [:s]
     elseif atoms[name].orbitals == [:s, :p]
@@ -80,6 +84,8 @@ function make_mag(str)
         inds = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
     elseif atoms[name].orbitals == [:s, :d]
         inds = [:s, :d, :d, :d, :d, :d]
+    elseif atoms[name].orbitals == [:s, :p, :d]
+        inds = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
     else
         println("ERROR make_mag ")
     end
@@ -218,8 +224,17 @@ m = make_mag(" 85 0.0 -0.02192737662404999 0.0 -0.01152438361368688 -0.006466806
 m = make_mag(" 86 0.0 -0.024374173416059543 0.0 -0.013070540372324838 -0.007484483903290773 0.0 -0.04908361308527613 0.0     0.0 -0.017892113183153313 0.0 -0.018671901749236497 -0.018152764106507038 0.0 -0.013576076631980676 0.0     "); if !ismissing(m); magnetic[m.name] = m; end
 
 for k in keys(magnetic)
+    if k*"_d" in keys(atoms)
+        magnetic[k*"_d"] = magnetic[k]
+    end
+end
+
+for k in keys(magnetic)
     magnetic[Symbol(k)] = magnetic[k]
 end
+
+#end
+
 
 #=
 m = make_mag("46  Pd  -0.02528419783268891  -0.021831989867387627  -0.011607422988798136  -0.007974381628010455  -0.007197564788063698  -0.017384242398372267  -0.013281772911386805  -0.04038414204905415   -0.022669386150426317  -0.026003503621413904  0.01210869813539747  -0.0027702841978524432  0.010931394285573768  0.0009180162228518651  0.04351834802408937  -0.00011645030014369611 "); magnetic[m.name] = m

@@ -288,7 +288,15 @@ Make inputfile for SCF calculation
 
     temp = replace(temp, "JULIABRAV" => brav)
 
-
+    function convert_to_qe_type(t)
+        if occursin("_",t)
+            return t[1:end-2]*"D"
+        else
+            return t
+        end
+        return t
+    end
+    
     t=""
     for i = 1:ntypes
         if functional=="PBESOL"
@@ -300,7 +308,7 @@ Make inputfile for SCF calculation
         end
         
         mass = atoms[settypes[i]].mass
-        t = t * str_w_spaces([settypes[i], mass, psp, "\n"])
+        t = t * str_w_spaces([convert_to_qe_type(settypes[i]), mass, psp, "\n"])
     end
     temp = replace(temp, "JULIAPSP\n" => t) ###strip(t,"\n"))
     
@@ -319,7 +327,7 @@ Make inputfile for SCF calculation
     t=""
 
     for i = 1:crys.nat
-        t=t*crys.types[i]*" "
+        t=t*convert_to_qe_type(crys.types[i])*" "
         t=t*arr2str(crys.coords[i,:])
         if i != crys.nat
             t=t*"\n"

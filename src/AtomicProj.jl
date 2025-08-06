@@ -164,7 +164,7 @@ run projwfc.x QE command
     println("projwfc.x command")
     println(command)
     println()
-
+    flush(stdout)
     try
         println("Running projwfc.x")
         s = read(command, String)
@@ -432,6 +432,10 @@ Steps:
 
 #    return
 
+    if maximum(abs.(dft_nscf.bandstruct.eigs[:,1,:] - dft.bandstruct.eigs[:,1,:])) > 1e-2
+        println("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
+        throw("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
+    end
 
     newprefix = prefix
     
@@ -581,7 +585,7 @@ Steps:
     end
 
     if !only_kspace
-        tbc = AtomicProj.get_ham_r(tbck)
+        tbc = AtomicProj.get_ham_r(tbck, dft.tot_charge)
         if !ismissing(writefile)
             println()
             println("Step #5 write_tb---------------------------------------------------------------------------")
@@ -610,48 +614,51 @@ Steps:
 
     if cleanup
         println("clean: warning, removing wavefunctions to save space")
+        try
+            newdir = "$directory/$newprefix.save"
+            olddir = "$directory/$prefix.save"
+            parentdir = "$directory"
 
-        newdir = "$directory/$newprefix.save"
-        olddir = "$directory/$prefix.save"
-        parentdir = "$directory"
+            if (prefix_orig != prefix) && (newprefix != prefix_orig)
+                origdir = "$directory/$prefix_orig.save"
+                toclean = [newdir,olddir,origdir]
+            else
+                toclean = [newdir,olddir]
+            end
 
-        if (prefix_orig != prefix) && (newprefix != prefix_orig)
-            origdir = "$directory/$prefix_orig.save"
-            toclean = [newdir,olddir,origdir]
-        else
-            toclean = [newdir,olddir]
-        end
-
-        if (isdir(nscfdir))
-            toclean = [toclean; nscfdir]
-        end
-        if (isdir(parentdir))
-            toclean = [toclean; parentdir]
-        end
+            if (isdir(nscfdir))
+                toclean = [toclean; nscfdir]
+            end
+            if (isdir(parentdir))
+                toclean = [toclean; parentdir]
+            end
 
 
-        tot = 0
-        for d in toclean
-            files=read(`ls $d/`, String)
-            for f in split(files, "\n")
-                if occursin("wfc", f)
-                    if tot <= 2
-                        println("removing $d/$f")
-                    elseif tot==3
-                        println("removing $d/$f")
-                        println("...")
-                    end
-                    try
-                        cmd=`\rm $d/$f`
-                        s = read(cmd, String)
-                        tot += 1
-                    catch
-                        println("failed to delete $d/$f")
+            tot = 0
+            for d in toclean
+                files=read(`ls $d/`, String)
+                for f in split(files, "\n")
+                    if occursin("wfc", f)
+                        if tot <= 2
+                            println("removing $d/$f")
+                        elseif tot==3
+                            println("removing $d/$f")
+                            println("...")
+                        end
+                        try
+                            cmd=`\rm $d/$f`
+                            s = read(cmd, String)
+                            tot += 1
+                        catch
+                            println("failed to delete $d/$f")
+                        end
                     end
                 end
             end
+            println("clean-up done: $tot wfc files deleted")
+        catch
+            println("catch, something wrong with cleanup")
         end
-        println("clean-up done: $tot wfc files deleted")
     else
         println("don't clean wfcs")
     end        
@@ -887,8 +894,10 @@ function make_proj(bs, proj, overlaps)
     
 end
 
+
 function shift_eigenvalues(d::dftout)
 
+    println("sdf")
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
 
     efermi_dft = d.bandstruct.efermi
@@ -915,12 +924,15 @@ function shift_eigenvalues(d::dftout)
 #    PROJ = zeros(Complex{Float64}, p.bs.nks, nwan, NBND)
 
     # setup data
+#    println("nsemi $nsemi")
     for k = 1:d.bandstruct.nks
         counter = 0
-        for n = 1:d.bandstruct.nbnd
+        for n = (1+nsemi):d.bandstruct.nbnd
+
             #if !(n in INDSEMI[k, :])
             if true
                 counter += 1
+                #println("k $k counter $counter k $k n  $n  EIGS  $(size(EIGS)) d $(size(d.bandstruct.eigs))  EIGS $(EIGS[k,counter]) = eigs $(d.bandstruct.eigs[k,n])")
                 EIGS[k,counter] = d.bandstruct.eigs[k,n]
 #                PROJ[k,:,counter] = p.proj[k,wan,n]
                 
@@ -938,11 +950,12 @@ function shift_eigenvalues(d::dftout)
 #        end
     end
 
-        
-    println("shifting eigenvalues to match dft atomization energy")
+#    println("EIGS")
+#    println(EIGS)
+#    println("shifting eigenvalues to match dft atomization energy")
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
     #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
-    band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
+    band_en = band_energy(EIGS, d.bandstruct.kweights, nval - d.tot_charge )
 
     #        println("d.crys")
     #        println(d.crys)
@@ -959,12 +972,12 @@ function shift_eigenvalues(d::dftout)
 #    println("atomization_energy $atomization_energy")
     
     band_en = band_en 
-    shift = (atomization_energy - band_en  )/nval
-    
+    shift = (atomization_energy - band_en  )/ (nval - d.tot_charge)
+#    println("shift $shift")
     
     EIGS = EIGS .+ shift
     
-    return EIGS
+    return EIGS, shift
 
 end
 
@@ -1076,7 +1089,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 #        println("atomization_energy $atomization_energy")
 
         band_en = band_en 
-        shift = (atomization_energy - band_en  )/nval
+        shift = (atomization_energy - band_en  )/(nval - d.tot_charge)
 
 #        println("shift $shift")
 #        return 0
@@ -1138,6 +1151,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     Palt_min = 1.0
     
     badk=0
+    PROJECTABILITY = zeros(p.nspin, p.bs.nks, NBND)
+
+    
     for spin = 1:p.nspin
         for k = 1:p.bs.nks
             #    for k = 1:nks
@@ -1167,6 +1183,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             P[:,:] .= 0.0
 
             P[1:max_ind,1:max_ind] = B[:,1:max_ind]'*B[:,1:max_ind]
+            PROJECTABILITY[spin,k,:] = real.(diag(P))
+
+            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
             
 
             Palt = B[:,1:max_ind]*B[:,1:max_ind]'
@@ -1244,7 +1263,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     #this requires identifying which bands are supposed to match which eigenvlues, which
     #can be tricky. I use a projection heuriestic, but it can fail at band crossings that mix bands.
     if !(ismissing(energy_froz))
-        energy_froz2 = energy_froz+0.25
+        energy_froz2 = energy_froz+2.0
         println("energy_froz: $energy_froz , $energy_froz2")
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
@@ -1297,8 +1316,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     if val_pw[order[n]] < energy_froz
                         val_tb_new[n] = val_pw[order[n]]
                     elseif val_pw[order[n]] < energy_froz2
-                        x=cutoff(val_tb[n], energy_froz, energy_froz2)
-                        val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+                        #x=cutoff(val_tb[n], energy_froz, energy_froz2)
+                        x = PROJECTABILITY[spin,k,n]
+                        if x > 0.1
+                            val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+                        end
                     end
                     
                 end
@@ -1372,11 +1394,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         end
             
         
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval)
+        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
 
         println("band_en_old " , band_en)
 
-        shift = (atomization_energy - band_en)/nval
+        shift = (atomization_energy - band_en)/(nval - d.tot_charge)
         VAL = VAL .+ shift
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
@@ -1397,7 +1419,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             end
         end
             
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval)
+        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
         println("band_en_new " , band_en, " " , band_en+etypes)
 
 
@@ -1621,6 +1643,8 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
     # I don't know why, you have to ask them.
     
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
+
+    nval = nval - d.tot_charge
     
     OVERLAPS = deepcopy(p.overlaps)
     println("wan ", wan)
@@ -1747,7 +1771,7 @@ end
 
 Do fft to get the real-space ham. Requires tbck to be on a regular grid centered at Gamma with no symmetry.
 """
-function get_ham_r(tbck::tb_crys_kspace)
+function get_ham_r(tbck::tb_crys_kspace, tot_charge)
 """
 Do Fourier transform k->R. 
 """
@@ -1789,7 +1813,7 @@ Do Fourier transform k->R.
 
 #    renormalize_tb(d, tb)
 #    nelec=.bandstruct.nelec ##- nsemi * 2.0
-    nelec = nval
+    nelec = nval - tot_charge
 
     dftenergy=tbck.dftenergy
     ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(tbck.crys)

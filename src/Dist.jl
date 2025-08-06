@@ -1569,7 +1569,8 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
                         d23 = dist3a[a,i_b,i_c]
                         
                         #                        if i_c <= max_ind_a[a] && d12 > 1e-3 && d13 > 1e-3 && d23  > 1e-3 && d12 < cutoff_arr[a, nz_ab[a,i_b,4],1] && d13 < cut3 && d23 < cut3
-                        if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3 && ( exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 || exp(-aX2*d13)*exp(-aX2*d12)*1000 > 0.2e-6)
+                        #if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3 && ( exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 || exp(-aX2*d13)*exp(-aX2*d12)*1000 > 0.2e-6)
+                        if i_c <= max_ind_a[a] && d13 > 1e-3 && d23  > 1e-3  && d13 < cut3 && d23 < cut3*2 # && ( exp(-aX2*d13)*exp(-aX2*d23)*1000 > 0.2e-6 || exp(-aX2*d13)*exp(-aX2*d12)*1000 > 0.2e-6)
                             counter += 1
                             NZ[counter,1] = a
                             NZ[counter,2] = i_b

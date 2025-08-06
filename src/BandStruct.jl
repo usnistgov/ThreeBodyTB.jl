@@ -52,6 +52,7 @@ using ..TB:calc_bands
 using ..TB:Hk
 
 using ..AtomicProj:run_nscf
+using ..AtomicProj:shift_eigenvalues
 using ..DFT:runSCF
 using ..QE:loadXML
 
@@ -649,6 +650,22 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
                 vals_up = vals_up .- vbm
                 vals_dn = vals_dn .- vbm
             end
+
+        elseif  align == :none
+
+#            println("efermi ", efermi)
+#            println("test", sum(vals .< efermi))
+            
+            vbm = 0.0
+            println("none $vbm     efermi $efermi")
+
+            vals = vals .- vbm
+            alignstr = "Energy - VBM ($units)"
+
+            if (h.nspin == 2  || h.scfspin) && spin == 0
+                vals_up = vals_up .- vbm
+                vals_dn = vals_dn .- vbm
+            end
             
         end            
     end
@@ -778,7 +795,16 @@ The k-points are fixed by the `bs` object.
 function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, spin=1, align=:vbm)
 
     if typeof(bs) == dftout
-        bs = bs.bandstruct
+
+        dft_copy = deepcopy(bs)
+        dft_copy2 = deepcopy(bs)
+        println("shift eigs")
+        eigs, shift = shift_eigenvalues(dft_copy)
+
+        dft_copy2.bandstruct.eigs .+= shift
+
+        
+        bs = dft_copy2.bandstruct
     end
 
     kpts = bs.kpts
@@ -860,8 +886,14 @@ function plot_compare_dft(tbc, bs; tbc2=missing, names=missing, locs=missing, sp
         vbmD = efermi_dft
         vbm = efermi_tbc
     end
+    if align == :none || align == "none"
+        vbmD = 0.0
+        vbm = 0.0
+        println("align none")
+    end
         
-        plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
+    
+    plot!(convert_energy( bs.eigs[:,1, spin] .- vbmD) , color="orange", lw=4, label="DFT", grid=false, legend=:topright)    
         if bs.nbnd > 1
             #        println("test ", vbmD)
             #        println(bs.eigs[:,2, spin] )

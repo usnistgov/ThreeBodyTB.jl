@@ -774,7 +774,8 @@ function read_tb_crys_kspace(filename; directory=missing)
     tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
 
     tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction)
-
+    get_energy_electron_density_kspace(tbck, use_scf = scf)
+    
     return tbck
     
     #    catch
@@ -4471,22 +4472,38 @@ end
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = 0.0, use_scf = false, eden_start = missing, mix = 0.15)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = false, eden_start = missing, mix = 0.15)
+
+    ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
 
     if ismissing(eden_start)
         eden_start = tbcK.eden
+        if ismissing(tot_charge)
+            tot_charge = nval - tbcK.nelec
+        end
         if sum(eden_start) < 1e-5
             eden_start = get_neutral_eden(tbcK.crys, tbcK.tb.nwan, nspin=tbcK.tb.nspin)
+            eden_start = eden_start .- tot_charge / 2.0 / length(eden_start)
         end
-            
+
         #        if abs(sum(eden_start) - (tbcK.nelec - tot_charge)/2.0) > 1e-3
 #            println("bad eden start ", [sum(eden_start), (tbcK.nelec - tot_charge)/2.0, tbcK.nelec,  tot_charge])
 #            eden_start = get_neutral_eden(tbcK.crys, tbcK.tb.nwan, nspin=tbcK.tb.nspin)
 #        end
+    else
+        if ismissing(tot_charge)
+            println("nval $nval sum(eden_start)*2 $(2*sum(eden_start))")
+            tot_charge = nval - sum(eden_start)  * 2.0
+        end
+        println("tot_charge = $tot_charge")
         
     end
 
-    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
+    tbcK.nelec = nval -  tot_charge
+    
+    println("eden start $eden_start sum $(sum(eden_start)) tot_charge $tot_charge nelec $(tbcK.nelec)")
+    
+    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, nval - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
     tbcK.efermi = efermi
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
@@ -4769,7 +4786,7 @@ end
 
 function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
 
-    #println("begin")
+#    println("begin")
     begin
         thetype=typeof(real(sk3[1,1,1,1,1]))
 
@@ -4848,9 +4865,9 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
 
 #    println("VALS ", VALS)
 #    println("VALS0 ", VALS0)
-    
+#    println("end")
     begin
-
+        
         if nelec > 1e-10
 #            println("VALS ", VALS[1,:,1])
             energy, efermi = band_energy(VALS, kweights, nelec, smearing, returnef=true)
@@ -4990,8 +5007,8 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
-    
-    @inbounds @fastmath @threads for c = 1:nk_red
+    #println("go_eig_sym")
+    @fastmath @inbounds for c = 1:nk_red
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
         
@@ -5023,6 +5040,7 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
             try
                 #hermH[:,:] = (@view hk[:,:,id][:,:])
                 #hermS[:,:] = (@view sk[:,:,id][:,:])
+                
                 vals[:,id], vects[:,:,id] = eigen( Hermitian( hk[:,:,id][:,:]), Hermitian( sk[:,:,id][:,:]))
 #                if c == 1
 #                    println()
@@ -5311,6 +5329,39 @@ function Hk_derivative(hk,sk, dhk, dsk, h::tb, kpoint, A; spin=1)
 
     return vects, vals, hk, sk, vals0, dhk, dsk
 
+end
+
+function create_tb_crys_kspace_from_tbc(tbc, kpts, kweights; kgrid = [1,1,1])
+    nk = length(kweights)
+    nspin = tbc.tb.nspin
+    nwan = tbc.tb.nwan
+    
+    Hk_arr = zeros(Complex{Float64}, nwan, nwan, nk, nspin)
+    Sk = zeros(Complex{Float64}, nwan, nwan, nk)
+
+    for spin = 1:nspin
+        for k = 1:nk
+            kpt = kpts[k,:]
+            kw = kweights[k]
+            tbc_temp  = deepcopy(tbc)
+#            tbc_temp.tb.h1 .= 0.0
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpt)
+            Hk_arr[:,:,k,spin ] = hk - tbc.tb.h1 .* sk
+            Sk[:,:,k,spin ] = sk
+        end
+    end
+
+    if tbc.tb.scfspin == false && tbc.tb.nspin == 1
+        h1spin = missing
+    else
+        h1spin = tbc.tb.h1spin
+    end
+       
+    tbk =  make_tb_k(Hk_arr, kpts, kweights, Sk, h1 = tbc.tb.h1 ,h1spin = h1spin, grid=kgrid)
+
+    return make_tb_crys_kspace(tbk, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden = tbc.eden, gamma = tbc.gamma, background_charge_correction=tbc.background_charge_correction, efermi = tbc.efermi)
+
+    
 end
 
 

@@ -336,6 +336,17 @@ function makecrys(A,coords,types; units=missing, type=missing)
         types = String.(types)
     end
 
+    for i = 1:length(types)
+        if types[i][end] == 'D'
+            if types[i][end-1] == '_'
+                types[i] = types[i][1:end-1]*"d"                
+            else
+                types[i] = types[i][1:end-1]*"_d"
+            end
+        end
+    end
+    
+
     for t in types
         if !(t in keys(atoms))
             println()

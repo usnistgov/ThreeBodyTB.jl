@@ -124,262 +124,262 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 """
 #    println("SCF_ENERGY TOT ", tbc.tot_charge)
 
-    begin
+    @time    begin
         
-    if do_classical
-        if !ismissing(database_classical)
-            println("DO CLASSICAL $do_classical")
-            energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)
-            println("energy classical   $energy_classical ")
+        if do_classical
+            if !ismissing(database_classical)
+                println("DO CLASSICAL $do_classical")
+                energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)
+                println("energy classical   $energy_classical ")
+            else
+                energy_classical = 0.0
+            end
         else
             energy_classical = 0.0
         end
-    else
-        energy_classical = 0.0
-    end
 
-    
-    if mixing_mode == :diis
-        mixing_mode = :DIIS
-    end
-
-
-    #println("mixing mode $mixing_mode")
-    #println("before before ", tbc.eden)
-
-    if ismissing(tot_charge)
-        tot_charge=tbc.tot_charge
-    end
-    
-    if !ismissing(tot_charge)
-        ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
-        tbc.nelec = nval - tot_charge
-    end
-    
-    #println("e_den0 $e_den0")
-    if tbc.nspin == 2
-        nspin = 2
-    end
-
-    if nspin == 2
-        magnetic = true
-    else
-        magnetic = false
-    end
-
-#    if magnetic
-#        mixing_mode=:simple
-#    end
-    
-    if !ismissing(e_den0)
-        if size(e_den0)[1] == 2 && nspin == 1
-            println("switch to nspin == 2 because of initial charge density")
-            nspin = 2
-            ud = sum(e_den0, dims=2)
-            if abs(ud[1] - ud[2]) <1e-2
-                magnetic = false
-            else
-                magnetic= true
-            end
-        end
-    end
-
-    a1 = sqrt(sum(tbc.crys.A[1,:].^2))
-    a2 = sqrt(sum(tbc.crys.A[2,:].^2))
-    a3 = sqrt(sum(tbc.crys.A[3,:].^2))
-
-    extend = false
-    if a1 / a2 > 3.0 || a1 / a3 > 3.0 || a2 / a3 > 3.0 || a2 / a1 > 3.0 || a3 / a1 > 3.0 || a3 / a2 > 3.0 #likely a surface, 
-        extend=true
-#        mixing_mode = :simple
-    end
-
-    if mixing_mode == :DIIS && mix < 0.0
-        mix = 1.0
-    end
-    
-
-    if mixing_mode != :pulay  &&  mixing_mode != :DIIS
-        mixing_mode = :simple
-        if mix < 0
-
-            if extend
-                mix = 0.05
-            else
-                if tbc.crys.nat <= 10 
-                    mix = 0.4
-                else
-                    mix = 0.1
-                end
-            end
-        end
-    else
-        if mix < 0
-
-            if extend
-                mix = 0.05
-            else
-                if tbc.crys.nat <= 10 
-                    mix= 0.5
-                else
-                    mix= 0.3
-                end
-            end
-                
-        end
-    end
-
-
-    if global_energy_units == "eV"  #for display only, keep units Rydberg internally
-        energy_units = eV
-    else
-        energy_units = 1.0
-    end
-
-    
-    error_flag = false
-    if tbc.scf == false 
-        println("doesn't require scf")
-
-        energy, efermi, eden, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
-#        energy, efermi, eden, VECTS, VALS =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
-#        error_flag = false
-        dq = get_dq(tbc.crys, eden)
-
-        return energy, efermi, eden, dq, VECTS, VALS, error_flag, tbc
-    end
-
-    if verbose
-        println("Do SCF")
-        println()
-    end
-
-    tot_charge = 0.0
-    for (i, t) in enumerate(tbc.crys.types)
-        at = atoms[t]
-        z_ion = at.nval
-        tot_charge += z_ion / 2.0
-    end
-#    println("tot_charge calc ", tot_charge, " tbc.nelec ", tbc.nelec)
-    
-    
-
-    if ismissing(e_den0)
-        e_den0 = deepcopy(tbc.eden)
-    end
-    if nspin == 2 && size(e_den0,1) == 1
-        e_den0 = [e_den0;e_den0]
-        e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.2
-        e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
-    end    
-
-    dq = get_dq(tbc.crys, e_den0)
-
-#    println("before ", e_den0)
-    if abs(sum(e_den0) - nspin* tbc.nelec/2.0 ) > 1e-5
-        if verbose println("bad guess, instead get atoms initial guess") end
-        e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-        bv = e_den0 .> 1e-5
-        e_den0[bv] = e_den0[bv] .- (sum(e_den0) - nspin* tbc.nelec/2.0)/tbc.crys.nat
         
-        #        e_den0 = e_den0 .- (sum(e_den0) - nspin* tbc.nelec/2.0)
-    end
-
-#    println("e_den0 ", e_den0)
-#    println("sum ", sum(e_den0))
-    
-    if verbose
-        if magnetic 
-            println("Initial ΔQ: ", (round.(dq; digits=3)))
-            println("Initial μB: ", round.(get_magmom(tbc.crys, e_den0), digits=3))
-            
-        else
-            println("Initial ΔQ: ", (round.(dq; digits=3)))
+        if mixing_mode == :diis
+            mixing_mode = :DIIS
         end
-        println()
-    end
 
-#else
-#        if verbose println("Get initial charge density from input") end
-#        if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
-#            if verbose println("bad guess, instead get neutral atoms initial guess") end
-#            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
-#        end
-#    end
-    
-    if ismissing(grid)
-        grid = get_grid(tbc.crys)
-    end
 
-    nk = prod(grid)
-    
-    if use_sym
-        nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
-        ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
-        sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys, verbose=verbose);
-    end
-                                              
+        #println("mixing mode $mixing_mode")
+        #println("before before ", tbc.eden)
 
-    
-    if verbose
-        println()
-        println("Parameters:")
-        println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix $mixing_mode , grid = $grid, nspin=$nspin")
-        if use_sym
-            println("nk $nk: $grid ; nk_red: $nk_red")
+        if ismissing(tot_charge)
+            tot_charge=tbc.tot_charge
+        end
+        
+        if !ismissing(tot_charge)
+            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+            tbc.nelec = nval - tot_charge
+        end
+        
+        #println("e_den0 $e_den0")
+        if tbc.nspin == 2
+            nspin = 2
+        end
+
+        if nspin == 2
+            magnetic = true
         else
-            println("nk $nk: $grid")
-        end            
+            magnetic = false
+        end
+
+        #    if magnetic
+        #        mixing_mode=:simple
+        #    end
+        
+        if !ismissing(e_den0)
+            if size(e_den0)[1] == 2 && nspin == 1
+                println("switch to nspin == 2 because of initial charge density")
+                nspin = 2
+                ud = sum(e_den0, dims=2)
+                if abs(ud[1] - ud[2]) <1e-2
+                    magnetic = false
+                else
+                    magnetic= true
+                end
+            end
+        end
+
+        a1 = sqrt(sum(tbc.crys.A[1,:].^2))
+        a2 = sqrt(sum(tbc.crys.A[2,:].^2))
+        a3 = sqrt(sum(tbc.crys.A[3,:].^2))
+
+        extend = false
+        if a1 / a2 > 3.0 || a1 / a3 > 3.0 || a2 / a3 > 3.0 || a2 / a1 > 3.0 || a3 / a1 > 3.0 || a3 / a2 > 3.0 #likely a surface, 
+            extend=true
+            #        mixing_mode = :simple
+        end
+
+        if mixing_mode == :DIIS && mix < 0.0
+            mix = 1.0
+        end
+        
+
+        if mixing_mode != :pulay  &&  mixing_mode != :DIIS
+            mixing_mode = :simple
+            if mix < 0
+
+                if extend
+                    mix = 0.05
+                else
+                    if tbc.crys.nat <= 10 
+                        mix = 0.4
+                    else
+                        mix = 0.1
+                    end
+                end
+            end
+        else
+            if mix < 0
+
+                if extend
+                    mix = 0.05
+                else
+                    if tbc.crys.nat <= 10 
+                        mix= 0.5
+                    else
+                        mix= 0.3
+                    end
+                end
+                
+            end
+        end
+
+
+        if global_energy_units == "eV"  #for display only, keep units Rydberg internally
+            energy_units = eV
+        else
+            energy_units = 1.0
+        end
+
+        
+        error_flag = false
+        if tbc.scf == false 
+            println("doesn't require scf")
+
+            energy, efermi, eden, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
+            #        energy, efermi, eden, VECTS, VALS =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
+            #        error_flag = false
+            dq = get_dq(tbc.crys, eden)
+
+            return energy, efermi, eden, dq, VECTS, VALS, error_flag, tbc
+        end
+
+        if verbose
+            println("Do SCF")
+            println()
+        end
+
+        tot_charge = 0.0
+        for (i, t) in enumerate(tbc.crys.types)
+            at = atoms[t]
+            z_ion = at.nval
+            tot_charge += z_ion / 2.0
+        end
+        #    println("tot_charge calc ", tot_charge, " tbc.nelec ", tbc.nelec)
+        
+        
+
+        if ismissing(e_den0)
+            e_den0 = deepcopy(tbc.eden)
+        end
+        if nspin == 2 && size(e_den0,1) == 1
+            e_den0 = [e_den0;e_den0]
+            e_den0[1,:] = e_den0[1,:] + e_den0[1,:]*0.2
+            e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
+        end    
+
+        dq = get_dq(tbc.crys, e_den0)
+
+        #    println("before ", e_den0)
+        if abs(sum(e_den0) - nspin* tbc.nelec/2.0 ) > 1e-5
+            if verbose println("bad guess, instead get atoms initial guess") end
+            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+            bv = e_den0 .> 1e-5
+            e_den0[bv] = e_den0[bv] .- (sum(e_den0) - nspin* tbc.nelec/2.0)/tbc.crys.nat
+            
+            #        e_den0 = e_den0 .- (sum(e_den0) - nspin* tbc.nelec/2.0)
+        end
+
+        #    println("e_den0 ", e_den0)
+        #    println("sum ", sum(e_den0))
+        
+        if verbose
+            if magnetic 
+                println("Initial ΔQ: ", (round.(dq; digits=3)))
+                println("Initial μB: ", round.(get_magmom(tbc.crys, e_den0), digits=3))
+                
+            else
+                println("Initial ΔQ: ", (round.(dq; digits=3)))
+            end
+            println()
+        end
+
+        #else
+        #        if verbose println("Get initial charge density from input") end
+        #        if abs(sum(e_den0) - nspin*tot_charge) > 1e-5
+        #            if verbose println("bad guess, instead get neutral atoms initial guess") end
+        #            e_den0 = get_neutral_eden(tbc, nspin=nspin, magnetic=magnetic)
+        #        end
+        #    end
+        
+        if ismissing(grid)
+            grid = get_grid(tbc.crys)
+        end
+
+        nk = prod(grid)
+        
+        if use_sym
+            nk_red, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=grid)
+            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+            sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys, verbose=verbose);
+        end
+        
+
+        
+        if verbose
+            println()
+            println("Parameters:")
+            println("smearing = $smearing conv_thr = $conv_thr, iters = $iters, mix = $mix $mixing_mode , grid = $grid, nspin=$nspin")
+            if use_sym
+                println("nk $nk: $grid ; nk_red: $nk_red")
+            else
+                println("nk $nk: $grid")
+            end            
+            println()
+        end
+
+        #    if !ismissing(grid)
+        #        println("grid = $grid")
+        #    end
+
+
         println()
+        println("START SCF ----------------")
+        e_den = deepcopy(e_den0)
+
+        etypes = types_energy(tbc.crys)
+
+        thetype=typeof(real(tbc.tb.S[1]))
+
+        
+
+        
+        if use_sym
+            VECTS = zeros(Complex{Float64}, nspin, nk_red, tbc.tb.nwan, tbc.tb.nwan)
+            VALS = zeros(Float64, nspin, nk_red, tbc.tb.nwan)
+        else
+            VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
+            VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
+        end
+        
+        energy_old = 1e12
+        delta_energy_old = 1e14
+
+        conv = false
+        
+        energy_tot = 0.0
+        dq = zeros(tbc.crys.nat)
+        dq_old = zeros(tbc.crys.nat)
+        dq_old2 = zeros(tbc.crys.nat)
+
+        efermi = 0.0
+
+
+        #    println("dq start", round.(dq; digits=2))
+
+
+        h1, dq = get_h1(tbc, e_den)
+
+        Qpropose = deepcopy(dq)
     end
-
-#    if !ismissing(grid)
-#        println("grid = $grid")
-#    end
-
-
-    println()
-    println("START SCF ----------------")
-    e_den = deepcopy(e_den0)
-
-    etypes = types_energy(tbc.crys)
-
-    thetype=typeof(real(tbc.tb.S[1]))
-
-    
-
-    
-    if use_sym
-        VECTS = zeros(Complex{Float64}, nspin, nk_red, tbc.tb.nwan, tbc.tb.nwan)
-        VALS = zeros(Float64, nspin, nk_red, tbc.tb.nwan)
-    else
-        VECTS = zeros(Complex{Float64}, nspin, nk, tbc.tb.nwan, tbc.tb.nwan)
-        VALS = zeros(Float64, nspin, nk, tbc.tb.nwan)
-    end
-                  
-    energy_old = 1e12
-    delta_energy_old = 1e14
-
-    conv = false
-    
-    energy_tot = 0.0
-    dq = zeros(tbc.crys.nat)
-    dq_old = zeros(tbc.crys.nat)
-    dq_old2 = zeros(tbc.crys.nat)
-
-    efermi = 0.0
-
-
-#    println("dq start", round.(dq; digits=2))
-
-
-    h1, dq = get_h1(tbc, e_den)
-
-    Qpropose = deepcopy(dq)
-    end
-#    println("done begin")
-#    println("fft time")
-    hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
+    println("done begin")
+    println("fft time")
+    @time hk3, sk3 = myfft_R_to_K(tbc, grid)   #we only have to do this once
 
         
 #=
@@ -511,7 +511,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         delta_dq2 = ones(tbc.crys.nat)*1000.0
         
 #        println("error_flag $error_flag")
-        for iter = 1:ITERS
+        @time for iter = 1:ITERS
 
 #            println("iter $iter $error_flag")
             
@@ -588,6 +588,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             
 #            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=8))
             
+            #println("symmetrize")
             if use_sym
                 for spin =1:nspin
                     e_den_NEW[spin,:] = symmetrize_charge_den(tbc.crys, e_den_NEW[spin,:] , SS, atom_trans, orb2ind)
@@ -852,8 +853,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #                    println(round.(e_denA[2,:], digits=3))
 #                end
             end
-            
-#            println("conv ", abs(energy_old - energy_tot), " " ,  sum(abs.( delta_dq )), " " , abs(magmom-magmom_old))
+            #            println("conv ", abs(energy_old - energy_tot), " " ,  sum(abs.( delta_dq )), " " , abs(magmom-magmom_old))
 #            println([abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat,  sum(abs.( delta_dq )) < 0.02 * tbc.crys.nat, abs(magmom-magmom_old) < 0.02 * tbc.crys.nat])
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
 
@@ -877,10 +877,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                     break
                 end
             end
-
+            
             delta_energy_old = deepcopy(abs(energy_old - energy_tot))
             energy_old = deepcopy(energy_tot)
         end
+        println("done convergence")
+        
         return convA, e_denA
     end
 
@@ -1170,13 +1172,14 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 
     energy_orig, e_den_new, VECTS, VALS, error_flag = get_energy_electron_density_kspace(tbcK, smearing=smearing)
     println("ooooooooo $energy_orig")
-
-
+    println("e_den_new $e_den_new")
+    
     if ismissing(e_den)
         e_den = e_den_new
     end
 
     h1, dq = get_h1(tbcK, e_den)
+    println("dq $dq")
     if tbcK.tb.nspin == 2
         h1spin = get_spin_h1(tbcK, e_den)
     else
@@ -1242,13 +1245,13 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     tbcK_new.tb.h1spin = h1spin
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
-    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing)
-    println("xxxxxxxxxxxxxxx $energy_new")
+    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf=true)
+    println("xxxxxxxxxxxxxxx $energy_new e_den_new $e_den_new")
 #    energy_smear = smearing_energy(VALS_new, tbcK.tb.kweights, efermi_new, smearing)
 #    println("energy smear " , energy_smear)
 
 #    shift = (energy_orig - energy_charge - energy_magnetic - energy_new)/nval
-    shift = (energy_orig - energy_new) / nval
+    shift = (energy_orig - energy_new) / (tbcK_new.nelec + 1e-14)
 
     println("shift $shift   $energy_orig $energy_charge $energy_magnetic $energy_new $nval")
  #    println("shift $shift")
@@ -1279,8 +1282,9 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
     end
 
 #    energy_new, e_den_new, VECTS_new, VALS_new, efermi_new, error_flag = get_energy_electron_density_kspace(tbcK_new.tb, nval, smearing=smearing)
-    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing)
-    println("yyyyyyyy $energy_new")
+    energy_new, e_den_new, VECTS_new, VALS_new, error_flag = get_energy_electron_density_kspace(tbcK_new, smearing=smearing, use_scf=true)
+    println("yyyyyyyyyyyyyyyyyyy $energy_new e_den_new $e_den_new")
+
 
 #    println("tbcK_new")
 #    println(tbcK_new)

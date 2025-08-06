@@ -41,6 +41,7 @@ atoms["Na"] = makeatom("Na", 11, 3, 1, 22.98,  1.0,   8,   [:s, :p], -95.0674994
 atoms["Mg"] = makeatom("Mg", 12, 3, 2, 24.31,  2.0,   8,   [:s, :p], -124.99127898, [-4.6187, -1.2416], 0.0, 0.5106562587165097 );
 atoms["Al"] = makeatom("Al", 13, 3, 3, 26.98,  3.0,   0,   [:s, :p],  -6.37406439, [-7.6515, -2.6256], 0.0, 0.47560947595799796 );
 atoms["Si"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p], -9.15243181, [-10.7049, -3.9932],0.0, 0.5597222300055447 );
+#atoms["Sid"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p, :d], -9.15243181, [-10.7049, -3.9932, 0.61],0.0, 0.5597222300055447 );
 atoms["P" ] = makeatom("P" , 15, 3, 5, 30.97,  5.0,   0,   [:s, :p], -15.07327848, [-13.8557, -5.4181], 0.0, 0.6422064900805308 );
 atoms["S" ] = makeatom("S" , 16, 3, 6, 32.06,  6.0,   0,   [:s, :p], -23.70562681, [-17.1360, -6.9201], 0.0, 0.7079117127047072 );
 atoms["Cl"] = makeatom("Cl", 17, 3, 7, 35.45,  7.0,   0,   [:s, :p], -33.06905525, [-20.5627, -8.5062], 0.0, 0.7476423278619385 );
@@ -58,6 +59,7 @@ atoms["Cu"] = makeatom("Cu", 29, 4, 2.85, 63.546,  11.0,   8,   [:s, :d, :p], -4
 atoms["Zn"] = makeatom("Zn", 30, 4, 2.95, 65.38,   12.0,   8,   [:s, :d, :p], -461.12493484, [-5.9305, -10.1008, -1.0049], 0.0, 0.6233810643339528 );
 atoms["Ga"] = makeatom("Ga", 31, 4, 3.0,  69.72,   13.0,   6,   [:s,:d, :p], -414.75774465, [-8.8812,-19.0647, -2.4866], 0.0, 0.5103937462614931 );
 atoms["Ge"] = makeatom("Ge", 32, 4, 4.0,  72.63,   4.0,    10,   [:s, :p], -212.84384318, [-11.6643, -3.8180], 0.0, 0.5643618220580027 );
+#atoms["Ged"] = makeatom("Ge", 32, 4, 4.0,  72.63,   4.0,    10,   [:s, :p, :d], -212.84384318, [-11.6643, -3.8180, 0.56], 0.0, 0.5643618220580027 );
 atoms["As"] = makeatom("As", 33, 4, 5.0,  74.92,   5.0,    0,   [:s, :p], -39.62501000, [-14.4349, -5.1279], 0.0, 0.6154159430456763 );
 atoms["Se"] = makeatom("Se", 34, 4, 6.0,  78.97,   6.0,    0,   [:s, :p],  -43.03651432, [-17.2230, -6.4409], 0.0, 0.6730297191236639 );
 atoms["Br"] = makeatom("Br", 35, 4, 7.0,  79.90,   7.0,    0,   [:s, :p], -40.38769338, [-20.0640, -7.7862], 0.0, 0.7295557399434305 );
@@ -95,12 +97,41 @@ atoms["Pb"] = makeatom("Pb", 82, 6, 4.0,  207.2,   4.0,   10,   [:s, :p], -163.6
 atoms["Bi"] = makeatom("Bi", 83, 6, 5.0,  209.0,   5.0,   10,   [:s, :p], -184.68674216, [-14.4080, -4.4700], 0.0, 0.597524848429184 );
 
 
+
+
+atoms["B_d" ] = makeatom("B" , 5, 2, 3, 10.81,    3.0,   0,   [:s, :p, :d], -5.84632720, [-9.3213, -3.5217, 0.6], 0.0, 0.6267943641604508 );
+atoms["C_d" ] = makeatom("C" , 6, 2, 4, 12.011,   4.0,   0,   [:s, :p, :d], -10.78129974, [-13.5882, -5.1806, 0.6],0.0, 0.7978153170555154 );
+atoms["N_d" ] = makeatom("N" , 7, 2, 5, 14.007,   5.0,   0,   [:s, :p, :d], -19.47573456, [-18.3876, -6.9917, 0.6],0.0, 0.8874159249179556 );
+atoms["O_d" ] = makeatom("O" , 8, 2, 6, 15.999,   6.0,   0,   [:s, :p, :d], -31.71324769, [-23.7250, -8.9381, 0.6],0.0, 1.015623980577927 );
+atoms["F_d" ] = makeatom("F" , 9, 2, 7, 18.998,   7.0,   0,   [:s, :p, :d], -48.22248233, [-29.6811, -11.0125, 0.6],0.0, 1.1398170857521994 );
+atoms["Al_d"] = makeatom("Al", 13, 3, 3, 26.98,  3.0,   0,   [:s, :p, :d],  -6.37406439, [-7.6515, -2.6256, 0.6], 0.0, 0.47560947595799796 );
+atoms["Si_d"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p, :d], -9.15243181, [-10.7049, -3.9932, 0.6],0.0, 0.5597222300055447 );
+atoms["P_d" ] = makeatom("P" , 15, 3, 5, 30.97,  5.0,   0,   [:s, :p, :d], -15.07327848, [-13.8557, -5.4181, 0.6], 0.0, 0.6422064900805308 );
+atoms["S_d" ] = makeatom("S" , 16, 3, 6, 32.06,  6.0,   0,   [:s, :p, :d], -23.70562681, [-17.1360, -6.9201, 0.6], 0.0, 0.7079117127047072 );
+atoms["Cl_d"] = makeatom("Cl", 17, 3, 7, 35.45,  7.0,   0,   [:s, :p, :d], -33.06905525, [-20.5627, -8.5062, 0.6], 0.0, 0.7476423278619385 );
+atoms["Ge_d"] = makeatom("Ge", 32, 4, 4.0,  72.63,   4.0,    10,   [:s, :p, :d], -212.84384318, [-11.6643, -3.8180, 0.55], 0.0, 0.5643618220580027 );
+atoms["As_d"] = makeatom("As", 33, 4, 5.0,  74.92,   5.0,    0,   [:s, :p, :d], -39.62501000, [-14.4349, -5.1279,  0.55], 0.0, 0.6154159430456763 );
+atoms["Se_d"] = makeatom("Se", 34, 4, 6.0,  78.97,   6.0,    0,   [:s, :p, :d],  -43.03651432, [-17.2230, -6.4409, 0.55], 0.0, 0.6730297191236639 );
+atoms["Br_d"] = makeatom("Br", 35, 4, 7.0,  79.90,   7.0,    0,   [:s, :p, :d], -40.38769338, [-20.0640, -7.7862, 0.55], 0.0, 0.7295557399434305 );
+atoms["Sn_d"] = makeatom("Sn", 50, 5, 4.0,  118.71,   4.0,   10,   [:s, :p, :d], -158.61463088, [-10.4877, -3.5995, 0.55], 0.0, 0.5456114086239429 );
+atoms["Sb_d"] = makeatom("Sb", 51, 5, 5.0,  121.76,   5.0,   10,   [:s, :p, :d], -184.28336729, [-12.7656, -4.7332, 0.55], 0.0, 0.5973377632845377 );
+atoms["Te_d"] = makeatom("Te", 52, 5, 6.0,  127.60,   6.0,    0,   [:s, :p, :d], -26.19141773, [-15.0608, -5.8767, 0.55], 0.0, 0.6243066065034633 );
+atoms["I_d" ] = makeatom("I" , 53, 5, 7.0,  126.90,   7.0,    0,   [:s, :p, :d], -65.01087258 , [-17.3546, -7.0038, 0.55], 0.0, 0.6675305924093194 );
+atoms["Pb_d"] = makeatom("Pb", 82, 6, 4.0,  207.2,   4.0,   10,   [:s, :p, :d], -163.61141039, [-11.9396, -3.3624, 0.55], 0.0, 0.5488505326347655 );
+atoms["Bi_d"] = makeatom("Bi", 83, 6, 5.0,  209.0,   5.0,   10,   [:s, :p, :d], -184.68674216, [-14.4080, -4.4700, 0.55], 0.0, 0.597524848429184 );
+
 zatoms = Dict()
+
 for key in keys(atoms)
-    atoms[Symbol(key)] = atoms[key]
+    println("key $key typeof ", typeof(key))
+    if occursin("_d", key)
+        continue
+    end
     zatoms[atoms[key].Z] = key
 end
-
+for key in keys(atoms)
+    atoms[Symbol(key)] = atoms[key]
+end
 
 #U = IE - EA  (ionization energy - electron affinity
 
@@ -154,6 +185,7 @@ atom_radius[ "Cu" ] =  128
 atom_radius[ "Zn" ] =  134
 atom_radius[ "Ga" ] =  135
 atom_radius[ "Ge" ] =  122
+atom_radius[ "Ged" ] =  122
 atom_radius[ "As" ] =  119
 atom_radius[ "Se" ] =  116
 atom_radius[ "Br" ] =  114
@@ -210,8 +242,13 @@ atom_radius[ "At" ] =  140
 atom_radius[ "Rn" ] =  130
 
 for key in keys(atom_radius)
+    atom_radius[key*"_d"] = atom_radius[key]
+end
+
+for key in keys(atom_radius)
     atom_radius[Symbol(key)] = atom_radius[key]
 end
+
 
 
 """
@@ -236,6 +273,7 @@ atom_prefered_oxidation[ "Na" ] = [1, 0]
 atom_prefered_oxidation[ "Mg" ] = [2, 0]
 atom_prefered_oxidation[ "Al" ] = [3, 0]
 atom_prefered_oxidation[ "Si" ] = [4, -4, 2, 0]
+#atom_prefered_oxidation[ "Sid" ] = [4, -4, 2, 0]
 atom_prefered_oxidation[ "P" ] =  [-3, 3, 5, 0]
 atom_prefered_oxidation[ "S" ] =  [-2, 6, 0]
 atom_prefered_oxidation[ "Cl" ] = [-1, 0]
@@ -254,6 +292,7 @@ atom_prefered_oxidation[ "Cu" ] = [2, 4, 1, 0]
 atom_prefered_oxidation[ "Zn" ] = [2, 0]
 atom_prefered_oxidation[ "Ga" ] = [3, 0]
 atom_prefered_oxidation[ "Ge" ] = [4, -4, 2, 0]
+atom_prefered_oxidation[ "Ged" ] = [4, -4, 2, 0]
 atom_prefered_oxidation[ "As" ] = [-3, 3, 5, 0]
 atom_prefered_oxidation[ "Se" ] = [-2, 2, 4, 6, 0]
 atom_prefered_oxidation[ "Br" ] = [-1, 0]
@@ -309,6 +348,10 @@ atom_prefered_oxidation[ "Po" ] = [-2, 0]
 atom_prefered_oxidation[ "At" ] = [-1, 0]
 
 for key in keys(atom_prefered_oxidation)
+    atom_prefered_oxidation[key*"_d"] = atom_prefered_oxidation[key]
+end
+
+for key in keys(atom_prefered_oxidation)
     atom_prefered_oxidation[Symbol(key)] = atom_prefered_oxidation[key]
 end
 
@@ -344,8 +387,8 @@ function get_cutoff(at1, at2)
         cutoff2X    = (rad1 + rad2) / 2.0 * 6.5
         cutoff_onX  = (rad1 + rad2) / 2.0 * 6.0
 
-        cutoff2X   = max(min(cutoff2X,   18.51), 14.01) #2body
-        cutoff_onX = max(min(cutoff_onX, 17.51), 13.01) #onsite
+        cutoff2X   = max(min(cutoff2X,   19.51), 14.01) #2body
+        cutoff_onX = max(min(cutoff_onX, 18.51), 13.01) #onsite
 
         cutoff2X = cutoff2X-0.25 + 1.5/2 
         cutoff_onX = cutoff_onX-0.25 + 1.5/2 
@@ -532,6 +575,7 @@ electronegativity["Na"] = 0.93
 electronegativity["Mg"] = 1.31
 electronegativity["Al"] = 1.61
 electronegativity["Si"] = 1.90
+#electronegativity["Sid"] = 1.90
 electronegativity["P"] = 2.19
 electronegativity["S"] = 2.58
 electronegativity["Cl"] = 3.16
@@ -549,6 +593,7 @@ electronegativity["Cu"] = 1.90
 electronegativity["Zn"] = 1.65
 electronegativity["Ga"] = 1.81
 electronegativity["Ge"] = 2.01
+electronegativity["Ged"] = 2.01
 electronegativity["As"] = 2.18
 electronegativity["Se"] = 2.55
 electronegativity["Br"] = 2.96
@@ -617,6 +662,10 @@ electronegativity["Cf"] = 1.3
 electronegativity["Es"] = 1.3
 
 
+for key in keys(electronegativity)
+    electronegativity[key*"_d"] = electronegativity[key]
+end
+
 formation_energy_ref = Dict()
 
 formation_energy_ref["Hx"] =  -0.2412200680378065
@@ -668,6 +717,7 @@ formation_energy_ref["Os"] =  -0.8517405771113147
 formation_energy_ref["Ti"] =  -0.5119888847399542
 formation_energy_ref["V"] =  -0.6349543354131981
 formation_energy_ref["Si"] =  -0.40754479040813507
+formation_energy_ref["Sid"] =  -0.40754479040813507
 formation_energy_ref["Ga"] =  -0.23449803933579005
 formation_energy_ref["Au"] =  -0.28341301745817304
 formation_energy_ref["Mg"] =  -0.126284990107294
@@ -675,6 +725,7 @@ formation_energy_ref["Ag"] =  -0.23657551086864714
 formation_energy_ref["K"] =  -0.0761247994147709
 formation_energy_ref["Sc"] =  -0.349825562961243
 formation_energy_ref["Ge"] =  -0.3466031556989151
+formation_energy_ref["Ged"] =  -0.3466031556989151
 formation_energy_ref["Nb"] =  -0.737561493627723
 formation_energy_ref["Pd"] =  -0.3270244478002269
 formation_energy_ref["Sr"] =  -0.13365669688262471
@@ -688,6 +739,9 @@ formation_energy_ref["Mn"] = -0.6713694611146082
 formation_energy_ref["B"] = -0.5109718427571567
 formation_energy_ref["O"] = -0.3767033842534424
 
+for key in keys(formation_energy_ref)
+    formation_energy_ref[key*"_d"] = formation_energy_ref[key]
+end
 
 
 for key in keys(formation_energy_ref)
@@ -731,6 +785,7 @@ data_temp["Fe"] =  [0.4368524489783394, 86.81408809295716]
 data_temp["F"] =  [1.090821815297757, 17.626602941047544]
 data_temp["Ga"] =  [0.4393075771923728, 79.2817865698265]
 data_temp["Ge"] =  [0.5063737860332831, 60.1392072451489]
+data_temp["Ged"] =  [0.5063737860332831, 60.1392072451489]
 data_temp["Hf"] =  [0.5367826942470761, 51.64230896252188]
 data_temp["Hg"] =  [0.5617844607440594, 43.50181533015791]
 data_temp["H"] =  [0.8714837907568558, 18.987364618334517]
@@ -761,6 +816,7 @@ data_temp["Sb"] =  [0.5016010922908432, 60.637532394985215]
 data_temp["Sc"] =  [0.5873089033731779, 42.726119843127684]
 data_temp["Se"] =  [0.6233519032682732, 39.53330339534418]
 data_temp["Si"] =  [0.5203977905150886, 56.8314240643758]
+data_temp["Sid"] =  [0.5203977905150886, 56.8314240643758]
 data_temp["Sn"] =  [0.45588030411946134, 73.83127678236619]
 data_temp["Sr"] =  [0.3396906409023482, 126.76704291627323]
 data_temp["S"] =  [0.6808063801727222, 33.850523636729974]
@@ -775,8 +831,16 @@ data_temp["Y"] =  [0.525144790638078, 52.08026894508406]
 data_temp["Zn"] =  [0.560635872916608, 47.117192678427145]
 data_temp["Zr"] =  [0.5493393488752593, 49.14643018003017]
 
+for key in keys(data_temp)
+    data_temp[key*"_d"] = data_temp[key]
+end
+
 
 function prepare_atom(A, U, uni)    
+    if !(String(A) in keys(atoms))
+        return
+    end
+    
     old = atoms[String(A) ]
     atoms[String(A) ] =  makeatom(String(A) ,old.Z, old.row, old.col, old.mass,   old.nval,   old.nsemicore,
                                   old.orbitals, old.total_energy, 13.6057*[old.eigs[o] for o in old.orbitals],     0.0 ,U)
