@@ -165,6 +165,8 @@ mutable struct coefs
     repval::Dict
     use_eam::Bool
     use_pert::Bool
+    datH_ensemble::Array{Float64,1}
+    n_ensemble::Int64
 end
 
 function construct_coef_string(co)
@@ -373,7 +375,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=false, use_pert=false)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -598,7 +600,12 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         end
     end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert)
+    if ismissing(datH_ensemble)
+        datH_ensemble = deepcopy(datH)
+    end
+    n_ensemble = Int64(round(length(datH_ensemble) / length(datH)))
+
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble)
 
 end
     
@@ -8082,10 +8089,6 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         nkeep_ab = size(R_keep_ab)[1]
 
 
-        lag_arr_TH = zeros(var_type, 6, nthreads())
-        lmn_arr_TH = zeros(var_type, 3, nthreads())
-        sym_arr_TH = zeros(var_type, 3, nthreads())
-        sym_arrS_TH = zeros(var_type, 3, nthreads())
 
 
 
@@ -8259,6 +8262,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     end
                 end
                 
+                lag_arr_TH = zeros(var_type, 6, nthreads())
+                lmn_arr_TH = zeros(var_type, 3, nthreads())
+                sym_arr_TH = zeros(var_type, 3, nthreads())
+                sym_arrS_TH = zeros(var_type, 3, nthreads())
 
             end
             #; println("end")
