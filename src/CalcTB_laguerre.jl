@@ -8082,6 +8082,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         nkeep_ab = size(R_keep_ab)[1]
 
 
+        lag_arr_TH = zeros(var_type, 6, nthreads())
+        lmn_arr_TH = zeros(var_type, 3, nthreads())
+        sym_arr_TH = zeros(var_type, 3, nthreads())
+        sym_arrS_TH = zeros(var_type, 3, nthreads())
 
 
 
@@ -8255,10 +8259,6 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     end
                 end
                 
-                lag_arr_TH = zeros(var_type, 6, nthreads())
-                lmn_arr_TH = zeros(var_type, 3, nthreads())
-                sym_arr_TH = zeros(var_type, 3, nthreads())
-                sym_arrS_TH = zeros(var_type, 3, nthreads())
 
             end
             #; println("end")
