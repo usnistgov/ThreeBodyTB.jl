@@ -1334,11 +1334,13 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 val_tb = real(val_tbt)
                 val_tb_new = deepcopy(val_tb)
                 #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
-                val_pw = EIGS[k,1:nwan, spin]
+
+                nxxx = size(PROJECTABILITY)[3]
+                val_pw = EIGS[k,1:nxxx, spin]
             
                 order = Dict()
                 
-                score_mat = zeros(nwan, nwan)
+                score_mat = zeros(nxxx, nwan)
                 
 
                 for n2 = 1:nwan
@@ -1347,17 +1349,23 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     dist_min = 1000.0
                     nmin = 0
                     
-                    for n1 = 1:nwan
+                    for n1 = 1:nxxx
                         
                         #                    t = p.proj[k,wan, nsemi + n1] 
                         t = PROJ[k,:,spin, n1]
+                        x = PROJECTABILITY[spin,k,n1]
                         
                         cd_dft = real(t .* conj(t))
                         
-                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 10.0
+#                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
                         dist_cd = sum((cd_dft - cd_vect).^2)
-                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
-                        score_mat[n1,n2] = dist
+                        #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
+                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
+
+                        if k == 1
+                            println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
+                        end
+                        score_mat[n1,n2] = dist 
                         #                    if dist < dist_min
                         #                        dist_min = dist
                         #                        nmin = n1
@@ -1365,10 +1373,10 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     end
                 end
                 for n = 1:nwan
-                    s = sortperm(score_mat[n,:])
+                    s = sortperm(score_mat[:,n], rev=false)
                     for ss in s
                         if !(ss in keys(order))
-                            order[ss] = n
+                            order[n] = ss
                             break
                         end
                     end
@@ -1378,12 +1386,15 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 for n in 1:nwan
                     if val_pw[order[n]] < energy_froz
                         val_tb_new[n] = val_pw[order[n]]
-                    elseif val_pw[order[n]] < energy_froz2
+                        #elseif val_pw[order[n]] < energy_froz2
+                    else
                         #x=cutoff(val_tb[n], energy_froz, energy_froz2)
-                        x = PROJECTABILITY[spin,k,n]
-                        if x > 0.1
-                            val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
-                        end
+                        x = PROJECTABILITY[spin,k,order[n]]
+                        #      if x > 0.1
+                        #x = x^2
+                        val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
+                  #      end
                     end
                     
                 end

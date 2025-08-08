@@ -90,9 +90,10 @@ function add_to_database(s::Set; directory = missing, verbose=false)#
     if !ismissing(directory)
         push!(dirlist, directory)
     end
-    push!(dirlist, datdir1)
-    push!(dirlist, datdir2)
-    
+    if length(dirlist) == 0
+        push!(dirlist, datdir1)
+        push!(dirlist, datdir2)
+    end
 
     at_arr = collect(s)
     if length(s) == 1

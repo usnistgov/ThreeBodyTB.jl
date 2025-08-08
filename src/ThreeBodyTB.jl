@@ -605,7 +605,7 @@ function scf_energy(d::dftout; database = Dict(), smearing=0.01, grid = missing,
     end
         
     
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=dft.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb, sparse=sparse)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=d.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb, sparse=sparse)
 
 end
 

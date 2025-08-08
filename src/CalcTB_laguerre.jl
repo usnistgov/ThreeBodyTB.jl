@@ -69,8 +69,51 @@ using Random
 
 EXP_a = [2.0]
 
+const fitting_version_default = 5
+
 
 const one = [1.0]
+
+const n_2body_default = 5
+const n_2body_onsite_default = 4
+const n_2body_S_default = 5
+const n_3body_default = 8
+const n_3body_same_default = 5
+const n_3body_triple_default = 4
+const n_3body_onsite_default = 2
+const n_3body_onsite_same_default = 5
+const n_eam_default = 3
+
+function fitting_version_params(version=fitting_version_default)
+
+    if version > 3
+        n_2body = 5
+        n_2body_onsite = 4
+        n_2body_S = 5
+        n_3body = 8
+        n_3body_same = 5
+        n_3body_triple = 4
+        n_3body_onsite = 2
+        n_3body_onsite_same = 5
+        n_eam = 3
+
+        return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
+    else
+        n_2body = 6
+        n_2body_onsite = 5
+        n_2body_S = 6
+        n_3body = 8
+        n_3body_same = 6
+        n_3body_triple = 4
+        n_3body_onsite = 2
+        n_3body_onsite_same = 5
+        n_eam = 3
+
+        return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
+        
+    end
+end
+
 
 #using PyPlot
 using Plots
@@ -88,24 +131,6 @@ const sqrt3d2 = sqrt(3)/2.0
 
 #this set up the number of terms in parts of the model
 
-n_2body = 5
-n_2body_onsite = 4
-n_2body_S = 5
-
-#const n_2body_S = 5
-#const n_2body_S = 4
-
-const n_3body = 8
-#const n_3body_same = 6
-#const n_3body_same = 9
-const n_3body_same = 5
-const n_3body_triple = 4
-
-const n_3body_onsite = 2
-#const n_3body_onsite_same = 4
-const n_3body_onsite_same = 5
-
-const n_eam = 3
 
 
 using ..CrystalMod:cutoff2X
@@ -167,6 +192,19 @@ mutable struct coefs
     use_pert::Bool
     datH_ensemble::Array{Float64,1}
     n_ensemble::Int64
+
+    n_2body::Int64
+    n_2body_onsite::Int64
+    n_2body_S::Int64
+    n_3body::Int64
+    n_3body_same::Int64
+    n_3body_triple::Int64
+    n_3body_onsite::Int64
+    n_3body_onsite_same::Int64
+    n_eam::Int64
+
+    
+    
 end
 
 function construct_coef_string(co)
@@ -194,6 +232,8 @@ function construct_coef_string(co)
     return str
 
 end
+
+
 
 
 """
@@ -244,6 +284,9 @@ function write_coefs(filename, co::coefs; compress=true)
     if !isempty(co.repval)
         addelement!(c, "repval", dict2str(co.repval))
     end
+
+    addelement!(c, "datH_ensemble", arr2str(co.datH_ensemble))    
+    addelement!(c, "datU_ensemble", arr2str(co.datU_ensemble))    
     
     addelement!(c, "use_eam", "$(co.use_eam)" )
     addelement!(c, "use_pert", "$(co.use_pert)" )
@@ -351,7 +394,13 @@ function read_coefs(filename, directory = missing)
     else
         repval = missing
     end
-        
+
+    if haskey(d["coefs"], "datH_ensemble")
+        datH_ensemble  = parse_str_ARR_float(d["coefs"]["datH_ensemble"])
+    else
+        datH_ensemble = deepcopy(datH)
+    end
+    
     use_eam = false
     if haskey(d["coefs"], "use_eam")
         use_eam = parse(Bool, d["coefs"]["use_eam"])
@@ -360,7 +409,7 @@ function read_coefs(filename, directory = missing)
     if haskey(d["coefs"], "use_pert")
         use_eam = parse(Bool, d["coefs"]["use_pert"])
     end
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=use_eam, use_pert=use_pert)
+    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=use_eam, use_pert=use_pert, datH_ensemble = datH_ensemble)
 
     return co
     
@@ -375,13 +424,15 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=5, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing)
 
 #    println("make coefs")
 #    sort!(at_list)
 
-    if version == 2 || version == 3
-        totH,totS, data_info, orbs = get_data_info_v2(at_list, dim, use_eam=use_eam, use_pert=use_pert)
+    if  version == 4 || version == 5
+        totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam)
+    elseif  version == 2 || version == 3
+        totH,totS, data_info, orbs = get_data_info_v2(at_list, dim, use_eam=use_eam)
     elseif version == 1
         totH,totS, data_info, orbs = get_data_info_v1(at_list, dim)
     else
@@ -605,7 +656,9 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     end
     n_ensemble = Int64(round(length(datH_ensemble) / length(datH)))
 
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble)
+    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(version)
+    
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble, n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam)
 
 end
     
@@ -828,8 +881,411 @@ Figure out the arrangement of data in a `coefs` file.
 
 Loops over various combinations of orbitals and atoms and assigns them places in `datH` and `datS`, depending on the terms included in the model and the dimensionaly.
 """
-function get_data_info_v2(at_set, dim; use_eam=false, use_pert = false)
+function get_data_info_v2(at_set, dim; use_eam=false)
+
+    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(2)
     
+    totU = 0
+    data_info = Dict{Any, Array{Int64,1}}()
+    orbs = []
+    if dim == 0
+        #at_list = Symbol.(collect(at_set))
+        #data_info[[:eam, at_list[1]]] = [1,2,3]
+        #return 3 ,0, data_info, orbs
+
+        #return totHO ,totS, data_info, orbs
+        
+    elseif dim == 2 #2body
+        
+        at_list = Symbol.([i for i in at_set])
+        #        println(at_list)
+
+        nat = length(at_list)
+        
+        if length(at_list) == 1
+            at_list = [at_list[1], at_list[1]]
+        end
+        sort!(at_list)
+        #        println(at_list)
+
+        at1 = at_list[1]
+        at2 = at_list[2]
+
+        
+
+        
+
+
+        
+        orbs1 = atoms[at_list[1]].orbitals
+        orbs2 = atoms[at_list[2]].orbitals
+
+
+        if at1 == at2
+            same_at = true
+        else
+            same_at = false
+        end
+
+        #        orbs = []
+
+        #2body part
+        function get2bdy(n, symb)
+            tot=0
+            for o1 in orbs1
+                for o2 in orbs2
+                    if same_at && ((o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d))
+                        continue
+                    end
+                    #                    push!(orbs, (o1, o2, symb))
+
+                    if [at1, o1, at2, o2, symb] in keys(data_info)
+                        continue
+                    end
+
+                    if o1 == :s && o2 == :s
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n
+                        tot += n
+                        
+                    elseif (o1 == :s && o2 == :p ) || (o1 == :p && o2 == :s )
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n
+                        tot += n
+                        #                        if same_at
+                        #                            data_info[[o2, o1, symb]] = data_info[(o1, o2, symb)]
+                        #                        end
+                        
+                    elseif (o1 == :p && o2 == :p )
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n*2
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n*2
+                        tot += n*2
+
+                        #                    elseif (o1 == :p && o2 == :p )
+                        #                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n*2
+                        #                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n*2
+                        #                        tot += n*2
+
+                    elseif (o1 == :s && o2 == :d ) || (o1 == :d && o2 == :s )
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n
+                        tot += n
+
+                    elseif (o1 == :p && o2 == :d ) || (o1 == :d && o2 == :p )
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n*2
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n*2
+                        tot += n*2
+
+                    elseif (o1 == :d && o2 == :d ) 
+                        data_info[[at1, o1, at2, o2, symb]] = tot+1:tot+n*3
+                        data_info[[at2, o2, at1, o1, symb]] = tot+1:tot+n*3
+                        tot += n*3
+
+
+                        
+                    end
+                end
+            end
+            return tot
+        end            
+
+        totH = get2bdy(n_2body, :H)
+        totS = get2bdy(n_2body_S, :S)
+        #        println("totH $totH totS $totS")
+        #onsite part
+        function getonsite(atX,orbsX, tot, n)
+            for o1 in orbsX
+                for o2 in orbsX
+                    if (o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d)
+                        continue
+                    end
+
+                    if [atX, o1, o2, :O] in keys(data_info)
+                        continue
+                    end
+
+
+                    #                    push!(orbs, (o1, o2, :O))
+                    if o1 == :s && o2 == :s
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        #                        println("data_info"[, (atX, o1, o2, :O], tot+1:tot+n)
+                        tot += n
+                    elseif (o1 == :s && o2 == :p )
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+                    elseif (o1 == :p && o2 == :p )
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
+                        tot += n*2
+
+                    elseif o1 == :s && o2 == :d
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+
+                    elseif o1 == :p && o2 == :d
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+
+                    elseif o1 == :d && o2 == :d
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n*2
+                        
+                    end
+                end
+            end
+            if use_eam 
+                if same_at == true
+                    for orb in orbs1
+                        data_info[[at1, at2, :eam, orb]] = tot+1:tot+n_eam
+                        tot += n_eam
+                    end
+                else
+                    data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
+                    tot += n_eam
+                    data_info[[at2, at1, :eam]] = tot+1:tot+n_eam
+                    tot += n_eam
+                end
+            end 
+            
+            return tot
+        end
+
+
+        #PUREONSITE
+        #        if same_at #true onsite terms
+        #           for o in orbs1
+        ##                println("true onsite ", o)
+        #                data_info[[at1, o, :A]] = [totH+1]
+        #                totH += 1
+        #            end
+        #        end
+
+
+        totHO = getonsite(at1, orbs1, totH, n_2body_onsite)
+
+        if !(same_at) #need reverse if not same atom
+            totHO = getonsite(at2, orbs2, totHO, n_2body_onsite)
+        end
+
+
+        
+    elseif dim == 3 #3body
+        
+        totS = 0 #no 3body overlap terms
+
+        at_list = Symbol.([i for i in at_set])
+        sort!(at_list)
+        
+        if length(at_list) == 1
+
+
+            #permutations are trivial
+            perm_ij = [[at_list[1], at_list[1], at_list[1]]]
+            perm_on = [[at_list[1], at_list[1], at_list[1]]]
+        elseif length(at_list) == 2
+
+
+            #unique permutations
+            perm_ij = [[at_list[1], at_list[1], at_list[2]] ,
+                       [at_list[2], at_list[2], at_list[1]] ,
+                       [at_list[1], at_list[2], at_list[1]] ,
+                       [at_list[1], at_list[2], at_list[2]] ]
+
+            perm_on = [[at_list[1], at_list[2], at_list[2]] ,
+                       [at_list[1], at_list[1], at_list[2]] ,
+                       [at_list[2], at_list[1], at_list[1]] ,
+                       [at_list[2], at_list[1], at_list[2]] ]
+            
+        elseif length(at_list) == 3
+
+
+            #all permutations exist hij
+            perm_ij = [[at_list[1], at_list[2], at_list[3]] ,
+                       [at_list[1], at_list[3], at_list[2]] ,
+                       [at_list[2], at_list[1], at_list[3]] ,
+                       [at_list[2], at_list[3], at_list[1]] ,
+                       [at_list[3], at_list[1], at_list[2]] ,
+                       [at_list[3], at_list[2], at_list[1]] ]
+
+            #onsite can flip last 2 atoms
+            perm_on = [[at_list[1], at_list[2], at_list[3]] ,
+                       [at_list[2], at_list[1], at_list[3]] ,
+                       [at_list[3], at_list[1], at_list[2]]]
+
+            
+        else
+            println("ERROR  get_data_info dim $at_set $at_list")
+        end
+        
+
+
+
+        function get3bdy(n, symb, start, at1, at2, at3)
+            tot=start
+
+            orbs1 = atoms[at1].orbitals
+            orbs2 = atoms[at2].orbitals
+
+            if at1 == at2
+                same_at = true
+            else
+                same_at = false
+            end
+            if at1 != at2 && at1 != at3 && at2 != at3
+                triple = true
+            else
+                triple = false
+            end
+            
+            for o1 in orbs1
+                for o2 in orbs2
+
+
+                    
+                    if same_at && ((o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d))
+                        continue
+                    end
+                    
+                    #                    push!(orbs, (o1, o2, symb))
+
+                    if [at1, o1, at2, o2, at3,  symb] in keys(data_info)
+                        continue
+                    end
+
+                    if triple
+                        data_info[[at1, o1, at2, o2, at3,  symb]] = collect(tot+1:tot+n_3body_triple)
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4]
+                        tot += n_3body_triple
+                        continue
+                    end
+
+                    if same_at
+                        data_info[[at1, o1, at2, o2, at3,  symb]] = collect(tot+1:tot+n)
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = collect(tot+1:tot+n)
+                    else                                                  #[1 2 3 4 5 6 7 8  9  10 11 12 13 14 15 16 17 18]
+                        data_info[[at1, o1, at2, o2, at3,  symb]] = collect(tot+1:tot+n)
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 4 6 2 5 3 7 10 12 8  11 9  13 16 18 14 17 15]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 4 6 2 5 3 7 10 12 8  11 9  ]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 5 7 6 8 9]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 5 7 6]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2  4 6 5]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1 3 2 4 6 5  7 9 8 ]' #switch 2 4 and 3 6
+                        #                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4, 5, 7, 6  ] #switch 2 4 and 3 6
+#                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4 ] #switch 2 4 and 3 6
+                        data_info[[at2, o2, at1, o1, at3,  symb]] = tot .+ [1, 3, 2, 4,5,6, 8, 7 ] #switch 2 4 and 3 6
+                    end
+                    
+                    #                    println([at1, o1, at2, o2, at3,  symb], tot, " ",  n, " " , data_info[[at1, o1, at2, o2, at3,  symb]] )
+                    tot += n
+
+                    #                    if same_at
+                    #                        data_info[[o2, o1, symb]] = data_info[[o1, o2, symb]]
+                    #                    end
+                    
+                    
+                end
+            end
+            return tot
+        end
+
+        #        if at_list[2] == at_list[3]
+        #            same_at_on = true
+        #        else
+        #            same_at_on = false
+        #       end
+        
+
+        function get3bdy_onsite(n, same_at,symb, start, at1, at2, at3)
+            #            if at2 == at3  #|| at1 == at2 || at1 == at3
+            #                same_at = true
+            #            else
+            #                same_at = false
+            #            end
+
+            #            orbs1 = atoms[at1].orbitals
+
+            #            println("get3bdy_onsite $at1 $at2 $at3 $n")
+
+            tot=start
+            #            for o1 in orbs1
+            #                data_info[[at1, o1,at2, at3,  symb]] = collect(tot+1:tot+n]
+            #                data_info[[at1, o1,at3, at2,  symb]] = collect(tot+1:tot+n)
+
+            #                push!(orbs, (at1, o1,at2, at3,  symb))
+            #                push!(orbs, (at1, o1,at3, at2,  symb))
+
+            orbs1 = atoms[at1].orbitals
+            if same_at
+                for o1 in orbs1
+                    
+                    if [at1, at2, at3, o1,  symb] in keys(data_info)
+                        continue
+                    end
+
+                    data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
+                    data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+                    tot += n                               #       1 2 3 4 5 6 7 8
+                end
+            else
+                for o1 in orbs1
+                    if [at1, at2, at3, o1,  symb] in keys(data_info)
+                        continue
+                    end
+                    data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
+                    data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+                end
+                tot += n
+            end
+#                    data_info[[at1, at3, at2,o1,  symb]] = tot .+ [1, 3, 2, 4]
+                    
+                    #                    data_info[[at1, o1,at2, at3,  symb]] = collect(tot+1:tot+n)
+                    #                    data_info[[at1, o1,at3, at2,  symb]] = tot .+ [1 3 2 4]'
+#                end
+#                tot += n                               #       1 2 3 4 5 6 7 8
+#            end                
+
+
+            return tot
+        end
+        
+        #this is not efficient storage, we are reassigning permutations multiple times.
+        tot_size = 0
+        for p in perm_ij 
+            if p[1] == p[2]
+                tot_size = get3bdy(n_3body_same, :H, tot_size, p[1], p[2], p[3])
+            else
+                tot_size = get3bdy(n_3body, :H, tot_size, p[1], p[2], p[3])
+            end
+        end
+
+        #        println("data_info between")
+        #        println(data_info)
+
+        for p in perm_on
+            #            if  (p[1] == p[2] ||  p[2] == p[3] || p[1] == p[3])
+            if p[2] == p[3] && p[2] == p[1]
+                tot_size = get3bdy_onsite(n_3body_onsite_same,true, :O, tot_size, p[1], p[2], p[3]) #all diff
+            else
+                tot_size = get3bdy_onsite(n_3body_onsite,false, :O, tot_size, p[1], p[2], p[3]) #
+            end
+        end
+        
+        totHO = tot_size
+
+    else
+        println("error, only 2 or 3 body terms, you gave me : ", at_list)
+    end
+    return totHO ,totS, data_info, orbs
+
+end            
+
+
+function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false)
+    
+    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(5)
     
     data_info = Dict{Any, Array{Int64,1}}()
     orbs = []
@@ -3583,8 +4039,11 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, use_pert = false, spin=1, use_eam=false)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, use_pert = false, spin=1, use_eam=false, fitting_version = fitting_version_default)
 
+    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(fitting_version)
+
+    
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
 #    println()
@@ -3662,7 +4121,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             if !haskey(twobody_arrays, at_set)
 
-                coef = make_coefs(at_set, 2, use_eam=use_eam)
+                coef = make_coefs(at_set, 2, use_eam=use_eam, version = fitting_version)
 
 #                println("2bdy $at_set")                
 #                println("atset ", at_set)
@@ -3693,7 +4152,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     at_set = Set((c, c2, c3))
                     if !haskey(threebody_arrays, at_set)
 #                        println("3bdy $at_set")
-                        coef = make_coefs(at_set, 3, use_pert=use_pert)
+                        coef = make_coefs(at_set, 3, use_pert=use_pert, version = fitting_version)
                         hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                        hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 
@@ -3811,7 +4270,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 end
 
 
-                (h,s) = fit_twobody(s1,s2,dist,lmn)
+                (h,s) = fit_twobody(s1,s2,dist,lmn, n_2body, n_2body_S)
 
                 coef = twobody_arrays[at_set][3]
 
@@ -3918,7 +4377,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                             
                             ind = ind_conversion[(o1,o2,cind1)]
                             
-                            h = fit_threebody(t1,t2,t3,s1,s2,dist,dist31,dist32,lmn, lmn31,lmn32)
+                            h = fit_threebody(t1,t2,t3,s1,s2,dist,dist31,dist32,lmn, lmn31,lmn32, fitting_version)
                             
                             
                             coef = threebody_arrays[at_set3][2]
@@ -4002,7 +4461,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 for o1 = orb2ind[a1]
                     a1a,t1,s1 = ind2orb[o1]
                     sum1 = summarize_orb(s1)
-                    h = fit_threebody_onsite(t1,t2,t3,s1,dist,dist31,dist32)
+                    h = fit_threebody_onsite(t1,t2,t3,s1,dist,dist31,dist32, fitting_version)
 
 #                    if s1 != :s 
 #                        continue
@@ -4104,12 +4563,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     else
                         cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
                     end
-                    
-                    o = fit_twobody_onsite(t1,t2, s1,s2,dist,lmn)
-                    
+
+#                    println("fit_twobody_onsite ", [t1,t2, s1,s2,dist,lmn, n_2body_onsite])
+                    o = fit_twobody_onsite(t1,t2, s1,s2,dist,lmn, n_2body_onsite)
+#                    println("o $o")
                     coef = twobody_arrays[at_set][3]
 
                     io = coef.inds[[t1, sum1,sum2,:O]]
+#                    println("at_set $at_set ind $ind io $io o $o cut $cut")
                     twobody_arrays[at_set][1][ind,io] += o[:] * cut
 
 #                    println("cath $t1 $t2 $sum1 $sum2 $at_set $t1a $t2a $a1 $a2 $o1 $o2")
@@ -4699,62 +5160,105 @@ function laguerre_fast!(dist, memory; a = EXP_a[1])
     
 end
 
-function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory)
+function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory, version=fit_version_default)
 
-    #    a=2.0
-    a=EXP_a[1]
-    
+    if version > 3
+        #    a=2.0
+        a=EXP_a[1]
+        
 
-    ad_0 = a*dist_0
-    expa_0 =exp.(-0.5*ad_0) #* 10.0
+        ad_0 = a*dist_0
+        expa_0 =exp.(-0.5*ad_0) #* 10.0
 
-    ad_a = a*dist_a
-    expa_a =exp.(-0.5*ad_a)
+        ad_a = a*dist_a
+        expa_a =exp.(-0.5*ad_a)
 
-    ad_b = a*dist_b
-    expa_b =exp.(-0.5*ad_b)
+        ad_b = a*dist_b
+        expa_b =exp.(-0.5*ad_b)
 
-    exp_ab = expa_a * expa_b
-    
-    if triple
-        memory[1] = exp_ab
-        memory[2] = exp_ab * (1 - ad_b)
-        memory[3] = (1 - ad_a) * exp_ab
-        memory[4] = expa_0 *exp_ab
-    elseif same_atom
-#        memory[1] = exp_ab
-#        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
-#        memory[3] = expa_0 * exp_ab
-#        memory[4] = (1 - ad_0)*expa_0 * exp_ab
-#        memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab
-#        memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
+        exp_ab = expa_a * expa_b
+        
+        if triple
+            memory[1] = exp_ab
+            memory[2] = exp_ab * (1 - ad_b)
+            memory[3] = (1 - ad_a) * exp_ab
+            memory[4] = expa_0 *exp_ab
+        elseif same_atom
+            #        memory[1] = exp_ab
+            #        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
+            #        memory[3] = expa_0 * exp_ab
+            #        memory[4] = (1 - ad_0)*expa_0 * exp_ab
+            #        memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab
+            #        memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
 
-#        memory[7] = expa_0 *( expa_a + expa_b )
-#        memory[8] = expa_0 *( expa_a *(1 - ad_a) + expa_b *  (1 - ad_b))
-#        memory[9] = expa_0 *(1 - ad_0) *( expa_a + expa_b )
+            #        memory[7] = expa_0 *( expa_a + expa_b )
+            #        memory[8] = expa_0 *( expa_a *(1 - ad_a) + expa_b *  (1 - ad_b))
+            #        memory[9] = expa_0 *(1 - ad_0) *( expa_a + expa_b )
 
-        memory[1] = exp_ab
-        memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
-#        memory[3] = expa_0 * exp_ab
-#        memory[4] = (1 - ad_0)*expa_0 * exp_ab
-        memory[3] = (1 - ad_a)*(1 - ad_b)*exp_ab
-        memory[4] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
+            memory[1] = exp_ab
+            memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))
+            #        memory[3] = expa_0 * exp_ab
+            #        memory[4] = (1 - ad_0)*expa_0 * exp_ab
+            memory[3] = (1 - ad_a)*(1 - ad_b)*exp_ab
+            memory[4] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))
 
-        memory[5] = expa_0 *( expa_a + expa_b )
-#        memory[8] = expa_0 *( expa_a *(1 - ad_a) + expa_b *  (1 - ad_b))
-#        memory[9] = expa_0 *(1 - ad_0) *( expa_a + expa_b )
+            memory[5] = expa_0 *( expa_a + expa_b )
+            #        memory[8] = expa_0 *( expa_a *(1 - ad_a) + expa_b *  (1 - ad_b))
+            #        memory[9] = expa_0 *(1 - ad_0) *( expa_a + expa_b )
 
-    else
-        memory[1] = exp_ab
-        memory[2] = exp_ab *(1 - ad_b)
-        memory[3] = (1 - ad_a)*exp_ab
-        memory[4] = expa_0 * exp_ab
-        memory[5] = (1 - ad_0)*expa_0 * exp_ab
-        memory[6] = (1 - ad_a)*(1 - ad_b)*exp_ab
-        memory[7] = expa_0 * (1 - ad_b) * exp_ab
-        memory[8] = expa_0 * (1 - ad_a) * exp_ab
+        else
+            memory[1] = exp_ab
+            memory[2] = exp_ab *(1 - ad_b)
+            memory[3] = (1 - ad_a)*exp_ab
+            memory[4] = expa_0 * exp_ab
+            memory[5] = (1 - ad_0)*expa_0 * exp_ab
+            memory[6] = (1 - ad_a)*(1 - ad_b)*exp_ab
+            memory[7] = expa_0 * (1 - ad_b) * exp_ab
+            memory[8] = expa_0 * (1 - ad_a) * exp_ab
+        end
+
+    else #old version!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
+
+        #a=2.0
+        a=EXP_a[1]
+
+        ad_0 = a*dist_0
+        expa_0 =exp.(-0.5*ad_0) #* 10.0
+
+        ad_a = a*dist_a
+        expa_a =exp.(-0.5*ad_a)
+
+        ad_b = a*dist_b
+        expa_b =exp.(-0.5*ad_b)
+
+        exp_ab = expa_a * expa_b
+        
+        if triple
+            memory[1] = exp_ab
+            memory[2] = exp_ab * (1 - ad_b)
+            memory[3] = (1 - ad_a) * exp_ab
+            memory[4] = expa_0 *exp_ab
+        elseif same_atom
+            memory[1] = exp_ab                                       # 1 l0 l0
+            memory[2] = exp_ab* (  (1 - ad_b) + (1 - ad_a))          # 1 (l1 l0 + l0 l1)
+            memory[3] = expa_0 * exp_ab                              # l0 l0 l0
+            memory[4] = (1 - ad_0)*expa_0 * exp_ab                   # l1 l0 l0
+            memory[5] = (1 - ad_a)*(1 - ad_b)*exp_ab                 # 1 l1 l1
+            memory[6] = expa_0*exp_ab * ( (1 - ad_b) + (1 - ad_a))   # l0 (l1 l0 + l0 l1)
+        else
+            memory[1] = exp_ab
+            memory[2] = exp_ab *(1 - ad_b)
+            memory[3] = (1 - ad_a)*exp_ab
+            memory[4] = expa_0 * exp_ab
+            memory[5] = (1 - ad_0)*expa_0 * exp_ab
+            memory[6] = (1 - ad_a)*(1 - ad_b)*exp_ab
+            memory[7] = expa_0 * (1 - ad_b) * exp_ab
+            memory[8] = expa_0 * (1 - ad_a) * exp_ab
+        end
+        
+
     end
-
 
 end
 
@@ -4846,37 +5350,70 @@ function laguerre_fast_threebdy_pert!(dist_0, dist_a, dist_b, memory)
 end
 
 
-function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memory)
+function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memory, version = fit_version_default)
 
-    a=EXP_a[1]
-#    a=2.0
+    if version > 3
+    
+        a=EXP_a[1]
+        #    a=2.0
 
-    ad_0 = a*dist_b
-    expa_0 =exp.(-0.5*ad_0) #* 10.0
+        ad_0 = a*dist_b
+        expa_0 =exp.(-0.5*ad_0) #* 10.0
 
-    ad_a = a*dist_0
-    expa_a =exp.(-0.5*ad_a)
+        ad_a = a*dist_0
+        expa_a =exp.(-0.5*ad_a)
 
-    ad_b = a*dist_a
-    expa_b =exp.(-0.5*ad_b)
+        ad_b = a*dist_a
+        expa_b =exp.(-0.5*ad_b)
 
-    expa_ab = expa_a * expa_b
-    expa_ab0 = expa_ab * expa_0
+        expa_ab = expa_a * expa_b
+        expa_ab0 = expa_ab * expa_0
 
-    if same_atom
-        memory[1] = expa_ab0
-        memory[2] = expa_ab0*( (1 - ad_a) + (1 - ad_b) )
-        memory[3] = expa_ab0 * (1 - ad_0)
-        memory[4] = expa_ab 
-        memory[5] = expa_ab * ( (1 - ad_a) + (1 - ad_b) )
-#        memory[6] = expa_ab * ( (1 - ad_a) * (1 - ad_b) )
+        if same_atom
+            memory[1] = expa_ab0
+            memory[2] = expa_ab0*( (1 - ad_a) + (1 - ad_b) )
+            memory[3] = expa_ab0 * (1 - ad_0)
+            memory[4] = expa_ab 
+            memory[5] = expa_ab * ( (1 - ad_a) + (1 - ad_b) )
+            #        memory[6] = expa_ab * ( (1 - ad_a) * (1 - ad_b) )
 
-    else
-        memory[1] = expa_ab
-        memory[2] = expa_ab0
-        #println("memory ", memory[1:2])
+        else
+            memory[1] = expa_ab
+            memory[2] = expa_ab0
+            #println("memory ", memory[1:2])
+        end
+
+    else #old version !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        #a=2.0
+        a=EXP_a[1]
+
+        ad_0 = a*dist_b
+        expa_0 =exp.(-0.5*ad_0) #* 10.0
+
+        ad_a = a*dist_0
+        expa_a =exp.(-0.5*ad_a)
+
+        ad_b = a*dist_a
+        expa_b =exp.(-0.5*ad_b)
+
+        expa_ab = expa_a * expa_b
+        expa_ab0 = expa_ab * expa_0
+
+        if same_atom
+            memory[1] = expa_ab0
+            memory[2] = expa_ab0*( (1 - ad_a) + (1 - ad_b) )
+            memory[3] = expa_ab0 * (1 - ad_0)
+            memory[4] = expa_ab 
+            memory[5] = expa_ab * ( (1 - ad_a) + (1 - ad_b) )
+
+        else
+            memory[1] = expa_ab
+            memory[2] = expa_ab0
+            #println("memory ", memory[1:2])
+        end
+        
     end
-
 end
 
 """
@@ -4981,7 +5518,7 @@ end
 
 Two body onsite
 """
-function two_body_O(dist, ind=missing)
+function two_body_O(dist, ind=missing, n_2body_onsite=n_2body_onsite_default)
     if ismissing(ind)
         return laguerre(dist, ind)[1:n_2body_onsite]
     else
@@ -4994,122 +5531,235 @@ end
 
 three body onsite.
 """
-function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing)
+function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing, version=version)
 
-    d1 = laguerre(dist1, missing, nmax=1)
-    d2 = laguerre(dist2, missing, nmax=1)
-    d3 = laguerre(dist3, missing, nmax=1)
+    if version > 3
+    
+        d1 = laguerre(dist1, missing, nmax=1)
+        d2 = laguerre(dist2, missing, nmax=1)
+        d3 = laguerre(dist3, missing, nmax=1)
         
-    
+        
 
-    if same_atom
-    
-        if  isa(dist1, Array)
+        if same_atom
             
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] ]
+            if  isa(dist1, Array)
+                
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] ]
 
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3]  ]
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
 
-            #            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
-
-
-            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) (d1[:,2].*d2[:,2] + d1[:,2].*d2[:,2])]
-            #V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1])  d1[:,1].*d2[:,1] ]
+                #            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
 
 
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1] + d1[:,1].*d2[:,1].*d3[:,2]) ]
+                V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) (d1[:,2].*d2[:,2] + d1[:,2].*d2[:,2])]
+                #V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1])  d1[:,1].*d2[:,1] ]
 
 
-        else
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1] + d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-            if ismissing(memoryV)
-                V = zeros(typeof(d1[1]), n_3body_onsite_same) 
+
             else
-                V = memoryV
+
+                if ismissing(memoryV)
+                    V = zeros(typeof(d1[1]), n_3body_onsite_same) 
+                else
+                    V = memoryV
+                end
+                
+                #V[1:4] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2]]
+                #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
+                #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
+
+                #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
+
+                #            V[1] = d1[1].*d2[1].*d3[1] *10.0
+                #            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])*10.0
+                #            V[3] = d1[1].*d2[1].*d3[2]*10.0
+                #            V[4] = d1[1].*d2[1]
+                #            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+
+                #            V[1] = d1[1].*d2[1].*d3[1] 
+                #            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
+                #            V[3] = d1[1].*d2[1].*d3[2]
+                #            V[4] = d1[1].*d2[1]
+                #            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+
+                V[1] = d1[1].*d2[1].*d3[1] 
+                V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
+                V[3] = d1[1].*d2[1].*d3[2]
+                V[4] = d1[1].*d2[1]
+                V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+                #            V[6] = d1[2].*d2[2]
+                
+
+                
+                #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
+
+
             end
-            
-            #V[1:4] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2]]
-#            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
-#            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
-
-            #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
-
-#            V[1] = d1[1].*d2[1].*d3[1] *10.0
-#            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])*10.0
-#            V[3] = d1[1].*d2[1].*d3[2]*10.0
-#            V[4] = d1[1].*d2[1]
-#            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-
-#            V[1] = d1[1].*d2[1].*d3[1] 
-#            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
-#            V[3] = d1[1].*d2[1].*d3[2]
-#            V[4] = d1[1].*d2[1]
-#            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-
-            V[1] = d1[1].*d2[1].*d3[1] 
-            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
-            V[3] = d1[1].*d2[1].*d3[2]
-            V[4] = d1[1].*d2[1]
-            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-#            V[6] = d1[2].*d2[2]
-           
-
-            
-#            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
-
-
-        end
-    else
-        if  isa(dist1, Array)
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
-
-#            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
-
-            #            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]*10.0]
-                        V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
-#            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
-
         else
+            if  isa(dist1, Array)
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
 
-#            V = [d1[1].*d2[1].*d3[1] (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
-#            V = d1[1].*d2[1].*d3[1] #(d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
 
-#            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
+                #            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]*10.0]
+                V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
 
-            if ismissing(memoryV)
-                V = zeros(typeof(d1[1]), n_3body_onsite) 
             else
-                V = memoryV
+
+                #            V = [d1[1].*d2[1].*d3[1] (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
+                #            V = d1[1].*d2[1].*d3[1] #(d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
+
+                #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
+
+                if ismissing(memoryV)
+                    V = zeros(typeof(d1[1]), n_3body_onsite) 
+                else
+                    V = memoryV
+                end
+
+                #            V[1:4] .= [d1[1].*d2[1].*d3[1]
+                
+                #            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
+                #            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
+
+                V[1] = d1[1].*d2[1]
+                #            V[2] = d1[1].*d2[1].*d3[1]*10.0
+                V[2] = d1[1].*d2[1].*d3[1]
+                
+                #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
+                
             end
-
-#            V[1:4] .= [d1[1].*d2[1].*d3[1]
-            
-#            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
-#            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
-
-            V[1] = d1[1].*d2[1]
-            #            V[2] = d1[1].*d2[1].*d3[1]*10.0
-            V[2] = d1[1].*d2[1].*d3[1]
-            
-#            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
-            
         end
-    end
 
-    if !ismissing(ind)
-        if  isa(dist1, Array)
+        if !ismissing(ind)
+            if  isa(dist1, Array)
 
-            return (V*ind) *10^3
+                return (V*ind) *10^3
+            else
+                s=size(ind)[1]
+                return ((@view V[1:s])'*ind)[1] * 10^3
+
+            end
         else
-            s=size(ind)[1]
-            return ((@view V[1:s])'*ind)[1] * 10^3
-
+            return V * 10^3
         end
-    else
-        return V * 10^3
+
+    else #version 1-3 #####################################################################
+
+        d1 = laguerre(dist1, missing, nmax=1)
+        d2 = laguerre(dist2, missing, nmax=1)
+        d3 = laguerre(dist3, missing, nmax=1)
+        
+        
+
+        if same_atom
+            
+            if  isa(dist1, Array)
+                
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] ]
+
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,2].*d2[:,2].*d3[:,2] (d1[:,3].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,3].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,3] (d1[:,2].*d2[:,1].*d3[:,2] + d1[:,1].*d2[:,2].*d3[:,2]) d1[:,2].*d2[:,2].*d3[:,1]  ]
+
+                #            V = [10.0*d1[:,1].*d2[:,1].*d3[:,1] 10.0*(d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) 10.0*d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+                V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
+
+
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1] + d1[:,1].*d2[:,1].*d3[:,2]) ]
+
+
+            else
+
+                if ismissing(memoryV)
+                    V = zeros(typeof(d1[1]), n_3body_onsite_same) 
+                else
+                    V = memoryV
+                end
+                
+                #V[1:4] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2]]
+                #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
+                #            V[1:8] .= [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[2].*d2[2].*d3[2], (d1[3].*d2[1].*d3[1] + d1[1].*d2[3].*d3[1]), d1[1].*d2[1].*d3[3], (d1[2].*d2[1].*d3[2] + d1[1].*d2[2].*d3[2]), d1[2].*d2[2].*d3[1]]
+
+                #V[1:n_3body_onsite_same] = [d1[1].*d2[1].*d3[1], (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]), d1[1].*d2[1].*d3[2], d1[1].*d2[1],  (d1[1].*d2[2] + d1[2].*d2[1]) ] 
+
+                #            V[1] = d1[1].*d2[1].*d3[1] *10.0
+                #            V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])*10.0
+                #            V[3] = d1[1].*d2[1].*d3[2]*10.0
+                #            V[4] = d1[1].*d2[1]
+                #            V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+
+                V[1] = d1[1].*d2[1].*d3[1] 
+                V[2] = (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])
+                V[3] = d1[1].*d2[1].*d3[2]
+                V[4] = d1[1].*d2[1]
+                V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
+                
+
+                
+                #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
+
+
+            end
+        else
+            if  isa(dist1, Array)
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2]  ]
+
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1]  (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]+ d1[:,1].*d2[:,1].*d3[:,2]) ]
+
+                #            V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]*10.0]
+                V = [d1[:,1].*d2[:,1] d1[:,1].*d2[:,1].*d3[:,1]]
+                #            V = [d1[:,1].*d2[:,1].*d3[:,1] d1[:,2].*d2[:,1].*d3[:,1] d1[:,1].*d2[:,2].*d3[:,1] d1[:,1].*d2[:,1].*d3[:,2]]
+
+            else
+
+                #            V = [d1[1].*d2[1].*d3[1] (d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
+                #            V = d1[1].*d2[1].*d3[1] #(d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1]) d1[1].*d2[1].*d3[2]]
+
+                #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
+
+                if ismissing(memoryV)
+                    V = zeros(typeof(d1[1]), n_3body_onsite) 
+                else
+                    V = memoryV
+                end
+
+                #            V[1:4] .= [d1[1].*d2[1].*d3[1]
+                
+                #            V[1:n_3body_onsite] .= [d1[1].*d2[1].*d3[1],       d1[2].*d2[1].*d3[1] ,      d1[1].*d2[2].*d3[1] ,       d1[1].*d2[1].*d3[2]]
+                #            V = [d1[1].*d2[1] d1[1].*d2[1].*d3[1]]
+
+                V[1] = d1[1].*d2[1]
+                #            V[2] = d1[1].*d2[1].*d3[1]*10.0
+                V[2] = d1[1].*d2[1].*d3[1]
+                
+                #            V = [d1[1].*d2[1].*d3[1]       d1[2].*d2[1].*d3[1]       d1[1].*d2[2].*d3[1]        d1[1].*d2[1].*d3[2]]
+                
+            end
+        end
+
+        if !ismissing(ind)
+            if  isa(dist1, Array)
+
+                return (V*ind) *10^3
+            else
+                s=size(ind)[1]
+                return ((@view V[1:s])'*ind)[1] * 10^3
+
+            end
+        else
+            return V * 10^3
+        end
+
+
     end
 end    
 
@@ -5290,7 +5940,7 @@ end
 
 Two body intersite Hamiltonian.
 """
-function two_body_H(dist, ind=missing)
+function two_body_H(dist, ind=missing, n_2body=n_2body_default)
     if ismissing(ind)
         return laguerre(dist, ind, nmax=n_2body-1)[1:n_2body]
     else
@@ -5303,7 +5953,7 @@ end
 
 Two body intersite overlap.
 """
-function two_body_S(dist, ind=missing)
+function two_body_S(dist, ind=missing, n_2body_S=n_2body_S_default)
     if ismissing(ind)
         return laguerre(dist, ind,nmax=n_2body_S-1)[1:n_2body_S]
     else
@@ -5316,79 +5966,78 @@ end
 
 get 3body hamiltonian terms together.
 """
-function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing)
+function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing, version=fit_version_default)
 
-#    return 0.0
+    if version > 3
 
-    #    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) * 10.0
-    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
-    a = laguerre(dist1,missing, nmax=1, memory=memory1)
-    b = laguerre(dist2,missing, nmax=1, memory=memory2)
+        zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
+        a = laguerre(dist1,missing, nmax=1, memory=memory1)
+        b = laguerre(dist2,missing, nmax=1, memory=memory2)
 
-#    println(same_atom, "three_body_H ", zero, a,b)
+        #    println(same_atom, "three_body_H ", zero, a,b)
 
-#    zero = memory0
-#    a = memory1
-#    b = memory2
-    
-    if triple
-        if  isa(dist1, Array)
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
-        else
-            if ismissing(memoryV)
-                memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+        #    zero = memory0
+        #    a = memory1
+        #    b = memory2
+        
+        if triple
+            if  isa(dist1, Array)
+                Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
+            else
+                if ismissing(memoryV)
+                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                end
+                memoryV[1] =  a[1].*b[1]
+                memoryV[2] =  a[1].*b[2]
+                memoryV[3] =  a[2].*b[1]
+                memoryV[4] =  zero[1].*a[1].*b[1]
+                
             end
-            memoryV[1] =  a[1].*b[1]
-            memoryV[2] =  a[1].*b[2]
-            memoryV[3] =  a[2].*b[1]
-            memoryV[4] =  zero[1].*a[1].*b[1]
-            
-        end
 
-    elseif same_atom
-        if  isa(dist1, Array)
-            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) zero[:,1].*(a[:,1] + b[:,1] )   ] #zero[:,1].*(a[:,2] + b[:,2]) zero[:,2].*(a[:,1] + b[:,1])  
-            #Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) zero[:,1].*(a[:,1] + b[:,1] )  ]
-            V = Vt
-        else 
-#           try
-#                Vt = [a[1].*b[1]  (a[1].*b[2]+a[2].*b[1])  a[2].*b[2] (a[1].*b[3]+ a[3].*b[1])  zero[1].*a[1].*b[1] zero[1].*(a[1].*b[2]+a[2].*b[1]) ]
-#                V = Vt
-#               println("case ")
+        elseif same_atom
+            if  isa(dist1, Array)
+                Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) zero[:,1].*(a[:,1] + b[:,1] )   ] #zero[:,1].*(a[:,2] + b[:,2]) zero[:,2].*(a[:,1] + b[:,1])  
+                #Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) zero[:,1].*(a[:,1] + b[:,1] )  ]
+                V = Vt
+            else 
+                #           try
+                #                Vt = [a[1].*b[1]  (a[1].*b[2]+a[2].*b[1])  a[2].*b[2] (a[1].*b[3]+ a[3].*b[1])  zero[1].*a[1].*b[1] zero[1].*(a[1].*b[2]+a[2].*b[1]) ]
+                #                V = Vt
+                #               println("case ")
                 if ismissing(memoryV)
                     memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
                 end
                 memoryV[1] = a[1].*b[1]
                 memoryV[2] =  (a[1].*b[2]+a[2].*b[1])
-#                memoryV[3] =  zero[1].*a[1].*b[1]
-#               memoryV[4] = zero[2].*a[1].*b[1]   
-               memoryV[3] = a[2].*b[2]  
-               memoryV[4] = zero[1].*(a[1].*b[2]+ a[2].*b[1]) 
+                #                memoryV[3] =  zero[1].*a[1].*b[1]
+                #               memoryV[4] = zero[2].*a[1].*b[1]   
+                memoryV[3] = a[2].*b[2]  
+                memoryV[4] = zero[1].*(a[1].*b[2]+ a[2].*b[1]) 
 
-            memoryV[5] = zero[1].*(a[1] + b[1])
-#            memoryV[8] = zero[1].*(a[2] + b[2])
-#            memoryV[9] = zero[2].*(a[1] + b[1])
-            
+                memoryV[5] = zero[1].*(a[1] + b[1])
+                #            memoryV[8] = zero[1].*(a[2] + b[2])
+                #            memoryV[9] = zero[2].*(a[1] + b[1])
+                
 
-            
-#            catch
-#                println("asdf ",size(a), " " , size(b))
-#            end
+                
+                #            catch
+                #                println("asdf ",size(a), " " , size(b))
+                #            end
 
-        end
-    else
-        if  isa(dist1, Array)
-#            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
-
-#            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
-            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
-
-#            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
-            V = Vt
+            end
         else
-#            try
-#                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
-#                V = Vt
+            if  isa(dist1, Array)
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
+
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
+                Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
+
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
+                V = Vt
+            else
+                #            try
+                #                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
+                #                V = Vt
                 if ismissing(memoryV)
                     memoryV=zeros(typeof(dist0), n_3body)
                 end
@@ -5404,34 +6053,164 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 memoryV[8] =  zero[1].*a[2].*b[1]
                 
 
-#                memoryV[6] =  
+                #                memoryV[6] =  
 
-#                memoryV[6] =  a[3].*b[1]
-#                memoryV[7] =  a[1].*b[3]
+                #                memoryV[6] =  a[3].*b[1]
+                #                memoryV[7] =  a[1].*b[3]
 
-#                memoryV[7] =  zero[1].*a[1].*b[1]
-#                memoryV[8] =  zero[1].*a[1].*b[2]
-#                memoryV[9] =  zero[1].*a[2].*b[1]
+                #                memoryV[7] =  zero[1].*a[1].*b[1]
+                #                memoryV[8] =  zero[1].*a[1].*b[2]
+                #                memoryV[9] =  zero[1].*a[2].*b[1]
 
-#            catch
-#                println("asdf ",size(a), " " , size(b))
-#            end
+                #            catch
+                #                println("asdf ",size(a), " " , size(b))
+                #            end
+            end
         end
-    end
 
-    if !ismissing(ind)
-        if  isa(dist1, Array)
+        if !ismissing(ind)
+            if  isa(dist1, Array)
 
-            return (V* (ind * 10^3) )
+                return (V* (ind * 10^3) )
+            else
+                #            println("three_body_H ", same_atom, " " , size(V), " ", size(ind))
+                s=size(ind)[1]
+                return (memoryV[1:s]'* (ind*10^3))[1]
+            end
         else
-#            println("three_body_H ", same_atom, " " , size(V), " ", size(ind))
-            s=size(ind)[1]
-            return (memoryV[1:s]'* (ind*10^3))[1]
+            return memoryV #* 10^3
         end
-    else
-        return memoryV #* 10^3
-    end
 
+    else #version 1 or 2 or 3 #########################################################################################################################################################################
+
+        #    return 0.0
+
+        #    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) * 10.0
+        zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
+        a = laguerre(dist1,missing, nmax=1, memory=memory1)
+        b = laguerre(dist2,missing, nmax=1, memory=memory2)
+
+        #    println(same_atom, "three_body_H ", zero, a,b)
+
+        #    zero = memory0
+        #    a = memory1
+        #    b = memory2
+        
+        if triple
+            if  isa(dist1, Array)
+                Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
+            else
+                if ismissing(memoryV)
+                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                end
+                memoryV[1] =  a[1].*b[1]
+                memoryV[2] =  a[1].*b[2]
+                memoryV[3] =  a[2].*b[1]
+                memoryV[4] =  zero[1].*a[1].*b[1]
+                
+            end
+
+        elseif same_atom
+            if  isa(dist1, Array)
+                #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) ]
+                #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   ]
+                #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]      ]
+                #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  a[:,2].*b[:,2] (a[:,1].*b[:,3]+ a[:,3].*b[:,1]) zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*(a[:,1].*b[:,2]+a[:,2].*b[:,1]) zero[:,2].*(a[:,1].*b[:,1])   ]
+
+                #            Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  ]
+                Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]   a[:,2].*b[:,2]  zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1])  ]
+                #Vt = [a[:,1].*b[:,1]  (a[:,1].*b[:,2]+ a[:,2].*b[:,1])  zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
+                #            Vt = [a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]    zero[:,1].*(a[:,1].*b[:,2]+ a[:,2].*b[:,1]) ]
+                V = Vt
+                #            println("V ", V)
+            else 
+                #           try
+                #                Vt = [a[1].*b[1]  (a[1].*b[2]+a[2].*b[1])  a[2].*b[2] (a[1].*b[3]+ a[3].*b[1])  zero[1].*a[1].*b[1] zero[1].*(a[1].*b[2]+a[2].*b[1]) ]
+                #                V = Vt
+                #               println("case ")
+                if ismissing(memoryV)
+                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                end
+                memoryV[1] = a[1].*b[1]
+                memoryV[2] =  (a[1].*b[2]+a[2].*b[1])
+                memoryV[3] =  zero[1].*a[1].*b[1]
+
+
+                memoryV[4] = zero[2].*a[1].*b[1]   
+                memoryV[5] = a[2].*b[2]  
+                memoryV[6] = zero[1].*(a[1].*b[2]+ a[2].*b[1]) 
+                #               memoryV[7] = zero[1].*a[2].*b[2]
+                #               println("mem ", memoryV)
+                #                memoryV[3] =   a[2].*b[2] 
+                #                memoryV[4] =  (a[1].*b[3]+ a[3].*b[1])
+                #                memoryV[6] = zero[1].*(a[1].*b[2]+a[2].*b[1])
+                #                memoryV[7] = zero[2].*(a[1].*b[1])
+
+
+                #            catch
+                #                println("asdf ",size(a), " " , size(b))
+                #            end
+
+            end
+        else
+            if  isa(dist1, Array)
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]  a[:,1].*b[:,3]    a[:,3].*b[:,1]   zero[:,1].*a[:,1].*b[:,1]   zero[:,1].*a[:,1].*b[:,2]  zero[:,1].*a[:,2].*b[:,1]]
+
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] a[:,3].*b[:,1] a[:,1].*b[:,3]]
+                Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1]    zero[:,1].*a[:,1].*b[:,1]  zero[:,2].*a[:,1].*b[:,1]  a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,2] zero[:,1].*a[:,2].*b[:,1]  ]
+
+                #            Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]    a[:,2].*b[:,1] a[:,2].*b[:,2]   zero[:,1].*a[:,1].*b[:,1] ]
+                V = Vt
+            else
+                #            try
+                #                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
+                #                V = Vt
+                if ismissing(memoryV)
+                    memoryV=zeros(typeof(dist0), n_3body)
+                end
+                memoryV[1] =  a[1].*b[1]
+                memoryV[2] =  a[1].*b[2]
+                memoryV[3] =  a[2].*b[1]
+                memoryV[4] =  zero[1].*a[1].*b[1]
+
+                memoryV[5] =  zero[2].*a[1].*b[1]
+                memoryV[6] =  a[2].*b[2]
+
+                memoryV[7] =  zero[1].*a[1].*b[2]
+                memoryV[8] =  zero[1].*a[2].*b[1]
+                
+
+                #                memoryV[6] =  
+
+                #                memoryV[6] =  a[3].*b[1]
+                #                memoryV[7] =  a[1].*b[3]
+
+                #                memoryV[7] =  zero[1].*a[1].*b[1]
+                #                memoryV[8] =  zero[1].*a[1].*b[2]
+                #                memoryV[9] =  zero[1].*a[2].*b[1]
+
+                #            catch
+                #                println("asdf ",size(a), " " , size(b))
+                #            end
+            end
+        end
+
+        if !ismissing(ind)
+            if  isa(dist1, Array)
+
+                return (V* (ind * 10^3) )
+            else
+                #            println("three_body_H ", same_atom, " " , size(V), " ", size(ind))
+                s=size(ind)[1]
+                return (memoryV[1:s]'* (ind*10^3))[1]
+            end
+        else
+            return memoryV #* 10^3
+        end
+        
+
+    end
+        
 end
 
 
@@ -6339,20 +7118,20 @@ end
 
 Fit Two body intersite Hamiltonian and overlap matrix els.
 """
-function fit_twobody(orb1,orb2,dist,lmn)
+function fit_twobody(orb1,orb2,dist,lmn, n_2body, n_2body_S)
 
     
     s1=summarize_orb(orb1)
     s2=summarize_orb(orb2)
 
     
-    H1 =  two_body_H(dist, missing)
-    S1 =  two_body_S(dist, missing)
+    H1 =  two_body_H(dist, missing, n_2body)
+    S1 =  two_body_S(dist, missing, n_2body_S)
 
     if (s1 == :p && s2 == :p) 
 
-        H2 =  two_body_H(dist, missing)
-        S2 =  two_body_S(dist, missing)
+        H2 =  two_body_H(dist, missing, n_2body)
+        S2 =  two_body_S(dist, missing, n_2body_S)
 
         sym = symmetry_factor_fit(orb1,orb2,lmn)
         
@@ -6362,8 +7141,8 @@ function fit_twobody(orb1,orb2,dist,lmn)
     elseif (s1 == :p && s2 == :d)  || (s2 == :p && s1 == :d)
 
 
-        H2 =  two_body_H(dist, missing)
-        S2 =  two_body_S(dist, missing)
+        H2 =  two_body_H(dist, missing, n_2body)
+        S2 =  two_body_S(dist, missing, n_2body_S)
 
         sym = symmetry_factor_fit(orb1,orb2,lmn)
         
@@ -6372,11 +7151,11 @@ function fit_twobody(orb1,orb2,dist,lmn)
 
     elseif (s1 == :d && s2 == :d)  
 
-        H2 =  two_body_H(dist, missing)
-        S2 =  two_body_S(dist, missing)
+        H2 =  two_body_H(dist, missing, n_2body)
+        S2 =  two_body_S(dist, missing, n_2body_S)
 
-        H3 =  two_body_H(dist, missing)
-        S3 =  two_body_S(dist, missing)
+        H3 =  two_body_H(dist, missing, n_2body)
+        S3 =  two_body_S(dist, missing, n_2body_S)
 
         sym = symmetry_factor_fit(orb1,orb2,lmn)
         
@@ -6447,13 +7226,13 @@ end
 
 Fit 2body onsite interactions.
 """
-function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn)
+function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, n_2body_onsite)
 
     o1 = summarize_orb(orb1)
     o2 = summarize_orb(orb2)    
 
     if orb1 == orb2
-        O = two_body_O(dist)
+        O = two_body_O(dist, missing, n_2body_onsite)
     else
         O = zeros(n_2body_onsite)
     end
@@ -6461,13 +7240,13 @@ function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn)
 
     if (o1 == :s && o2 == :p) || (o1 == :p && o2 == :s) || (o1 == :s && o2 == :d) || (o1 == :d && o2 == :s) || (o1 == :p && o2 == :d) || (o1 == :d && o2 == :p)
 
-        O_split = two_body_O(dist)
+        O_split = two_body_O(dist, missing, n_2body_onsite)
         sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
         O = O_split*sym #only split
 #    elseif o1 == :p && o2 == :p
     elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d)
         
-        O_split = two_body_O(dist)
+        O_split = two_body_O(dist, missing, n_2body_onsite)
         sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
 #        println("so ", size(O), size(O_split))
         O = hcat(O', O_split'*sym) #two terms
@@ -6537,7 +7316,7 @@ end
 
 Fit three body onsite interactions.
 """
-function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
+function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, version=fit_version_default)
 
     o1 = summarize_orb(orb1)
 #    o2 = summarize_orb(orb2)    
@@ -6549,7 +7328,7 @@ function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23)
     
     sameat = (t1 == t2 && t1 == t3)
 
-    Otot = three_body_O(dist12, dist13, dist23, sameat)
+    Otot = three_body_O(dist12, dist13, dist23, sameat, version=version)
 
     return Otot
         
@@ -6597,14 +7376,14 @@ end
 
 Fit threebody intersite interactions
 """
-function fit_threebody(t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn31,lmn32)
+function fit_threebody(t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn31,lmn32, version)
 
     #currently only for offsite Hamiltonian 3body terms, treat third atom with :s symmetry
     
     o1 = summarize_orb(orb1)
     o2 = summarize_orb(orb2)    
     
-    H =  three_body_H(dist, dist31, dist32, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3 )
+    H =  three_body_H(dist, dist31, dist32, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, version )
 #    println("H ", H)
 
     #sym12 = symmetry_factor(orb1,orb2,lmn12, [1.0, 1.0, 1.0])
@@ -8112,11 +8891,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 end
                 
                 orbs_arr = zeros(Int64, crys.nat, 9, 3)
-                DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 33 )
+                DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 36 )
                 DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 164)
 
-                DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 33 )
+                DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 36 )
 
+                DAT_NTYPES_ARR = zeros(Int64, types_counter, types_counter, 3 )                
 
                 cutoff_arr = zeros(crys.nat, crys.nat, 2)
                 cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
@@ -8160,7 +8940,11 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             DAT_ARR[c1,c2,2,1:coef.sizeS] = coef.datS
                             indO, inO = coef.inds_int[[t1]]
                             DAT_IND_ARR_O[c1,c2,:,:,1] = inO
+                            
                             DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
+
+                            DAT_NTYPES_ARR[c1,c2,:] = [coef.n_2body, coef.n_2body_S, coef.n_2body_onsite]
+                            
                         else
                             println("WARNING, ",(t1,t2), " database not found")
                             within_fit = false
@@ -8174,7 +8958,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     
                     DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
                     DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 224)
-
+                    DAT_VERSION_3 = zeros(Int64, types_counter, types_counter, types_counter )                
                     
                     for c1 = 1:types_counter
                         t1 = types_dict_reverse[c1]
@@ -8188,6 +8972,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                                     DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
                                     DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
                                     DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
+                                    DAT_VERSION_3[c1,c2,c3] = cdat.version
                                 else
                                     println("WARNING, ",(t1,t2,t3), " database not found")
                                     within_fit = false
@@ -8297,6 +9082,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     a1 = R_keep_ab[c,2]
                     a2 = R_keep_ab[c,3]
 
+                    
                     if atom > 0 && !(a1 == atom || a2 == atom)
                         continue
                     end
@@ -8306,6 +9092,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     t1 = types_arr[a1]
                     t2 = types_arr[a2]
 
+                    
+                    n_2body, n_2body_S, n_2body_onsite = DAT_NTYPES_ARR[t1,t2,:]
+                    
                     if use_dist_arr
                         dist_a = dist_arr[c,1]
                         lmn_arr[1] = dist_arr[c,2]
@@ -8351,8 +9140,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                             rho_th[a1, 2, id] += lag_arr[2] * cut_on
                         end
 
-                        core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS)
-                        core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS)
+                        core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
+                        core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
                         
                     end
                     
@@ -8429,7 +9218,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             #                lag_arr_TH = zeros(var_type, 2, nthreads())
             #                lag_arr_TH = zeros(var_type, 2, nthreads())
 
-            memory_TH = zeros(var_type, maximum([n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same]), nthreads())
+            memory_TH = zeros(var_type, 8, nthreads())
         end
         
         if use_threebody || use_threebody_onsite || use_pert
@@ -8498,6 +9287,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 rind1 = ind_arr[cind1,1:3]
                 rind2 = ind_arr[cind2,1:3]
 
+                version = DAT_VERSION_3[t1,t2,t3]
                 
                 if use_dist_arr
                     dist12 = array_floats3[counter, 1]
@@ -8517,17 +9307,17 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 #                    cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
  #                   cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
 
-                    if use_pert
-                        cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
-                        cutoff3 = cutoff_arr3[a1,a2,a3]
-                        cut_p = cutoff3
+#                    if use_pert
+#                        cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
+#                        cutoff3 = cutoff_arr3[a1,a2,a3]
+ #                       cut_p = cutoff3
                         #cut_ab = cutoff_fn_fast(dist12, cutoff2 - cutoff_length, cutoff2)
                         #cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
                         #                        cut_p = cut_ab*cut_bc
 
                         
 #                        println("a1 $a1 a2 $a2 a3 $a3 $cut_p    $([cut_ab, cut_bc])")
-                    end
+#                    end
                     #cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
  #                   cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
  #                   cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
@@ -8562,7 +9352,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                 
                 if use_threebody
-                    laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory)
+                    laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory,version)
                     core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn12, lmn13, lmn23)
 
                     
@@ -8574,14 +9364,14 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                 end
 
-                if use_pert
-                    laguerre_fast_threebdy_pert!(dist12,dist13,dist23, memory)
-                    core3_pert!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_pert_3, memory, DAT_ARR_3, cut_p, H, lmn12)
-                end                    
+#                if use_pert
+#                    laguerre_fast_threebdy_pert!(dist12,dist13,dist23, memory)
+#                    core3_pert!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_pert_3, memory, DAT_ARR_3, cut_p, H, lmn12)
+#                end                    
                 
 
                 if use_threebody_onsite
-                    laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory)
+                    laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory, version)
                     #core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
 
                     #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
@@ -8631,7 +9421,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 end
 
 
-function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn, sym_dat, sym_datS)
+function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn, sym_dat, sym_datS, n_2body, n_2body_S)
     
     @inbounds @simd for o2x = 1:norb[a2]
         o2 = orbs_arr[a2,o2x,1]
@@ -8688,7 +9478,7 @@ function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_A
     end
 end
 
-function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2)
+function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2, n_2body_onsite)
 
 #    sym_dat1[1] = 1.0
 #    sym_dat1[2] = 0.0
