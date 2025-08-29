@@ -3630,7 +3630,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
                         #magic to get lowest energy band correct especially near gamma
                         if k == 1 && nk > 1 && i <= 2
-                            w_special = 5.0
+                            w_special = 10.0
                         elseif i == 1
                             w_special = 2.0
                         else

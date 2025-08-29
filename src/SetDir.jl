@@ -26,7 +26,7 @@ DOCSDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "docs")
 #DATSDIR2 = "/home/kfg/codes/TB_fit/binary_v10/datab/"
 
 
-
+println("isdir /lab/hpc/raritan/  ", isdir("/lab/hpc/raritan/"))
 if isdir("/lab/hpc/raritan/") #we are on blackbird
     global MPI_STRING="mpirun -n  "
 else #we are on raritan
@@ -36,7 +36,7 @@ println("MPI_STRING $MPI_STRING ")
 #global MPI_STRING="mpirun -np"
 #global QE_BIN_DIR_STRING="/home/kfg/codes/q-e-qe-6.5/bin/"
 #global QE_BIN_DIR_STRING="/usr/local/almalinux9/qe/6.8/openmpi-4.1.5-gcc-9/bin/"
-global QE_BIN_DIR_STRING=""
+global QE_BIN_DIR_STRING="/home/kfg/codes/qe-7.2_kfg2/qe-7.2/bin/"
 
 
 #global MPI_STRING="mpirun -np"

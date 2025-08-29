@@ -285,7 +285,7 @@ end
 
 
 function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=false, only_kspace=false, klines=missing, gamma_only=false)
-
+    println("run nscf")
     olddir = "$directory/$prefix.save"
     println("doing nscf")
     nscfdir = "$directory/$prefix.nscf.save"

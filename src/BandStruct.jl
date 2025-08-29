@@ -1133,6 +1133,94 @@ function band_summary(tbc::tb_crys_kspace)
 end
 
 
+function plot_compare_dft_dft(bs1, bs2; tbc2=missing, names=missing, locs=missing, spin=1, align=:vbm)
 
+    if typeof(bs1) == dftout
+
+        dft_copy = deepcopy(bs1)
+        dft_copy2 = deepcopy(bs1)
+        println("shift eigs")
+        eigs, shift = shift_eigenvalues(dft_copy)
+
+        dft_copy2.bandstruct.eigs .+= shift
+
+        
+        bs1 = dft_copy2.bandstruct
+    end
+    if typeof(bs2) == dftout
+
+        dft_copy = deepcopy(bs2)
+        dft_copy2 = deepcopy(bs2)
+        println("shift eigs")
+        eigs, shift = shift_eigenvalues(dft_copy)
+
+        dft_copy2.bandstruct.eigs .+= shift
+
+        
+        bs2 = dft_copy2.bandstruct
+    end
+
+    kpts = bs1.kpts
+    kweights = bs1.kweights
+
+
+    nelec1 = bs1.nelec
+    nelec2 = bs2.nelec
+
+    nk = bs1.nks
+    
+    efermi_dft1 = calc_fermi_sp(bs1.eigs, kweights, nelec1)
+    efermi_dft2 = calc_fermi_sp(bs2.eigs, kweights, nelec2)
+    
+    
+    vbmD1, cbmD1 = find_vbm_cbm(bs1.eigs , efermi_dft1)
+    vbmD2, cbmD2 = find_vbm_cbm(bs2.eigs , efermi_dft2)
+    
+    
+    plot(legend=true, grid=false, framestyle=:box, xtickfontsize=12, ytickfontsize=12)
+
+    if align == :fermi || align == "fermi" || align == :efermi || align == "efermi"
+        vbmD1 = efermi_dft1
+        vbmD2 = efermi_dft2
+    end
+    if align == :none || align == "none"
+        vbmD = 0.0
+        vbm = 0.0
+        println("align none")
+    end
+    
+    
+    plot!(convert_energy( bs1.eigs[:,1, spin] .- vbmD1) , color="orange", lw=4, label="DFT1", grid=false, legend=:topright)
+    plot!(convert_energy( bs2.eigs[:,1, spin] .- vbmD2) , color="blue", lw=4, label="DFT2", grid=false, legend=:topright)    
+    if bs1.nbnd > 1
+        plot!(convert_energy(bs1.eigs[:,2:end, spin] .- vbmD1) , color="orange", lw=4, label=missing)
+        plot!(convert_energy(bs2.eigs[:,2:end, spin] .- vbmD2) , color="blue", lw=4, label=missing)    
+
+        plot!([0, nk], convert_energy([efermi_dft1, efermi_dft1] .- vbmD1), color="red", linestyle=:dot, label="E_F DFT")
+        plot!([0, nk], convert_energy([efermi_dft2, efermi_dft2] .- vbmD2), color="black", linestyle=:dash, label="E_F TB")
+
+        
+        if global_energy_units == "eV"
+            ylabel!("Energy - VBM (eV)", guidefontsize=12)
+        else
+            ylabel!("Energy - VBM (Ryd.)", guidefontsize=12)
+        end
+
+        if !ismissing(names) && !ismissing(locs)
+            xticks!(Float64.(locs).+1.0, names, xtickfontsize=12)
+        end
+        
+
+        if ! no_display
+            display(ylims!(convert_energy(minimum(bs1.eigs[:] .- vbmD1)*1.05 - 0.01),  convert_energy(min(maximum(bs1.eigs[:] .- vbmD1), 0.8) * 1.05 )))
+        else
+            ylims!(convert_energy(minimum(bs1.eigs[:] .- vbmD1)*1.05 - 0.01), convert_energy(min(maximum(bs1.eigs[:] .- vbmD1), 0.8) * 1.05 ))
+        end
+        #    end
+
+
+    end
+
+end
 
 end #end module

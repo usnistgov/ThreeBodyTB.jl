@@ -286,7 +286,7 @@ function write_coefs(filename, co::coefs; compress=true)
     end
 
     addelement!(c, "datH_ensemble", arr2str(co.datH_ensemble))    
-    addelement!(c, "datU_ensemble", arr2str(co.datU_ensemble))    
+#    addelement!(c, "datU_ensemble", arr2str(co.datU_ensemble))    
     
     addelement!(c, "use_eam", "$(co.use_eam)" )
     addelement!(c, "use_pert", "$(co.use_pert)" )
@@ -5531,7 +5531,7 @@ end
 
 three body onsite.
 """
-function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing, version=version)
+function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = missing, version=fitting_version_default)
 
     if version > 3
     
@@ -5565,7 +5565,7 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
             else
 
                 if ismissing(memoryV)
-                    V = zeros(typeof(d1[1]), n_3body_onsite_same) 
+                    V = zeros(typeof(d1[1]), n_3body_onsite_same_default) 
                 else
                     V = memoryV
                 end
@@ -5619,7 +5619,7 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
                 #            V = [d1[1].*d2[1].*d3[1] (d1[1].*d2[1].*d3[2]+d1[2].*d2[1].*d3[1] + d1[1].*d2[2].*d3[1])]
 
                 if ismissing(memoryV)
-                    V = zeros(typeof(d1[1]), n_3body_onsite) 
+                    V = zeros(typeof(d1[1]), n_3body_onsite_default) 
                 else
                     V = memoryV
                 end
@@ -5966,7 +5966,7 @@ end
 
 get 3body hamiltonian terms together.
 """
-function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing, version=fit_version_default)
+function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memory0=missing, memory1=missing, memory2=missing, memoryV=missing, version=fitting_version_default)
 
     if version > 3
 
@@ -5985,7 +5985,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
             else
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                    memoryV=zeros(typeof(dist0), max(n_3body_default, n_3body_same_default))
                 end
                 memoryV[1] =  a[1].*b[1]
                 memoryV[2] =  a[1].*b[2]
@@ -6005,7 +6005,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 #                V = Vt
                 #               println("case ")
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                    memoryV=zeros(typeof(dist0), max(n_3body_default, n_3body_same_default))
                 end
                 memoryV[1] = a[1].*b[1]
                 memoryV[2] =  (a[1].*b[2]+a[2].*b[1])
@@ -6101,7 +6101,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 Vt = [a[:,1].*b[:,1]  a[:,1].*b[:,2]  a[:,2].*b[:,1] zero[:,1].*a[:,1].*b[:,1]]
             else
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                    memoryV=zeros(typeof(dist0), 8)
                 end
                 memoryV[1] =  a[1].*b[1]
                 memoryV[2] =  a[1].*b[2]
@@ -6129,7 +6129,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 #                V = Vt
                 #               println("case ")
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), max(n_3body, n_3body_same))
+                    memoryV=zeros(typeof(dist0), 8)
                 end
                 memoryV[1] = a[1].*b[1]
                 memoryV[2] =  (a[1].*b[2]+a[2].*b[1])
@@ -7278,7 +7278,7 @@ function calc_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, cdat; set_max
     #sameat = (t1 == t2 && t1 == t3 )
 
     indO = cdat.inds[[t1,t2,t3,o1,:O]]
-    Otot = three_body_O(dist12, dist13, dist23, sameat, cdat.datH[indO], memoryV=memory)
+    Otot = three_body_O(dist12, dist13, dist23, sameat, cdat.datH[indO], memoryV=memory, version=version)
 #    Otot = 0.0
     
 
@@ -7316,7 +7316,7 @@ end
 
 Fit three body onsite interactions.
 """
-function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, version=fit_version_default)
+function fit_threebody_onsite(t1,t2,t3,orb1,dist12,dist13,dist23, version=fitting_version_default)
 
     o1 = summarize_orb(orb1)
 #    o2 = summarize_orb(orb2)    
@@ -7383,7 +7383,7 @@ function fit_threebody(t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn31,lmn32,
     o1 = summarize_orb(orb1)
     o2 = summarize_orb(orb2)    
     
-    H =  three_body_H(dist, dist31, dist32, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, version )
+    H =  three_body_H(dist, dist31, dist32, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, version=version )
 #    println("H ", H)
 
     #sym12 = symmetry_factor(orb1,orb2,lmn12, [1.0, 1.0, 1.0])

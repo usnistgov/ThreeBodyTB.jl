@@ -41,11 +41,13 @@ and mpi commands (if any)
 
     
     #main QE SCF driver
-    pw = "$qebin/pw.x"
-    if pw[1] == '/'
-        pw = pw[2:end]
+    if length(QE_BIN_DIR_STRING) == 0
+        pw = "pw.x"
+    else
+        pw = "$qebin/pw.x"
     end
-    pwscf_command_serial=`$pw -input `
+
+    pwscf_command_serial=`$mpi 1 $pw -input `
     pwscf_command_parallel=`$mpi $nprocs $pw -npool 2 -input `
 
     pwscf_command_parallel_backup=`$mpi $nprocs $pw -ndiag 1 -npool 1 -input `
@@ -61,16 +63,20 @@ and mpi commands (if any)
     #    og_command_parallel=`$mpi $nprocs $qebin/open_grid.x -input `
 
     #qe-project-wavefunction code
-    proj = "$qebin/projwfc.x"
-    if proj[1] == "/"
-        proj = proj[2:end]
+
+    if length(QE_BIN_DIR_STRING) == 0
+        proj = "projwfc.x"
+    else
+        proj = "$qebin/projwfc.x"
     end
+
     
-    proj_command_serial=`$proj -nd 1 -input `
+    
+    proj_command_serial=`$mpi 1 $proj -nd 1 -input `
     proj_command_parallel=`$mpi $nprocs $proj -nd 1 -input `
 
     proj_command_serial_backup=`$proj  -input `
-    proj_command_parallel_backup=`$mpi $nprocs $proj  -input `
+    proj_command_parallel_backup=`$mpi 1 $proj  -input `
     
     
     #w90 (serial)
