@@ -1,5 +1,5 @@
 
-using ..CalcTB:n_2body_S
+using ..CalcTB:n_2body_S_default
 
 function do_fitting_recursive_S(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=0.0, leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, opt=true)
     println("do_fitting_recursive_S")
@@ -69,14 +69,14 @@ function do_fitting_recursive_S(list_of_tbcs ; weights_list = missing, dft_list=
     for x in 1.1:-0.2:0.5
         for y in 1.2:-0.2:0.8
             println("x $x y $y")
-            if length(cs_lin) == n_2body_S
-                error = update(cs_lin[1:n_2body_S] * x*y)
+            if length(cs_lin) == n_2body_S_default
+                error = update(cs_lin[1:n_2body_S_default] * x*y)
             else
-                error = update( vcat(cs_lin[1:n_2body_S]*x*y, cs_lin[ (1+n_2body_S) : end ] * y))
+                error = update( vcat(cs_lin[1:n_2body_S_default]*x*y, cs_lin[ (1+n_2body_S_default) : end ] * y))
             end
             if error < error_best
                 error_best = error
-                cs_best = vcat(cs_lin[1:n_2body_S]*x*y, cs_lin[ (1+n_2body_S) : end ] * y)
+                cs_best = vcat(cs_lin[1:n_2body_S_default]*x*y, cs_lin[ (1+n_2body_S_default) : end ] * y)
                 ch_best = deepcopy(ch_rec)
             end
         end
@@ -96,9 +96,9 @@ function do_fitting_recursive_S(list_of_tbcs ; weights_list = missing, dft_list=
         cs_lin = deepcopy(cs_best)
 
         inds = []
-        for x = 1 : Int64(length(cs_lin) / n_2body_S)
-            for y = 1:n_2body_S
-                push!(inds, y + (x-1) * n_2body_S)
+        for x = 1 : Int64(length(cs_lin) / n_2body_S_default)
+            for y = 1:n_2body_S_default
+                push!(inds, y + (x-1) * n_2body_S_default)
             end
 
         end
@@ -256,12 +256,12 @@ function do_fitting_recursive_S2(list_of_tbcs ; weights_list = missing, dft_list
         ch_rec = deepcopy(ch_best) #start
         cs_lin = deepcopy(cs_best)
 
-        ncopy = Int64(length(cs_lin) / n_2body_S)
+        ncopy = Int64(length(cs_lin) / n_2body_S_default)
         
         function update2(X)
             x = X[2]
 
-            t = [1, x^1, x^2, x^3, x^4, x^5, x^6, x^7][1:n_2body_S]
+            t = [1, x^1, x^2, x^3, x^4, x^5, x^6, x^7][1:n_2body_S_default]
             tt = repeat(t, ncopy)
             cst = deepcopy(cs_lin) .* X[1] .* tt
         #    cst[inds] = cs
@@ -286,7 +286,7 @@ function do_fitting_recursive_S2(list_of_tbcs ; weights_list = missing, dft_list
         X = Optim.minimizer(res)
         println("X $X")
         x = X[2]
-        t = [1, x^1, x^2, x^3, x^4, x^5, x^6, x^7][1:n_2body_S]
+        t = [1, x^1, x^2, x^3, x^4, x^5, x^6, x^7][1:n_2body_S_default ]
         tt = repeat(t, ncopy)
         cs_final = deepcopy(cs_lin) .* X[1] .* tt
 
