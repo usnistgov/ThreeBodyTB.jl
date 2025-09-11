@@ -8701,7 +8701,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing)
 
 
     #        verbose=true
@@ -8815,7 +8815,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         
         nwan = length(keys(ind2orb))
 
+        Umat = zeros(var_type, nwan)
         nkeep=size(R_keep)[1]
+
+        Vmat = zeros(var_type, nwan, nwan, nkeep)
+        
+        
         #    nkeep2=size(R_keep2)[1]    
         #    println("nkeep, $nkeep, nkeep2, $nkeep2")
         
@@ -9127,6 +9132,13 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                                 H[o1, o1, c_zero] += repel_vals[a1] * 0.1
                                 #println("add repel $a1 $o1 ", repel_vals[a1] * 0.1)
                             end
+                            if use_u
+                                if (t1symbol, sum1) in keys(uv_dict)
+                                    Umat[o1] = uv_dict[t1symbol, sum1]
+                                elseif t1symbol in keys(uv_dict)
+                                    Umat[o1] = uv_dict[t1symbol]
+                                end
+                            end
                         end
                         
                         
@@ -9142,6 +9154,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
                         core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
+
+                        if use_v
+                            core_v!()
+                        end
                         
                     end
                     
@@ -9399,7 +9415,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     begin
         #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
         #println("maketb")
-        tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S)
+        tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S, U = Umat, V = missing)
         if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
             scf = database["scf"]
         else
@@ -9422,6 +9438,63 @@ end
 
 
 function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn, sym_dat, sym_datS, n_2body, n_2body_S)
+    
+    @inbounds @simd for o2x = 1:norb[a2]
+        o2 = orbs_arr[a2,o2x,1]
+        s2 = orbs_arr[a2,o2x,2]
+        sum2 = orbs_arr[a2,o2x,3]
+#        t2 = orbs_arr[a2,o2x,3]
+        for o1x = 1:norb[a1]
+            o1 = orbs_arr[a1,o1x,1]
+            s1 = orbs_arr[a1,o1x,2]
+            sum1 = orbs_arr[a1,o1x,3]
+#            t1 = orbs_arr[a1,o1x,3]
+
+            
+            nind = DAT_IND_ARR[t1,t2,1,sum1,sum2,1]
+            #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+            
+            sym_dat[1] = 0.0
+            sym_datS[1] = 0.0
+            
+            for n = 1:n_2body #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                sym_dat[1] +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR[t1,t2,1,sum1,sum2,n+1]  ]
+            end
+            for n = 1:n_2body_S #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                sym_datS[1] +=  lag_arr[n]*DAT_ARR[t1,t2,2,DAT_IND_ARR[t1,t2,2,sum1,sum2,n+1]  ]
+            end
+
+            if nind >= (n_2body*2)
+                sym_dat[2] = 0.0
+                sym_datS[2] = 0.0
+
+                for n = (n_2body+1):(n_2body*2) #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                    sym_dat[2] +=  lag_arr[n-n_2body]*DAT_ARR[t1,t2,1,DAT_IND_ARR[t1,t2,1,sum1,sum2,n+1]]
+                end
+                for n = (n_2body_S+1):(n_2body_S*2) #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                    sym_datS[2] +=  lag_arr[n-n_2body_S]*DAT_ARR[t1,t2,2,DAT_IND_ARR[t1,t2,2,sum1,sum2,n+1]]
+                end
+                if nind >= (n_2body*3)
+                    sym_dat[3] = 0.0
+                    sym_datS[3] = 0.0
+                    for n = (2*n_2body+1):(n_2body*3) #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        sym_dat[3] +=  lag_arr[n-n_2body*2]*DAT_ARR[t1,t2,1,DAT_IND_ARR[t1,t2,1,sum1,sum2,n+1]]
+                    end
+                    for n = (2*n_2body_S+1):(n_2body_S*3) #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        sym_datS[3] +=  lag_arr[n-n_2body_S*2]*DAT_ARR[t1,t2,2,DAT_IND_ARR[t1,t2,2,sum1,sum2,n+1]]
+                    end
+                end
+            end
+
+            
+            H[ o1, o2, cham] = symmetry_factor_int(s1, s2, lmn, sym_dat)  * cut_a
+            S[ o1, o2, cham] = symmetry_factor_int(s1, s2, lmn, sym_datS)  * cut_a
+            
+        end
+    end
+end
+
+function core_v!(cham, a1, a2, t1, t2, norb, orbs_arr, lag_arr, cut_a, H, S, Fij)
     
     @inbounds @simd for o2x = 1:norb[a2]
         o2 = orbs_arr[a2,o2x,1]

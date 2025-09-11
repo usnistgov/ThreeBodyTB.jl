@@ -109,6 +109,7 @@ export dftout
 export makedftout
 
 include("TB.jl")
+include("plusUV.jl")
 ###include("Magnetic.jl") #now inside TB.jl
 
 using .TB:tb_crys
