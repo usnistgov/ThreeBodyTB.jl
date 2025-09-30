@@ -3,6 +3,8 @@ using LineSearches
 
 function do_fitting_direct(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = true, conjgrad=false)
 
+    println("do_fitting_direct   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
+    
     #if ismissing(kpoints)
     #    kpoints, kweights = make_kgrid([2,2,2])
     #end
