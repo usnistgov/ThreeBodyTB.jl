@@ -21,6 +21,7 @@ using ..BandTools:band_energy
 using ..BandTools:gaussian
 using ..BandTools:smearing_energy
 using ..BandTools:calc_fermi
+using ..Symmetry:get_kgrid_sym
 
 using ..CrystalMod:get_grid
 using ..TB:myfft
@@ -730,6 +731,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("calc cs")
     flush(stdout)
     sleep(0.001)
+
+    
     @time cs = X_Snew_BIG \ Float64.(Y_Snew_BIG  - Xc_Snew_BIG)
     YS_new = X_Snew_BIG * cs
     println("error fit S cs , ", sum( (YS_new  - (Y_Snew_BIG  - Xc_Snew_BIG)).^2))
@@ -747,6 +750,10 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         X_Hnew_BIG[ind_BIG[c, 1]:ind_BIG[c, 2],:] = Float64.(H)
         H = []
     end
+#    r = rand(1)[1]
+#    println("rrrrrr $r")
+#    save("model.$r.jld", "X_Snew_BIGX_Snew_BIG", X_Snew_BIG, "Y_Snew_BIG", Y_Snew_BIG, "X_Hnew_BIG", X_Hnew_BIG, "Y_Hnew_BIG", Y_Hnew_BIG)
+
     X_Hnew_BIG_list = []
     println("done assign memory")
     flush(stdout)
@@ -761,11 +768,13 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     else
         rind = 1:l
     end
+
     
     
     @time ch = X_Hnew_BIG[rind,:] \ Float64.(Y_Hnew_BIG[rind,:]  - Xc_Hnew_BIG[rind,:])
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
+    println("ch $ch")
     flush(stdout)
     sleep(0.001)
 #    println("ones test ", sum(abs.(X_Hnew_BIG * ones(size(ch)) - (Y_Hnew_BIG  - Xc_Hnew_BIG))))
@@ -808,12 +817,12 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-2, fitting_version=fitting_version_default)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-8, fitting_version=fitting_version_default)
 
     println("MODE $mode")
 
     if ismissing(kpoints) && !ismissing(dft_list)
-        kpoints, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
+        kpoints, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
     end
     if ismissing(kpoints)
         mode=:rspace
@@ -860,12 +869,12 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         
         @time cs = X_S \ Y_S
 
-        println("rspace !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        xc = X_H*ch
-        for i = 1:min(length(Y_H), 300)
-            println(i, " " , xc[i]," " , Y_H[i])
-        end
-        println("--")
+#        println("rspace !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#        xc = X_H*ch
+#        for i = 1:min(length(Y_H), 300)
+#            println(i, " " , xc[i]," " , Y_H[i])
+#        end
+#        println("--")
 
     elseif mode == :kspace
         
@@ -943,14 +952,21 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #    end
 #    println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
     
-
+    
+    
     (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
 
+    println("ch_keep $ch_keep")
+    println("ch  $ch")
+    println("keep_inds $keep_inds")
+    println("toupdate_inds $toupdate_inds")
+    
     ch_big = zeros(length(keep_inds) + length(toupdate_inds))
     ch_big[toupdate_inds] = ch[:]
     ch_big[keep_inds] = ch_keep[:]
     chX2 = ch_big
-
+    println("chX2 $chX2")
+    
     cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
     cs_big[toupdate_inds_S] = cs[:]
     cs_big[keep_inds_S] = cs_keep[:]
@@ -965,7 +981,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     
     if return_database
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert, fitting_version=fitting_version)
     else
         database = Dict()
     end
@@ -1004,6 +1020,8 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
+    println("return ch ", ch)
+    println("return ch_refit ", ch_refit)
     return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
            
 
@@ -1015,7 +1033,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false)
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default)
     println("make_database function")
     if ismissing(starting_database)
         database = Dict()
@@ -1063,7 +1081,7 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
 
         
 
-        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert)
+        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version)
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
         if dim == 2
@@ -1420,30 +1438,41 @@ Decide which k-points to include in fitting, as we limit the total number to `NL
 
 Uses some randomness, but puts high symmetry points at front of line.
 """
-function get_k(dft_list, ncalc, list_of_tbcs; NLIM = 100)
+function get_k(dft_list,  list_of_tbcs; NLIM = 100)
 
+    nk_max = 1    
     if ismissing(dft_list)
-        println("using entered kpoints instead of DFT list!!!!!!!!!!!")
+
+        
+
+        println("get k")
         KPOINTS = []
-        KWEIGHTS = Float64[]
-        nk_max = size(kpoints)[1]
-        nk = size(kpoints)[1]
+        KWEIGHTS =[]
+        #nk_max = size(kpoints)[1]
+        #nk = size(kpoints)[1]
 
         for n = 1:length(list_of_tbcs)
+            grid = get_grid(list_of_tbcs[n].crys)
+            nk_red, grid_ind, kpts, kweights = get_kgrid_sym(list_of_tbcs[n].crys, grid=grid)
+            
             if list_of_tbcs[n].nspin == 2 || list_of_tbcs[n].tb.scfspin == true
-                kweights = ones(Float64, nk)/nk * 1.0
+                #kweights = ones(Float64, nk)/nk * 1.0
+                kweights = kweights / sum(kweights) * 1
             else
-                kweights = ones(Float64, nk)/nk * 2.0
+                kweights = kweights / sum(kweights) * 2
+                #kweights = ones(Float64, nk)/nk * 2.0
             end                
-            push!(KPOINTS, kpoints)
+            #push!(KPOINTS, kpoints)
+            push!(KPOINTS, kpts)
             push!(KWEIGHTS, kweights)
-
+            nk_max = max(nk_max, nk_red)
         end
     else
+        ncalc = length(dft_list)
         println("using dft list NLIM $NLIM")
         KPOINTS = []
         KWEIGHTS = []
-        nk_max = 1
+
 
 #        NLIM = 100
         for n = 1:ncalc
@@ -1585,7 +1614,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
     end
     if !ismissing(dft_list)
         println("top")
-        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
+        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
     else
         println("bot")
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
@@ -1612,7 +1641,7 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version)
 
 end
 
@@ -1623,6 +1652,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
 
     println("AAAAAAAA ch_lin ", ch_lin)
+
     
     println("keepind " , length(keepind), " " , sum(keepind))
     println(keepind)
@@ -1760,6 +1790,9 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
     @time for (tbc, kpoints, kweights, d, spin ) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN)
         c+=1
 
+        println("c $c")
+        println("kpoints $kpoints")
+        println("kweights ", sum(kweights))
         
         NAT[c] = tbc.crys.nat
 
@@ -1803,7 +1836,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
             band_en = band_en 
             shift = (atomization_energy - band_en  )/nval
         end
-#        println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
+        #println("c atomization $atomization_energy $etot_dft $etotal_atoms $etypes $e_smear $fit_to_dft_eigs")
 #        println("nk $nk")
 #        println(kpoints)
 #        print("xx")
@@ -1869,7 +1902,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
         println("nval for band energy $nval efermi $efermi")
 #        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
-
+        
         occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, 0.01)
         
 #        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
@@ -1881,6 +1914,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
         
 
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
+            println("tbc.eden ", tbc.eden)
             eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             println("E_DEN new ", eden)
@@ -3035,7 +3069,7 @@ end
 
 
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false)
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default)
 
     if typeof(lambda) <: Float64
         lambda = [lambda, lambda]
@@ -3643,13 +3677,13 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i]) .* WEIGHTS[calc, k, i, spin] * w_special
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 
-                        if k == 1
-                            if i == 1
-                                println()
-                            end
+#                        if k == 1
+#                            if i == 1
+#                                println()
+#                            end
 #                            println("typeof $(typeof(NEWX[counter, :])) $typeof(chX[:])")
 #                            println("test nwan $i calc $calc k $k NEWY $(VALS0[calc,k,i, spin])  NEWX  $(sum(vals_test_other[i,:] .* chX[:]) + vals_test_on[i])       diff $(VALS0[calc,k,i, spin] - (sum(vals_test_other[i,:] .* chX[:]) + vals_test_on[i]))")
-                        end
+#                        end
 #                        println("test test i $i k $k ",  abs(sum(NEWX[counter, :] ) - NEWY[counter]) , " [ $(sum(abs.(NEWX[counter, :] ))), $(NEWY[counter]) ] VALS0 $(VALS0[calc,k,i, spin])")
                         
                         push!(CALC_IND, calc)
@@ -3736,7 +3770,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         
         err_old_en = 1.0e6
 
-        mix = 0.03
+        mix = 0.01
 
 
 
@@ -3755,10 +3789,10 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         for iters = 1:NITERS #inner loop
 
             if iters > 1
-                mix = 0.1
+                mix = 0.01
             end
             if iters > 2
-                mix = 0.15
+                mix = 0.01
                 energy_weight = energy_weight_orig
                 energy_diff_weight = 2.0
             end
@@ -3767,7 +3801,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             end
 
             if iters > 20
-                mix = 0.2
+                mix = 0.01
                 energy_weight = energy_weight_orig
             end
             
@@ -4042,7 +4076,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             return chX, sum((TOTX * chX .- TOTY).^2) + 10000.0 * sum(ERROR)  #sum(abs.((TOTX*chX) - TOTY))
         end
         
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version)
 
         if gen_add_ham
 
@@ -4051,7 +4085,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #for chX in vcat([ch_mean], ch_arr)
             for chX2a in chX2_arr
                 println("chX2a $chX2a")
-                databaseX = make_database(chX2a, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [])
+                databaseX = make_database(chX2a, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], fitting_version=fitting_version)
                 if update_all == false && !ismissing(starting_database)
                     for key in keys(databaseX)
                         if key in keys(starting_database)
@@ -5396,7 +5430,7 @@ function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_thr
 
     if !ismissing(dft_list) && !ismissing(dft_list[1])
         println("top")
-        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
+        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
     else
         println("bot")
         KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
@@ -6821,8 +6855,7 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
 end
 
 include("FitTB_laguerre_S.jl")
-
-#include("FitTB_laguerre_system.jl")
+include("FitTB_laguerre_direct.jl")
 
 end
 

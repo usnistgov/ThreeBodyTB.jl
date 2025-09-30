@@ -750,9 +750,9 @@ end
 
 uniform_charge_interaction = Dict()
 
-uniform_charge_interaction["Hx" ] = 0.0
-uniform_charge_interaction["X"] = 0.0
-uniform_charge_interaction["Xa"] = 0.0
+uniform_charge_interaction[:Hx ] = 0.0
+uniform_charge_interaction[:X] = 0.0
+uniform_charge_interaction[:Xa] = 0.0
 
 
 

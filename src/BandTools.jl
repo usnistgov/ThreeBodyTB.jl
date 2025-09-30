@@ -52,7 +52,7 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
         
     end
 
-    for iter = 1:35
+    for iter = 1:40
 
         efermi = (efermi_max+efermi_min)/2.0
 

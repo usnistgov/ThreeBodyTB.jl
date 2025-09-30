@@ -1,19 +1,19 @@
 using Optim
 using LineSearches
 
-function do_fitting_direct(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default)
+function do_fitting_direct(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = true, conjgrad=false)
 
-    if ismissing(kpoints)
-        kpoints, kweights = make_kgrid([2,2,2])
-    end
-    if !ismissing(dft_list)
-        println("top")
-        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, length(dft_list), list_of_tbcs, NLIM=NLIM)
-    else
-        println("bot")
-        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
-#        println("KPOINTS ", KPOINTS)
-    end
+    #if ismissing(kpoints)
+    #    kpoints, kweights = make_kgrid([2,2,2])
+    #end
+#    if !ismissing(dft_list)
+#        println("top")
+    KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+#    else
+#        println("bot")
+#        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+##        println("KPOINTS ", KPOINTS)
+#    end
 
 
     
@@ -35,10 +35,10 @@ function do_fitting_direct(list_of_tbcs ; weights_list = missing, dft_list=missi
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_direct_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham)
+    return do_fitting_direct_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad)
 end
 
-function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false)
+function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false)
 
     leave_out = -1
     
@@ -49,6 +49,9 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
 
+    println("ch_lin ", ch_lin)
+    println("cs_lin ", cs_lin)
+#    return missing
     
     if ismissing(top_vars)
         list_of_tbcs,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep =
@@ -57,10 +60,16 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         list_of_tbcs,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep = top_vars
     end
     Ys = Ys_new + Xc_Snew_BIG
+
     NCOLS_S = size(X_Snew_BIG)[2]
+
+    println("start ncols ", [NCOLS, NCOLS_S]  , " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     
     weights_list = weights_list ./ maximum(weights_list)
-    
+
+    if !ismissing(ch_startX)
+        ch[1:length(ch_startX)] = ch_startX
+    end
     #    ch = ones(size(ch))
     
     println("NOW, DO DIRECT FITTING")
@@ -95,7 +104,8 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 
         if solve_self_consistently == true
             #            println("SCF SOLUTIONS")
-            niter_scf = 150
+            #niter_scf = 150
+            niter_scf = 500
         else
             niter_scf = 1
         end
@@ -162,6 +172,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
                 dq = deepcopy(DQ[c,1:tbc.crys.nat])
+
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
@@ -192,12 +203,12 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                         else
                             H[:,:] = H0[:,:]
                         end
-                                                if c == 1 && k == 1
-                                                    println("k $k ------------------------------------------------")
-                                                    println("H = ", H)
-                                                    println("H0 = ", H0)
-                                                    println("S = ", S)                            
-                                                end
+#                                                if c == 1 && k == 1
+#                                                    println("k $k ------------------------------------------------")
+#                                                    println("H = ", H)
+#                                                    println("H0 = ", H0)
+#                                                    println("S = ", S)                            
+#                                                end
                         if tbc.tb.scfspin
                             H += h1spin_in[spin,:,:] .* S
                         end
@@ -225,10 +236,10 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                             end 
                             
                             #                            println("get eigen vals $vals")
-                                                        if c == 1 && k == 1
-                                                            println("vals k $k   $vals")
-                                                            println()
-                                                        end
+#                                                        if c == 1 && k == 1
+#                                                            println("vals k $k   $vals")
+#                                                            println()
+#                                                        end
                         catch
                             
                             ERROR[c] = 1
@@ -253,10 +264,10 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 
 
                         #                        println("VALS0_FITTED c $c spin $spin k $k ", VALS0_FITTED[c,k,1:nw, spin])
-                                            if k == 1 && c == 1
-                                                println("VALS ", VALS_FITTED[c,k,1:nw])
-                                                println("VALS0", VALS0_FITTED[c,k,1:nw])
-                                            end
+#                                            if k == 1 && c == 1
+#                                                println("VALS ", VALS_FITTED[c,k,1:nw])
+#                                                println("VALS0", VALS0_FITTED[c,k,1:nw])
+#                                            end
                     end #kpoints loop
                 end
 
@@ -270,6 +281,8 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
             energy_old = 1000.0
             conv = false
 
+            
+            
             for c_scf = 1:niter_scf
                 #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
 
@@ -286,7 +299,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                 #println("other stuff")
                 if true
                     
-                    mix = 0.3 * 0.91^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
+                    mix = 0.05 * 0.95^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
 
                     
                     #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
@@ -317,13 +330,16 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                         mix = mix * 0.5
                     end
 
-                    h1 = h1*(1-mix) + h1_new * mix
-                    dq = dq*(1-mix) + dq_new * mix
-                    h1spin = h1spin*(1-mix) + h1spin_new * mix
+#                    h1 = h1*(1-mix) + h1_new * mix
+#                    dq = dq*(1-mix) + dq_new * mix
+#                    h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                     if solve_self_consistently == true
+                    #if false
+
+                        dq = dq*(1-mix) + dq_new * mix
                         h1 = h1*(1-mix) + h1_new * mix
-                        h1spin = h1spin*(1-mix) + h1spin_new * mix
+#                        h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                         energy_charge, pot = ewald_energy(tbc, dq)
                         if tbc.tb.scfspin
@@ -340,14 +356,15 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                     end
                     
                     
-                    energy_new = energy_charge + energy_band + energy_smear + energy_magnetic
+                    energy_new = energy_charge + energy_band + energy_smear + energy_magnetic + etypes
                     #                    if c == 34
                     #                        println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
                     #                    end
                     
                     #                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
-                    if abs(energy_new  - energy_old) < 1e-5 && c_scf >= 2
+#                    println("c $c   $c_scf energy_new $energy_new energy_old $energy_old diff $(abs(energy_new  - energy_old))  dq $dq")
+                    if (abs(energy_new  - energy_old) < 1e-6 && c_scf >= 2) ||  (abs(energy_new  - energy_old) < 1e-5 && c_scf >= 20) ||  (abs(energy_new  - energy_old) < 1e-4 && c_scf >= 50)
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
                         conv = true
                         break
@@ -463,7 +480,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
     
     function construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_S::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}; leave_out=-1)
 
-
+        println("in construct_newXY")
         #        nlam = 0
 
         #        NEWX = zeros(ncalc*nk_max*NWAN_MAX + ncalc + nlam, ncols)
@@ -504,6 +521,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 
         NEWX = zeros(counter + nlam, ncols)
         NEWX_S = zeros(counter + nlam, ncols_S)
+
         NEWY = zeros(counter + nlam)
         
         counter = 0
@@ -517,7 +535,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         energy_min_arr_ind = 0
         
         for calc = 1:ncalc
-
+#            println("calc $calc")
             if calc == leave_out #skip this one
                 continue
             end
@@ -525,6 +543,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                 println("ERROR $calc skip")
                 continue
             end
+#            println("calc2 $calc")
 
             row1, rowN, nw = ind_BIG[calc, 1:3]
             N = hermetian_indpt(nw)
@@ -669,9 +688,11 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                         NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special
                         X_TOTEN[:] +=            vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin])  #* list_of_tbcs[calc].nspin
                         NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
+                        #NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
                         SX_TOTEN[:] +=   Svals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) * VALS_FITTED[calc, k,i,spin]
                         
-                        NEWY[counter] =  (VALS0[calc,k,i, spin] - vals_test_on[i]) .* WEIGHTS[calc, k, i, spin] * w_special
+                        NEWY[counter] =  (VALS[calc,k,i, spin] - vals_test_on[i] - (VALS_FITTED[calc, k,i,spin] - VALS0_FITTED[calc, k,i,spin]) ) .* WEIGHTS[calc, k, i, spin] * w_special
+
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 
                         #                        if k == 1
@@ -691,6 +712,7 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                     
                     
                 end
+#                println("calc3 $calc")
             end
             counter += 1
             NEWX[counter, :] = X_TOTEN[:] * energy_weight * weights_list[calc] / NAT[calc]
@@ -704,9 +726,9 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 
             if energy_diff_calc == true
                 counter += 1
-                NEWX[counter, :] = X_TOTEN[:] * energy_weight
-                NEWX_S[counter, :] = SX_TOTEN[:] * energy_weight
-                NEWY[counter] = Y_TOTEN * energy_weight
+                NEWX[counter, :] = X_TOTEN[:] * energy_weight / NAT[calc]
+                NEWX_S[counter, :] = SX_TOTEN[:] * energy_weight / NAT[calc]
+                NEWY[counter] = Y_TOTEN * energy_weight / NAT[calc]
                 push!(CALC_IND, calc)
                 push!(nonzero_ind, counter)
                 push!(EDIFF_IND, counter)
@@ -722,9 +744,9 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         if energy_diff_calc
             if indmin != 0 && energy_min_arr_ind != 0
                 for (calc,ind) in enumerate(EDIFF_IND)
-                    NEWX[ind, :] = ( NEWX[ind, :] / NAT[calc] - NEWX[energy_min_arr_ind, :]/NAT[indmin] ) * energy_diff_weight  * weights_list[calc]
-                    NEWX_S[ind, :] = ( NEWX_S[ind, :] / NAT[calc] - NEWX_S[energy_min_arr_ind, :]/NAT[indmin] ) * energy_diff_weight  * weights_list[calc]
-                    NEWY[ind] = ( NEWY[ind] / NAT[calc] - NEWY[energy_min_arr_ind] /NAT[indmin] ) * energy_diff_weight * weights_list[calc]
+                    NEWX[ind, :] = ( NEWX[ind, :]  - NEWX[energy_min_arr_ind, :] ) * energy_diff_weight  * weights_list[calc]
+                    NEWX_S[ind, :] = ( NEWX_S[ind, :] - NEWX_S[energy_min_arr_ind, :] ) * energy_diff_weight  * weights_list[calc]
+                    NEWY[ind] = ( NEWY[ind]  - NEWY[energy_min_arr_ind] ) * energy_diff_weight * weights_list[calc]
                 end
             end
         end
@@ -755,7 +777,8 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 
         #        println("c newX neWy ", NEWX \ NEWY)
         #        println("test ", sum(abs.(NEWX * ones(size(NEWX)[2]) - NEWY)))
-        
+
+        #        println("size NEWX end ", size(NEWX))
         return NEWX, NEWY, NEWX_S, energy_counter, CALC_IND
 
     end
@@ -797,10 +820,11 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         return grad
         
     end
-    solve_scf_mode=false
+    solve_scf_mode=scf
     
-    ch[1] = 1.3
-    cs[1] = 0.3
+#    ch[1] = 0.9
+#    cs[1] = 9.0
+#    cs[1] = 0.9
 
     nh = length(ch)
     ns = length(cs)
@@ -836,6 +860,164 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         stor[:] = grad_error_fn(NEWX, NEWY, NEWX_S, ch, cs)
     end
 
+
+    function iterate(ch, cs, updateH, updateS, niters, mix_iter; adjust_mix=false)
+        println("iterate_fn $([updateH, updateS])   niters $niters mix_iter $mix_iter")
+        err1 = -99.0
+        err2 = -99.0
+        for iter = 1:niters
+
+            err_old = error_fn(NEWX, NEWY, ch, cs)
+
+            if updateH
+                if iter==1
+                    iter_h = 1
+                else
+                    iter_h = 1
+                end
+                for i in 1:iter_h
+                    @suppress begin
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        println("size(VALS_FITTED ", size(VALS_FITTED))
+                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                        println("size NEWX ", size(NEWX))
+                    end
+                    
+                    ch_new = NEWX \ NEWY
+                    #println("ch_new size ", size(ch_new))
+                    ch_test = ch_new*mix_iter + ch*(1 - mix_iter)
+
+                    if mod(iter,10) == 1 && adjust_mix
+                        for i = 1:20
+                            println("current mix $mix_iter")
+                            @suppress begin 
+                                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch_test, cs, solve_scf_mode)
+                                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                            end
+                            err_new = error_fn(NEWX, NEWY, ch_test, cs)
+                            println("i $i err_old $err_old err_new $err_new")
+                            if err_new > err_old
+                                mix_iter = mix_iter * 0.6
+                                ch_test = ch_new*mix_iter + ch*(1 - mix_iter)
+                                if mix_iter < 0.01
+                                    mix_iter = 0.01
+                                    break
+                                end
+                            else
+                                mix_iter = mix_iter*1.05
+                                break
+                            end
+                        end
+                    end
+                    ch = ch_test
+                    
+                end
+            end
+                
+            err1 = error_fn(NEWX, NEWY, ch, cs)
+
+            if updateS
+                
+                if iter==1
+                    iter_s = 2
+                else
+                    iter_s = 1
+                end
+                for i = 1:iter_s
+                    @suppress begin
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                    end
+                    
+                    
+                    cst = NEWX_S \ ( (NEWX*ch - NEWY ))
+                    #cs = (cs + cst)
+                    cs_test = (cs + cst) * mix_iter + cs*(1 - mix_iter)
+
+                    
+                    if mod(iter,10) == 1 && adjust_mix 
+                        for i = 1:20
+                            println("current mix $mix_iter")
+                            @suppress begin 
+                                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs_test, solve_scf_mode)
+                                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                            end
+                            err_new = error_fn(NEWX, NEWY, ch, cs_test)
+                            println("i $i err_old $err_old err_new $err_new")
+                            if err_new > err1*0.99
+                                mix_iter = mix_iter * 0.6
+                                cs_test = (cs + cst) * mix_iter + cs*(1 - mix_iter)
+                                if mix_iter < 0.01
+                                    mix_iter = 0.01
+                                    break
+                                end
+
+                            else
+                                mix_iter = mix_iter*1.05
+                                break
+                            end
+                        end
+                    end
+                    cs = cs_test
+                    
+                end
+                    
+            end
+#            println("size NEWX ", size(NEWX))
+#            println("size NEWY ", size(NEWY))
+#            println("size ch ", size(ch))
+#            println("size cs ", size(cs))
+            err2 = error_fn(NEWX, NEWY, ch, cs)
+            println("iter $iter   $err1   $err2     ch1 $(ch[1]) cs1 $(cs[1]) ")
+            if abs(err_old - err2) < 1e-5 && iter > 11
+                break
+            end
+            err_old = err2
+            
+        end
+        println("iterate_fn_end $err1 $err2")
+        return ch, cs
+    end
+
+    if true
+#        println("if true")
+#        println("NCOLS, NCOLS_S ", [NCOLS, NCOLS_S])
+        println("opt_S $opt_S")
+        if opt_S
+            ch, cs = iterate(ch, cs, true, false, 200, 0.05, adjust_mix=true)
+            ch, cs = iterate(ch, cs, true, true, 550, 0.2, adjust_mix=false)
+            ch, cs = iterate(ch, cs, true, true, 50, 0.02, adjust_mix=false)
+        else
+            ch, cs = iterate(ch, cs, true, false, 200, 0.05, adjust_mix=true)
+            ch, cs = iterate(ch, cs, true, false, 150, 0.2, adjust_mix=false)
+            ch, cs = iterate(ch, cs, true, false, 50, 0.02, adjust_mix=false)
+        end
+        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+
+        good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
+        good = good .&& .!(Bool.(ERROR))
+        
+
+        ####
+        ch_big = zeros(length(keep_inds) + length(toupdate_inds))
+        #println(length(keep_inds), " " , length(toupdate_inds))
+
+        ch_big[toupdate_inds] = ch[:]
+        ch_big[keep_inds] = ch_keep[:]
+        chX2 = ch_big
+        
+        cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
+        cs_big[toupdate_inds_S] = cs[:]
+        cs_big[keep_inds_S] = cs_keep[:]
+        csX2 = cs_big
+        ####
+
+        if cg == false
+            database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version)
+            return database
+        end
+    end
 #    T = []
 #    TG = []
 #    for x = -0.1:0.02:0.5
@@ -855,17 +1037,15 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
 #    plot!( 0.5*(x[1:end-1] + x[2:end]), (T[2:end] .- T[1:end-1])/(0.02) , linestyle=:dash)
     
 
-    if true
-#        opts = Optim.Options(g_tol = 1e-10, f_abstol = 1e-10, x_abstol = 1e-10, f_calls_limit = 1000,
-#                             iterations = 1000,                                                                                                                                                                
-#                             store_trace = true,                                                                                                                                                                 
-#                             show_trace = false)                                                                                                                                                                 
+    if cg
+        opts = Optim.Options(g_tol = 1e-5, f_abstol = 1e-5, x_abstol = 1e-5, f_calls_limit = 200,
+                             iterations = 200,                                                                                                                                                                
+                             store_trace = true,                                                                                                                                                                 
+                             show_trace = false)                                                                                                                                                                 
 
-    ch[1] = 1.3
-    cs[1] = 0.3
 
-        optim_S = false
-        initial_x = vcat(ch,cs)
+        optim_S = true
+        initial_x = vcat(chX2,csX2)
         stor = zeros(size(initial_x))
         last_x = similar(initial_x)             
 
@@ -875,11 +1055,14 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         println("f0 $f0")
         println("g0 $g0")
         
-        df = OnceDifferentiable(x -> f(x, buffer, initial_x),(stor, x) -> g!(x, stor, buffer, last_x), deepcopy(initial_x) )
+        df = OnceDifferentiable(x -> f(x, buffer, initial_x),(stor, x) -> g!(x, stor, buffer, last_x), deepcopy(initial_x))
         #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking(order=3)))
-        ret = optimize(df, initial_x, LBFGS(linesearch = MoreThuente()))
+        #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking()))
+        ret = optimize(df, initial_x, LBFGS(linesearch = MoreThuente()) , opts)
+        #ret = optimize(df, initial_x, LBFGS(linesearch = HagerZhang()) , opts)
 
         println("RESTART !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#        sleep(0.5)
         optim_S = true
         initial_x = ret.minimizer
         stor = zeros(size(initial_x))
@@ -891,15 +1074,51 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
         println("f0 $f0")
         println("g0 $g0")
         
-        df = OnceDifferentiable(x -> f(x, buffer, initial_x),(stor, x) -> g!(x, stor, buffer, last_x), deepcopy(initial_x) )
+        df = OnceDifferentiable(x -> f(x, buffer, initial_x),(stor, x) -> g!(x, stor, buffer, last_x), deepcopy(initial_x))
+        #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking()))
         #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking(order=3)))
-        ret = optimize(df, initial_x, LBFGS(linesearch = MoreThuente()))
+        ret = optimize(df, initial_x, LBFGS(linesearch = MoreThuente()) , opts) 
+        #ret = optimize(df, initial_x, LBFGS(linesearch = HagerZhang()) , opts)
+       
 
+        
         #ret = optimize(df, initial_x, ConjugateGradient())
         #ret = optimize(df, initial_x, LBFGS(), opts)
 
-        return ret
+        println("RESTART 222222222222222222 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#        sleep(0.5)
+        optim_S = true
+        initial_x = ret.minimizer
+        stor = zeros(size(initial_x))
+        last_x = similar(initial_x)             
+
+        f0 = f(initial_x, buffer, initial_x)
+        g0 = g!(initial_x, stor, buffer, initial_x)
+
+        println("f0 $f0")
+        println("g0 $g0")
+        
+        df = OnceDifferentiable(x -> f(x, buffer, initial_x),(stor, x) -> g!(x, stor, buffer, last_x), deepcopy(initial_x))
+        #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking()))
+        #ret = optimize(df, initial_x, LBFGS(linesearch = BackTracking(order=3)))
+        ret = optimize(df, initial_x, LBFGS(linesearch = MoreThuente()), opts ) 
+        #ret = optimize(df, initial_x, LBFGS(linesearch = HagerZhang()) , opts)
+       
+        ch = ret.minimizer[1:length(ch)]
+        cs = ret.minimizer[length(ch) .+ (1:length(cs))]
+
+        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+
+        good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
+        good = good .&& .!(Bool.(ERROR))
+        
+        database = make_database(ch, cs,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version)
+        return database
+
     end
+
+
     
 #    return ret
     

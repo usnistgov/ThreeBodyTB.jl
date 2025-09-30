@@ -587,6 +587,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_band , efermi, e_den_NEW, VECTS, VALS, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearingA, h1=h1, h1spin = h1spin, DEN=DEN_w, VECTS=VECTS_w, SK = SK_w)
             end                
 
+#            println("VALS ", VALS[1,:,1])
+            
 #            println("e_den_NEW ", e_den_NEW, " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             
 #            println(sum(e_den_NEW), " e_den_NEW  presym ", round.(e_den_NEW, digits=8))
@@ -629,7 +631,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
 
-#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
@@ -860,7 +862,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 #            println([abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat,  sum(abs.( delta_dq )) < 0.02 * tbc.crys.nat, abs(magmom-magmom_old) < 0.02 * tbc.crys.nat])
             if abs(energy_old - energy_tot) < conv_thrA * tbc.crys.nat && iter >= 2
 
-                if sum(abs.( delta_dq )) < 0.02 * tbc.crys.nat && abs(magmom-magmom_old) < 0.02 * tbc.crys.nat
+                if sum(abs.( delta_dq )) < (conv_thrA*100) * tbc.crys.nat && abs(magmom-magmom_old) < 0.02 * tbc.crys.nat
 
                     #                    println("conv thr $(conv_thrA * tbc.crys.nat)   $(0.02 * tbc.crys.nat)   $(0.02 * tbc.crys.nat)")
                     #                if delta_eden < 0.05 * tbc.crys.nat
