@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100)
 """
 Run SCF calculation using QE
 """
@@ -127,7 +127,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid, electron_maxstep=electron_maxstep)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -154,7 +154,7 @@ Run SCF calculation using QE
     if ret != 0 && updated == false
         println("failed DFT, trying with different mixing")
         #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
-        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid)
+        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid, electron_maxstep=electron_maxstep)
         
 
         f = open(directory*"/"*inputstr, "w")
@@ -229,12 +229,12 @@ end
 Make QE inputfile for SCF DFT calculation.
 """
 
-function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false)
+function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100)
 """
 Make inputfile for SCF calculation
 """
     println("makeSCF hybrid ", hybrid)
-
+    println("electron_maxstep ", electron_maxstep)
     c_dict = make_commands(1)
 
     template_file=open("$TEMPLATES/template_qe.in")
@@ -251,9 +251,23 @@ Make inputfile for SCF calculation
         c = "nscf"
     end
     temp = replace(temp, "SCF" => c)
-
     temp = replace(temp, "MIXING" => mixing)
 
+    println("c $c")
+    if c == "nscf"
+        temp = replace(temp, "electron_maxstep  = 100" => "")
+    else
+        if electron_maxstep == 1
+            temp = replace(temp, "electron_maxstep  = 100" =>  "electron_maxstep  = $electron_maxstep, diago_thr_init = 1e-9")
+            temp = replace(temp, "conv_thr = 1d-9" => "conv_thr = 1d9")
+            temp = replace(temp, "mixing_beta = 0.3" => "mixing_beta = 1e-10")
+            println("beta !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        else
+            temp = replace(temp, "electron_maxstep  = 100" =>  "electron_maxstep  = $electron_maxstep")
+            
+        end
+    end
+    
     if !ismissing(startingpot) && startingpot == "file"
         temp = replace(temp, "STARTATOMIC" => startingpot)
     else
@@ -278,7 +292,6 @@ Make inputfile for SCF calculation
     ntypes = length(settypes)
     temp = replace(temp, "JULIANTYPE" => ntypes)
 
-    
     
     brav="ibrav = 0"
 
@@ -820,7 +833,7 @@ using ..CrystalMod:crystal
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100)
     
     nprocs = max(nprocs, procs)
 
@@ -839,11 +852,11 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         end
         qeout = missing
         try
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, electron_maxstep)
             return qeout
         catch
             println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid, electron_maxstep)
             return qeout
 
         end
