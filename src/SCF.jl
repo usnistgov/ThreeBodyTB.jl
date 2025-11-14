@@ -631,7 +631,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
 
-            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
@@ -1525,9 +1525,9 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
     end
 
     energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
-    println("energy check ", energy_band_new + energy_charge)
+#    println("energy check ", energy_band_new + energy_charge)
 
-    println("e_den_NEW ", e_den_NEW)
+#    println("e_den_NEW ", e_den_NEW)
     
 #    energy_band_new , efermi, e_den_NEW, error_flag = calc_energy_charge_fft_band2(hk3, sk3, tbc.nelec, smearing=smearing, h1=h1, h1spin=h1spin)
 #    println("energy check ", energy_band_new)
