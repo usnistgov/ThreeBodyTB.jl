@@ -687,13 +687,13 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
                             w_special = 1.0
                         end
                         
-                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special
+                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special 
                         X_TOTEN[:] +=            vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin])  #* list_of_tbcs[calc].nspin
-                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
+                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] 
                         #NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
                         SX_TOTEN[:] +=   Svals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) * VALS_FITTED[calc, k,i,spin]
                         
-                        NEWY[counter] =  (VALS[calc,k,i, spin] - vals_test_on[i] - (VALS_FITTED[calc, k,i,spin] - VALS0_FITTED[calc, k,i,spin]) ) .* WEIGHTS[calc, k, i, spin] * w_special
+                        NEWY[counter] =  (VALS[calc,k,i, spin] - vals_test_on[i] - (VALS_FITTED[calc, k,i,spin] - VALS0_FITTED[calc, k,i,spin]) ) .* WEIGHTS[calc, k, i, spin] * w_special 
 
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 
@@ -824,9 +824,9 @@ function do_fitting_direct_main(list_of_tbcs, prepare_data; weights_list=missing
     end
     solve_scf_mode=scf
     
-#    ch[1] = 0.9
-#    cs[1] = 9.0
-#    cs[1] = 0.9
+#    ch[1] = ch[1] * 0.95
+#    cs[1] = cs[1] * 0.95
+
 
     nh = length(ch)
     ns = length(cs)

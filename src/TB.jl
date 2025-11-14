@@ -126,6 +126,8 @@ mutable struct tb{T}
     scfspin::Bool
     h1::Array{T,2} #scf term
     h1spin::Array{T,3} #scf term
+    U::Array{T,1}
+    V::Array{T,3}
 end
 
 Base.show(io::IO, h::tb) = begin
@@ -1117,7 +1119,7 @@ end
 
     Constructor function for `tb`
     """
-function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
+function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing, U = missing, V = missing)
     nw=size(H,2)
     if nw != size(H)[3]
         s=size(H)
@@ -1148,9 +1150,15 @@ function make_tb(H, ind_arr, r_dict::Dict; h1=missing, h1spin=missing)
     else
         scfspin = true
     end
-    println("size H 2 ", size(H))
-
-    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, scfspin, h1, h1spin)
+#    println("size H 2 ", size(H))
+    if ismissing(U)
+        U = zeros(T, nw)
+    end
+    if ismissing(V)
+        V = zeros(T, nw,nw, nr)
+    end
+    
+    return tb{T}(H, ind_arr, r_dict,nw, nr, nspin, false, S, scf, scfspin, h1, h1spin, U, V)
 end
 
 """
@@ -1158,7 +1166,7 @@ end
 
     Constructor function for `tb` with overlaps
     """
-function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
+function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing, U = missing, V = missing)
     nw=size(H,2)
     if nw != size(H,3) 
         exit("error in make_tb ", size(H))
@@ -1189,6 +1197,12 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
     else
         scfspin = true
     end
+    if ismissing(U)
+        U = zeros(T, nw)
+    end
+    if ismissing(V)
+        V = zeros(T, nw,nw, nr)
+    end
 
 
 
@@ -1196,7 +1210,7 @@ function make_tb(H, ind_arr, r_dict::Dict, S; h1=missing, h1spin = missing)
     #    println("T ", T)
     #    println("S ", size(S), " " , typeof(S))
     #    println("size h1 ", size(h1), "  ", typeof(h1))
-    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,scfspin, h1, h1spin)
+    return tb{T}(H, ind_arr,  r_dict,nw, nr, nspin, true, S, scf,scfspin, h1, h1spin, U, V)
 end
 
 
@@ -1284,7 +1298,7 @@ end
 
     Constructor function for `tb`, better programming.
     """
-function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
+function make_tb(H, ind_arr, S; h1=missing, h1spin = missing, U=missing, V = missing)
 
     r_dict = make_rdict(ind_arr)
     
@@ -1319,9 +1333,15 @@ function make_tb(H, ind_arr, S; h1=missing, h1spin = missing)
     else
         scfspin = true
     end
+    if ismissing(U)
+        U = zeros(vartype, nw)
+    end
+    if ismissing(V)
+        V = zeros(vartype, nw,nw, nr)
+    end
 
 #    println("main ", vartype)
-    tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin)
+    tt = tb{vartype}(H, ind_arr, r_dict,nw, nr, nspin, true, S, scf, scfspin, h1, h1spin, U, V)
     return tt
 end
 
@@ -4744,7 +4764,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         end
         println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
         diff_new = sum(abs.(electron_den  - eden))
-        if  diff_new < 1e-2
+        if  diff_new < 1e-4
             println("break scf $scf")
             break
         else

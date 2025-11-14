@@ -1131,11 +1131,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
         band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
 
-        println("band_energy $band_en")
-        println("EIGS  ", EIGS[1,:,1])
-        if p.nspin == 2
-            println("EIGS2 ", EIGS[1,:,2])
-        end            
+#        println("band_energy $band_en")
+#        println("EIGS  ", EIGS[1,:,1])
+#        if p.nspin == 2
+#            println("EIGS2 ", EIGS[1,:,2])
+#        end            
         
 #        println("d.crys")
 #        println(d.crys)
@@ -1248,7 +1248,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             P[1:max_ind,1:max_ind] = B[:,1:max_ind]'*B[:,1:max_ind]
             PROJECTABILITY[spin,k,:] = real.(diag(P))
 
-            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
+#            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
             
 
             Palt = B[:,1:max_ind]*B[:,1:max_ind]'
@@ -1362,9 +1362,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                         #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
                         dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
 
-                        if k == 1
-                            println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
-                        end
+#                        if k == 1
+#                            println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
+#                        end
                         score_mat[n1,n2] = dist 
                         #                    if dist < dist_min
                         #                        dist_min = dist
@@ -1393,7 +1393,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                         #      if x > 0.1
                         #x = x^2
                         val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
-                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
+#                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
                   #      end
                     end
                     
@@ -1462,15 +1462,15 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         println("reshift")
 #        println("size VAL ", size(VAL), " size kweights ", size(d.bandstruct.kweights))
 
-        println("VAL  ", VAL[1,:,1])
-        if p.nspin == 2
-            println("VAL  ", VAL[1,:,2])
-        end
+#        println("VAL  ", VAL[1,:,1])
+#        if p.nspin == 2
+#            println("VAL  ", VAL[1,:,2])
+#        end
             
         
         band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
 
-        println("band_en_old " , band_en)
+#        println("band_en_old " , band_en)
 
         shift = (atomization_energy - band_en)/(nval - d.tot_charge)
         VAL = VAL .+ shift
@@ -1483,7 +1483,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 
             end
         end
-        println("done reshift")
+#        println("done reshift")
 
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
@@ -1494,12 +1494,12 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         end
             
         band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
-        println("band_en_new " , band_en, " " , band_en+etypes)
+#        println("band_en_new " , band_en, " " , band_en+etypes)
 
 
     end
 
-    println("SIZE ham_k ", size(ham_k))
+#    println("SIZE ham_k ", size(ham_k))
     
     return ham_k, EIGS, Pmat, Nmat, VAL, warn_badk
 

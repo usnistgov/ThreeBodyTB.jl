@@ -444,9 +444,9 @@ function read_coefs(filename, directory = missing)
         use_eam = parse(Bool, d["coefs"]["use_eam"])
     end
     use_pert = false
-    if haskey(d["coefs"], "use_pert")
-        use_eam = parse(Bool, d["coefs"]["use_pert"])
-    end
+#    if haskey(d["coefs"], "use_pert")
+#        use_eam = parse(Bool, d["coefs"]["use_pert"])
+#    end
     co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=use_eam, use_pert=use_pert, datH_ensemble = datH_ensemble)
 
     return co

@@ -128,6 +128,7 @@ function setup_proto_data()
     CalcD = Dict()
 
     CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-big", "nscf", false]
+    CalcD["dimer_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-big", "nscf", false]
 
 
     
@@ -334,6 +335,11 @@ function setup_proto_data()
     CalcD["square2"] = ["$STRUCTDIR/binary/square.in", "vc-relax", "2Dxy", "scf", "nscf", false]
     CalcD["caf2"] = ["$STRUCTDIR/binary/POSCAR_caf2", "vc-relax", "all", "vol2", "nscf", false]
 
+    CalcD["h2o_stuff"] = ["$STRUCTDIR/binary/co2.in", "relax", "all", "h2o_stuff", "nscf", false]
+    CalcD["h2o_line"] = ["$STRUCTDIR/binary/co2.in", "relax", "all", "h2o_line", "nscf", false]    
+    CalcD["h2o_single"] = ["$STRUCTDIR/binary/h2o.in", "relax", "all", "vol-mid", "nscf", false]
+
+    
     CalcD["co2"] = ["$STRUCTDIR/binary/co2.in", "relax", "all", "coords-small", "nscf", false]
     CalcD["co2_v2"] = ["$STRUCTDIR/binary/co2_v2.in", "relax", "all", "coords-small", "nscf", false]
 
@@ -692,6 +698,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length([ 0.95 1.0 1.05])
         elseif newst == "dimer-charge-big"
             ncalc = 18
+        elseif newst == "dimer-big"
+            ncalc = 18
         elseif newst == "vol2"
             ncalc = length([ 0.94 1.0 ])
         elseif newst == "vol-mid"
@@ -712,6 +720,10 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = length( [0.80 0.85 0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 ])
         elseif newst == "vol-bigonly"
             ncalc = length( [ 1.4 1.5 1.6 1.7 1.8])
+        elseif newst == "h2o_stuff"
+            ncalc = 10
+        elseif newst == "h2o_line"
+            ncalc = 5
         elseif newst == "vol-huge"
             ncalc = length( [0.9 0.95 1.0 1.05 1.1 1.2 1.3 1.5 2.0 2.5 3.0 3.5 4.0 5.0])
         elseif newst == "2D_tern"
@@ -1108,6 +1120,34 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         push!(tot_charge, charge)
                     end
                 end
+
+            elseif newst == "dimer-big"
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for x in [ 0.8 , 0.82, 0.85, 0.9, 0.95, 0.97, 1.0 , 1.03, 1.05, 1.1, 1.3, 1.5, 1.7, 1.9, 2.1, 2.3, 2.5 ]
+                    c = deepcopy(cnew)
+                    c.coords[1,3] =  0.5 - dist/2 * x
+                    c.coords[2,3] =  0.5 + dist/2 * x
+                    push!(torun, deepcopy(c))
+                end
+                for x in [ 0.9, 0.95, 1.0 , 1.1, 1.5, 1.9 ]
+                    c = makecrys([18 0 0; 0  30.0 0; 0 0 30.0], [0.5 0.5 0.5; 0.5 0.5 0.5 + dist; 0.5 0.5+dist*x 0.5], [cnew.stypes[1] ,cnew.stypes[1] ,cnew.stypes[1] ])
+                    push!(torun, deepcopy(c))
+                end
+
+                for x in [ 0.9, 0.95, 1.0 , 1.1, 1.5, 1.9 ]
+                    c = makecrys([18 0 0; 0  30.0 0; 0 0 30.0], [0.5 0.5 0.5; 0.5 0.5 0.5 + dist*x; 0.5 0.5+dist*x 0.5], [cnew.stypes[1] ,cnew.stypes[1] ,cnew.stypes[1] ])
+                    push!(torun, deepcopy(c))
+                end
+
+                for x in [ 0.9, 0.95, 1.0 , 1.1, 1.5, 1.9 ]
+                    c = makecrys([18 0 0; 0  30.0 0; 0 0 30.0], [0.5 0.5 0.5; 0.5 0.5 0.5+dist; 0.5 0.5 0.5-dist*x], [cnew.stypes[1] ,cnew.stypes[1] ,cnew.stypes[1] ])
+                    push!(torun, deepcopy(c))
+                end
+
+                for x in [ 0.9, 0.95, 1.0 , 1.1, 1.5, 1.9 ]
+                    c = makecrys([18 0 0; 0  30.0 0; 0 0 30.0], [0.5 0.5 0.5; 0.5 0.5 0.5 + dist*x; 0.5 0.5 0.5-dist*x], [cnew.stypes[1] ,cnew.stypes[1] ,cnew.stypes[1] ])
+                    push!(torun, deepcopy(c))
+                end
                 
             elseif newst == "coords_trimer_ab_new"
 
@@ -1335,6 +1375,33 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 for x in [1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
                     push!(torun, deepcopy(c*x))
                 end
+
+            elseif newst == "h2o_stuff"
+                c = deepcopy(cnew)
+                a = abs(c.coords[2,3] - c.coords[1,3])
+                b = a * c.A[3,3] / c.A[2,2]
+                for x = [0.95, 1.0, 1.05]
+                    for angle = [180,170,160,150,140,130,120, 110, 100]
+                        c = makecrys(cnew.A, [0 0 0.5; 0 0 0.5+a*x; b*x*sin(angle * pi/180) 0 0.5+a*x*cos(angle * pi/180)], cnew.stypes)
+                        push!(torun, deepcopy(c))
+                    end
+                end
+                for x = [0.95, 1.0, 1.05, 1.1, 0.9] 
+                    c = makecrys(cnew.A, [0 0 0.5; 0 0 0.5-a*x], cnew.stypes[1:2])
+                    push!(torun, deepcopy(c))
+                end
+
+            elseif newst == "h2o_line"
+                c = deepcopy(cnew)
+                a = abs(c.coords[2,3] - c.coords[1,3])
+                b = a * c.A[3,3] / c.A[2,2]
+                for x = [0.92, 0.95,0.97, 1.0, 1.03, 1.05, 1.10]
+                    for angle = [180]
+                        c = makecrys(cnew.A, [0 0 0.5; 0 0 0.5+a*x; b*x*sin(angle * pi/180) 0 0.5+a*x*cos(angle * pi/180)], cnew.stypes)
+                        push!(torun, deepcopy(c))
+                    end
+                end
+                
             elseif newst == "coords_trimerY"
 #                a = min_dimer_dist_dict[(T1,T1)]
                 a = -1.0*cnew.A[3,3] * (cnew.coords[1,3] - cnew.coords[2,3] - 1)  / 20.0
