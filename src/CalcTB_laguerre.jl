@@ -1813,7 +1813,8 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
         #onsite part
         function getonsite(atX,orbsX, tot, n)
             for o1 in orbsX
-                for o2 in orbsX
+                o2 = o1
+                #for o2 in orbsX
                     if (o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d)
                         continue
                     end
@@ -1828,31 +1829,40 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n
                         #                        println("data_info"[, (atX, o1, o2, :O], tot+1:tot+n)
                         tot += n
-                    elseif (o1 == :s && o2 == :p )
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-                        tot += n
+#                    elseif (o1 == :s && o2 == :p )
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+#                        tot += n
+
                     elseif (o1 == :p && o2 == :p )
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
                         tot += n*2
 
-                    elseif o1 == :s && o2 == :d
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-                        tot += n
+#                    elseif (o1 == :p && o2 == :p )
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+#                        tot += n
+                        
+#                    elseif o1 == :s && o2 == :d
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+#                        tot += n
 
-                    elseif o1 == :p && o2 == :d
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-                        tot += n
+#                    elseif o1 == :p && o2 == :d
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+#                        tot += n
 
                     elseif o1 == :d && o2 == :d
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
                         data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
                         tot += n*2
+#                    elseif o1 == :d && o2 == :d
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+#                        tot += n
                         
                     end
-                end
+                #                end
             end
             if use_eam 
                 if same_at == true
@@ -2812,6 +2822,7 @@ electron density and Fermi level will be wrong.
 """
 function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true)
 
+    repel=false
     #    use_threebody= false
     #    use_threebody_onsite=false
     
@@ -4920,124 +4931,127 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 ############ONSITE
 
     if true
-    for c = 1:nkeep_ab
-        #        ind_arr[c,:] = R_keep_ab[c][4:6]
-        cind = R_keep_ab[c,1]
-        cham = R_keep_ab[c,7]
-        a1 = R_keep_ab[c,2]
-        a2 = R_keep_ab[c,3]
+        for c = 1:nkeep_ab
+            #        ind_arr[c,:] = R_keep_ab[c][4:6]
+            cind = R_keep_ab[c,1]
+            cham = R_keep_ab[c,7]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
 
-        t1 = crys.stypes[a1]
-        t2 = crys.stypes[a2]
-        cutoff_onX = get_cutoff(t1,t2)[2]
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+            cutoff_onX = get_cutoff(t1,t2)[2]
 
-        at_set = Set((t1,t2))
-        
-
-        dist = dist_arr[a1,a2,cind,1]
-        lmn[:] = dist_arr[a1,a2,cind,2:4]
-        if (dist > cutoff_onX)
-            continue
-        end
-
-
-        if dist < cutoff_onX - cutoff_length
-            cut = 1.0
-        else
-            cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
-        end
-
-        if dist > 1e-5 && use_eam
+            at_set = Set((t1,t2))
             
 
-            ad = EXP_a[1]*dist
-            expa=exp.(-0.5*ad)
-
-            if use_eam
-                rho[a1, 1] += (1.0 * expa) * cut
-                rho[a1, 2] += (1.0 .- ad) * expa * cut
+            dist = dist_arr[a1,a2,cind,1]
+            lmn[:] = dist_arr[a1,a2,cind,2:4]
+            if (dist > cutoff_onX)
+                continue
             end
-            #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
-        end
-        
-        for o1 = orb2ind[a1]
-            a1a,t1a,s1 = ind2orb[o1]
-            sum1 = summarize_orb(s1)
-            for o2 = orb2ind[a1]
-                a2a,t2a,s2 = ind2orb[o2]
-                sum2 = summarize_orb(s2)
-
-                ind = ind_conversion[(o1,o2,c_zero)]
 
 
-                if dist < 1e-5 # subtract true onsite from variables to fit
+            if dist < cutoff_onX - cutoff_length
+                cut = 1.0
+            else
+                cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
+            end
 
-#PUREONSITE
-#                    if s1 == s2
-#                        coef = twobody_arrays[at_set][3]
-#                        io = coef.inds[(t1, sum1,:A)][1]
-#                        twobody_arrays[at_set][1][ind,io] += 1.0
-#                    end
+            if dist > 1e-5 && use_eam
+                
+
+                ad = EXP_a[1]*dist
+                expa=exp.(-0.5*ad)
+
+                if use_eam
+                    rho[a1, 1] += (1.0 * expa) * cut
+                    rho[a1, 2] += (1.0 .- ad) * expa * cut
+                end
+                #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
+            end
+            
+            for o1 = orb2ind[a1]
+                a1a,t1a,s1 = ind2orb[o1]
+                sum1 = summarize_orb(s1)
+                for o2 = orb2ind[a1]
+                    a2a,t2a,s2 = ind2orb[o2]
+                    sum2 = summarize_orb(s2)
+
+                    ind = ind_conversion[(o1,o2,c_zero)]
 
 
+                    if dist < 1e-5 # subtract true onsite from variables to fit
 
-                    (h,s) = calc_onsite(t1,s1,s2)
+                        #PUREONSITE
+                        #                    if s1 == s2
+                        #                        coef = twobody_arrays[at_set][3]
+                        #                        io = coef.inds[(t1, sum1,:A)][1]
+                        #                        twobody_arrays[at_set][1][ind,io] += 1.0
+                        #                    end
+                        
+                        
+                        
+                        (h,s) = calc_onsite(t1,s1,s2)
+                        
+                        h_onsite[o1,o2] = h
 
-                    h_onsite[o1,o2] = h
-
-                    hvec[ind] = hvec[ind] - h
-                    svec[ind] = svec[ind] - s
-#                    if o1 == 1 && o2 == 1
-#                        println(" onsite $o1 $o2 $a1a $a2a $ind $s1 $s2 $s   ", svec[ind])
-#                    end
-                else
-                    
-                    if dist < cutoff_onX - cutoff_length
-                        cut = 1.0
+                        hvec[ind] = hvec[ind] - h
+                        svec[ind] = svec[ind] - s
+                        #                    if o1 == 1 && o2 == 1
+                        #                        println(" onsite $o1 $o2 $a1a $a2a $ind $s1 $s2 $s   ", svec[ind])
+                        #                    end
                     else
-                        cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
+                        
+                        if dist < cutoff_onX - cutoff_length
+                            cut = 1.0
+                        else
+                            cut = cutoff_fn(dist, cutoff_onX - cutoff_length, cutoff_onX)
+                        end
+                        
+                        #                    println("fit_twobody_onsite ", [t1,t2, s1,s2,dist,lmn, n_2body_onsite])
+                        o = fit_twobody_onsite(t1,t2, s1,s2,dist,lmn, n_2body_onsite)
+                        #                    println("o $o")
+                        coef = twobody_arrays[at_set][3]
+                        
+                        if [t1, sum1,sum2,:O] in keys(coef.inds)
+                            io = coef.inds[[t1, sum1,sum2,:O]]
+#                            println("at_set $at_set ind $ind io $io o $o cut $cut sum1 $sum1 sum2 $sum2 o1 $o1 o2 $o2 t1 $t1")
+                            twobody_arrays[at_set][1][ind,io[1:length(o)]] += o[:] * cut
+                        end
+                        #                    println("cath $t1 $t2 $sum1 $sum2 $at_set $t1a $t2a $a1 $a2 $o1 $o2")
+                        
+                        #                    twobody_arrays[at_set][1][ind,io] += o[:] * cut
+                        
                     end
 
-#                    println("fit_twobody_onsite ", [t1,t2, s1,s2,dist,lmn, n_2body_onsite])
-                    o = fit_twobody_onsite(t1,t2, s1,s2,dist,lmn, n_2body_onsite)
-#                    println("o $o")
-                    coef = twobody_arrays[at_set][3]
-
-                    io = coef.inds[[t1, sum1,sum2,:O]]
-#                    println("at_set $at_set ind $ind io $io o $o cut $cut")
-                    twobody_arrays[at_set][1][ind,io] += o[:] * cut
-
-#                    println("cath $t1 $t2 $sum1 $sum2 $at_set $t1a $t2a $a1 $a2 $o1 $o2")
-
-#                    twobody_arrays[at_set][1][ind,io] += o[:] * cut
-                    
                 end
-
             end
         end
-    end
 
-    if use_eam
-        for a in 1:crys.nat
-            t1 = crys.stypes[a]
-            at_set = Set((t1,t1)) #fix later
-            coef = twobody_arrays[at_set][3]
-            println("coef")
-            println(coef)
-            #            for o = orb2ind[a]
-            for o = orb2ind[a]
-                a2a,t2a,s2 = ind2orb[o]
-                sum2 = summarize_orb(s2)
+#        sleep(20)
+        
+        if use_eam
+            for a in 1:crys.nat
+                t1 = crys.stypes[a]
+                at_set = Set((t1,t1)) #fix later
+                coef = twobody_arrays[at_set][3]
+                println("coef")
+                println(coef)
+                #            for o = orb2ind[a]
+                for o = orb2ind[a]
+                    a2a,t2a,s2 = ind2orb[o]
+                    sum2 = summarize_orb(s2)
 
-                
-                io = coef.inds[[t1,t1,:eam, sum2]] #fix later
+                    
+                    io = coef.inds[[t1,t1,:eam, sum2]] #fix later
 
-                aa,t,s = ind2orb[o]
-                ind = ind_conversion[(o,o,c_zero)]
-                twobody_arrays[at_set][1][ind,io] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+                    aa,t,s = ind2orb[o]
+                    ind = ind_conversion[(o,o,c_zero)]
+                    twobody_arrays[at_set][1][ind,io] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+                end
             end
         end
-    end
 
     end
 ########Check for duplicates. For fitting purposes, we don't need symmetrically equivalent entries. Memory saver.
@@ -6527,7 +6541,7 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
                 #                Vt = [a[1].*b[1]  a[1].*b[2]   a[2].*b[1]   a[2].*b[2]  a[1].*b[3]    a[3].*b[1]   zero[1].*a[1].*b[1]  zero[1].*a[1].*b[2]  zero[1].*a[2].*b[1] ]
                 #                V = Vt
                 if ismissing(memoryV)
-                    memoryV=zeros(typeof(dist0), n_3body)
+                    memoryV=zeros(typeof(dist0), max(n_3body_default, n_3body_same_default))
                 end
                 memoryV[1] =  a[1].*b[1]
                 memoryV[2] =  a[1].*b[2]
@@ -7697,9 +7711,11 @@ function calc_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, database)
         O_split = two_body_O(dist, c.datH[indO[1:n_2body_onsite]])
         Otot += O_split * symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
     elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d)
-        O_split = two_body_O(dist, c.datH[indO[1+n_2body_onsite:n_2body_onsite*2]])
-        Otot += O_split * symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
 
+        if orb1 == orb2
+            O_split = two_body_O(dist, c.datH[indO[1+n_2body_onsite:n_2body_onsite*2]])
+            Otot += O_split * symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
+        end
     end
 
 #    if o1 == :s && o2 == :s
@@ -7732,12 +7748,14 @@ function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, n_2body_onsite)
         sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
         O = O_split*sym #only split
 #    elseif o1 == :p && o2 == :p
-    elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d)
-        
-        O_split = two_body_O(dist, missing, n_2body_onsite)
-        sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
-#        println("so ", size(O), size(O_split))
-        O = hcat(O', O_split'*sym) #two terms
+
+
+    elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d) #kfg new change
+        if orb1 == orb2
+            O_split = two_body_O(dist, missing, n_2body_onsite)
+            sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
+            O = hcat(O', O_split'*sym) #two terms
+        end
     end
 
     return O
@@ -8025,6 +8043,8 @@ end
 
 function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing, background_charge_correction=0.0, screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
+    repel=false
+    
     #    use_threebody= false
     #    use_threebody_onsite=false
     
@@ -8625,6 +8645,7 @@ end
 
 function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing)
 
+    repel=false
     println("low mem 2")
     
     At = crys.A'
@@ -9191,7 +9212,12 @@ end
 
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing)
 
+    repel=false
 
+#    println("database")
+#    println(database)
+#    println()
+    
     #        verbose=true
     #    println("test")
     #    @time twobody(10)
@@ -9909,6 +9935,10 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         else
             scf = false
         end
+
+#        println("calctb_lv scf $scf")
+#        println(database)
+        
         #println("make")
         tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
         tbc.tot_charge = tot_charge
@@ -10079,16 +10109,21 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
 
             temp2 = 0.0
             if sum1 != sum2
-                for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
+                if DAT_IND_ARR_O[t1,t2,sum1,sum2,2] > 0
+                    for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
+                    end
+                    temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
                 end
-                temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
             end
 
             temp3 = 0.0
-            if (sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3)
-                for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
-                    temp3 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+n_2body_onsite]  ]
+            
+            if o1x == o2x && ((sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3))
+                if DAT_IND_ARR_O[t1,t2,sum1,sum2,1+1+n_2body_onsite] > 0
+                    for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        temp3 +=  lag_arr[n]*DAT_ARR[t1,t2,1,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+n_2body_onsite]  ]
+                    end
                 end
                 temp3 = temp3 * symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
 

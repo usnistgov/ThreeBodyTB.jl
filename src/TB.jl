@@ -4019,6 +4019,10 @@ end
      """
 function ewald_energy(tbc::tb_crys, delta_q=missing)
 
+    #if tbc.scf == false
+    #    return 0.0, zeros(tbc.crys.nat, tbc.crys.nat)
+    #end
+    
     background_charge_correction = tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
@@ -4036,6 +4040,12 @@ end
      """
 function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
 
+    
+    
+#    if tbc.scf == false
+#        return 0.0, zeros(tbc.crys.nat, tbc.crys.nat)
+#    end
+    
     background_charge_correction=tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys

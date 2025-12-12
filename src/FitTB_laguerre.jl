@@ -1965,6 +1965,12 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
             
             ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
 
+            s1 = sum(occs .* VALS[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
+            energy_band_vals = sum(s1 .* kweights) #/ tbc.nspin
+            
+            shift_value = (energy_charge + energy_band - energy_band_vals)/nval
+            println("shift_value c $c = $shift_value")
+            
         else
             ENERGIES[c] = etot_dft - etotal_atoms
         end

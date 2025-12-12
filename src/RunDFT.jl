@@ -560,6 +560,10 @@ function makedict(savedir)
         filename=savedir*"/data-file-schema.xml"
     elseif isfile(savedir*"/data-file-schema.xml.gz")
         filename=savedir*"/data-file-schema.xml.gz"
+    elseif isfile(savedir*"/qe.save/data-file-schema.xml.gz")
+        filename=savedir*"/qe.save/data-file-schema.xml.gz"
+    elseif isfile(savedir*"/qe.save/data-file-schema.xml")
+        filename=savedir*"/qe.save/data-file-schema.xml"
     else
         println("ERROR warning missing data-file-schema.xml or data-file-schema.xml.gz")
         println()
