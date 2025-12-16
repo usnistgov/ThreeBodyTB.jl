@@ -203,6 +203,7 @@ function setup_proto_data()
     CalcD["hex"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
     CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "scf", "nscf", false]
+    CalcD["square_big"] = ["$STRUCTDIR/square.in.up.big", "scf", "all", "vol-mid", "nscf", false]
 
     CalcD["hex_simple"] = ["$STRUCTDIR/hex_simple.in.up", "vc-relax", "all", "2D-mid", "nscf", false]
     CalcD["hex_simple_z"] = ["$STRUCTDIR/hex_simple.in.up", "vc-relax", "all", "stretch", "nscf", false]
@@ -321,6 +322,7 @@ function setup_proto_data()
     CalcD["znse"] = ["$STRUCTDIR/binary/znse.in", "vc-relax", "all", "vol-mid", "nscf", false]
 
     CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "coords", "nscf", false]
+    CalcD["dimer2a"] = ["$STRUCTDIR/binary/dimer2.in.a", "relax", "all", "coordsa", "nscf", false]
 #    CalcD["dimer2"] = ["$STRUCTDIR/binary/dimer2.in", "relax", "all", "scf", "nscf", false]
 
     CalcD["dimer2_min"] = ["$STRUCTDIR/binary/dimer.in", "none", "all", "coords_min", "nscf", false]
@@ -619,7 +621,7 @@ function setup_proto_data()
 
 end
 
-function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false, min_nscf = false, dft_only=false)
+function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, only_kspace = false, check_only = false, min_nscf = false, dft_only=false, electron_maxstep=100)
 
     tot_charge = missing
     
@@ -746,6 +748,11 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
             #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
             ncalc = 22
+        elseif newst == "coordsa"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+#            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
+            #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
+            ncalc = 5
         elseif newst == "coords_play"
             ncalc = 16
         elseif newst == "coords_dense"
@@ -1519,6 +1526,22 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                     
                 end
+            elseif newst == "coordsa"
+                println("start coords")
+                #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
+                for x in [ -0.10, 0.0 ,0.10 ,  0.2, 0.5 ]
+                   # c = deepcopy(cnew)
+                   # c.coords = c.coords * (1+x)
+                    # push!(torun, deepcopy(c))
+                    c = deepcopy(cnew)
+#                    c.coords = c.coords * (1+x)
+                    #                    push!(torun, deepcopy(c))
+                    dist = minimum(abs.([c.coords[2,3] - c.coords[1,3], c.coords[2,3] - c.coords[1,3] + 1, c.coords[2,3] - c.coords[1,3] - 1]))
+                    c.coords[1,3] = 0.5 - min(dist / 2 * (1 + x), 0.25)
+                    c.coords[2,3] = 0.5 + min(dist / 2 * (1 + x), 0.25)
+                    push!(torun, deepcopy(c))
+                    
+                end
                     
             elseif newst == "coords_play"
                 println("start coords")
@@ -2065,7 +2088,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         continue
                     end
 
-                    dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true, magnetic=magnetic, tot_charge = tot_c)
+                    dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true, magnetic=magnetic, tot_charge = tot_c, electron_maxstep=electron_maxstep)
                     if calc_mode == "nscf"
 
                         try
@@ -2080,7 +2103,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     end
 
                     if magnetic && false
-                        dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d2", tmpdir="$d2", wannier=false, code="QE", skip=true, cleanup=true, magnetic=false)
+                        dft = ThreeBodyTB.DFT.runSCF(c, nprocs=procs, prefix="qe", directory="$d2", tmpdir="$d2", wannier=false, code="QE", skip=true, cleanup=true, magnetic=false, electron_maxstep=electron_maxstep)
                         if calc_mode == "nscf"
                             try
                                 if !dft_only 
@@ -2311,7 +2334,7 @@ end
 #        else
 #            at1 == atom1
 
-function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = false, makecrys_only=false)
+function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = false, makecrys_only=false, electron_maxstep=100)
 
     CR0, CR1, CR2, CRTRANS, SUB0, SUB1, SUB2, SUBTRANS = structure_substitute(at1, at2, at3)
 
@@ -2434,9 +2457,9 @@ function do_run_ternary_sub(at1, at2, at3, dir,procs, n1=6, n2 = 12; min_nscf = 
                 else
                     cr = c
                 end
-                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=false, cleanup=true)
+                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=false, cleanup=true, electron_maxstep=electron_maxstep)
             else
-                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true)
+                dft = ThreeBodyTB.DFT.runSCF(cr, nprocs=procs, prefix="qe", directory="$d", tmpdir="$d", wannier=false, code="QE", skip=true, cleanup=true, electron_maxstep=electron_maxstep)
             end
             tbc, tbck = ThreeBodyTB.AtomicProj.projwfc_workf(dft, nprocs=procs, directory=d, skip_og=true, skip_proj=true, freeze=true, localized_factor = 0.15, cleanup=true, only_kspace=true, min_nscf = min_nscf)
         catch err
