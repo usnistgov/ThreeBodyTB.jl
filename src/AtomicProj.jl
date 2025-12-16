@@ -587,6 +587,7 @@ Steps:
     p.bs.kpts[:,:] = dft_nscf.bandstruct.kpts #fix kpoint rounding issue
 
     println("P OVERLAPS ", size(p.overlaps))
+    println("P NSCF ", size(dft_nscf.bandstruct.eigs))
     
     #check if p matches dft_nscf
     if sum(abs.(dft_nscf.bandstruct.eigs[1,:,1] - p.bs.eigs[1,:,1])) > 1e-5

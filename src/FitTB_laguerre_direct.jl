@@ -1368,49 +1368,15 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         println("ch 1 ", ch[1] , " sum DQ ", sum(abs.(DQ)))
         scf = true
         solve_self_consistently = false
+        solve_scf_mode = false
         println("iterate solve_scf_mode $solve_scf_mode scf $scf")
         err1 = -99.0
         err2 = -99.0
+        mix_iterS = mix_iter
         for iter = 1:niters
 
             err_old = error_fn(NEWX, NEWY, ch, cs)
 
-            if updateH
-                if iter==1
-                    iter_h = 1
-                else
-                    iter_h = 1
-                end
-                for i in 1:iter_h
-                    @suppress begin
-                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-                    end
-                    println("ENERGY DIFF ", sum(abs.(ENERGIES_working - ENERGIES)))
-                    @suppress begin
-                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-                        #println("size NEWX ", size(NEWX))
-                    end
-                    
-                    ch_new = NEWX \ NEWY
-
-                    #println("ch_new size ", size(ch_new))
-                    ch_test = ch_new*mix_iter + ch*(1 - mix_iter)
-                    
-                    err_test = error_fn(NEWX, NEWY, ch_test, cs)
-                    println("err_test $err_test")
-                    ch = ch_test
-                    #                    err_test = error_fn(NEWX, NEWY, ch, cs)
-                    #println("err_test2 $err_test")
-                    
-                end
-            end
-                
-            err1 = error_fn(NEWX, NEWY, ch, cs)
-            if err1 > err_old && adjust_mix
-                mix_iter = mix_iter * 0.5
-            else
-                mix_iter = mix_iter * 1.05
-            end
             
             if updateS
                 
@@ -1428,48 +1394,75 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     
                     cst = NEWX_S \ ( (NEWX*ch - NEWY ))
                     #cs = (cs + cst)
-                    cs_test = (cs + cst) * mix_iter + cs*(1 - mix_iter)
+                    cs_test = (cs + cst) * mix_iterS + cs*(1 - mix_iterS)
 
-                    
-                    if mod(iter,10) == 1 && adjust_mix 
-                        for i = 1:30
-                            println("current mix $mix_iter")
-                            @suppress begin 
-                                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs_test, solve_scf_mode)
-                                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-                            end
-                            err_new = error_fn(NEWX, NEWY, ch, cs_test)
-                            println("i $i err_old $err_old err_new $err_new")
-                            if err_new > err1*0.99
-                                mix_iter = mix_iter * 0.6
-                                cs_test = (cs + cst) * mix_iter + cs*(1 - mix_iter)
-                                if mix_iter < 0.01
-                                    mix_iter = 0.01
-                                    break
-                                end
-
-                            else
-                                mix_iter = mix_iter*1.05
-                                break
-                            end
-                        end
-                    end
                     cs = cs_test
                     
                 end
                     
             end
+                
+            err1 = error_fn(NEWX, NEWY, ch, cs)
+            if err1 > err_old  && adjust_mix
+                mix_iterS = mix_iterS * 0.8
+                mix_iterS = max(mix_iterS, 0.05)
+            else
+                mix_iterS = mix_iterS * 1.05
+            end
+
+            if updateH
+                if iter==1
+                    iter_h = 1
+                else
+                    iter_h = 1
+                end
+                for i in 1:iter_h
+                    @suppress begin
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                        #println("size NEWX ", size(NEWX))
+                    end
+                    
+                    ch_new = NEWX \ NEWY
+
+                    #println("ch_new size ", size(ch_new))
+                    ch_test = ch_new*mix_iter + ch*(1 - mix_iter)
+                    
+                    #err_test = error_fn(NEWX, NEWY, ch_test, cs)
+                    #println("err_test $err_test")
+                    ch = ch_test
+                    #                    err_test = error_fn(NEWX, NEWY, ch, cs)
+                    #println("err_test2 $err_test")
+                    
+                end
+            end
+            err2 = error_fn(NEWX, NEWY, ch, cs)
+            if err2 > err1  && adjust_mix
+                mix_iter = mix_iter * 0.5
+            else
+                mix_iter = mix_iter * 1.05
+            end
+            
 #            println("size NEWX ", size(NEWX))
 #            println("size NEWY ", size(NEWY))
 #            println("size ch ", size(ch))
 #            println("size cs ", size(cs))
             err2 = error_fn(NEWX, NEWY, ch, cs)
-            println("iter $iter   $err1   $err2     ch1 $(ch[1]) cs1 $(cs[1]) mix_iter $mix_iter")
-            if abs(err_old - err2) < 0.5e-3 && iter > 5
+            println("iter $iter   $err1   $err2  err_old $err_old   ch1 $(ch[1]) cs1 $(cs[1]) mix_iter $mix_iter mix_iterS $mix_iterS")
+            if abs(err_old - err2) < 0.5e-5 && iter > 5
+                println("break, no progress")
                 break
             end
-            if err2 > err_old && iter > 2
-                break
+            if updateS
+                if err2 > err_old && iter > 4
+                    println("break, update S, negative progress")                    
+                    break
+                end
+            else
+                if err2 > err_old && iter > 2
+                    println("break, update H only, negative progress")                                        
+                    break
+                end
             end
             err_old = err2
             
@@ -1482,12 +1475,13 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #        println("if true")
 #        println("NCOLS, NCOLS_S ", [NCOLS, NCOLS_S])
         println("opt_S $opt_S")
-        if opt_S
-            ch, cs = iterate(ch, cs, true, false, 200, 0.05, adjust_mix=true)
-            ch, cs = iterate(ch, cs, true, true, 550, 0.2, adjust_mix=false)
-            ch, cs = iterate(ch, cs, true, true, 50, 0.02, adjust_mix=false)
-        else
+        #if opt_S
+            #ch, cs = iterate(ch, cs, true, false, 200, 0.05, adjust_mix=true)
+            #ch, cs = iterate(ch, cs, true, true, 550, 0.2, adjust_mix=false)
+            #ch, cs = iterate(ch, cs, true, true, 50, 0.02, adjust_mix=false)
+        #else
 
+        if true
             solve_scf_mode=true
             scf = true
             begin 
@@ -1501,7 +1495,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         break
                     end
                 end
-                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                #NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
                 solve_scf_mode=false
                 println("solve_scf_mode $solve_scf_mode scf $scf")
                 ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
@@ -1548,7 +1542,11 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 
 
                 solve_scf_mode=false
-                ch, cs, err = iterate(ch, cs, true, false, 40, 0.05, adjust_mix=true)
+                if opt_S
+                    ch, cs, err = iterate(ch, cs,true , opt_S, 40, 0.1, adjust_mix=true)
+                else
+                    ch, cs, err = iterate(ch, cs,true , opt_S, 40, 0.05, adjust_mix=true)
+                end
 
  #               println("DQ AFTER ITERATE")
  #               println(DQ)
@@ -1565,18 +1563,21 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 solve_scf_mode=true
                 for init_scf = 1:5
                     DQ_old = deepcopy(DQ)
-                    println("DQ")
-                    println(DQ)
-                    ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                    #println("DQ")
+                    #println(DQ)
+                    @suppress begin
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                    end
                     if maximum(abs.(DQ_old - DQ)) < 0.01
                         println("break scf early $init_scf $(maximum(abs.(DQ_old - DQ)))")
                         break
                     end
                 end
-                #                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+
                 NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
-                err = error_fn(NEWX, NEWY, ch, cs)
-                println("err X ", err)
+                #err = error_fn(NEWX, NEWY, ch, cs)
+                #println("err X ", err)
                 
                 
                 mix = 0.5
@@ -1590,22 +1591,22 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #                DQ_EDEN = (1-mix)*DQ_EDEN + mix*DQ_EDEN_bigiter
                 #H1spin = (1-mix)*H1spin + mix*H1spin_bigiter
 
-                solve_scf_mode = false
+                #solve_scf_mode = false
 #                println()
 #                println("now false  solve_scf_mode $solve_scf_mode scf $scf")
                 
-                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                #ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
 #                println("e solve_scf_mode $solve_scf_mode scf $scf")
-                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                #NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
 #                println("f solve_scf_mode $solve_scf_mode scf $scf")                
-                err = error_fn(NEWX, NEWY, ch, cs)
-                println("err Y ", err)
-                solve_scf_mode=false
+                #err = error_fn(NEWX, NEWY, ch, cs)
+                #println("err Y ", err)
+                #solve_scf_mode=false
                 #if abs(err_old_bigiter - err) < 1e-3
                 #    println("done, break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
                 #    break
                 #end
-                err_old_bigiter = err
+                #err_old_bigiter = err
             end
             
             #            ch, cs = iterate(ch, cs, true, false, 50, 0.05, adjust_mix=true)
