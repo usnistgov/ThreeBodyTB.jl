@@ -398,10 +398,12 @@ Must do scf calculation before plotting.
 Returns the tight-binding object and the plot.
 
     tbc, p = plot_bandstr_dos(tb_crys, kpath=kpath, names=knames)
-"""
+
 
 
 See `plot_bandstr` and `dos`
+"""
+
 """
 function plot_bandstr_dos(tbc::tb_crys;
                           kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;0 0 0.5],
@@ -444,7 +446,7 @@ function plot_bandstr_dos(tbc::tb_crys;
     return tbc, p
 
 end
-
+"""
 
 
 
