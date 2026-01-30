@@ -55,6 +55,8 @@ using ..Symmetry:symmetrize_charge_den
 using ..Symmetry:get_symmetry
 using ..Symmetry:get_kgrid_sym
 
+import ..CrystalMod:types_energy
+
 export tb
 export tb_crys
 export tb_k
@@ -3138,26 +3140,6 @@ function types_energy(tbc::tb_crys_kspace)
 
 end
 
-"""
-         function types_energy(c::crystal)
-     """
-function types_energy(c::crystal)
-
-    return types_energy(c.types)
-end
-
-"""
-         function types_energy(types)
-     """
-function types_energy(types)
-
-    et = 0.0
-    for t in types
-        et += atoms[t].energy_offset
-    end
-    return et
-
-end
 
 """
          function calc_energy(h::tb_crys, kgrid; smearing=0.01, returnk=false)

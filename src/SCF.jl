@@ -332,7 +332,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 println("nk $nk: $grid ; nk_red: $nk_red")
             else
                 println("nk $nk: $grid")
-            end            
+            end
+            println("sum kweights ", sum(kweights))
             println()
         end
 
@@ -630,8 +631,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             else
                 energy_magnetic = 0.0
             end
-
-#            println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")            
+            if verbose == true
+                println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")
+            end
             energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)

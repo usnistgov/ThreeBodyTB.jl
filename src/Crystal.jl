@@ -2217,6 +2217,45 @@ function merge_crystal(c_small, c_big, vacancy_location = missing)
     
 end
 
+function orbital_shift(c)
+    vol = abs(det(c.A))
+    voladj = 0.0
+    for t in c.stypes
+        voladj += atoms[t].voladj
+        println("add voladj ", atoms[t].voladj)
+    end
+    println("return voladj $voladj vol $vol = ", voladj / vol)
+    return voladj / vol
+
+end
+  
+"""
+         function types_energy(c::crystal)
+     """
+function types_energy(c::crystal; mode=:valence)
+
+    return types_energy(c.types, mode=mode)
+end
+
+"""
+         function types_energy(types)
+     """
+function types_energy(types; mode=:valence)
+
+    
+    et = 0.0
+    for t in types
+        if mode == :core
+            et += atoms[t].energy_offset_semicore
+        else
+            et += atoms[t].energy_offset
+        end
+    end
+    
+    
+    return et
+
+end
 
 end #end module
 

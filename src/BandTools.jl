@@ -35,6 +35,32 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
     norm = sum(weights)
 
     n2= Int64(round(nelec/2))
+
+#    println("n2 $n2 size(eigs) $(size(eigs))")
+    
+   
+    #handle case where all bands are full
+    if length(size(eigs)) == 2 && size(eigs)[2] > 1
+        if size(eigs)[2] <= (nelec/2.0 + 1e-10)
+            efermi = efermi_max
+            println("case 1")
+            return maximum(eigs[:])
+        end
+    else
+        println("lenght(eigs) $(length(eigs)) (nelec + 1e-10) $((nelec + 1e-10))")
+        if length(eigs) <= (nelec/2.0 + 1e-10)
+            efermi = efermi_max
+            println("case 2")            
+            return maximum(eigs[:])
+        end
+    end
+
+    #handle case where all bands are empty
+    if nelec <= 1e-10
+        println("case 3")        
+        return minimum(eigs[:])
+    end
+    
     
 #    println(size(eigs), " n2 $n2")
 
@@ -52,8 +78,10 @@ function calc_fermi(eigs, weights, nelec, smearing = 0.01)
         
     end
 
+#    println("do iter ", smearing)
+    
     for iter = 1:40
-
+#        println("iter  $iter ")
         efermi = (efermi_max+efermi_min)/2.0
 
         occ = gaussian.(eigs.-efermi, smearing)

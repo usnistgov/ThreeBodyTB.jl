@@ -38,6 +38,7 @@
     mixing_beta = 0.3
     conv_thr = 1d-9
     startingpot = 'STARTATOMIC'
+    electron_maxstep  = 100
  /
 &ions
   ion_dynamics='bfgs',

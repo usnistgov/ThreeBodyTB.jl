@@ -39,6 +39,7 @@ using ..DFToutMod:bandstructure
 using ..TB:make_tb
 using ..TB:make_tb_crys
 using ..BandTools:band_energy
+using ..BandTools:smearing_energy
 #using ..TB:orbital_index
 using ..CrystalMod:orbital_index
 
@@ -1083,10 +1084,10 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             if sum(p2) < nsemi - 0.5
                 println("warning, identify semicore")
             end
-#            if k < 10
-#                println("p2 ", p2)
-#                println(k, " indsemi " , INDSEMI[k, :])
-#            end
+            #            if k < 10
+            #                println("p2 ", p2)
+            #                println(k, " indsemi " , INDSEMI[k, :])
+            #            end
         end
 
     end
@@ -1111,16 +1112,16 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                 end
             end
         end
-#        if k < 20
-#            println("$k EIGS ", EIGS[k,1:5])
-#        end
+        #        if k < 20
+        #            println("$k EIGS ", EIGS[k,1:5])
+        #        end
         
 
-#        if k < 2
-#            println("ALLEIGS k $k ", p.bs.eigs[k,1:4])
-#            println("EIGS    k $k ", EIGS[k,1:4])#
-#
-#        end
+        #        if k < 2
+        #            println("ALLEIGS k $k ", p.bs.eigs[k,1:4])
+        #            println("EIGS    k $k ", EIGS[k,1:4])#
+        #
+        #        end
     end
 
     #    println(p.nspin, " PROJ check ", PROJ[1,1,1,1])
@@ -1129,17 +1130,17 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         
         println("shifting eigenvalues to match dft atomization energy")
         ind2orb, orb2ind, etotal_atoms, nval =  orbital_index(d.crys)
-#        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
+        #        band_en = band_energy(d.bandstruct.eigs[:,nsemi+1:end], d.bandstruct.kweights, nval)
         band_en = band_energy(EIGS, d.bandstruct.kweights, nval)
 
-#        println("band_energy $band_en")
-#        println("EIGS  ", EIGS[1,:,1])
-#        if p.nspin == 2
-#            println("EIGS2 ", EIGS[1,:,2])
-#        end            
+        #        println("band_energy $band_en")
+        #        println("EIGS  ", EIGS[1,:,1])
+        #        if p.nspin == 2
+        #            println("EIGS2 ", EIGS[1,:,2])
+        #        end            
         
-#        println("d.crys")
-#        println(d.crys)
+        #        println("d.crys")
+        #        println(d.crys)
 
         etypes = types_energy(d.crys)
 
@@ -1149,21 +1150,21 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
         atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
 
-#        println("$etot_dft $etotal_atoms $etypes $e_smear")
-#        println("atomization_energy $atomization_energy")
+        #        println("$etot_dft $etotal_atoms $etypes $e_smear")
+        #        println("atomization_energy $atomization_energy")
 
         band_en = band_en 
         shift = (atomization_energy - band_en  )/(nval - d.tot_charge)
 
-#        println("shift $shift")
-#        return 0
+        #        println("shift $shift")
+        #        return 0
 
         EIGS = EIGS .+ shift
         
 
         if !(ismissing(energy_froz))
             println("energy_froz before $energy_froz")
-#            energy_froz = energy_froz + shift
+            #            energy_froz = energy_froz + shift
             energy_froz = efermi_dft + shift
             
 
@@ -1249,17 +1250,17 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             P[1:max_ind,1:max_ind] = B[:,1:max_ind]'*B[:,1:max_ind]
             PROJECTABILITY[spin,k,:] = real.(diag(P))
 
-#            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
+            #            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
             
 
             Palt = B[:,1:max_ind]*B[:,1:max_ind]'
 
-#            if k == 1
-#                println("PALT $spin")
-#                println(Palt)
-#                println("stuff")
-#                println(PROJ[k,:,spin, 1:max_ind])
-#            end
+            #            if k == 1
+            #                println("PALT $spin")
+            #                println(Palt)
+            #                println("stuff")
+            #                println(PROJ[k,:,spin, 1:max_ind])
+            #            end
             
             for i in 1:nwan
 
@@ -1326,103 +1327,132 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     #here we shift the eigenvalues around to match DFT eigenvalues below a cutoff.
     #this requires identifying which bands are supposed to match which eigenvlues, which
     #can be tricky. I use a projection heuriestic, but it can fail at band crossings that mix bands.
-    if !(ismissing(energy_froz))
-        energy_froz2 = energy_froz+2.0
-        println("energy_froz: $energy_froz , $energy_froz2")
-        for spin = 1:p.nspin
-            for k = 1:p.bs.nks
-                val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
-                val_tb = real(val_tbt)
-                val_tb_new = deepcopy(val_tb)
-                #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
+    function do_freeze()
+        if !(ismissing(energy_froz))
+            energy_froz2 = energy_froz+2.0
+            println("energy_froz: $energy_froz , $energy_froz2")
+            for spin = 1:p.nspin
+                for k = 1:p.bs.nks
+                    val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
+                    val_tb = real(val_tbt)
+                    val_tb_new = deepcopy(val_tb)
+                    #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
 
-                nxxx = size(PROJECTABILITY)[3]
-                val_pw = EIGS[k,1:nxxx, spin]
-            
-                order = Dict()
-                
-                score_mat = zeros(nxxx, nwan)
-                
-
-                for n2 = 1:nwan
-                    cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
+                    nxxx = size(PROJECTABILITY)[3]
+                    val_pw = EIGS[k,1:nxxx, spin]
                     
-                    dist_min = 1000.0
-                    nmin = 0
+                    order = Dict()
                     
-                    for n1 = 1:nxxx
-                        
-                        #                    t = p.proj[k,wan, nsemi + n1] 
-                        t = PROJ[k,:,spin, n1]
-                        x = PROJECTABILITY[spin,k,n1]
-                        
-                        cd_dft = real(t .* conj(t))
-                        
-#                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
-                        dist_cd = sum((cd_dft - cd_vect).^2)
-                        #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
-                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
+                    score_mat = zeros(nxxx, nwan)
+                    
 
-#                        if k == 1
-#                            println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
-#                        end
-                        score_mat[n1,n2] = dist 
-                        #                    if dist < dist_min
-                        #                        dist_min = dist
-                        #                        nmin = n1
-                        #                    end
-                    end
-                end
-                for n = 1:nwan
-                    s = sortperm(score_mat[:,n], rev=false)
-                    for ss in s
-                        if !(ss in keys(order))
-                            order[n] = ss
-                            break
+                    for n2 = 1:nwan
+                        cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
+                        
+                        dist_min = 1000.0
+                        nmin = 0
+                        
+                        for n1 = 1:nxxx
+                            
+                            #                    t = p.proj[k,wan, nsemi + n1] 
+                            t = PROJ[k,:,spin, n1]
+                            x = PROJECTABILITY[spin,k,n1]
+                            
+                            cd_dft = real(t .* conj(t))
+                            
+                            #                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
+                            dist_cd = sum((cd_dft - cd_vect).^2)
+                            #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
+                            #dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
+                            #                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd  + 1 / (x + 1e-3)
+
+                            dist =  (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
+
+                            #=
+                            if k == 3
+                            #println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
+                            if dist < 0.02
+                            println()
+                            println("!order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
+                            println(cd_dft)
+                            println(cd_vect)
+                            println()
+                            else
+                            println(" order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
+                            end
+                            end
+                            =#
+                            score_mat[n1,n2] = dist 
+                            #                    if dist < dist_min
+                            #                        dist_min = dist
+                            #                        nmin = n1
+                            #                    end
                         end
                     end
-                end
-
-#acutally do the change
-                for n in 1:nwan
-                    if val_pw[order[n]] < energy_froz
-                        val_tb_new[n] = val_pw[order[n]]
-                        #elseif val_pw[order[n]] < energy_froz2
-                    else
-                        #x=cutoff(val_tb[n], energy_froz, energy_froz2)
-                        x = PROJECTABILITY[spin,k,order[n]]
-                        #      if x > 0.1
-                        #x = x^2
-                        val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
-#                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
-                  #      end
-                    end
-                    
-                end
-
-#resym
-                for n = 1:nwan-1
-                    c= [n]
-                    for n2 = n+1:nwan
-                        if abs(val_tb_new[n] - val_tb_new[n2]) < 1e-4
-                            push!(c, n2)
+                    doneset = Set()
+                    for n = 1:nwan
+                        s = sortperm(score_mat[:,n], rev=false)
+                        if k == 3
+                            println("scoremat ", score_mat[:,n])
+                            println("scoremat sort ", score_mat[s,n])
+                        end
+                        for ss in s
+                            if !(ss in doneset)
+                                order[n] = ss
+                                push!(doneset, ss)
+                                if k == 3
+                                    println("orer $n $ss")
+                                end
+                                break
+                            end
                         end
                     end
-                    if length(c) > 1
-                        t = sum(val_tb_new[c]) / length(c)
-                        val_tb_new[c] .= t
+
+                    
+                    #acutally do the change
+                    for n in 1:nwan
+                        if val_pw[order[n]] < energy_froz
+                            val_tb_new[n] = val_pw[order[n]]
+                            #elseif val_pw[order[n]] < energy_froz2
+                        else
+                            #x=cutoff(val_tb[n], energy_froz, energy_froz2)
+                            x = PROJECTABILITY[spin,k,order[n]]
+                            #      if x > 0.1
+                            #x = x^2
+                            val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+                            #                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
+                            #      end
+                        end
+                        
                     end
+
+                    #resym
+                    for n = 1:nwan-1
+                        c= [n]
+                        for n2 = n+1:nwan
+                            if abs(val_tb_new[n] - val_tb_new[n2]) < 1e-4
+                                push!(c, n2)
+                            end
+                        end
+                        if length(c) > 1
+                            t = sum(val_tb_new[c]) / length(c)
+                            val_tb_new[c] .= t
+                        end
+                    end
+                    
+                    ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
+                    ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
+                    val_tb_new, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
+                    
                 end
-                
-                ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
-                ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
-                val_tb_new, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
-            
             end
         end
     end
+    do_freeze()
+    do_freeze()
+    do_freeze()
     
-#alternate eigenvalue fix method.
+    #alternate eigenvalue fix method.
     if nfroz >= 1 && (ismissing(energy_froz))
         println("nfroz: ", nfroz)
         for spin = 1:p.nspin
@@ -1446,61 +1476,70 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
         end
     end
 
-   
-    #reshift to match dft total energy
-    
+
     VAL = zeros(Float64, p.bs.nks, nwan, p.nspin)
     VECT = zeros(Complex{Float64}, p.bs.nks, p.nspin, nwan, nwan)
-    for spin = 1:p.nspin
-        for k = 1:p.bs.nks
-            val, vect = eigen(Hermitian(ham_k[:,:,k, spin]))
-            VAL[k,:, spin] = val
-            VECT[k,spin,:,:] = vect
-        end
-    end
+    function en_shift()
+        #reshift to match dft total energy
         
-    if shift_energy
-        println("reshift")
-#        println("size VAL ", size(VAL), " size kweights ", size(d.bandstruct.kweights))
-
-#        println("VAL  ", VAL[1,:,1])
-#        if p.nspin == 2
-#            println("VAL  ", VAL[1,:,2])
-#        end
-            
-        
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
-
-#        println("band_en_old " , band_en)
-
-        shift = (atomization_energy - band_en)/(nval - d.tot_charge)
-        VAL = VAL .+ shift
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
-                
-                val = VAL[k,:, spin]
-                vect = VECT[k,spin,:,:]
-                ham_k[:,:,k,spin] = vect*Diagonal(val)*vect'
-                
-            end
-        end
-#        println("done reshift")
-
-        for spin = 1:p.nspin
-            for k = 1:p.bs.nks
-                val, vect = eigen(Hermitian((ham_k[:,:,k, spin] + ham_k[:,:,k,spin]')/2.0))
-                VAL[k,:,spin] = val
+                val, vect = eigen(Hermitian(ham_k[:,:,k, spin]))
+                VAL[k,:, spin] = val
                 VECT[k,spin,:,:] = vect
             end
         end
+        
+        if shift_energy
+            println("reshift")
+            #        println("size VAL ", size(VAL), " size kweights ", size(d.bandstruct.kweights))
+
+            #        println("VAL  ", VAL[1,:,1])
+            #        if p.nspin == 2
+            #            println("VAL  ", VAL[1,:,2])
+            #        end
             
-        band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
-#        println("band_en_new " , band_en, " " , band_en+etypes)
+            
+#            band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
+            band_en,ef_calc = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge, returnef=true)
+            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d.degauss)
+
+            println("band_en_old " , band_en)
+
+            shift = (atomization_energy - band_en - energy_smear_calc + e_smear)/(nval - d.tot_charge + 1e-12)
+            VAL = VAL .+ shift
+            for spin = 1:p.nspin
+                for k = 1:p.bs.nks
+                    
+                    val = VAL[k,:, spin]
+                    vect = VECT[k,spin,:,:]
+                    ham_k[:,:,k,spin] = vect*Diagonal(val)*vect'
+                    
+                end
+            end
+            #        println("done reshift")
+
+            for spin = 1:p.nspin
+                for k = 1:p.bs.nks
+                    val, vect = eigen(Hermitian((ham_k[:,:,k, spin] + ham_k[:,:,k,spin]')/2.0))
+                    VAL[k,:,spin] = val
+                    VECT[k,spin,:,:] = vect
+                end
+            end
+
+                        
+            band_en,ef_calc = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge, returnef=true)
+            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d.degauss)
+            println("band_en_new " , band_en, " " , band_en+etypes, " diff atom ", atomization_energy+e_smear - (band_en+energy_smear_calc), " atomization_energy ", atomization_energy, "e types ", etypes)
 
 
+        end
     end
-
-#    println("SIZE ham_k ", size(ham_k))
+    en_shift()
+    en_shift()
+    en_shift()
+    
+    #    println("SIZE ham_k ", size(ham_k))
     
     return ham_k, EIGS, Pmat, Nmat, VAL, warn_badk
 

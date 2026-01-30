@@ -647,6 +647,7 @@ function loadXML(savedir)
     outdir = d["espresso"]["input"]["control_variables"]["outdir"]    
 
     tot_charge = parse(Float64, d["espresso"]["input"]["bands"]["tot_charge"])
+    degauss = parse(Float64, d["espresso"]["input"]["bands"]["smearing"][:degauss]) * convert_ha_ryd
     #println("tot_charge $tot_charge")
     
     kgrid = [nk1, nk2,nk3]
@@ -711,6 +712,7 @@ function loadXML(savedir)
         end
     end
 
+    
     bs = loadXML_bs(d)
     bs.kgrid=kgrid
 
@@ -737,7 +739,7 @@ function loadXML(savedir)
         println("warning, exx $exx hybrid $hybrid makes no sense")
     end
     
-    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx)
+    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss)
 
 #    println("end loadXML")
 

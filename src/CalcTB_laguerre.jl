@@ -113,9 +113,9 @@ function fitting_version_params(version=fitting_version_default)
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
         
     elseif version == 51
-        n_2body = 5
-        n_2body_onsite = 4
-        n_2body_S = 5
+        n_2body = 6
+        n_2body_onsite = 5
+        n_2body_S = 6
         n_3body = 8
         n_3body_same = 5
         n_3body_triple = 4
@@ -1813,7 +1813,7 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
         #onsite part
         function getonsite(atX,orbsX, tot, n)
             for o1 in orbsX
-                o2 = o1
+                o2 = o1 #uncomment change
                 #for o2 in orbsX
                     if (o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d)
                         continue
@@ -1829,29 +1829,37 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n
                         #                        println("data_info"[, (atX, o1, o2, :O], tot+1:tot+n)
                         tot += n
-#                    elseif (o1 == :s && o2 == :p )
-#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-#                        tot += n
 
+#uncomment1
+#=
+                    elseif (o1 == :s && o2 == :p )
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+=#
                     elseif (o1 == :p && o2 == :p )
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
                         tot += n*2
 
+                        
 #                    elseif (o1 == :p && o2 == :p )
 #                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
 #                        tot += n
+
+#uncomment2
+#=
+                    elseif o1 == :s && o2 == :d
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+
+#uncomment3
+                    elseif o1 == :p && o2 == :d
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
+                        tot += n
+                        =#
                         
-#                    elseif o1 == :s && o2 == :d
-#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-#                        tot += n
-
-#                    elseif o1 == :p && o2 == :d
-#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
-#                        data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-#                        tot += n
-
                     elseif o1 == :d && o2 == :d
                         data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
                         data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
@@ -1862,7 +1870,7 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
 #                        tot += n
                         
                     end
-                #                end
+            #end #uncomment final
             end
             if use_eam 
                 if same_at == true
@@ -4961,12 +4969,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             if dist > 1e-5 && use_eam
                 
 
-                ad = EXP_a[1]*dist
-                expa=exp.(-0.5*ad)
+#                ad = EXP_a[1]*dist
+#                expa=exp.(-0.5*ad)
 
                 if use_eam
-                    rho[a1, 1] += (1.0 * expa) * cut
-                    rho[a1, 2] += (1.0 .- ad) * expa * cut
+                    rho[a1, 1] += exp.(-1.5*dist) * cut
+                    rho[a1, 2] += exp.(-3.0*dist) * cut
                 end
                 #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
             end
@@ -5048,7 +5056,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
                     aa,t,s = ind2orb[o]
                     ind = ind_conversion[(o,o,c_zero)]
-                    twobody_arrays[at_set][1][ind,io] += [rho[a,1]^2, rho[a,2]^2, rho[a,1]*rho[a,2]]
+                    twobody_arrays[at_set][1][ind,io] += [rho[a,1]^0.5, rho[a,2]^0.5, (rho[a,1]*rho[a,2])^0.25]
                 end
             end
         end
@@ -9662,8 +9670,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         laguerre_fast!(dist_a, lag_arr)
 
                         if use_eam
-                            rho_th[a1, 1, id] += lag_arr[1] * cut_on
-                            rho_th[a1, 2, id] += lag_arr[2] * cut_on
+                            rho_th[a1, 1, id] += exp.(-1.5*dist_a) * cut_on
+                            rho_th[a1, 2, id] += exp.(-3.0*dist_a) * cut_on
                         end
 
                         core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
@@ -9701,7 +9709,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         
                         d = co.datH[co.inds[[t,t,:eam, sum2]]]
 #                        println("try to o $o  add d $(d)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-                        temp = d[1]*rho[a,1]^2 +  d[2]*rho[a,2]^2 + d[3]*rho[a,1]*rho[a,2]
+                        temp = d[1]*rho[a,1]^0.5 +  d[2]*rho[a,2]^0.5 + d[3]*(rho[a,1]*rho[a,2])^0.25
                         
                         H[ o, o, c_zero] += temp
                     end

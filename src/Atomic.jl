@@ -139,7 +139,7 @@ Hold basic atomic information
 - `U::Float64` U value for Ewald correction
 
 """
-struct atom
+mutable struct atom
     name::String
     Z::Int64
     row::Float64
@@ -153,6 +153,10 @@ struct atom
     eigs::Dict
     energy_offset::Float64
     U::Float64
+    voladj::Float64
+    semicore_orbitals::Array{Symbol,1}
+    semicore_eigs::Dict
+    energy_offset_semicore::Float64
 end
 
 
@@ -178,11 +182,18 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0)
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0; adj=0.0, semicore_orbitals=[], semicore_eigs=zeros(5))
     #vac potential in ryd
 
+#    adj = 0.0
+    
     orb2 = map(x->convert(Symbol, x), orbitals)
-
+    if nsemicore > 0
+        semicore_orb2 = map(x->convert(Symbol, x), semicore_orbitals)    
+    else
+        semicore_orb2 = Symbol[]
+    end
+    
     nwan = 0
 
     for o in orb2
@@ -198,49 +209,51 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
             exit("oribtal entry incorrect, good values are s p d f: ", orbitals, orb2)
         end
     end
-
+    println("eigs ", eigs)
     convert_ev_ryd = 1.0/13.605693122
     EIGS = zeros(Int64(nwan/2), 1)
     c=0
     for (i,o) in enumerate(orb2)
         if o == :s
             c+=1
-            EIGS[c,1] = eigs[i]*convert_ev_ryd
+            EIGS[c,1] = eigs[i]#*convert_ev_ryd
         elseif o == :p
             c += 3
-            EIGS[c-2,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-1,1] = eigs[i]*convert_ev_ryd
-            EIGS[c  ,1] = eigs[i]*convert_ev_ryd            
+            EIGS[c-2,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-1,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c  ,1] = eigs[i]#*convert_ev_ryd            
         elseif o == :d
             c += 5
 #            EIGS[c-5,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-4,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-3,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-2,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-1,1] = eigs[i]*convert_ev_ryd
-            EIGS[c  ,1] = eigs[i]*convert_ev_ryd            
+            EIGS[c-4,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-3,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-2,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-1,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c  ,1] = eigs[i]#*convert_ev_ryd            
         elseif o == :f
             c += 7
 #            EIGS[c-7,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-6,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-5,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-4,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-3,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-2,1] = eigs[i]*convert_ev_ryd
-            EIGS[c-1,1] = eigs[i]*convert_ev_ryd
-            EIGS[c  ,1] = eigs[i]*convert_ev_ryd            
+            EIGS[c-6,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-5,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-4,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-3,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-2,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c-1,1] = eigs[i]#*convert_ev_ryd
+            EIGS[c  ,1] = eigs[i]#*convert_ev_ryd            
         end
     end
     
 
     EIGS = EIGS .- vac_potential
 
-#    println("EIGS after subtraction")
-#    println(EIGS)
+    println("EIGS after subtraction")
+    println(EIGS)
 
     band_energy0, efermi = band_energy(EIGS, [1.0], nval, returnef=true)
     smear_energy = smearing_energy(EIGS, [1.0], efermi)
 
+
+    println("band_energy0 $band_energy0 efermi $efermi smear_energy $smear_energy")
 #    if name=="Ta"
 #        println("name $name")
 #        println("EIGS before subtraction")
@@ -255,6 +268,8 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 
     energy_offset = -(band_energy0+smear_energy)  #this is the atomic energy, no spin, after vac correction
 
+    print("name $name energy_offset $energy_offset band_energy0 $band_energy0 smear_energy $smear_energy")
+    
     if name == "X" || name == "Xa"
         energy_offset = 0.0
     end
@@ -263,6 +278,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 
     d = Dict()
 
+    #=
     for (o, i) in zip(orb2, eigs)
 #        d[o] = (i * convert_ev_ryd + shift)
         d[o] = (i * convert_ev_ryd - vac_potential)
@@ -278,13 +294,95 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
         
 #        println("d ", d[o], " ", o)
     end
+    =#
+    for (o, i) in zip(orb2, eigs)
+#        d[o] = (i * convert_ev_ryd + shift)
+        d[o] = (i  - vac_potential)
+        if o == :s
+            d[1] = (i  - vac_potential)
+        elseif o == :p
+            d[2] = (i  - vac_potential)
+        elseif o == :d
+            d[3] = (i  - vac_potential)
+        elseif o == :f
+            d[4] = (i  - vac_potential)
+        end
+        
+#        println("d ", d[o], " ", o)
+    end
 
+    dsemi = Dict()
+    for (o, i) in zip(semicore_orb2, semicore_eigs)
+#        d[o] = (i * convert_ev_ryd + shift)
+        dsemi[o] = (i  - vac_potential)
+        if o == :s
+            dsemi[1] = (i  - vac_potential)
+        elseif o == :p
+            dsemi[2] = (i  - vac_potential)
+        elseif o == :d
+            dsemi[3] = (i  - vac_potential)
+        elseif o == :f
+            dsemi[4] = (i  - vac_potential)
+        end
+        
+#        println("d ", d[o], " ", o)
+    end
+
+    if nsemicore > 0
+        SEMICORE_EIGS = zeros(Int64(nsemicore/2),1)
+        println("SEMICORE_EIGS start ", SEMICORE_EIGS)
+        
+        c=0
+        for (i,o) in enumerate(semicore_orb2)
+            if o == :s
+                c+=1
+                SEMICORE_EIGS[c,1] = semicore_eigs[i]#*convert_ev_ryd
+            elseif o == :p
+                c += 3
+                SEMICORE_EIGS[c-2,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-1,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c  ,1] = semicore_eigs[i]#*convert_ev_ryd            
+            elseif o == :d
+                c += 5
+                #            SEMICORE_EIGS[c-5,1] = eigs[i]*convert_ev_ryd
+                SEMICORE_EIGS[c-4,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-3,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-2,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-1,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c  ,1] = semicore_eigs[i]#*convert_ev_ryd            
+            elseif o == :f
+                c += 7
+                #            SEMICORE_EIGS[c-7,1] = semicore_eigs[i]*convert_ev_ryd
+                SEMICORE_EIGS[c-6,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-5,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-4,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-3,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-2,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c-1,1] = semicore_eigs[i]#*convert_ev_ryd
+                SEMICORE_EIGS[c  ,1] = semicore_eigs[i]#*convert_ev_ryd            
+            end
+        end
+        println("SEMICORE_EIGS after1 ", SEMICORE_EIGS)
+        
+
+        SEMICORE_EIGS = SEMICORE_EIGS .- vac_potential
+
+        println("SEMICORE_EIGS after2 ", SEMICORE_EIGS)
+
+
+        semi_band_energy0, efermi = band_energy(SEMICORE_EIGS, [1.0], nsemicore, 0.00001, returnef=true)
+        semi_band_energy0 = -semi_band_energy0
+        #smear_energy = smearing_energy(EIGS, [1.0], efermi)
+    else
+        semi_band_energy0 = 0.0
+    end
+    
 #    band_energy_new = band_energy(EIGS .- band_energy0 / nval , [1.0], nval)#
 #
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
     
-    
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U)
+    println("makeatom name $name adj $adj")
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0)
     
 end
     
