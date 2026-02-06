@@ -5,7 +5,7 @@ Fit tight binding using Laguere polynomials times decaying exponentials
 
 #using PyPlot
 using Plots
-using JLD
+#using JLD
 using LinearAlgebra
 #using Statistics
 using Optim
