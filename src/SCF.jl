@@ -99,7 +99,7 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
             return 0.0
         end
         energy_cl, err_flag = calc_energy_cl(c, database=database_classical)
-        return energy_cl, missing, missing, missing, missing, missing, err_flag, missing
+        return energy_cl, missing, missing, missing, missing, missing, missing, err_flag, missing
     end
     
     #println("calc tb")
@@ -247,9 +247,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             energy, efermi, eden, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
             #        energy, efermi, eden, VECTS, VALS =  calc_energy_charge_fft(tbc; grid=grid, smearing=smearing)
             #        error_flag = false
-            dq = get_dq(tbc.crys, eden)
+            dq, dq_eden = get_dq(tbc.crys, eden)
 
-            return energy, efermi, eden, dq, VECTS, VALS, error_flag, tbc
+            return energy, efermi, eden, dq, dq_eden, VECTS, VALS, error_flag, tbc
         end
 
         if verbose
@@ -276,7 +276,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             e_den0[2,:] = e_den0[2,:] - e_den0[2,:]*0.2
         end    
 
-        dq = get_dq(tbc.crys, e_den0)
+        dq, dq_eden = get_dq(tbc.crys, e_den0)
 
         #    println("before ", e_den0)
         if abs(sum(e_den0) - nspin* tbc.nelec/2.0 ) > 1e-5
@@ -377,7 +377,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         #    println("dq start", round.(dq; digits=2))
 
 
-        h1, dq = get_h1(tbc, e_den)
+        h1, dq, dq_eden = get_h1(tbc, e_den)
 
         Qpropose = deepcopy(dq)
     end
@@ -620,14 +620,14 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
             delta_eden = sum(abs.(e_den_NEW - e_denA))
             
-#            println("ewald dq $dq")
-            energy_charge, pot = ewald_energy(tbc, dq)
+            #            println("ewald dq $dq")
+            energy_charge = ewald_energy(tbc, eden=e_den_NEW)
 #            println("energy_charge, $energy_charge")
 
             if magnetic
-                energy_magnetic = magnetic_energy(tbc, e_denA)
+                energy_magnetic = magnetic_energy(tbc, e_den_NEW)
                 magmom_old = deepcopy(magmom)
-                magmom = sum(get_magmom(tbc, e_denA))
+                magmom = sum(get_magmom(tbc, e_den_NEW))
             else
                 energy_magnetic = 0.0
             end
@@ -962,11 +962,12 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
             tbc= make_tb_crys(tbc.tb, tbc.crys, tbc.nelec, tbc.dftenergy, scf=true, eden=e_den, gamma=tbc.gamma, background_charge_correction=tbc.background_charge_correction, within_fit=tbc.within_fit, tb_energy=energy_tot, fermi_energy=efermi)
         end
         
-        h1, dq = get_h1(tbc, e_den)
+        h1, dq, dq_eden = get_h1(tbc, e_den)
 
         tbc.tb.h1[:,:] = h1     #moar side effect
         tbc.tb.scf = true  #just double checking
         tbc.dq = dq #for convenience
+        tbc.dq_eden = dq_eden #for convenience
         tbc.tot_charge=-sum(dq) #for convenience
         
         if magnetic
@@ -989,7 +990,7 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
         
 #    println("FINAL error_flag ", error_flag)
     
-    return energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc
+    return energy_tot, efermi, e_den, dq, dq_eden, V, VALS, error_flag, tbc
 
 end
 
@@ -1188,15 +1189,16 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
         e_den = e_den_new
     end
 
-    h1, dq = get_h1(tbcK, e_den)
+    h1, dq, dq_eden = get_h1(tbcK, e_den)
     println("dq $dq")
     if tbcK.tb.nspin == 2
         h1spin = get_spin_h1(tbcK, e_den)
     else
         h1spin = zeros(2,tbcK.tb.nwan,tbcK.tb.nwan)
     end
-    
-    energy_charge, pot = ewald_energy(tbcK, dq)
+
+    println("input e_den ", size(e_den))
+    energy_charge = ewald_energy(tbcK, eden=e_den)
     println("tbcK.tb.nspin ", tbcK.tb.nspin)
     if tbcK.tb.nspin ==2
         energy_magnetic = magnetic_energy(tbcK, e_den)
@@ -1398,7 +1400,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
         e_den = e_den2
     end
 
-    h1, dq = get_h1(tbc, e_den)
+    h1, dq, dq_eden = get_h1(tbc, e_den)
     if tbc.nspin == 2
         h1spin = get_spin_h1(tbc, e_den)
     else
@@ -1411,7 +1413,7 @@ function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
 #    dq = zeros(size(dq))
 #    h1 = zeros(size(h1))
     
-    energy_charge, pot = ewald_energy(tbc, dq)
+    energy_charge = ewald_energy(tbc, eden=e_den)
     if tbc.nspin == 2
         energy_magnetic = magnetic_energy(tbc, e_den)
         println("en mag $energy_magnetic")

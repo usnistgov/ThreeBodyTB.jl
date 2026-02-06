@@ -99,6 +99,19 @@ function fitting_version_params(version=fitting_version_default)
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
 
+    elseif version == 7
+        n_2body = 6
+        n_2body_onsite = 6
+        n_2body_S = 6
+        n_3body = 8
+        n_3body_same = 5
+        n_3body_triple = 4
+        n_3body_onsite = 2
+        n_3body_onsite_same = 7
+        n_eam = 3
+
+        return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
+
     elseif version == 6
         n_2body = 5
         n_2body_onsite = 4
@@ -468,6 +481,8 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
 #    sort!(at_list)
 
     if  version == 4 || version == 5 || version == 99 || version == 51
+        totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam, version=version)
+    elseif  version == 7
         totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam, version=version)
     elseif  version == 6
         totH,totS, data_info, orbs = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version)

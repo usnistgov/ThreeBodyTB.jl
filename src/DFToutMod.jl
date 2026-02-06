@@ -115,6 +115,7 @@ mutable struct dftout
     bandenergy::Float64
     repelenergy::Float64
     degauss::Float64
+    directory::String
 end
 
 """
@@ -277,7 +278,7 @@ end
 
 Constructor for dftout. Usually called by function that loads DFT output files, not called directly.
 """
-function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; nspin=1, mag_tot = 0.0, mag_abs = 0.0, prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, exx=-1.0, hybrid=false, degauss=0.01)
+function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; nspin=1, mag_tot = 0.0, mag_abs = 0.0, prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, exx=-1.0, hybrid=false, degauss=0.01, directory="???????")
 """
 Creates a struct with the desired data
 """
@@ -350,7 +351,7 @@ Creates a struct with the desired data
 #        println("etypes $etypes from $(types_energy(crys)) and $(types_energy(crys, mode=:core))")
 #        println("atomize_energy $atomize_energy bandenergy $bandenergy etypes $etypes energy_shift $energy_shift energy_smear")
 
-        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy, degauss) #, missing, False, False)
+        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy, degauss, directory) #, missing, False, False)
     end    
 end
 
@@ -358,12 +359,12 @@ end
 """
     function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
 """
-function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0, hybrid=false, exx=-1.0, degauss=0.01)
+function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0, hybrid=false, exx=-1.0, degauss=0.01, directory="?????")
     c = makecrys(A,pos,types, units="Bohr")
     if ismissing(bandstruct)
-        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss)
+        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory)
     else
-        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss)
+        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory)
     end
 end
 

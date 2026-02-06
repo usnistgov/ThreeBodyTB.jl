@@ -33,16 +33,48 @@ using LoopVectorization
 
 Get values of `U` from `Atomdata`.
 """
-function getU(types)
+#function getU(types)
+#
+#    U = zeros(length(types))
+#    for (c,t) in enumerate(types)
+#        U[c] = atoms[t].U
+#    end
+#
+#    return U
+#
+#end
 
-    U = zeros(length(types))
-    for (c,t) in enumerate(types)
-        U[c] = atoms[t].U
+function getU(types, var_type=Float64)
+
+
+    ntot = 0
+    Usize = zeros(length(types))
+    for (i,t) in enumerate(types)
+        at1 = atoms[t ]
+        nw1 = Int64(at1.nwan/2)
+        ntot += nw1
+        Usize[i] += at1.U
     end
 
-    return U
+    U = zeros(var_type, ntot, ntot)
+
+    counter = 0
+    for t1 in types
+        at1 = atoms[t1 ]
+        nw1 = Int64(at1.nwan/2)
+        for i = 1:nw1
+            for j = 1:nw1
+                U[i+counter,j+counter] = at1.Umat[i,j]
+            end
+        end
+        counter += nw1
+    end
+    
+#    println("getU $U")
+    return U, Usize
 
 end
+
 
 """
     function get_onsite(crys::crystal, U::Array{Float64,1})
@@ -94,18 +126,16 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
 #    println("kappa ", kappa)
     
+    U, Usize = getU(crys.types)
+    U = U*screening
     if noU
-        println("noU - FOR TESTING")
-        U = zeros(Float64, crys.nat)
-    else
-        U = getU(crys.types)
-        U = U * screening
+        U .= 0.0
     end
 
     starting_size_rspace = 1
     starting_size_kspace = 1
 
-    gamma_onsiteU = get_onsite(crys, U)
+    #gamma_onsiteU = get_onsite(crys, U)
 
     T = typeof(crys.coords[1,1])
     gamma_rs = zeros(T, crys.nat, crys.nat)
@@ -154,8 +184,8 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
         println(gamma_k)
         println("gamma_self")
         println(gamma_self)
-        println("gamma_onsiteU")
-        println(gamma_onsiteU)
+#        println("gamma_onsiteU")
+#        println(gamma_onsiteU)
         println("gamma_U")
         println(gamma_U)
         println()
@@ -166,7 +196,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     #rydberg units
     e2 = 2.0
 
-    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) + gamma_onsiteU
+    gamma_tot = e2*(gamma_rs + gamma_k + gamma_self + gamma_U) #+ gamma_onsiteU
 
 
     
@@ -195,14 +225,37 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     
     if onlyU #for debugging
-        gamma_tot = gamma_onsiteU
+        gamma_tot_expand = U
+    else
+
+        gamma_tot_expand = U
+
+        o1 = 1
+        for i = 1:crys.nat
+            at1 = atoms[crys.types[i]  ]
+            nw1 = Int64(at1.nwan/2)
+            o2 = 1
+            for j = 1:crys.nat
+                at2 = atoms[crys.types[j]]
+                nw2 = Int64(at2.nwan/2)
+                for c1 = o1:o1+nw1-1
+                    for c2 = o2:o2+nw2-1
+                        gamma_tot_expand[c1,c2] += gamma_tot[i,j]
+                    end
+                end
+                o2 += nw2
+                
+            end
+            o1 += nw1
+        end
     end
 
+    
     #background_charge_correction = e2 * pi  / (2 * abs(det(crys.A)) * kappa^2)
     
     
     #   return gamma_tot, background_charge_correction
-    return gamma_tot, background_charge_correction
+    return gamma_tot_expand, background_charge_correction
 
 end
 

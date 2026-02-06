@@ -129,6 +129,8 @@ function setup_proto_data()
 
     CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-big", "nscf", false]
     CalcD["dimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybig", "nscf", false]
+    CalcD["dimer_charge_verybig2"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybig2", "nscf", false]
+    
     CalcD["trimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "trimer-charge-verybig", "nscf", false]
     CalcD["dimer_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-big", "nscf", false]
 
@@ -724,6 +726,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 18
         elseif newst == "dimer-charge-verybig"
             ncalc = 100
+        elseif newst == "dimer-charge-verybig2"
+            ncalc = 10
         elseif newst == "trimer-charge-verybig"
             ncalc = 65
         elseif newst == "dimer-big"
@@ -1274,7 +1278,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
                 for charge = [0.0, 0.1]
                     for x in [0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 2.0]
-                        c = makecrys(A, [0 0 0;  0 0 d; (d+d*x) 0 0], t)
+                        c = makecrys(A, [0 0 0;  0 0 d; 0 0 (d+d*x) ], t)
                         push!(torun, deepcopy(c))
                         push!(tot_charge, charge)
                     end
@@ -1314,6 +1318,33 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     #                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.02:1.18, 1.2:0.05:1.45, 1.5:0.05:2.45, 2.5:0.25:4.0)
                     for x in vcat(0.65:0.05:1.2, 1.25:0.1:2.0, 2.25:0.25:4.0 )
 
+                        c = deepcopy(cnew)
+                        c.coords[1,3] =  0.5 - dist/2 * x
+                        c.coords[2,3] =  0.5 + dist/2 * x
+                        if c.coords[1,3] < 0.25
+                            c.coords[1,3] =  0.25
+                            c.coords[2,3] =  0.75
+                            push!(torun, deepcopy(c))
+                            push!(tot_charge, charge)
+                            break
+                        end                            
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+
+
+            elseif newst == "dimer-charge-verybig2"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                A = [25 0 0; 0 25 0; 0 0 25.0]
+                for charge = [0.0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25]
+                    c = makecrys(A, [0.0 0.0 0.0], [cnew.stypes[1]])
+                    push!(torun, deepcopy(c))
+                    push!(tot_charge, charge)
+                end
+                for charge = [0.05, 0.15, 0.25]
+                    for x in [0.95, 1.0, 1.1]
                         c = deepcopy(cnew)
                         c.coords[1,3] =  0.5 - dist/2 * x
                         c.coords[2,3] =  0.5 + dist/2 * x

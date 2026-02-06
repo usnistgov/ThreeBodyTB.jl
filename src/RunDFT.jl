@@ -94,7 +94,8 @@ Run SCF calculation using QE
 """
     println("runSCF hybrid ", hybrid)
     qeout = []
-#    println("runSCF 1")
+    #    println("runSCF 1")
+    
     if skip == true
         try
             savedir="$tmpdir/$prefix.save"
@@ -738,8 +739,11 @@ function loadXML(savedir)
     if exx > 1e-5 && hybrid == false
         println("warning, exx $exx hybrid $hybrid makes no sense")
     end
-    
-    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss)
+
+    if occursin(savedir, "qe.save")
+        savedir=replace(savedir, "qe.save" => "")
+    end
+    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=savedir)
 
 #    println("end loadXML")
 

@@ -569,7 +569,7 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         end
     end
     
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse)
+    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse)
 
     conv_flag = !error_flag
     if do_tb
@@ -624,7 +624,7 @@ function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missin
     end
         
     
-    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym, database_classical=database_classical)
+    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(tbc; smearing=smearing, grid = grid, e_den0 = e_den0, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, tot_charge=missing, use_sym=use_sym, database_classical=database_classical)
     println()
     println("Formation energy: " , round(convert_energy(get_formation_energy(energy_tot, tbc.crys)), digits=3) , " $global_energy_units/atom" )
     println()

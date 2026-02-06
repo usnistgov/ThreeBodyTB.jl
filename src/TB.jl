@@ -179,6 +179,7 @@ mutable struct tb_crys_dense{T} <: tb_crys
     nspin::Int64
     tot_charge::Float64
     dq::Array{Float64,1}
+    dq_eden::Array{Float64,1}
 end
 
 
@@ -198,7 +199,7 @@ Base.show(io::IO, x::tb_crys_dense) = begin
     println(io, "calculated energy: ", round(convert_energy(x.energy)*1000)/1000, " $global_energy_units")
     println(io, "formation energy: ", round(convert_energy(get_formation_energy(x.energy, x.crys)), digits=3), " $global_energy_units")
     println(io,"efermi  : ", round(convert_energy(x.efermi)*1000)/1000, " $global_energy_units")
-    dq = get_dq(x)
+    dq, dq_eden = get_dq(x)
     println(io, "charges : ", round.(dq * 100)/100)
     if size(x.eden)[1] == 2
         mm = get_magmom(x)
@@ -297,7 +298,8 @@ mutable struct tb_crys_kspace{T}
     eden::Array{Float64,2}
     energy::Float64
     efermi::Float64
-    
+    dq::Array{Float64, 1}
+    dq_eden::Array{Float64, 1}
 end
 
 
@@ -1050,7 +1052,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
 #        println("start eden ", eden)
     end
 
-    dq = get_dq(crys, eden)
+    dq, dq_eden = get_dq(crys, eden)
     tot_charge = -sum(dq)
     
     
@@ -1068,7 +1070,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
     
-    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, dq_eden)
 end
 
 """
@@ -1082,11 +1084,14 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
     
     T = typeof(crys.coords[1,1])
 
+    run=false
     if ismissing(eden)
+        run=true
         if scf == false
-            eden = zeros(nspin, hamk.nwan)
+#            eden = zeros(nspin, hamk.nwan)
+            eden = get_neutral_eden(crys, hamk.nwan, nspin=nspin)            
         else
-            t = get_neutral_eden(crys, hamk.nwan, nspin=nspin)
+            eden = get_neutral_eden(crys, hamk.nwan, nspin=nspin)
             #            eden = zeros(nspin, hamk.nwan)
             #            if nspin == 1
             #                eden[1,:] = t
@@ -1096,23 +1101,22 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
             #            end
 
         end
+        
     end
     
     if ismissing(gamma) 
         gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
     end
+
+    dq, dq_eden = get_dq(crys, eden)
+
+    tbcK = tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0, efermi, dq, dq_eden)
+
+    if run
+        get_energy_electron_density_kspace(tbcK)
+    end
     
-    #    println(hamk)
-    #    println(crys)
-    #    println(nelec)
-    #    println(nspin)
-    #    println(dftenergy)
-    #    println(scf)
-    #    println(gamma)
-    #    println(eden)
-    #    println(size(gamma))
-    #    println(size(eden))
-    return tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0, efermi)
+    return tbcK
 end
 
 
@@ -2998,7 +3002,7 @@ function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
 
     if tbc.scf
         h1 = tbc.tb.h1
-        echarge, pot = ewald_energy(tbc)
+        echarge = ewald_energy(tbc)
     else
         h1 = missing
         echarge = 0.0
@@ -3156,7 +3160,7 @@ function calc_energy(h::tb_crys_dense, kgrid; smearing=0.01, returnk=false)
 
     etypes = types_energy(h.crys)
     if h.scf
-        energy_charge, pot = ewald_energy(h)
+        energy_charge = ewald_energy(h)
     else
         energy_charge = 0.0
     end
@@ -3999,28 +4003,34 @@ end
      Return ewald energy term from tbc. If `delta_q`, the atomic charge density, is missing,
      loads from `tbc`.
      """
-function ewald_energy(tbc::tb_crys, delta_q=missing)
+function ewald_energy(tbc::tb_crys; dq=missing, dq_eden = missing, eden=missing)
 
     #if tbc.scf == false
     #    return 0.0, zeros(tbc.crys.nat, tbc.crys.nat)
     #end
     
+    
     background_charge_correction = tbc.background_charge_correction
     gamma = tbc.gamma 
     crys = tbc.crys
-
-    if ismissing(delta_q)
-        delta_q =  get_dq(crys , tbc.eden)
+    if !ismissing(eden)
+        dq,dq_eden  = get_dq(tbc.crys, eden)
+    end
+    if ismissing(dq)
+        dq = tbc.dq
+    end
+    if ismissing(dq_eden)
+        dq_eden = tbc.dq_eden
     end
 
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
+    return ewald_energy(crys, gamma, background_charge_correction, dq, dq_eden)
 
 end
 
 """
          function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
      """
-function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
+function ewald_energy(tbc::tb_crys_kspace; dq=missing, dq_eden=missing, eden=missing)
 
     
     
@@ -4032,11 +4042,17 @@ function ewald_energy(tbc::tb_crys_kspace, delta_q=missing)
     gamma = tbc.gamma 
     crys = tbc.crys
 
-    if ismissing(delta_q)
-        delta_q =  get_dq(crys , sum(tbc.eden, dims=1))
+    if !ismissing(eden)
+        dq,dq_eden  = get_dq(tbc.crys, eden)
     end
-    #     println("asdf ", typeof(crys), " " , typeof(gamma), " " , typeof(delta_q))
-    return ewald_energy(crys, gamma, background_charge_correction, delta_q)
+    if ismissing(dq)
+        dq = tbc.dq
+    end
+    if ismissing(dq_eden)
+        dq_eden = tbc.dq_eden
+    end
+    println("size ", size(gamma),  " ", size(dq), " " , size(dq_eden))
+    return ewald_energy(crys, gamma, background_charge_correction, dq, dq_eden)
 
 end
 
@@ -4045,16 +4061,23 @@ end
 
      Does the actual calculation.
      """
-function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1})
+function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q::Array{Float64,1}, delta_q_eden::Array{Float64,1})
 
     T = typeof(crys.coords[1,1])
-    pot = zeros(T, crys.nat, crys.nat)
-
-    for i = 1:crys.nat
-        for j = 1:crys.nat
-            pot[i,j] = gamma[i,j] * delta_q[i] * delta_q[j] 
+    pot = zero(typeof(crys.coords[1,1]))
+    
+    nwan = length(delta_q_eden)
+    for i = 1:nwan
+        for j = 1:nwan
+            pot += gamma[i,j] * delta_q_eden[i] * delta_q_eden[j]
         end
     end
+
+#    for i = 1:crys.nat
+#        for j = 1:crys.nat
+#            pot[i,j] = gamma[i,j] * delta_q[i] * delta_q[j] 
+#        end
+#    end
 
 
     energy = 0.5*sum(pot)
@@ -4063,7 +4086,7 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
 
-    return energy, pot
+    return energy
 
 end
 
@@ -4081,7 +4104,148 @@ end
 """
          function get_neutral_eden(crys::crystal, nwan=missing)
      """
-function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
+
+function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true, dq_list = missing, old_version = false)
+
+#    println("get_neutral_edenget_neutral_edenget_neutral_eden")
+    
+    if ismissing(nwan)
+        ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+        nwan = length(keys(ind2orb))
+    end
+
+    
+    eden = zeros(nspin, nwan)
+    total = 0.0
+    for sp in 1:nspin
+
+        counter = 0
+        for (i, t) in enumerate(crys.types)
+            
+            at = atoms[t]
+            total += at.nval
+            if !ismissing(dq_list)
+                z_ion = at.nval + dq_list[i]
+                if z_ion < 0.0
+                    z_ion = 0.000000000000001
+                end
+            else
+                z_ion = at.nval
+            end
+
+#            println("z_ion $i $z_ion")
+            
+            nwan = at.nwan
+            if !old_version
+
+                eden[sp, (counter+1): (counter + Int64(at.nwan/2))] = at.neutral_occ
+                counter += Int64(at.nwan/2)
+
+            else #old_version
+                
+                if nspin == 1
+                    still_needA = [z_ion]
+                else
+                    if magnetic
+                        if z_ion == 1 || nwan - z_ion == 1.0  #FM high spin magnetic heuristic
+                            still_needA = [z_ion + 0.5, z_ion-0.5]
+                        elseif z_ion == 2 || nwan - z_ion == 2.0  #FM high spin magnetic heuristic
+                            still_needA = [z_ion + 1.01, z_ion-1.01]
+                        else
+                            still_needA = [z_ion + 1.8, z_ion-1.8]
+                        end
+                    else
+                        still_needA = [z_ion , z_ion] #two spins but non-magnetic for some reason
+                    end
+
+                end
+
+                still_need = still_needA[sp]
+                for o in at.orbitals
+                    if o == :s
+                        counter += 1
+                        if still_need <= 2.0 && still_need > 1e-5
+                            eden[sp, counter] = still_need/2.0
+                            still_need = 0.0
+                        elseif still_need >= 2.0 && still_need > 1e-5
+                            eden[sp, counter] = 1.0
+                            still_need = still_need - 2.0
+                        else
+                            counter += 1
+                        end
+                    elseif o == :p
+                        #                println("p")
+                        if still_need <= 6.0 && still_need > 1e-5
+                            eden[sp, counter+1] = (still_need/2.0)/3.0
+                            eden[sp, counter+2] = (still_need/2.0)/3.0
+                            eden[sp, counter+3] = (still_need/2.0)/3.0
+                            still_need = 0.0
+                            counter += 3
+                        elseif still_need >= 6.0 && still_need > 1e-5
+                            eden[sp, counter+1] = 1.0
+                            eden[sp, counter+2] = 1.0
+                            eden[sp, counter+3] = 1.0
+                            still_need = still_need - 6.0
+                            counter += 3
+                        else
+                            counter += 3
+                        end
+                    elseif  o == :d
+                        if still_need <= 10.0 && still_need > 1e-5
+                            eden[sp, counter+1] = (still_need/2.0)/5.0
+                            eden[sp, counter+2] = (still_need/2.0)/5.0
+                            eden[sp, counter+3] = (still_need/2.0)/5.0
+                            eden[sp, counter+4] = (still_need/2.0)/5.0
+                            eden[sp, counter+5] = (still_need/2.0)/5.0
+                            still_need = 0.0
+                            counter += 5
+                        elseif still_need >= 10.0 && still_need > 1e-5
+                            eden[sp, counter+1] = 1.0
+                            eden[sp, counter+2] = 1.0
+                            eden[sp, counter+3] = 1.0
+                            eden[sp, counter+4] = 1.0
+                            eden[sp, counter+5] = 1.0
+                            still_need = still_need - 10.0
+                            counter += 5
+                        else
+                            counter += 5
+                        end
+                    else
+                        println("bad orbital get_neutral_eden $o")
+                    end
+                end
+            end
+            
+        end
+    end
+
+    if nspin == 2 && !old_version
+        for i = 1:size(eden,2)
+            if eden[1,i] > 0.2 && eden[1,i] < 0.8
+                eden[1,i] += 0.19
+                eden[2,i] -= 0.19
+            elseif eden[1,i] > 0.04999999 && eden[1,i] < (1 - 0.04999999)
+                eden[1,i] += 0.04999999
+                eden[2,i] -= 0.04999999
+            end
+        end
+    end
+        
+    
+#    println("total $total sum eden $(sum(eden))")
+    if nspin == 1
+        eden = eden .- (sum(eden) - total/2.0) / size(eden,2) 
+    elseif nspin == 2
+
+        eden = eden .- (sum(eden[:]) - total/2)  / size(eden,2) / 2
+    end
+        #eden = eden .- sum(total) / nspin / size(eden,2) / 2.0
+    
+    return eden
+
+end
+
+#=function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
 
     if ismissing(nwan)
         ind2orb, orb2ind, etotal, nval = orbital_index(crys)
@@ -4175,6 +4339,7 @@ function get_neutral_eden(crys::crystal, nwan=missing; nspin=1, magnetic=true)
     return eden
 
 end
+=#
 
 """
          function get_dq(tbc::tb_crys_kspace)
@@ -4183,6 +4348,14 @@ end
      """
 function get_dq(tbc::tb_crys_kspace)
     return get_dq(tbc.crys, tbc.eden)
+end
+
+function get_dq(tbc::tb_crys_kspace, eden::Array{Float64, 2})
+    return get_dq(tbc.crys, eden)
+end
+
+function get_dq(tbc::tb_crys, eden::Array{Float64, 2})
+    return get_dq(tbc.crys, eden)
 end
 
 
@@ -4198,37 +4371,31 @@ end
      """
 function get_dq(crys::crystal, chargeden::Array{Float64,2})
 
+#    println("get_dq $chargeden")
+    
     nspin = size(chargeden)[1]
 
-    e_den = zeros(Float64, crys.nat)
-    z_ion = zeros(Float64, crys.nat)
+    if size(chargeden)[1] == 1
+        e_den = chargeden*2.0
+    else
+        e_den = sum(chargeden, dims=1)[:]
+    end
+        
+    eden_neutral = get_neutral_eden(crys)
 
-    for spin = 1:nspin
-        counter = 0
-        for (i, t) in enumerate(crys.types)
-            at = atoms[t]
-            z_ion[i] = at.nval
-            for o = 1:Int64(at.nwan/2)
-                counter += 1
-                e_den[i] += chargeden[spin,counter] 
-            end
+    dq_eden = e_den[:] - eden_neutral[:] * 2.0
+
+    dq = zeros(crys.nat)
+    counter = 0
+    for (i,t) in enumerate(crys.stypes)
+        for a = 1:Int64(atoms[t].nwan/2)
+            dq[i] += dq_eden[counter + a]
         end
-    end
-    if nspin == 1
-        e_den = e_den * 2.0
+        counter += Int64(atoms[t].nwan / 2)
     end
 
-    
-    dq = -z_ion + e_den
-
-    #dq = dq .- sum(dq)/crys.nat #charge sum rule
-
-    #    println("e_den ", e_den)
-    #    println("z_ion ", z_ion)
-    #    println("dq ", dq)
-
-
-    return dq
+#    println("get_dq sizes ", size(dq), " " , size(dq_eden) )
+    return dq, dq_eden
 
 end
 
@@ -4247,19 +4414,71 @@ end
      """
 function get_h1(tbc, chargeden::Array{Float64,2})
 
-    dq = get_dq(tbc.crys, chargeden)
-    h1 = get_h1_dq(tbc,dq)
-    return h1, dq
+    dq, dq_eden = get_dq(tbc.crys, chargeden)
+    h1 = get_h1_dq(tbc,dq,dq_eden)
+    return h1, dq, dq_eden
 end
                       
-function get_h1_dq(tbc, dq::Array{Float64,1})
+function get_h1_dq(tbc, dq::Array{Float64,1}, dq_eden::Array{Float64,1})
     
 
-    return get_h1_dq(tbc.crys, dq, tbc.gamma)
+    return get_h1_dq(tbc.crys, dq, dq_eden, tbc.gamma)
 
 end
 
-function get_h1_dq(crys::crystal, dq::Array{Float64,1}, gamma::Array{Float64,2})
+function get_h1_dq(crys, dq::Array{Float64,1}, dq_eden::Array{Float64,1}, gamma::Array{Float64, 2})
+
+    #    println("u3 $u3")
+#    println("gamma $gamma")    
+#    println("size gamma $(size(gamma)) dq_eden $(size(dq_eden))")
+    nwan= length(dq_eden)
+    epsilon = gamma * dq_eden
+
+    h1 = zeros(Complex{Float64}, nwan, nwan)
+    o1 = 1
+    for i = 1:crys.nat
+        at1 = atoms[crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:crys.nat
+            at2 = atoms[crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+                    h1[c1,c2] += 0.5 * (epsilon[c1] + epsilon[c2])
+                end
+            end
+            o2 += nw2
+
+        end
+        o1 += nw1
+    end
+
+#=    h1 = 0.5*(h1 + h1')
+    o1 = 1
+    for i = 1:crys.nat
+        at1 = atoms[crys.types[i]  ]
+        nw1 = Int64(at1.nwan/2)
+        o2 = 1
+        for j = 1:crys.nat
+            at2 = atoms[crys.types[j]]
+            nw2 = Int64(at2.nwan/2)
+            for c1 = o1:o1+nw1-1
+                for c2 = o2:o2+nw2-1
+#                    println("i $i j $j size $(size(dq)) $(size(u3))")
+                    h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
+                end
+            end
+            o2 += nw2
+        end
+        o1 += nw1
+    end
+=#
+    
+    return h1  ###xxxyyy
+
+end
+#=function get_h1_dq(crys::crystal, dq::Array{Float64,1}, dq_eden::Array{Float64,1}, gamma::Array{Float64,2})
     
 
 
@@ -4295,7 +4514,7 @@ function get_h1_dq(crys::crystal, dq::Array{Float64,1}, gamma::Array{Float64,2})
     return 0.5*(h1 + h1')
 
 end
-
+=#
 
 """
          function get_h1(tbc::tb_crys_kspace)
@@ -4309,11 +4528,12 @@ end
      """
 function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
 
-    dq = get_dq(tbc.crys, chargeden)
+    dq, dq_eden = get_dq(tbc.crys, chargeden)
 
     gamma = tbc.gamma
-
-    epsilon = gamma * dq
+    #u3 = tbc.u3
+    
+    epsilon = gamma * dq_eden[:]
 
     h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
     o1 = 1
@@ -4326,7 +4546,7 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
             nw2 = Int64(at2.nwan/2)
             for c1 = o1:o1+nw1-1
                 for c2 = o2:o2+nw2-1
-                    h1[c1,c2] = 0.5 * (epsilon[i] + epsilon[j])
+                    h1[c1,c2] = 0.5 * (epsilon[c1] + epsilon[c2])
                 end
             end
             o2 += nw2
@@ -4335,7 +4555,55 @@ function get_h1(tbc::tb_crys_kspace, chargeden::Array{Float64,2})
         o1 += nw1
     end
 
-    return 0.5*(h1 + h1'), dq
+#    h1 = 0.5*(h1 + h1')
+#    o1 = 1
+#    for i = 1:tbc.crys.nat
+#        at1 = atoms[tbc.crys.types[i]  ]
+#        nw1 = Int64(at1.nwan/2)
+#        o2 = 1
+#        for j = 1:tbc.crys.nat
+#            at2 = atoms[tbc.crys.types[j]]
+#            nw2 = Int64(at2.nwan/2)
+#            for c1 = o1:o1+nw1-1
+#                for c2 = o2:o2+nw2-1
+#                    h1[c1,c2] += 0.5*u3[i]*dq[i]^2 + 0.5*u3[j]*dq[j]^2
+#                end
+#            end
+#            o2 += nw2
+#        end
+#        o1 += nw1
+#    end
+
+
+    
+    return  0.5*(h1 + h1'), dq , dq_eden[:]
+
+    #    dq, dq_eden = get_dq(tbc.crys, chargeden)
+#    gamma = tbc.gamma
+
+#    epsilon = gamma * dq_eden
+
+#    h1 = zeros(Complex{Float64}, tbc.tb.nwan, tbc.tb.nwan)
+#    o1 = 1
+#    for i = 1:tbc.crys.nat
+#        at1 = atoms[tbc.crys.types[i]  ]
+#        nw1 = Int64(at1.nwan/2)
+#        o2 = 1
+#        for j = 1:tbc.crys.nat
+#            at2 = atoms[tbc.crys.types[j]]
+#            nw2 = Int64(at2.nwan/2)
+#            for c1 = o1:o1+nw1-1
+#                for c2 = o2:o2+nw2-1
+#                    h1[c1,c2] = 0.5 * (epsilon[i] + epsilon[j])
+#                end
+#            end
+#            o2 += nw2
+#
+#        end
+#        o1 += nw1
+#    end
+#
+#    return 0.5*(h1 + h1'), dq
 
 end
 
@@ -4545,10 +4813,14 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
         tbcK.eden[1,:] = eden[1,:]
         tbcK.eden[2,:] = eden[2,:]
     end
+
+    dq, dq_eden = get_dq(tbcK)
+    tbcK.dq[:] = dq[:]
+    tbcK.dq_eden[:] = dq_eden[:]
     
     if tbcK.scf
         #        h1 = tbc.tb.h1
-        echarge, _ = ewald_energy(tbcK)
+        echarge = ewald_energy(tbcK)
     else
         #        h1 = missing
         echarge = 0.0
@@ -4645,8 +4917,8 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
     for scf = 1:n_scf
 #        println("scf $scf")
         if use_scf && !ismissing(crys) && !ismissing(gamma) 
-            dq = get_dq(crys, eden)
-            h1 = get_h1_dq(crys, dq, gamma)
+            dq, dq_eden = get_dq(crys, eden)
+            h1 = get_h1_dq(crys, dq, dq_eden, gamma)
             tb_k.h1 = h1
 #            println("update h1 ", h1)
         end
@@ -5177,8 +5449,8 @@ function align_potentials(tbc1, tbc2)
         dist1 = get_dist(defect, tbc1.crys)
         dist2 = get_dist(defect, tbc2.crys)
         
-        potential1 = tbc1.gamma * tbc1.dq
-        potential2 = tbc2.gamma * tbc2.dq
+        potential1 = tbc1.gamma * tbc1.dq_eden
+        potential2 = tbc2.gamma * tbc2.dq_eden
 
         scatter(dist1, potential1, label="tbc1")
         scatter!(dist2, potential2, label="tbc2")

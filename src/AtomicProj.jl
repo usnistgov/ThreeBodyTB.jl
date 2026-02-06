@@ -437,7 +437,7 @@ Starting from a converged QE scf calculation...
 - `only_kspace=false` Do not create real-space tb. Usually true in current code, as I can fit directly from k-space tb only.
 - `screening = 1.0` If use a screening factor to reduce value of U in Ewald calculation. Usually leave at 1.0.
 """
-function projwfc_workf(dft::dftout; directory="./", nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false)
+function projwfc_workf(dft::dftout; directory="./", nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false, refuse_nscf=false)
 """
 
 Steps:
@@ -465,6 +465,10 @@ Steps:
     
     if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))  #change
 
+        if refuse_nscf
+            return false
+        end
+        
         dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace, gamma_only=gamma_only)
 
 #        println("DO COPY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! kfg")
@@ -1067,7 +1071,7 @@ Does the main creation of TB hamiltonian from DFT projection data in k-space.
 """
 function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true)
 
-
+    println("create_tb XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
@@ -1340,6 +1344,10 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
                     nxxx = size(PROJECTABILITY)[3]
                     val_pw = EIGS[k,1:nxxx, spin]
+
+                    if k == 1
+                        println("EIGS ", EIGS[k,1:nxxx, spin])
+                    end
                     
                     order = Dict()
                     
@@ -1412,6 +1420,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     #acutally do the change
                     for n in 1:nwan
                         if val_pw[order[n]] < energy_froz
+                            if k == 1
+                                println("case 1 $n ", val_pw[order[n]])
+                            end
                             val_tb_new[n] = val_pw[order[n]]
                             #elseif val_pw[order[n]] < energy_froz2
                         else
@@ -1419,11 +1430,23 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                             x = PROJECTABILITY[spin,k,order[n]]
                             #      if x > 0.1
                             #x = x^2
+                            if k == 1
+                                println("case 2 $n x $x val ", val_pw[order[n]] * x + val_tb[n]*(1.0-x))
+                            end
+                            
                             val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+
+                            
                             #                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
                             #      end
                         end
                         
+                    end
+
+                    if k == 1
+                        println()
+                        println("val_tb_new ", val_tb_new, " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                        println()                        
                     end
 
                     #resym
@@ -1439,7 +1462,6 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                             val_tb_new[c] .= t
                         end
                     end
-                    
                     ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
                     ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
                     val_tb_new, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
@@ -1448,8 +1470,17 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             end
         end
     end
+    println()
+    println("do freeze 1 ")
+    println()
     do_freeze()
+    println()
+    println("do freeze 2 ")
+    println()
     do_freeze()
+    println()
+    println("do freeze 3 ")
+    println()
     do_freeze()
     
     #alternate eigenvalue fix method.

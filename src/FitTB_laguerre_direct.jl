@@ -6,6 +6,30 @@ using ..TB:get_h1_dq
 using ..Symmetry:get_symmetry
 using ..Symmetry:symmetrize_charge_den
 
+
+
+function eig_norm(vals, kweights, energy, occ)
+
+    nk = length(vals)[1]
+    nspin = length(vals)[3]
+    nbnd = legnth(vals)[2]
+    etot = 0.0
+    nelec = 0.0
+    for spin = 1:nspin
+        for k = 1:nk
+            for n = 1:nbnd
+                etot += kweights[k]*vals[k,n,spin] * occ[k,n,spin]
+                nelec += kweights[k]*occ[k,n,spin]
+            end
+        end
+    end
+    norm = (etot - energy ) / (nelec + 1e-12)
+
+    return norm
+    
+end
+
+
 function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max = 0)
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
@@ -111,12 +135,14 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     H1     = zeros(NCALC, NWAN_MAX, NWAN_MAX)
     H1spin     = zeros(NCALC, 2, NWAN_MAX, NWAN_MAX)
     DQ     = zeros(NCALC, NAT_MAX)
+    DQ_EDEN     = zeros(NCALC, NWAN_MAX)
 
     ENERGY_SMEAR = zeros(NCALC)
 
     OCCS     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
     WEIGHTS     = zeros(NCALC,  nk_max, NWAN_MAX, SPIN_MAX)
     ENERGIES = zeros(NCALC)
+    SHIFTS = zeros(NCALC)    
 
     Ys = Ys_new + Xc_Snew_BIG
     X_Snew_BIG = nothing
@@ -214,7 +240,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 #        println("nk $nk")
 #        println(kpoints)
 
-        println("xx")
+        println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
         vects_arr = zeros(Complex{Float64}, nk, nw, nw, spin)
         s_arr = zeros(Complex{Float64}, nk, nw, nw)
@@ -304,21 +330,23 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
             println("tbc.eden ", tbc.eden)
-            eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            eden, h1, dq, dq_eden, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             println("E_DEN new ", eden)
             H1[c,1:nw, 1:nw] = tbc.tb.h1
-            DQ[c,1:tbc.crys.nat] = get_dq(tbc)
+            DQ[c,1:tbc.crys.nat] = dq
+            DQ_EDEN[c,1:nw] = dq_eden
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
 
         end
         if !ismissing(tbc) && typeof(tbc) == tb_crys_kspace{Float64}
-            eden, h1, dq, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            eden, h1, dq, dq_eden, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
 #            println("x ", tbc.tb.h1)
             
             H1[c,1:nw, 1:nw] = tbc.tb.h1
-            DQ[c,1:tbc.crys.nat] = get_dq(tbc)
+            DQ[c,1:tbc.crys.nat] = dq
+            DQ_EDEN[c,1:nw] = dq_eden
 #            println("SIZE tbc.tb.h1spin ", size(tbc.tb.h1spin))
             H1spin[c,:,1:nw, 1:nw] = tbc.tb.h1spin
         end
@@ -333,7 +361,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -357,6 +385,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
             
             shift_value = (energy_charge + energy_band - energy_band_vals)/nval
             println("shift_value c $c = $shift_value")
+            SHIFTS[c] = shift_value            
             
         else
             ENERGIES[c] = etot_dft - etotal_atoms
@@ -367,6 +396,8 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
         OCCS[c, 1:nk,1:nw, 1:nspin] = occs
 
+
+        
         if true
 
             nweight = min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)
@@ -433,13 +464,13 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     println("REFERENCE ENERGIES ")
 
     for c = 1:NCALC
-        println(ENERGIES[c], "  $c   ", DQ[c,:]  ,  "    EDEN ", E_DEN[c,1, :][:], " sum ", sum(E_DEN[c,1, :][:]), " NVAL ", NVAL[c] )
+        println(ENERGIES[c], "  $c   ", DQ[c,:]  ,  "    EDEN ", E_DEN[c,1, :][:], " sum ", sum(E_DEN[c,1, :][:]), " NVAL ", NVAL[c], " SHIFT ", SHIFTS[c] )
     end
     println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
 #    return 
 
-    return list_of_tbcs_new,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT , SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref
+    return list_of_tbcs_new,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT , SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS
 
 end
 
@@ -518,7 +549,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #    println("cs_lin ", cs_lin)
 #    return missing
     
-    list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref =
+    list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS =
         topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max)
 
     SSS = []
@@ -656,11 +687,13 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             if scf
 #                h1 = deepcopy(H1[c,1:nw,1:nw])
                 dq = deepcopy(DQ[c,1:tbc.crys.nat])
-                h1 = get_h1_dq(tbc, dq)
+                dq_eden = deepcopy(DQ_EDEN[c,1:nw])
+                h1 = get_h1_dq(tbc, dq, dq_eden)
 
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
+                dq_eden = zeros(nw)
             end
             if tbc.tb.scfspin
                 h1spin = deepcopy(H1spin[c,:,1:nw,1:nw])
@@ -783,6 +816,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             conv = false
 
             mix = 0.5
+
+            eden =  deepcopy(EDEN_FITTED[c, 1:tbc.nspin,1:nw])
             
             for c_scf = 1:niter_scf
                 #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
@@ -826,23 +861,22 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
 
-                    eden, h1_new, dq_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
+                    eden_new, h1_new, dq_new, dq_eden_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
 
+                    
                     if use_sym
                         for spin =1:tbc.tb.nspin
                             eden[spin,:] = symmetrize_charge_den(tbc.crys, eden[spin,:] , SSS[c], ATOMTRANS[c], ORB2IND[c])
                         end
-                        h1_new, dq_new = get_h1(tbc, eden)
+                        h1_new, dq_new, dq_eden_new = get_h1(tbc, eden)
                         if tbc.tb.nspin > 1
                             h1spin_new = get_spin_h1(tbc, eden)
                         end
                     end
-                    
-                    #                    println("EDEN DDDDDDDDDD ", eden)
+                    eden = (1 - mix) * eden + mix * eden_new
 
-                    #if solve_self_consistently
                     EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
-                    #end
+
                     
                     s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], dims=[2,3])
                     energy_band = sum(s1 .* kweights) #/ tbc.tb.nspin
@@ -857,25 +891,13 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #                    h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                     if solve_self_consistently == true
-                    #if false
-
-                        dq = dq*(1-mix) + dq_new * mix
-                        
-                        #h1 = h1*(1-mix) + h1_new * mix
-#                        h1spin = h1spin*(1-mix) + h1spin_new * mix
-
-
-#                    else
-#                        h1 .= 0.0
-#                        h1spin .= 0.0
-#                        energy_charge = 0.0
-#                        energy_magnetic = 0.0
+                        dq, dq_eden = get_dq(tbc, eden)
                     end
 
-                    h1 = get_h1_dq(tbc, dq)
+                    h1 = get_h1_dq(tbc, dq, dq_eden)
                     
                     if scf
-                        energy_charge, pot = ewald_energy(tbc, dq)
+                        energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -893,9 +915,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     
                     #                    println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
 
-#                    if c == 5
-#                        println("c $c   $c_scf mix $mix energy_new $energy_new energy_old $energy_old diff $(abs(energy_new  - energy_old))  dq $dq")
-#                    end
+                    if c == 1
+                        println("c $c   $c_scf mix $mix energy_new $energy_new energy_old $energy_old diff $(abs(energy_new  - energy_old))  dq $dq")
+                    end
                     if (abs(energy_new  - energy_old) < 1e-4 && c_scf >= 2) ||  (abs(energy_new  - energy_old) < 1e-3 && c_scf >= 20) 
                         #                        println("scf converged  $c ", energy_new+etypes, "    $dq " )
                         conv = true
@@ -917,6 +939,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #                dq = (dq + DQ[c,1:tbc.crys.nat]) / 2.0
 
                 DQ[c,1:tbc.crys.nat] = dq
+                DQ_EDEN[c,1:nw] = dq_eden
                 H1spin[c,:,1:nw, 1:nw] = h1spin
 #                println("update dq c $c ", DQ[c,1:tbc.crys.nat])
             #elseif scf && solve_self_consistently
@@ -931,7 +954,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
             end
 
-            H1[c,1:nw,1:nw] = get_h1_dq(tbc, dq)
+            H1[c,1:nw,1:nw] = get_h1_dq(tbc, dq, dq_eden)
 
             
 #            println("final get eigen")
@@ -971,7 +994,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
             
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -1113,7 +1136,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
             if scf
                 nat = list_of_tbcs[calc].crys.nat
-                energy_charge, pot = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+                energy_charge = ewald_energy(list_of_tbcs[calc], dq=DQ[calc,1:nat], dq_eden=DQ_EDEN[calc,1:nw])
             else
                 energy_charge = 0.0
             end
@@ -1263,24 +1286,26 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         dist_min = 10^10
 #                        println()
                         for jjj = 1:nw
-                            dist = (1.0 - abs(VECTS[:,i]'*sref*vref[:,jjj])) + abs(VALS0[calc,k,jjj, spin] - VALS0_FITTED[calc,k,i,spin])
+                            dist = (1.0 - abs(VECTS[:,i]'*sref*vref[:,jjj])) + 10.0*abs(VALS0[calc,k,jjj, spin] - VALS0_FITTED[calc,k,i,spin])
 
                             if dist < dist_min
                                 dist_min = dist
                                 jjj_min = jjj
                             end
-                            if k == 1 && calc == 1
-                                println("i $i jjj $jjj dist $dist dist_min $dist_min jjj_min $jjj_min  $((1.0 - abs(VECTS[:,i]'*sref*vref[:,jjj])))  $(abs(VALS0[calc,k,jjj, spin] - VALS0_FITTED[calc,k,i,spin]))")
-                            end
+#                            if k == 1 && calc == 1
+#                                println("i $i jjj $jjj dist $dist dist_min $dist_min jjj_min $jjj_min  $((1.0 - abs(VECTS[:,i]'*sref*vref[:,jjj])))  $(10.0*abs(VALS0[calc,k,jjj, spin] - VALS0_FITTED[calc,k,i,spin]))  v0 $(VALS0[calc,k,jjj, spin]) v0fit $( VALS0_FITTED[calc,k,i,spin])")
+#                            end
                         end
 #                        println()
-                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] ) .* WEIGHTS[calc, k, i, spin] * w_special                         
 
-                        if k == 1 && calc == 1
-                            if !ismissing(cref)
-                                println("test i $i vals_test_other*c ", vals_test_other[[i],:]*cref, " VALS0 ", VALS0[calc,k,i, spin] - vals_test_on[i] - h1val[i])
-                            end
-                        end
+                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] ) .* WEIGHTS[calc, k, i, spin] * w_special
+                        #NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
+
+#                        if k == 1 && calc == 1
+#                            if !ismissing(cref)
+#                                println("test i $i vals_test_other*c ", vals_test_other[[i],:]*cref, " VALS0 ", VALS0[calc,k,i, spin] - vals_test_on[i] - h1val[i])
+#                            end
+#                        end
                         
                         Y_TOTEN += -1.0 * vals_test_on[i] * (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin]) #*  list_of_tbcs[calc].nspin
 
@@ -1460,7 +1485,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     function iterate(ch, cs, updateH, updateS, niters, mix_iter, mix_iterS; adjust_mix=false)
         println("ch 1 ", ch[1] , " sum DQ ", sum(abs.(DQ)))
-        scf = true
+#        scf = true
         solve_self_consistently = false
         solve_scf_mode = false
         println("iterate solve_scf_mode $solve_scf_mode scf $scf")
@@ -1606,8 +1631,12 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         #else
 
         if true
-            solve_scf_mode=true
-            scf = true
+            if scf 
+                solve_scf_mode=true
+            else
+                solve_scf_mode=false
+            end
+#            scf = true
             begin 
                 for init_scf = 1:5
                     DQ_old = deepcopy(DQ)
@@ -1648,7 +1677,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             println()
 
 
-            scf = true
+            #scf = true
             mix_iterS = 0.005
             mix_iter = 0.004
             err_old_bigiter = 10.0^10
@@ -1659,7 +1688,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                 if false
                 @suppress begin
-                list_of_tbcs,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, CH, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep =
+                list_of_tbcs,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, CH, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep =
                     topstuff_direct(deepcopy(list_of_tbcs_nonscf), prepare_data; EDEN_input = E_DEN, weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max)
                 end
                 end
@@ -1682,12 +1711,14 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                 H1_bigiter = deepcopy(H1)
                 DQ_bigiter = deepcopy(DQ)
-#                DQ_EDEN_bigiter = deepcopy(DQ_EDEN)
+                DQ_EDEN_bigiter = deepcopy(DQ_EDEN)
                 H1spin_bigiter = deepcopy(H1spin)
                 EDEN_bigiter = deepcopy(E_DEN)
 #                println("a solve_scf_mode $solve_scf_mode scf $scf")
 
-                solve_scf_mode=true
+                if scf
+                    solve_scf_mode=true
+                end
                 for init_scf = 1:5
                     DQ_old = deepcopy(DQ)
                     #println("DQ")
@@ -1710,6 +1741,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 mix = 0.5
                 #H1 = (1-mix)*H1 + mix*H1_bigiter 
                 DQ = (mix)*DQ + (1-mix)*DQ_bigiter
+                DQ_EDEN = (mix)*DQ_EDEN + (1-mix)*DQ_EDEN_bigiter
                 println("sum DQ after mix  $(sum(abs.(DQ))) ")
 #                println(DQ)
 #                println()

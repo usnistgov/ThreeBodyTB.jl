@@ -157,6 +157,19 @@ mutable struct atom
     semicore_orbitals::Array{Symbol,1}
     semicore_eigs::Dict
     energy_offset_semicore::Float64
+    efermi::Float64
+    fullU::Bool
+    Us::Float64
+    Usp::Float64
+    Up::Float64
+    Upp::Float64
+    Ud::Float64
+    Usd::Float64
+    Upd::Float64
+    Udd::Float64
+    Uarr::Array{Float64,1}
+    Umat::Array{Float64,2}
+    neutral_occ::Array{Float64,1}
 end
 
 
@@ -182,7 +195,7 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0; adj=0.0, semicore_orbitals=[], semicore_eigs=zeros(5))
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0; adj=0.0, semicore_orbitals=[], semicore_eigs=zeros(5), fullU=false, Uarr=zeros(8))
     #vac potential in ryd
 
 #    adj = 0.0
@@ -249,7 +262,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     println("EIGS after subtraction")
     println(EIGS)
 
-    band_energy0, efermi = band_energy(EIGS, [1.0], nval, returnef=true)
+    band_energy0, efermi, occ = band_energy(EIGS, [1.0], nval, returnboth=true)
     smear_energy = smearing_energy(EIGS, [1.0], efermi)
 
 
@@ -370,7 +383,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
         println("SEMICORE_EIGS after2 ", SEMICORE_EIGS)
 
 
-        semi_band_energy0, efermi = band_energy(SEMICORE_EIGS, [1.0], nsemicore, 0.00001, returnef=true)
+        semi_band_energy0, efermix = band_energy(SEMICORE_EIGS, [1.0], nsemicore, 0.00001, returnef=true)
         semi_band_energy0 = -semi_band_energy0
         #smear_energy = smearing_energy(EIGS, [1.0], efermi)
     else
@@ -380,9 +393,84 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
 #    band_energy_new = band_energy(EIGS .- band_energy0 / nval , [1.0], nval)#
 #
 #    println("Loading $name, new band energy $band_energy_new, ", d[:s])
+
+
+    norb = Int64(nwan/2)
+    if fullU == false
+    #if true
+        Umat = ones(norb,norb) * U
+        Uarr = ones(8)*U
+    else
+
+        Umat = zeros(norb,norb)
+
+        Uarr_t = deepcopy(Uarr)
+        Uarr = zeros(8)
+        
+        if orb2 == [:s]
+            orblist = [:s]
+            Uarr[1] = Uarr_t[1]
+        elseif orb2 == [:s, :p]
+            orblist = [:s, :p, :p, :p]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
+        elseif orb2 == [:s, :d, :p]
+            orblist = [:s, :d, :d, :d, :d, :d, :p, :p, :p]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
+            Uarr[5] = Uarr_t[4]
+            Uarr[6] = Uarr_t[5]
+            Uarr[7] = Uarr_t[6]
+            Uarr[8] = Uarr_t[4]#4 again
+        elseif orb2 == [:s, :p, :d]
+            orblist = [:s, :p, :p, :p, :d, :d, :d, :d, :d]
+            Uarr[1] = Uarr_t[1]
+            Uarr[2] = Uarr_t[2]
+            Uarr[3] = Uarr_t[3]
+            Uarr[4] = Uarr_t[3] #3
+            Uarr[5] = Uarr_t[4]
+            Uarr[6] = Uarr_t[5]
+            Uarr[7] = Uarr_t[6]
+            Uarr[8] = Uarr_t[4] #4 again
+        elseif orb2 == [:s, :d]
+            orblist = [:s, :d, :d, :d, :d, :d]
+            Uarr[1] = Uarr_t[1]
+            Uarr[5] = Uarr_t[2] #d
+            Uarr[6] = Uarr_t[3] #sd
+            Uarr[8] = Uarr_t[2] #d
+        else
+            orblist = deepcopy(orb2)
+        end
+        
+        for (c1,o1) in enumerate(orblist)
+            for (c2,o2) in enumerate(orblist)
+                if o1 == :s && o2 == :s
+                    Umat[c1,c2] = Uarr[1]
+                elseif (o1 == :s && o2 == :p) || (o1 == :p && o2 == :s)
+                    Umat[c1,c2] = Uarr[2]
+                elseif (o1 == :p && o2 == :p) && c1 == c2
+                    Umat[c1,c2] = Uarr[3]
+                elseif (o1 == :p && o2 == :p) && c1 != c2
+                    Umat[c1,c2] = Uarr[4]
+                elseif (o1 == :d && o2 == :d) && c1 == c2
+                    Umat[c1,c2] = Uarr[5]
+                elseif (o1 == :s && o2 == :d) || (o1 == :d && o2 == :s) 
+                    Umat[c1,c2] = Uarr[6]
+                elseif (o1 == :p && o2 == :d) || (o1 == :d && o2 == :p) 
+                    Umat[c1,c2] = Uarr[7]
+                elseif (o1 == :d && o2 == :d) && c1 != c2
+                    Umat[c1,c2] = Uarr[8]
+                end
+            end
+        end
+    end
     
     println("makeatom name $name adj $adj")
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0)
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0, efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Uarr, Umat, occ[:])
     
 end
     
