@@ -5628,7 +5628,15 @@ function Hk_derivative(hk,sk, dhk, dsk, h::tb, kpoint, A; spin=1)
 
 end
 
-function create_tb_crys_kspace_from_tbc(tbc, kpts, kweights; kgrid = [1,1,1])
+function create_tb_crys_kspace_from_tbc(tbc; kpts=missing, kweights=missing, kgrid = missing)
+
+    if ismissing(kgrid)
+        kgrid = get_grid(tbc.crys)
+    end
+    if ismissing(kpts)
+        nk, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=kgrid)
+    end
+    
     nk = length(kweights)
     nspin = tbc.tb.nspin
     nwan = tbc.tb.nwan
