@@ -5031,6 +5031,49 @@ function Hk_derivative(hk,sk, dhk, dsk, h::tb, kpoint, A; spin=1)
 end
 
 
+function create_tb_crys_kspace_from_tbc(tbc; kpts=missing, kweights=missing, kgrid = missing)
+
+    if ismissing(kgrid)
+        kgrid = get_grid(tbc.crys)
+    end
+    if ismissing(kpts)
+        nk, grid_ind, kpts, kweights = get_kgrid_sym(tbc.crys, grid=kgrid)
+    end
+    
+    nk = length(kweights)
+    nspin = tbc.tb.nspin
+    nwan = tbc.tb.nwan
+    
+    Hk_arr = zeros(Complex{Float64}, nwan, nwan, nk, nspin)
+    Sk = zeros(Complex{Float64}, nwan, nwan, nk)
+
+    for spin = 1:nspin
+        for k = 1:nk
+            kpt = kpts[k,:]
+            kw = kweights[k]
+            tbc_temp  = deepcopy(tbc)
+#            tbc_temp.tb.h1 .= 0.0
+            vects, vals, hk, sk, vals0 = Hk(tbc, kpt)
+            Hk_arr[:,:,k,spin ] = hk - tbc.tb.h1 .* sk
+            Sk[:,:,k,spin ] = sk
+        end
+    end
+
+    if tbc.tb.scfspin == false && tbc.tb.nspin == 1
+        h1spin = missing
+    else
+        h1spin = tbc.tb.h1spin
+    end
+       
+    tbk =  make_tb_k(Hk_arr, kpts, kweights, Sk, h1 = tbc.tb.h1 ,h1spin = h1spin, grid=kgrid)
+
+    return make_tb_crys_kspace(tbk, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden = tbc.eden, gamma = tbc.gamma, background_charge_correction=tbc.background_charge_correction)
+
+    
+end
+
+
+
 include("Magnetic.jl")
 
 include("TB_sparse.jl")
