@@ -1594,7 +1594,7 @@ function load_hr_dat(filename; directory=".")
     if nonorth
         return make_tb(H, ind_arr, r_dict, S)
     else
-        println("size H ", size(H))
+#        println("size H ", size(H))
         return make_tb(H, ind_arr, r_dict)
     end
 end
@@ -4051,7 +4051,7 @@ function ewald_energy(tbc::tb_crys_kspace; dq=missing, dq_eden=missing, eden=mis
     if ismissing(dq_eden)
         dq_eden = tbc.dq_eden
     end
-    println("size ", size(gamma),  " ", size(dq), " " , size(dq_eden))
+#    println("size ", size(gamma),  " ", size(dq), " " , size(dq_eden))
     return ewald_energy(crys, gamma, background_charge_correction, dq, dq_eden)
 
 end

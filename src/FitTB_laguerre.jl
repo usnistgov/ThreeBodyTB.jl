@@ -821,9 +821,11 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     println("MODE $mode")
 
-    if ismissing(kpoints) && !ismissing(dft_list)
-        kpoints, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
-    end
+    kpoints, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+    
+#    if ismissing(kpoints) && !ismissing(dft_list)
+#        kpoints, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+#    end
     if ismissing(kpoints)
         mode=:rspace
     end
@@ -1443,29 +1445,38 @@ function get_k(dft_list,  list_of_tbcs; NLIM = 100)
     nk_max = 1    
     if ismissing(dft_list)
 
-        
+        if typeof(list_of_tbcs[1]) <: tb_crys_kspace
+            KPOINTS = []
+            KWEIGHTS =[]
+            for t in list_of_tbcs
+                push!(KPOINTS, t.tb.K)
+                push!(KWEIGHTS, t.tb.kweights)
+                nk_max = max(nk_max, t.tb.nk)
+            end
+        else
 
-        println("get k")
-        KPOINTS = []
-        KWEIGHTS =[]
-        #nk_max = size(kpoints)[1]
-        #nk = size(kpoints)[1]
+            println("get k")
+            KPOINTS = []
+            KWEIGHTS =[]
+            #nk_max = size(kpoints)[1]
+            #nk = size(kpoints)[1]
 
-        for n = 1:length(list_of_tbcs)
-            grid = get_grid(list_of_tbcs[n].crys)
-            nk_red, grid_ind, kpts, kweights = get_kgrid_sym(list_of_tbcs[n].crys, grid=grid)
-            
-            if list_of_tbcs[n].nspin == 2 || list_of_tbcs[n].tb.scfspin == true
-                #kweights = ones(Float64, nk)/nk * 1.0
-                kweights = kweights / sum(kweights) * 1
-            else
-                kweights = kweights / sum(kweights) * 2
-                #kweights = ones(Float64, nk)/nk * 2.0
-            end                
-            #push!(KPOINTS, kpoints)
-            push!(KPOINTS, kpts)
-            push!(KWEIGHTS, kweights)
-            nk_max = max(nk_max, nk_red)
+            for n = 1:length(list_of_tbcs)
+                grid = get_grid(list_of_tbcs[n].crys)
+                nk_red, grid_ind, kpts, kweights = get_kgrid_sym(list_of_tbcs[n].crys, grid=grid)
+                
+                if list_of_tbcs[n].nspin == 2 || list_of_tbcs[n].tb.scfspin == true
+                    #kweights = ones(Float64, nk)/nk * 1.0
+                    kweights = kweights / sum(kweights) * 1
+                else
+                    kweights = kweights / sum(kweights) * 2
+                    #kweights = ones(Float64, nk)/nk * 2.0
+                end                
+                #push!(KPOINTS, kpoints)
+                push!(KPOINTS, kpts)
+                push!(KWEIGHTS, kweights)
+                nk_max = max(nk_max, nk_red)
+            end
         end
     else
         ncalc = length(dft_list)
@@ -1611,17 +1622,16 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
 
     println("do_fitting_recursive   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc  ")
     
-    if ismissing(kpoints)
-        kpoints, kweights = make_kgrid([2,2,2])
-    end
-    if !ismissing(dft_list)
-        println("top")
-        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
-    else
-        println("bot")
-        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
-#        println("KPOINTS ", KPOINTS)
-    end
+    #if ismissing(kpoints)
+    #    kpoints, kweights = make_kgrid([2,2,2])
+    #end
+
+    KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+#    else
+#        println("bot")
+#        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+##        println("KPOINTS ", KPOINTS)
+#    end
 
 
     
@@ -5449,13 +5459,15 @@ end
 
 function add_data(list_of_tbcs, dft_list, starting_database, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
 
-    if !ismissing(dft_list) && !ismissing(dft_list[1])
-        println("top")
-        KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
-    else
-        println("bot")
-        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
-    end
+    KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+    
+    #if !ismissing(dft_list) && !ismissing(dft_list[1])
+    #    println("top")
+    #    KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
+    #else
+    #    println("bot")
+    #    KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+    #end
 
     pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database, return_database=false, NLIM=NLIM, refit_database=refit_database)
     
