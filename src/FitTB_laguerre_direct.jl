@@ -30,7 +30,7 @@ function eig_norm(vals, kweights, energy, occ)
 end
 
 
-function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max = 0)
+function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max = 0, use_sym=true)
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
@@ -331,6 +331,14 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
             println("tbc.eden ", tbc.eden)
             eden, h1, dq, dq_eden, h1spin = get_electron_density(tbc, kpoints, kweights, vmat, occs, smat)        
+            if use_sym
+                sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys);
+                for spin =1:tbc.tb.nspin
+                    eden[spin,:] = symmetrize_charge_den(tbc.crys, eden[spin,:] , SSS[c], ATOMTRANS[c], ORB2IND[c])
+                end
+                dq, dq_eden = get_dq(tbc, eden)
+            end
+
             E_DEN[c,1:tbc.nspin, 1:nw] = eden
             println("E_DEN new ", eden)
             H1[c,1:nw, 1:nw] = tbc.tb.h1
@@ -479,18 +487,18 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
 
     println("do_fitting_direct   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
 
-    if true
-    list_of_tbcs = []
-    for tbck in list_of_tbcs_nonscf
-        tbck_new = missing
-        @suppress begin
-            tbck_new = remove_scf_from_tbc(tbck; smearing=0.01)
-        end
-        push!(list_of_tbcs, tbck_new)
-    end
-    else
+#    if true
+#    list_of_tbcs = []
+#    for tbck in list_of_tbcs_nonscf
+#        tbck_new = missing
+#        @suppress begin
+#            tbck_new = remove_scf_from_tbc(tbck; smearing=0.01)
+#        end
+#        push!(list_of_tbcs, tbck_new)
+#    end
+#    else
 list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)        
-    end
+#    end
     
     #list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
     
@@ -520,13 +528,29 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
             starting_database_t = starting_database
         end
 
+#        println("KPOINTS $KPOINTS")
+#        println("dft_list $dft_list")
+#        println("fit_threebody $fit_threebody")
+#        println("fit_threebody_onsite $fit_threebody_onsite")
+#        println("starting_database_t $starting_database_t")
+#        println("NLIM $NLIM")
+#        println("refit_database $refit_database")
+#        println("fit_eam $fit_eam")
+#        println("fitting_version $fitting_version")
+        
         pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version)
+
+        println("pd 2 $(pd[2])")
+        println()
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
+
+#    return pd[1],pd[2], pd[3]
+    
     return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym)
 end
 
@@ -545,12 +569,12 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
 
-#    println("ch_lin ", ch_lin)
-#    println("cs_lin ", cs_lin)
+    println("ch_lin ", ch_lin)
+    println("cs_lin ", cs_lin)
 #    return missing
     
     list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS =
-        topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max)
+        topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max, use_sym=use_sym)
 
     SSS = []
     ORB2IND = []
@@ -583,6 +607,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         cs[1:length(cs_startX)] = cs_startX
     end
     #    ch = ones(size(ch))
+    println("chcs !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    println("begin ch $ch")
+    println("begin cs $cs")
+    println()
     
     println("NOW, DO DIRECT FITTING")
     
@@ -598,7 +626,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     println("scf $scf")
     
     EDEN_FITTED = zeros(NCALC, SPIN_MAX, NWAN_MAX)
-
+    EDEN_FITTED[:,:,:] = E_DEN
     
     
     function construct_fitted(ch, cs, solve_self_consistently = false)
@@ -820,7 +848,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             eden =  deepcopy(EDEN_FITTED[c, 1:tbc.nspin,1:nw])
             
             for c_scf = 1:niter_scf
-                #                println("$c_scf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
+#                println("c_scf $c_scf c $c aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")                
 
                 #println("c_scf $c_scf get_eigen")
 #                if c_scf == 1 && c == 1
@@ -865,10 +893,12 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                     
                     if use_sym
+#                        println("pre  sym $eden")
                         for spin =1:tbc.tb.nspin
-                            eden[spin,:] = symmetrize_charge_den(tbc.crys, eden[spin,:] , SSS[c], ATOMTRANS[c], ORB2IND[c])
+                            eden_new[spin,:] = symmetrize_charge_den(tbc.crys, eden_new[spin,:] , SSS[c], ATOMTRANS[c], ORB2IND[c])
                         end
-                        h1_new, dq_new, dq_eden_new = get_h1(tbc, eden)
+#                        println("post sym $eden")                        
+                        h1_new, dq_new, dq_eden_new = get_h1(tbc, eden_new)
                         if tbc.tb.nspin > 1
                             h1spin_new = get_spin_h1(tbc, eden)
                         end
@@ -1298,8 +1328,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         end
 #                        println()
 
-                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] ) .* WEIGHTS[calc, k, i, spin] * w_special
-                        #NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
+                        #NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] ) .* WEIGHTS[calc, k, i, spin] * w_special
+                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
 
 #                        if k == 1 && calc == 1
 #                            if !ismissing(cref)
@@ -1546,9 +1576,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         #println("size NEWX ", size(NEWX))
 
 
-                    println()
-                    println("vals calc ", VALS_FITTED[1,1,:,1])
-                    println()
+#                    println()
+#                    println("vals calc ", VALS_FITTED[1,1,:,1])
+#                    println()
                     
                     ch_new = NEWX \ NEWY
 
@@ -1556,11 +1586,11 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     ch_test = ch_new*mix_iter + ch*(1 - mix_iter)
                     if length(SPECIAL) > 0
                         y = NEWX*ch_test
-                        println("sp     y    NEWY")
-                        for s in SPECIAL
-                            println("special $s  $(y[s])   $(NEWY[s])")
-                        end
-                        println()
+#                        println("sp     y    NEWY")
+#                        for s in SPECIAL
+#                            println("special $s  $(y[s])   $(NEWY[s])")
+#                        end
+#                        println()
                     end
 
                     #err_test = error_fn(NEWX, NEWY, ch_test, cs)
@@ -1637,6 +1667,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 solve_scf_mode=false
             end
 #            scf = true
+
+            println("ch $ch")
+            println("cs $cs")
+
             begin 
                 for init_scf = 1:5
                     DQ_old = deepcopy(DQ)
@@ -1651,6 +1685,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #NEWX, NEWY, NEWX_S, energy_counter, CALC_IND = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
                 solve_scf_mode=false
                 println("solve_scf_mode $solve_scf_mode scf $scf")
+                println("ch $ch")
+                println("cs $cs")
+
                 ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
                 NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
                 println()
@@ -1684,15 +1721,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             err = 10.0^9.0
             for big_iter = 1:40
                 println("BIG ITER $big_iter solve_scf_mode $solve_scf_mode scf $scf sum DQ $(sum(abs.(DQ))) ---------------------------------------------------------------------------------------------------------------------------- $err_old_bigiter")
-                println()
-
-                if false
-                @suppress begin
-                list_of_tbcs,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, CH, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep =
-                    topstuff_direct(deepcopy(list_of_tbcs_nonscf), prepare_data; EDEN_input = E_DEN, weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max)
-                end
-                end
-
+                println("ch $ch")
+                println("cs $cs")
                
 #                println("aaaa solve_scf_mode $solve_scf_mode scf $scf")
                 
