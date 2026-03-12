@@ -11,7 +11,7 @@ function get_ver()
     println("new_working branch")
 end
 
-#get_ver()
+get_ver()
 
 
 include("GlobalUnits.jl")

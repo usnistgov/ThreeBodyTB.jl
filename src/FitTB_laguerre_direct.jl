@@ -5,7 +5,7 @@ using ..TB:get_h1_dq
 
 using ..Symmetry:get_symmetry
 using ..Symmetry:symmetrize_charge_den
-
+using ..Ewald:electrostatics_getgamma
 
 
 function eig_norm(vals, kweights, energy, occ)
@@ -392,6 +392,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
             energy_band_vals = sum(s1 .* kweights) #/ tbc.nspin
             
             shift_value = (energy_charge + energy_band - energy_band_vals)/nval
+
             println("shift_value c $c = $shift_value")
             SHIFTS[c] = shift_value            
             
@@ -485,7 +486,7 @@ end
 
 function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = true, conjgrad=false, cs_startX = missing, use_sym=true)
 
-    println("do_fitting_direct   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
+    println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
 
 #    if true
 #    list_of_tbcs = []
@@ -589,8 +590,18 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
         end
     end
-    
 
+#    println("gamma kfg")
+#    #kfg update gamma
+#    for i in 1:length(list_of_tbcs_nonscf)
+#        gamma, x = electrostatics_getgamma(list_of_tbcs_nonscf[i].crys)
+#        list_of_tbcs_nonscf[i].gamma[:,:] = gamma
+#    end
+#    #kfg update gamma
+#    for i in 1:length(list_of_tbcs)
+#        gamma, x = electrostatics_getgamma(list_of_tbcs[i].crys)
+#        list_of_tbcs[i].gamma[:,:] = gamma
+#    end
     
     Ys = Ys_new + Xc_Snew_BIG
 
@@ -642,6 +653,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         VALS0_FITTED     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
         OCCS_FITTED     = zeros(NCALC, nk_max, NWAN_MAX, SPIN_MAX)
         ENERGIES_FITTED = zeros(NCALC)
+        SHIFTS_FITTED = zeros(NCALC)
         c=0
 
 
@@ -905,7 +917,6 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     end
                     eden = (1 - mix) * eden + mix * eden_new
 
-                    EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
 
                     
                     s1 = sum(occs .* VALS0_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], dims=[2,3])
@@ -921,6 +932,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #                    h1spin = h1spin*(1-mix) + h1spin_new * mix
 
                     if solve_self_consistently == true
+                        EDEN_FITTED[c, 1:tbc.nspin,1:nw] = eden
                         dq, dq_eden = get_dq(tbc, eden)
                     end
 
@@ -1050,15 +1062,19 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
             
             ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
+
+            s1 = sum(occs .* VALS_FITTED[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
+            energy_band_vals = sum(s1 .* kweights) 
+            SHIFTS_FITTED[c] = (energy_charge + energy_band - energy_band_vals) / tbc.nelec
             #            println("contr ", round.([etypes , energy_charge , energy_band , energy_smear , energy_magnetic, -99, efermi], digits=8))
             #            println("EDEN 1 ", EDEN_FITTED[c, 1,1:nw])
             #            println("EDEN 2 ", EDEN_FITTED[c, 2,1:nw])
-            println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq " )
+            println("scf $conv $c ", ENERGIES_FITTED[c], " d  ", ENERGIES_FITTED[c] - ENERGIES[c], "    $dq shifts ", SHIFTS_FITTED[c])
             
 
         end
 
-        return ENERGIES_FITTED, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED
+        return ENERGIES_FITTED, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED
 
     end
 
@@ -1074,7 +1090,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     
     
-    function construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_S::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}; leave_out=-1, cref=missing)
+    function construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_S::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, SHIFTS_FITTED::Array{Float64, 1}; leave_out=-1, cref=missing)
         
 #        println("in construct_newXY")
         #        nlam = 0
@@ -1189,8 +1205,11 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             Svals_test_other = zeros(nw, ncols_S)
             vals_test_on = zeros(nw)
 
+            S = zeros(Complex{Float64}, nw, nw)
+            h1val = zeros(nw)            
             for spin = 1:list_of_tbcs[calc].nspin
                 for k = 1:nk
+                    S .= 0.0
                     for i = 1:nw
                         for j = 1:nw
                             if i <= j
@@ -1199,11 +1218,16 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                                 H_cols[i,j,:] = X_Hnew_BIG[row1-1 + (k-1)*N + ind,:] + im*X_Hnew_BIG[row1-1 + (k-1)*N + ind +  nk*N,:]
                                 H_cols[j,i,:] = X_Hnew_BIG[row1-1 + (k-1)*N + ind,:] - im*X_Hnew_BIG[row1-1 + (k-1)*N + ind +  nk*N,:]                            
                                 S_cols[i,j,:] = X_Snew_BIG[row1-1 + (k-1)*N + ind,:] + im*X_Snew_BIG[row1-1 + (k-1)*N + ind +  nk*N,:]
-                                S_cols[j,i,:] = X_Snew_BIG[row1-1 + (k-1)*N + ind,:] - im*X_Snew_BIG[row1-1 + (k-1)*N + ind +  nk*N,:]                            
+                                S_cols[j,i,:] = X_Snew_BIG[row1-1 + (k-1)*N + ind,:] - im*X_Snew_BIG[row1-1 + (k-1)*N + ind +  nk*N,:]
+
+#                                println("S_cols $(size(S_cols)) cs $(size(cs))")
+#                                S[i,j] = sum(S_cols[i,j,:] .* cs[:])
+ #                               S[j,i] = conj(S[i,j])
                             end
-                            
+
                         end
                     end
+
                     for i = 1:nw
                         for j = 1:nw
                             if keep_bool
@@ -1256,16 +1280,16 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         end
                     end
 
-                    h1val = zeros(nw)
-                    if scf
-                        for i = 1:nw
-                            for j = 1:nw
-                                for k = 1:nw
-                                    h1val[i] = real(VECTS_p[i,j] * H1[calc,j,k]  * VECTS[k,i])
-                                end
-                            end
-                        end
-                    end                                                
+
+#                    if scf
+#                        for i = 1:nw
+#                            for j = 1:nw
+#                                for k = 1:nw
+#                                    h1val[i] = real(VECTS_p[i,j] * (H1[calc,j,k]*S[j,k])  * VECTS[k,i])
+#                                end
+#                            end
+#                        end
+#                    end                                                
                                 
 
                     
@@ -1328,7 +1352,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         end
 #                        println()
 
-                        #NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] ) .* WEIGHTS[calc, k, i, spin] * w_special
+                        #                        NEWY[counter] =  (VALS[calc,k,jjj_min, spin] - vals_test_on[i] - h1val[i] + SHIFTS[calc] - SHIFTS_FITTED[calc] ) .* WEIGHTS[calc, k, i, spin] * w_special
+
+                        #NEWY[counter] =  (VALS[calc,k,jjj_min, spin] - vals_test_on[i] - (VALS_FITTED[calc,k,jjj_min, spin] - VALS0_FITTED[calc,k,jjj_min, spin]) + SHIFTS[calc] - SHIFTS_FITTED[calc] ) .* WEIGHTS[calc, k, i, spin] * w_special
+
                         NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
 
 #                        if k == 1 && calc == 1
@@ -1481,15 +1508,15 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     nh = length(ch)
     ns = length(cs)
     
-    ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-    NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+    ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+    NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
     buffer = [ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, NEWX, NEWY, NEWX_S, energy_counter, CALC_IND]
     
     function calculate_common_part!(chcs, last_chcs, buffer)
         if sum(abs.(chcs - last_chcs)) > 1e-12
             @suppress begin
-                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
                 copy!(buffer, [ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED,NEWX, NEWY, NEWX_S, energy_counter, CALC_IND])
             end
         end
@@ -1537,8 +1564,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 end
                 for i = 1:iter_s
                     @suppress begin
-                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
                     end
                     
                     
@@ -1570,9 +1597,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 SPECIAL = []
                 for i in 1:iter_h
                     @suppress begin
-                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
                     end
-                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out, cref = ch)
+                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out, cref = ch)
                         #println("size NEWX ", size(NEWX))
 
 
@@ -1676,7 +1703,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     DQ_old = deepcopy(DQ)
                     println("DQ")
                     println(DQ)
-                    ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                    ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
                     if maximum(abs.(DQ_old - DQ)) < 0.01
                         println("break scf early $init_scf $(maximum(abs.(DQ_old - DQ)))")
                         break
@@ -1688,8 +1715,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 println("ch $ch")
                 println("cs $cs")
 
-                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
                 println()
                 println("final DQ")
                 println(DQ)
@@ -1716,10 +1743,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
             #scf = true
             mix_iterS = 0.005
-            mix_iter = 0.004
+            mix_iter = 0.05
             err_old_bigiter = 10.0^10
             err = 10.0^9.0
-            for big_iter = 1:40
+            for big_iter = 1:60
                 println("BIG ITER $big_iter solve_scf_mode $solve_scf_mode scf $scf sum DQ $(sum(abs.(DQ))) ---------------------------------------------------------------------------------------------------------------------------- $err_old_bigiter")
                 println("ch $ch")
                 println("cs $cs")
@@ -1729,9 +1756,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                 solve_scf_mode=false
                 if opt_S
-                    ch, cs, err, mix_iter, mix_iterS = iterate(ch, cs,true , opt_S, 30, max(0.02, mix_iter * 0.8), mix_iterS , adjust_mix=true)
+                    ch, cs, err, mix_iter, mix_iterS = iterate(ch, cs,true , opt_S, 10, max(0.001, mix_iter * 0.8), mix_iterS , adjust_mix=true)
                 else
-                    ch, cs, err, mix_iter, mix_iterS = iterate(ch, cs,true , opt_S, 30, max(0.02, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
+                    ch, cs, err, mix_iter, mix_iterS = iterate(ch, cs,true , opt_S, 10, max(0.001, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
                 end
 
  #               println("DQ AFTER ITERATE")
@@ -1754,22 +1781,21 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     #println("DQ")
                     #println(DQ)
                     @suppress begin
-                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
                     end
                     if maximum(abs.(DQ_old - DQ)) < 0.01
                         println("break scf early $init_scf $(maximum(abs.(DQ_old - DQ)))")
                         break
                     end
                 end
-                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
 
-                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
                 #err = error_fn(NEWX, NEWY, ch, cs)
                 #println("err X ", err)
                 
                 
-                mix = 0.5
-                #H1 = (1-mix)*H1 + mix*H1_bigiter 
+                mix = 1.0
                 DQ = (mix)*DQ + (1-mix)*DQ_bigiter
                 DQ_EDEN = (mix)*DQ_EDEN + (1-mix)*DQ_EDEN_bigiter
                 println("sum DQ after mix  $(sum(abs.(DQ))) ")
@@ -1777,6 +1803,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #                println()
                 E_DEN = (mix)*EDEN_FITTED + (1-mix)*EDEN_bigiter
 
+                ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+                NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
+
+                
                 #                DQ_EDEN = (1-mix)*DQ_EDEN + mix*DQ_EDEN_bigiter
                 #H1spin = (1-mix)*H1spin + mix*H1spin_bigiter
 
@@ -1791,12 +1821,14 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #err = error_fn(NEWX, NEWY, ch, cs)
                 #println("err Y ", err)
                 #solve_scf_mode=false
-                if abs(err_old_bigiter - err) < 5e-3 && big_iter >= 3
+
+                if abs(err_old_bigiter - err) < 5e-3 && big_iter >= 20
                     println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
                     break
                 end
                 err_old_bigiter = err
             end
+            println("final, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
             
             #            ch, cs = iterate(ch, cs, true, false, 50, 0.05, adjust_mix=true)
 #            ch, cs = iterate(ch, cs, true, false, 50, 0.02, adjust_mix=false)
@@ -1810,8 +1842,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         println()
         println("solve_scf_mode $solve_scf_mode scf $scf")
         
-        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
 
         good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
         good = good .&& .!(Bool.(ERROR))
@@ -1925,8 +1957,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         ch = ret.minimizer[1:length(ch)]
         cs = ret.minimizer[length(ch) .+ (1:length(cs))]
 
-        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
 
         good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
         good = good .&& .!(Bool.(ERROR))
@@ -1943,8 +1975,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     ####test stuff    
 
     if false
-        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cs, solve_scf_mode)
-        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+        ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cs, solve_scf_mode)
+        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
 
         println("ch $ch")
         println("cs $cs")
@@ -1961,8 +1993,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             cht = deepcopy(ch)
             cht[i] += dx
             @suppress begin 
-                @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(cht, cs, solve_scf_mode)
-                @time  NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(cht, cs, solve_scf_mode)
+                @time  NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
             end
             err = error_fn(NEWX, NEWY, cht, cs)
             push!(err_vec, err)
@@ -1978,8 +2010,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             cst = deepcopy(cs)
             cst[i] += dx
             @suppress begin 
-                @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED = construct_fitted(ch, cst, solve_scf_mode)
-                @time  NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, leave_out=leave_out)
+                @time ENERGIES_working, VECTS_FITTED, VALS_FITTED, OCCS_FITTED, VALS0_FITTED, ERROR, EDEN_FITTED, SHIFTS_FITTED = construct_fitted(ch, cst, solve_scf_mode)
+                @time  NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out)
             end
             err = error_fn(NEWX, NEWY, ch, cst)
             push!(err_vec, err)

@@ -105,7 +105,7 @@ This is only run once for a given `tb_crys` object and stored.
 - `onlyU=false` for testing only
 - `screening=1.0` Not used. Purpose is to reduce U values for values < 1.
 """
-function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0)
+function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU=false, screening = 1.0, expand=true)
 #noU and onlyU are for testing purposes
 
 #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero = distances_etc_3bdy(crys,cutoff2X, 0.0)
@@ -220,9 +220,13 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
     for t = crys.stypes
         background_charge_correction += uniform_charge_interaction[t]
     end
-    background_charge_correction = background_charge_correction / abs(det(crys.A)) / crys.nat
+    background_charge_correction = background_charge_correction / abs(det(crys.A)) #/ crys.nat
        
 
+    if expand == false
+        return gamma_tot, background_charge_correction
+    end
+    
     
     if onlyU #for debugging
         gamma_tot_expand = U

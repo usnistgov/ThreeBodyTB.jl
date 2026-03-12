@@ -127,8 +127,9 @@ function setup_proto_data()
 
     CalcD = Dict()
 
-    CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-big", "nscf", false]
+    CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-big2", "nscf", false]
     CalcD["dimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybig", "nscf", false]
+    CalcD["dimer_charge_verybigA"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybigA", "nscf", false]
     CalcD["dimer_charge_verybig2"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybig2", "nscf", false]
     
     CalcD["trimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "trimer-charge-verybig", "nscf", false]
@@ -180,6 +181,8 @@ function setup_proto_data()
     CalcD["atom"] = ["$STRUCTDIR/atom.in", "scf", "all", "scf", "nscf", false]
     CalcD["double_atom"] = ["$STRUCTDIR/atom.in", "scf", "all", "double-atom", "nscf", false]
     CalcD["atom_set"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set", "nscf", false]
+    CalcD["atom_set_charge"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge", "nscf", false]
+    CalcD["atom_set_charge2"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge2", "nscf", false]
     
     CalcD["sc"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "vol-big", "nscf", false]
 
@@ -722,10 +725,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 12            
         elseif newst == "pieces_vac"
             ncalc = 9            
-        elseif newst == "dimer-charge-big"
-            ncalc = 18
+        elseif newst == "dimer-charge-big2"
+            ncalc = 25
         elseif newst == "dimer-charge-verybig"
             ncalc = 100
+        elseif newst == "dimer-charge-verybigA"
+            ncalc = 50
         elseif newst == "dimer-charge-verybig2"
             ncalc = 10
         elseif newst == "trimer-charge-verybig"
@@ -828,6 +833,10 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 1
         elseif newst == "atom-set"
             ncalc = 7
+        elseif newst == "atom-set-charge"
+            ncalc = 15
+        elseif newst == "atom-set-charge2"
+            ncalc = 15
         elseif newst == "double-atom"
             ncalc = 1
         elseif newst == "scf_small"
@@ -1084,6 +1093,39 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     println()
                     push!(torun, deepcopy(cnew) * (x / 25.0))
                 end
+
+            elseif newst == "atom-set-charge2"
+
+                println("in atom_set charge2")
+                println("cnew")
+                println(cnew)
+                println()
+                tot_charge = []
+                for charge in [0.0, 0.05, -0.05, 0.1, -0.1, 0.2, -0.2]
+                    for x in [7.0, 8.0, 9.0, 10.0, 12.0, 15.0, 20.0,  25.0]
+                        println("add ")
+                        println(deepcopy(cnew) * (x / 25.0 ))
+                        println()
+                        push!(torun, deepcopy(cnew) * (x / 25.0))
+                        push!(tot_charge, charge)
+                    end
+                end
+            elseif newst == "atom-set-charge"
+
+                println("in atom_set")
+                println("cnew")
+                println(cnew)
+                println()
+                tot_charge = []
+                for charge in [0.0, -0.05, 0.1, 0.2]
+                    for x in [7.0, 10.0, 15.0, 20.0,  25.0]
+                        println("add ")
+                        println(deepcopy(cnew) * (x / 25.0 ))
+                        println()
+                        push!(torun, deepcopy(cnew) * (x / 25.0))
+                        push!(tot_charge, charge)
+                    end
+                end
                 
             elseif newst == "pieces_vac"
 
@@ -1292,6 +1334,18 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
 
 
+            elseif newst == "dimer-charge-big2"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for x in [ 0.85 , 0.9, 1.0 , 1.1, 1.3, 1.5,2.0 ]
+                    for charge = [0.0, 0.1,0.2, 0.6]
+                        c = deepcopy(cnew)
+                        c.coords[1,3] =  cnew.coords[1,3] - x * dist/2
+                        c.coords[2,3] =  cnew.coords[2,3] + x * dist/2
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
                 
             elseif newst == "dimer-charge-verybig"
                 tot_charge = []
@@ -1333,6 +1387,28 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     end
                 end
 
+            elseif newst == "dimer-charge-verybigA"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for charge = [0.1, 0.15, 0.2]
+                    #                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.02:1.18, 1.2:0.05:1.45, 1.5:0.05:2.45, 2.5:0.25:4.0)
+                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.03:1.18, 1.2:0.05:1.45, 1.5:0.05:2.45, 2.5:0.25:2.75, 3:0.5:4 )[1:2:end]
+
+                        c = deepcopy(cnew)
+                        c.coords[1,3] =  0.5 - dist/2 * x
+                        c.coords[2,3] =  0.5 + dist/2 * x
+                        if c.coords[1,3] < 0.25
+                            c.coords[1,3] =  0.25
+                            c.coords[2,3] =  0.75
+                            push!(torun, deepcopy(c))
+                            push!(tot_charge, charge)
+                            break
+                        end                            
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+                
 
             elseif newst == "dimer-charge-verybig2"
                 tot_charge = []

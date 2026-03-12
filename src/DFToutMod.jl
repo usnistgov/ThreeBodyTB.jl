@@ -116,6 +116,7 @@ mutable struct dftout
     repelenergy::Float64
     degauss::Float64
     directory::String
+    eig_norm_val::Float64
 end
 
 """
@@ -262,7 +263,7 @@ function makebs(nelec::Number, efermi::Number,  kpoints, kweights,kgrid, vals; n
         K2[i,:] = Int64.(round.(kpoints[i,:] * 100000000))/100000000
     end
 
-
+    
     return bandstructure(nbnd, nks, nelec, nspin, efermi, K2, kweights, kgrid, vals)
 
 end
@@ -313,7 +314,7 @@ Creates a struct with the desired data
     
     
     if ismissing(bandstruct)
-        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0, atomize_energy) #, missing, False, False)
+        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0, atomize_energy, 0.0) #, missing, False, False)
     else
 
 #        println("degauss $degauss")
@@ -331,7 +332,7 @@ Creates a struct with the desired data
 
 #        println([eigs[1], sum( bandstruct.kweights),  bandstruct.nelec,degauss])
         bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
-
+        bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
         etypes = types_energy(crys) #- types_energy(crys, mode=:core)
 
 #        println("band energy ", bandenergy)
@@ -351,7 +352,11 @@ Creates a struct with the desired data
 #        println("etypes $etypes from $(types_energy(crys)) and $(types_energy(crys, mode=:core))")
 #        println("atomize_energy $atomize_energy bandenergy $bandenergy etypes $etypes energy_shift $energy_shift energy_smear")
 
-        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy, degauss, directory) #, missing, False, False)
+
+        eig_norm_val = ( atomize_energy - etypes - bandenergy_orig - energy_smear ) / bandstruct.nelec
+        println("eig_norm_val $eig_norm_val atomize_energy $atomize_energy bandenergy_orig $bandenergy_orig bandstruct.nelec $(bandstruct.nelec)")        
+        
+        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy, degauss, directory, eig_norm_val) #, missing, False, False)
     end    
 end
 

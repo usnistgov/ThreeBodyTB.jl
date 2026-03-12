@@ -41,7 +41,9 @@ function load_atoms()
     atoms["Na"] = makeatom("Na", 11, 3, 1, 22.98,  1.0,   8,   [:s, :p], -95.06749946, [-0.19844190728525501; -0.05218815323693155], 0.0, 0.38560892349289677, adj= 108.92841309130345  , semicore_orbitals=[:s, :p], semicore_eigs=[-4.157649733166457, -2.105445706578367] );
     atoms["Mg"] = makeatom("Mg", 12, 3, 2, 24.31,  2.0,   8,   [:s, :p], -124.99127898, [-0.34372480877039063; -0.09551041814912471], 0.0, 0.5106562587165097, adj= 118.00457569316572  , semicore_orbitals=[:s, :p], semicore_eigs=[-5.849358490948838; -3.420898450359709] );
     atoms["Al"] = makeatom("Al", 13, 3, 3, 26.98,  3.0,   0,   [:s, :p],  -6.37406439, [-0.5669635647556415; -0.19757116543256825], 0.0, 0.47560947595799796 , adj= 120.35327370972065  , fullU=true, Uarr = [0.331290464808923, 0.4835827995950456, 0.42998890690669406]);
-    atoms["Si"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p], -9.15243181, [-0.7914241887679531; -0.2981179964824184],0.0, 0.5597222300055447, adj= 124.19186186707114,  fullU=true, Uarr = [0.4246166888157803, 0.6103690583467152, 0.5612372485699727]);
+    #    atoms["Si"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p], -9.15243181, [-0.7914241887679531; -0.2981179964824184],0.0, (0.5597222300055447-0.07152661366035261) , adj= 124.19186186707114,  fullU=true, Uarr = [0.4246166888157803, 0.6103690583467152, 0.5612372485699727] .- 0.11236606932674417);
+    #atoms["Si"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p], -9.15243181, [-0.7914241887679531; -0.2981179964824184],0.0, 0.448871 , adj= 124.19186186707114,  fullU=true, Uarr = [0.4246166888157803, 0.6103690583467152, 0.5612372485699727] .- 0.11236606932674417);
+    atoms["Si"] = makeatom("Si", 14, 3, 4, 28.09,  4.0,   0,   [:s, :p], -9.15243181, [-0.7914241887679531; -0.2981179964824184],0.0, 0.448871 , adj= 124.19186186707114,  fullU=true, Uarr = [0.7, 0.6103690583467152, 0.5612372485699727] .- 0.11236606932674417);
     atoms["P" ] = makeatom("P" , 15, 3, 5, 30.97,  5.0,   0,   [:s, :p], -15.07327848, [-1.022828949354686; -0.40267725947367494], 0.0, 0.6422064900805308, adj= 120.25412027683043  );
     atoms["S" ] = makeatom("S" , 16, 3, 6, 32.06,  6.0,   0,   [:s, :p], -23.70562681, [-1.2637282132428946; -0.5128739318001997], 0.0, 0.7079117127047072, adj= 114.81807427734294  );
     atoms["Cl"] = makeatom("Cl", 17, 3, 7, 35.45,  7.0,   0,   [:s, :p], -33.06905525, [-1.5153800694575343; -0.6292474932451964], 0.0, 0.7476423278619385, adj= 109.3609934532405  );
@@ -851,7 +853,7 @@ function prepare_atom(A, U, uni)
     
     old = atoms[String(A) ]
     atoms[String(A) ] =  makeatom(String(A) ,old.Z, old.row, old.col, old.mass,   old.nval,   old.nsemicore,
-                                  old.orbitals, old.total_energy, [old.eigs[o] for o in old.orbitals],     0.0 ,U, adj=old.voladj, semicore_orbitals=old.semicore_orbitals, semicore_eigs=[old.semicore_eigs[o] for o in old.semicore_orbitals], fullU=old.fullU, Uarr=old.Uarr )
+                                  old.orbitals, old.total_energy, [old.eigs[o] for o in old.orbitals],     0.0 ,old.U, adj=old.voladj, semicore_orbitals=old.semicore_orbitals, semicore_eigs=[old.semicore_eigs[o] for o in old.semicore_orbitals], fullU=old.fullU, Uarr=old.Uarr )
     
     atoms[Symbol(A)] = atoms[ String(A) ]
     atoms[String(A)] = atoms[ Symbol(A) ]

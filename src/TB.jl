@@ -4081,7 +4081,8 @@ function ewald_energy(crys::crystal, gamma,background_charge_correction, delta_q
 
 
     energy = 0.5*sum(pot)
-    energy += background_charge_correction * sum(delta_q)^2
+    energy += background_charge_correction * sum(delta_q)
+    #energy += background_charge_correction * sum(delta_q)^2
     #println("ewald energy ", energy, " ", [0.5*sum(pot), background_charge_correction * sum(delta_q)^2])
     
     #    println("ewald_energy ", energy, " " , delta_q, " ", gamma[1,1], " ", gamma[1,2], " ", gamma[2,1], " ", gamma[2,2])
@@ -4763,8 +4764,12 @@ end
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = false, eden_start = missing, mix = 0.15)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = missing, eden_start = missing, mix = 0.15)
 
+    if ismissing(use_scf)
+        use_scf = tbcK.scf
+    end
+    
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
 
     if ismissing(eden_start)
@@ -4789,12 +4794,13 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
         println("tot_charge = $tot_charge")
         
     end
-
+    
+    
     tbcK.nelec = nval -  tot_charge
     
     println("eden start $eden_start sum $(sum(eden_start)) tot_charge $tot_charge nelec $(tbcK.nelec)")
     
-    bandenergy, eden, VECTS, VALS, efermi, error_flag, VALS0 = get_energy_electron_density_kspace(tbcK.tb, nval - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
+    bandenergy0, eden, VECTS, VALS, efermi, error_flag, VALS0, bandenergy = get_energy_electron_density_kspace(tbcK.tb, nval - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
     tbcK.efermi = efermi
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
@@ -4839,9 +4845,11 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
     #     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
-    etot = bandenergy + etypes + echarge + energy_smear + emag
-    
-    return convert_energy(etot), eden, VECTS, VALS, error_flag
+    etot = bandenergy0 + etypes + echarge + energy_smear + emag
+
+    eig_norm_val = (etot - etypes - bandenergy - energy_smear) / (tbcK.nelec + 1e-14)
+    println("eig_norm_val $eig_norm_val etot $etot etypes $etypes bandenergy $bandenergy energy_smear $energy_smear tbcK.nelec $(tbcK.nelec)")
+    return convert_energy(etot), eden, VECTS, VALS, error_flag, eig_norm_val
 
 
 
@@ -4855,6 +4863,8 @@ end
 function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, mix = 0.15)
 
 
+    println("in get_energy_electron_density_kspace  use_scf $use_scf")
+    
     temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
     denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
 
@@ -4914,13 +4924,17 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
     efermi = 0.0
     
     error_flag = false
+
+    bandenergy = 0.0
+    
+    println("n_scf $n_scf")
     for scf = 1:n_scf
-#        println("scf $scf")
+        println("scf $scf")
         if use_scf && !ismissing(crys) && !ismissing(gamma) 
             dq, dq_eden = get_dq(crys, eden)
             h1 = get_h1_dq(crys, dq, dq_eden, gamma)
             tb_k.h1 = h1
-#            println("update h1 ", h1)
+            #println("update h1 ", h1)
         end
         
         for spin = 1:tb_k.nspin
@@ -4950,7 +4964,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         end
 
         
-        energy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
+        bandenergy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
 
         energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights)
         if tb_k.nspin == 1
@@ -5017,17 +5031,20 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
 #        electron_den[normal] .-= correction / sum(normal) / 2.0
 #        println("sum after ", sum(electron_den))
 
+
+        println("n_scf $n_scf scf $scf electron_den ", electron_den, " sum ", sum(electron_den), " energy ", energy0)
+        
         if n_scf == 1
             break
         end
-#        println("electron_den ", electron_den, " sum ", sum(electron_den))
+
         if !ismissing(crys)
             for spin =1:tb_k.nspin
                 electron_den[spin,:] = symmetrize_charge_den(crys, electron_den[spin,:] , SS, atom_trans, orb2ind)
             end
         end
-        println("electron_den ", electron_den, " sum ", sum(electron_den), " diff ", sum(abs.(electron_den  - eden)))
         diff_new = sum(abs.(electron_den  - eden))
+
         if  diff_new < 1e-4
             println("break scf $scf")
             break
@@ -5047,9 +5064,11 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         end
         
     end
+
+    bandenergy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
     
     
-    return energy0, electron_den, VECTS, VALS, efermi, error_flag, VALS0
+    return energy0, electron_den, VECTS, VALS, efermi, error_flag, VALS0, bandenergy
 
 end
 
@@ -5667,6 +5686,13 @@ function create_tb_crys_kspace_from_tbc(tbc; kpts=missing, kweights=missing, kgr
     return make_tb_crys_kspace(tbk, tbc.crys, tbc.nelec, tbc.dftenergy, scf=tbc.scf, eden = tbc.eden, gamma = tbc.gamma, background_charge_correction=tbc.background_charge_correction, efermi = tbc.efermi)
 
     
+end
+
+function get_adjusted_eigs(tbc::tb_crys_kspace)
+
+
+
+
 end
 
 

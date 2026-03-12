@@ -483,7 +483,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     if  version == 4 || version == 5 || version == 99 || version == 51
         totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam, version=version)
     elseif  version == 7
-        totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam, version=version)
+        totH,totS, data_info, orbs = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version)
     elseif  version == 6
         totH,totS, data_info, orbs = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version)
     elseif  version == 2 || version == 3

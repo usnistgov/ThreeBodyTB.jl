@@ -1042,7 +1042,7 @@ function shift_eigenvalues(d::dftout)
     
     band_en = band_en 
     shift = (atomization_energy - band_en  )/ (nval - d.tot_charge)
-#    println("shift $shift")
+    println("shift $shift  atomization_energy $atomization_energy band_en $band_en nval $nval")
     
     EIGS = EIGS .+ shift
     
