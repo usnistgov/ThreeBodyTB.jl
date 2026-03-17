@@ -459,8 +459,9 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
     nkeep_ab = size(R_keep_ab)[1]
     T = eltype(crys.A)
     ENERGY = ones(T, nthreads())
-    @threads for c = 1:nkeep_ab
-        id = threadid()
+     for c = 1:nkeep_ab #@threads
+         #id = threadid()
+         id = 1
         cind = R_keep_ab[c,1]
         a1 = R_keep_ab[c,2]
         a2 = R_keep_ab[c,3]

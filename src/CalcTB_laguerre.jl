@@ -2007,8 +2007,9 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         if verbose println("2body") end
         LMN = zeros(var_type, 3, nthreads())
 
-        @threads for c = 1:nkeep_ab
-            id = threadid()
+        for c = 1:nkeep_ab #@threads 
+            #id = threadid()
+            id = 1
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
@@ -2151,9 +2152,10 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         if verbose println("3body") end
         if use_threebody || use_threebody_onsite
             #        if false
-            @time @threads for counter = 1:size(array_ind3)[1]
+            @time for counter = 1:size(array_ind3)[1] #@threads 
                 #            for counter = 1:size(array_ind3)[1]
-                id = threadid()
+                #id = threadid()
+                id = 1
                 #id = 1
                 a1 = array_ind3[counter,1]
                 a2 = array_ind3[counter,2]
@@ -2291,8 +2293,9 @@ function calc_tb_fast(crys::crystal, database=missing; reference_tbc=missing, ve
         Son = zeros(var_type, nwan,nwan, nthreads())
         
         if verbose println("onsite") end
-        @threads for c = 1:nkeep_ab
-            id = threadid()
+        for c = 1:nkeep_ab #@threads 
+            #id = threadid()
+            id = 1
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
@@ -2523,7 +2526,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
     if !ismissing(database)
 
         if verbose println("2body") end
-        @time @threads for c = 1:nkeep_ab
+        @time @threads  for c = 1:nkeep_ab 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
             cham = R_keep_ab[c,7]
@@ -6419,8 +6422,9 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
         if verbose println("2body") end
         LMN = zeros(var_type, 3, nthreads())
 
-        @time @threads for c = 1:nkeep_ab #@threads
-            id = threadid()
+        @time  for c = 1:nkeep_ab #@threads
+            # id = threadid()
+            id = 1
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
@@ -6574,9 +6578,10 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
 #        println("3bdy")
         @time if use_threebody || use_threebody_onsite
             #        if false
-            @threads for counter = 1:size(array_ind3)[1] #@threads
+            for counter = 1:size(array_ind3)[1] #@threads 
                 #            for counter = 1:size(array_ind3)[1]
-                id = threadid()
+                #id = threadid()
+                id = 1
                 #id = 1
                 a1 = array_ind3[counter,1]
                 a2 = array_ind3[counter,2]
@@ -6755,8 +6760,9 @@ function calc_tb_lowmem(crys::crystal, database=missing; reference_tbc=missing, 
         
         if verbose println("onsite") end
 
-        @time @threads for c = 1:nkeep_ab #@threads 
-            id = threadid()
+        @time for c = 1:nkeep_ab #@threads  @threads 
+            #id = threadid()
+            id = 1
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
@@ -7006,8 +7012,9 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 
             println("nkeep_ab $nkeep_ab")
             
-            @time @threads for c = 1:nkeep_ab #add back threads
-                id = threadid()
+            @time for c = 1:nkeep_ab #add back threads #@threads 
+                #id = threadid()
+                id = 1
 
                 #        ind_arr[c,:] = R_keep_ab[c][4:6]
                 cind = R_keep_ab[c,1]
@@ -7115,7 +7122,7 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
             @time if use_threebody || use_threebody_onsite
                 #        if false
                 
-                @threads for  counter = 1: (size(array_ind3)[1] ) 
+                for  counter = 1: (size(array_ind3)[1] ) #@threads 
                     #            for counter = 1:size(array_ind3)[1]
                     a1 = array_ind3[counter,1]
                     a2 = array_ind3[counter,2]
@@ -7124,8 +7131,8 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 #                        continue
 #                    end
                     
-                    id = threadid()
-                    #id = 1
+#                    id = threadid()
+                    id = 1
                     
                     a3 = array_ind3[counter,3]
 
@@ -7314,8 +7321,9 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
         
         if verbose println("onsite") end
 
-        @threads for c = 1:nkeep_ab #@threads 
-            id = threadid()
+        for c = 1:nkeep_ab #@threads  @threads 
+            #id = threadid()
+            id = 1
 
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
@@ -7748,7 +7756,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             #@time twobody(nkeep_ab)
             for c = 1:nkeep_ab
                 begin
-                    id = threadid()
+                    #id = threadid()
+                    id = 1
                     lmn_arr = lmn_arr_TH[:,id]
                     sym_arr = sym_arr_TH[:,id]
                     sym_arrS = sym_arrS_TH[:,id]
@@ -7878,7 +7887,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             #                    for counter in mc
             for  counter = 1: (size(array_ind3)[1] ) #add threads back
                 
-                id = threadid()
+                #id = threadid()
+                id = 1
 
 
                 
@@ -8215,7 +8225,8 @@ end
 function core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id,sym_dat1, sym_dat2, lmn31, lmn32)
     H_thread .= 0.0
     for o2x = 1:norb[a2]
-        id = threadid()
+        #id = threadid()
+        id = 1
         o2 = orbs_arr[a2,o2x,1]
         s2 = orbs_arr[a2,o2x,2]
         sum2 = orbs_arr[a2,o2x,3]

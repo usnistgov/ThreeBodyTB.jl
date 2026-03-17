@@ -200,10 +200,11 @@ function distances_etc_3bdy_parallel_old(crys, cutoff=missing, cutoff2=missing; 
     found_arr = zeros(Bool, nr)
     found_arr[:] .= false
     
-    @threads for r1 = -R[1]:R[1]
+    for r1 = -R[1]:R[1]  #@threads 
     #for r1 = -R[1]:R[1]    
         c1 = r1 + R[1] + 1
-        id = threadid()
+        #id = threadid()
+        id = 1
         R_f[1, id] = r1
         for (c2,r2) = enumerate(-R[2]:R[2])
             R_f[2, id] = r2
@@ -727,7 +728,8 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
         #             for b = 1:crys.nat
 
         #threads
-        @threads for ab = 1:crys.nat^2
+        for ab = 1:crys.nat^2 #@threads
+            id = 1
             b = mod(ab-1, crys.nat)+1
             a = (ab-1) ÷ crys.nat   +1
             
@@ -736,7 +738,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
             tb = crys.stypes[b]
             cutoffZZ = get_cutoff(ta,tb)[1] * shrink
 
-            id = threadid()
+#            id = threadid()
             #id = 1
             array_ind3X = AI3[id]
             array_floats3X = AF3[id]
@@ -941,7 +943,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
     found_arr[:] .= false
 
 
-    @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1)
+    @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1) 
         
         r3 = mod(c-1 , R[3]*2+1 ) - R[3]
         r2 = mod((c-1) ÷ (R[3]*2+1), (R[2]*2+1)) - R[2]
@@ -1134,7 +1136,8 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
         
         #             for b = 1:crys.nat
 
-        @threads for ab = 1:crys.nat^2
+        for ab = 1:crys.nat^2 #@threads
+            id = 1
             b = mod(ab-1, crys.nat)+1
             a = (ab-1) ÷ crys.nat   +1
             
@@ -1142,8 +1145,8 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
 
             tb = crys.stypes[b]
             cutoffZZ = get_cutoff(ta,tb)[1]
-
-            id = threadid()
+#
+ #           id = threadid()
             #id = 1
             array_ind3X = AI3[id]
             array_floats3X = AF3[id]

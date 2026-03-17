@@ -998,9 +998,9 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
 
     for spin = 1:nspin
         
-        @threads for nt = 1: ntetra
-            id = threadid()
-            #id = 1
+        for nt = 1: ntetra
+            #id = threadid()
+            id = 1
             ex=zeros(4)
             px=zeros(4)    
             e=zeros(4, tbc.tb.nwan)

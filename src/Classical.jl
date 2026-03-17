@@ -1243,7 +1243,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     if verbose println("2body CL") end
      twobody_Cl = begin
         for c = 1:nkeep_ab
-            id = threadid()
+            #id = threadid()
+            id = 1
             lag_arr = lag_arr_TH[:,id]
 
             cind = R_keep_ab[c,1]
@@ -1336,7 +1337,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             
             #println("meta_count $meta_count")
             
-            @threads for mc in meta_count 
+            for mc in meta_count  #@threads s
+                id = 1
                 for counter in mc
                     
 
@@ -1353,8 +1355,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                             continue
                         end
                     end
-
-                    id = threadid()
+#                    id = 1
+                    #id = threadid()
                     
 #                    elseif a1 < a2 && a2 == a3
 #                        factor = 2.0
@@ -1444,10 +1446,11 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             
             #println("meta_count $meta_count")
             
-            @threads for mc in meta_count 
+            for mc in meta_count #@threads
+                id = 1
                 for counter in mc
                     
-                    id = threadid()
+                    #id = threadid()
 
                     a1 = array_ind4[counter,1]
                     a2 = array_ind4[counter,2]

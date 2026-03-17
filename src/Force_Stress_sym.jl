@@ -643,8 +643,9 @@ function psi_gradH_psi3_sym2_sparse(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, na
         end
 =#
         VAL_threads = zeros(nk_red, nthreads())
-        @threads for a1 = 1:nwan
-            id = threadid()
+        for a1 = 1:nwan #@threads 
+            #id = threadid()
+            id = 1
             for a2 = 1:nwan
                 for c = 1:nk_red
                     k1=grid_ind[c,1]

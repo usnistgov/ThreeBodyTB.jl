@@ -1137,8 +1137,9 @@ function symmetrize_charge_den(crys::crystal, v, SS, atom_trans, orb2ind )
 
     workspace = zeros(5, nthreads())
     
-    @threads for a = 1:crys.nat
-        id = threadid()
+    for a = 1:crys.nat #@threads 
+        #id = threadid()
+        id = 1
         inds_a = orb2ind[a]
         for isym = 1:nsym
             S = @view SS[:,:,isym]

@@ -2339,8 +2339,9 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     
-    @inbounds @fastmath @threads for c = 1:grid[1]*grid[2]*grid[3]
-        id = threadid()
+    @inbounds @fastmath  for c = 1:grid[1]*grid[2]*grid[3] #@threads
+        #id = threadid()
+        id = 1
         k3 = mod(c-1 , grid[3])+1
         k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
         k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
@@ -4625,8 +4626,8 @@ function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))                                                                                          
 
 
-    @inbounds @fastmath @threads for c = 1:nk_red
-        id = threadid()
+    @inbounds @fastmath for c = 1:nk_red #@threads 
+        #id = threadid()
         k1,k2,k3 = grid_ind[c,:]
 
         #k3 = mod(c-1 , grid[3])+1                                                                                                                                     
@@ -4708,8 +4709,9 @@ function go_eig_sym(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
 
     
-    @inbounds @fastmath @threads for c = 1:nk_red
-        id = threadid()
+    @inbounds @fastmath  for c = 1:nk_red #@threads
+        id = 1
+        #id = threadid()
         k1,k2,k3 = grid_ind[c,:]
         
         #k3 = mod(c-1 , grid[3])+1

@@ -347,8 +347,9 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys_sparse, database
                     for spin = 1:nspin
 
                         h_k_t = h_k + (h1_sparse + h1spin_sparse[spin]) .* s_k
-                        @fastmath @inbounds @threads for a = 1:max_occ #sparse matrix multiplies with dense vector.
-                            id = threadid()
+                        @fastmath @inbounds  for a = 1:max_occ #sparse matrix multiplies with dense vector. #@threads
+                            #id = threadid()
+                            id = 1
                             f_temp[id] += (kweights[k]*OCCS[k,a,spin])*((@view pVECTS[:,a,k,spin])'*(h_k_t - VALS[k, a,spin] * s_k)*(@view pVECTS[:,a,k,spin]))
                         end
                     end
