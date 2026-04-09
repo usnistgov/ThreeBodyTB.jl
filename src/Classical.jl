@@ -50,6 +50,7 @@ using ..Utility:cutoff_fn_fast
 using ForwardDiff
 using ..CrystalMod:makecrys
 
+
 #using ..ThreeBodyTB:scf_energy_force_stress
 #using ..ThreeBodyTB:scf_energy
 
@@ -58,7 +59,10 @@ using Random
 
 const n_2body_cl = 6
 
-const n_2body_em = 5
+#const n_2body_em = 5
+#n_2body_em = 11
+n_2body_em = 27
+
 #const n_2body_em = 12
 
 #const n_3body_cl_same = 7
@@ -67,10 +71,17 @@ const n_2body_em = 5
 
 const n_3body_cl_same = 8
 const n_3body_cl_pair = 15
-const n_3body_cl_diff = 23
+const n_3body_cl_diff = 26
+
+#const n_3body_cl_same = 30
+#const n_3body_cl_pair = 30
+#const n_3body_cl_diff = 30
+
+
 
 
 const a_var = 2.0
+a_var_threebody = [1.0]
 const L_A_0 = 1.0
 const L_B_0 = 1.0
 const L_C_0 = 1.0
@@ -260,7 +271,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs_cl` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=lim, repval=repval)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=missing, repval=missing)
 
     if ismissing(lim)
         lim = Dict()
@@ -541,7 +552,7 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
     @inbounds @fastmath begin
 #        a_var=2.0
 
-        ad_1 = a_var*dist_1
+        ad_1 = a_var_threebody[1]*dist_1
         expa_1 =exp.(-0.5*ad_1) 
 
 #        L_A_0 = 1.0
@@ -549,7 +560,7 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
         L_A_2 = (1.0 .- ad_1).*expa_1
         L_A_3 = 0.5*(ad_1.^2 .- 4.0*ad_1 .+ 2.0) .* expa_1
         
-        ad_2 = a_var*dist_2
+        ad_2 = a_var_threebody[1]*dist_2
         expa_2 =exp.(-0.5*ad_2) 
 
 #        L_B_0 = 1.0
@@ -557,7 +568,7 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
         L_B_2 = (1.0 .- ad_2).*expa_2
         L_B_3 = 0.5*(ad_2.^2 .- 4.0*ad_2 .+ 2.0) .* expa_2
         
-        ad_3 = a_var*dist_3
+        ad_3 = a_var_threebody[1]*dist_3
         expa_3 =exp.(-0.5*ad_3) 
 
 #        L_C_0 = 1.0
@@ -603,9 +614,13 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
         energy += DAT_ARR3[7,t1,t2,t3] * L_A_1 * L_B_0 * L_C_1         #j
         energy += DAT_ARR3[8,t1,t2,t3] * L_A_1 * L_B_1 * L_C_0         #i
   =#      
-        
+
+        #if abs(DAT_ARR3[1,t1,t2,t3] * L_A_1 * L_B_1 * L_C_1) > 1e-10
+        #    println("disp ret contribution ", DAT_ARR3[1,t1,t2,t3] * L_A_1 * L_B_1 * L_C_1, " ", [DAT_ARR3[1,t1,t2,t3] , L_A_1 , L_B_1 , L_C_1], " dist " , [dist_1, dist_2, dist_3])
+        #end
         energy += DAT_ARR3[1,t1,t2,t3] * L_A_1 * L_B_1 * L_C_1 #1       #a
 
+        
         energy += DAT_ARR3[2,t1,t2,t3] * L_A_2 * L_B_1 * L_C_1 #2-4  #b
         energy += DAT_ARR3[3,t1,t2,t3] * L_A_1 * L_B_2 * L_C_1       #b
         energy += DAT_ARR3[4,t1,t2,t3] * L_A_1 * L_B_1 * L_C_2       #c
@@ -616,32 +631,35 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
         
         energy += DAT_ARR3[8,t1,t2,t3] * L_A_2 * L_B_2 * L_C_2 #8    #f
 
-        energy += DAT_ARR3[9,t1,t2,t3] * L_A_1 * L_B_2 * L_C_2 #9-11  #g
-        energy += DAT_ARR3[10,t1,t2,t3] * L_A_2 * L_B_1 * L_C_2      #g
-        energy += DAT_ARR3[11,t1,t2,t3] * L_A_2 * L_B_2 * L_C_1      #h
+#        energy += DAT_ARR3[9,t1,t2,t3] * L_A_1 * L_B_2 * L_C_2 #9-11  #g
+#        energy += DAT_ARR3[10,t1,t2,t3] * L_A_2 * L_B_1 * L_C_2      #g
+#        energy += DAT_ARR3[11,t1,t2,t3] * L_A_2 * L_B_2 * L_C_1      #h
 
-        energy += DAT_ARR3[12,t1,t2,t3] * L_A_0 * L_B_1 * L_C_1 #12-14  #j
-        energy += DAT_ARR3[13,t1,t2,t3] * L_A_1 * L_B_0 * L_C_1         #j
-        energy += DAT_ARR3[14,t1,t2,t3] * L_A_1 * L_B_1 * L_C_0         #i
+        energy += DAT_ARR3[9,t1,t2,t3] * L_A_0 * L_B_1 * L_C_1 #12-14  #j
+        energy += DAT_ARR3[10,t1,t2,t3] * L_A_1 * L_B_0 * L_C_1         #j
+        energy += DAT_ARR3[11,t1,t2,t3] * L_A_1 * L_B_1 * L_C_0         #i
 
-        energy += DAT_ARR3[15,t1,t2,t3] * L_A_0 * L_B_1 * L_C_2 #15-20  #k 
-        energy += DAT_ARR3[16,t1,t2,t3] * L_A_0 * L_B_2 * L_C_1         #l
-        energy += DAT_ARR3[17,t1,t2,t3] * L_A_2 * L_B_0 * L_C_1         #l
-        energy += DAT_ARR3[18,t1,t2,t3] * L_A_1 * L_B_0 * L_C_2         #k
-        energy += DAT_ARR3[19,t1,t2,t3] * L_A_1 * L_B_2 * L_C_0         #m
-        energy += DAT_ARR3[20,t1,t2,t3] * L_A_2 * L_B_1 * L_C_0         #m
+        energy += DAT_ARR3[12,t1,t2,t3] * L_A_0 * L_B_1 * L_C_2 #15-20  #k 
+        energy += DAT_ARR3[13,t1,t2,t3] * L_A_0 * L_B_2 * L_C_1         #l
+        energy += DAT_ARR3[14,t1,t2,t3] * L_A_2 * L_B_0 * L_C_1         #l
+        energy += DAT_ARR3[15,t1,t2,t3] * L_A_1 * L_B_0 * L_C_2         #k
+        energy += DAT_ARR3[16,t1,t2,t3] * L_A_1 * L_B_2 * L_C_0         #m
+        energy += DAT_ARR3[17,t1,t2,t3] * L_A_2 * L_B_1 * L_C_0         #m
 
         ###
-        energy += DAT_ARR3[21,t1,t2,t3] * L_A_0 * L_B_2 * L_C_2         #m
-        energy += DAT_ARR3[22,t1,t2,t3] * L_A_2 * L_B_0 * L_C_2         #m
-        energy += DAT_ARR3[23,t1,t2,t3] * L_A_2 * L_B_2 * L_C_0         #m
+        energy += DAT_ARR3[18,t1,t2,t3] * L_A_0 * L_B_2 * L_C_2         #m
+        energy += DAT_ARR3[19,t1,t2,t3] * L_A_2 * L_B_0 * L_C_2         #m
+        energy += DAT_ARR3[20,t1,t2,t3] * L_A_2 * L_B_2 * L_C_0         #m
 
-#        energy += DAT_ARR3[24,t1,t2,t3] * L_A_0 * L_B_1 * L_C_3 #15-20  #k 
-#        energy += DAT_ARR3[25,t1,t2,t3] * L_A_0 * L_B_3 * L_C_1         #l
-#        energy += DAT_ARR3[26,t1,t2,t3] * L_A_3 * L_B_0 * L_C_1         #l
-#        energy += DAT_ARR3[27,t1,t2,t3] * L_A_1 * L_B_0 * L_C_3         #k
-#        energy += DAT_ARR3[28,t1,t2,t3] * L_A_1 * L_B_3 * L_C_0         #m
-#        energy += DAT_ARR3[29,t1,t2,t3] * L_A_3 * L_B_1 * L_C_0         #m
+        
+        energy += DAT_ARR3[21,t1,t2,t3] * L_A_0 * L_B_1 * L_C_3 #15-20  #k 
+        energy += DAT_ARR3[22,t1,t2,t3] * L_A_0 * L_B_3 * L_C_1         #l
+        energy += DAT_ARR3[23,t1,t2,t3] * L_A_3 * L_B_0 * L_C_1         #l
+        energy += DAT_ARR3[24,t1,t2,t3] * L_A_1 * L_B_0 * L_C_3         #k
+        energy += DAT_ARR3[25,t1,t2,t3] * L_A_1 * L_B_3 * L_C_0         #m
+        energy += DAT_ARR3[26,t1,t2,t3] * L_A_3 * L_B_1 * L_C_0         #m
+
+        #energy += DAT_ARR3[30,t1,t2,t3] * L_A_3 * L_B_3 * L_C_3 #8    #f
         
     end
     
@@ -875,6 +893,124 @@ function core_4_cl_laguerre_fast_fourbdy_cl!(dist_1, dist_2, dist_3, dist_4, dis
 
 end
 
+function em_energy_fn(l1,l2,l3,l4,l5,l6, em; verbose=false, energy_arr = misssing)
+#    println("in em_energy_fn !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+
+    energy = 0.0
+
+    energy += l1^2 * em[1]
+    energy += l2^2 * em[2]
+    energy += l3^2 * em[3]
+    energy += l4^2 * em[4]
+    energy += l5^2 * em[5]
+    energy += l6^2 * em[6]
+
+    energy += l1*l2 * em[7]
+    energy += l2*l3 * em[8]
+    energy += l3*l4 * em[9]
+    energy += l4*l5 * em[10]
+    energy += l6*l1 * em[11]
+    
+
+    energy += log(l1 + 1) * em[12]
+    energy += log(l2 + 1) * em[13]
+    energy += log(l3 + 1) * em[14]
+    energy += log(l4 + 1) * em[15] 
+    energy += log(l5 + 1) * em[16]
+    energy += log(l6 + 1) * em[17]
+
+#    energy += l1^0.5 * em[10]
+#    energy += l2^0.5 * em[11]
+#    energy += l3^0.5 * em[12]
+#    energy += l4^0.5 * em[13] 
+#    energy += l5^0.5 * em[14]
+    
+    #    energy += l6^0.5 * em[17]   
+
+    energy += l1^3 * em[18]
+    energy += l2^3 * em[19]
+    energy += l3^3 * em[20]
+    energy += l4^3 * em[21] 
+    energy += l5^3 * em[22]
+    energy += l6^3 * em[23]
+
+#    energy += l1^0.25 * em[20]
+#    energy += l2^0.25 * em[21]
+#    energy += l3^0.25 * em[22]
+#    energy += l4^0.25 * em[23] 
+    #    energy += l5^0.25 * em[24]
+
+    energy += log(log(l1 + 1)+1) * em[24]
+    energy += log(log(l2 + 1)+1) * em[25]
+    energy += log(log(l3 + 1)+1) * em[26]
+    energy += log(log(l4 + 1)+1) * em[27] 
+#    energy += log(log(l5 + 1)+1) * em[24]
+    
+    
+    
+    if verbose
+
+        #energy_arr[1] += l1^2 * em[1]
+    
+    end        
+
+#    energy += l4^0.5 * em[11]
+#    energy += l4 * em[12]
+    
+#    energy += l3^0.5 * em[12]
+
+    return energy
+end    
+
+
+function em_energy_old_fn(l1,l2,l3,l4, em; verbose=false, energy_arr = misssing)
+#    println("in em_energy_fn !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+
+    energy = 0.0
+
+    energy += l1^2 * em[1]
+    energy += l2^2 * em[2]
+    energy += l3^2 * em[3]
+    energy += l4^2 * em[4]
+
+    energy += l1*l2 * em[5]
+    energy += l2*l3 * em[6]
+    energy += l3*l4 * em[7]
+    
+
+    energy += l1^0.5 * em[8]
+    energy += l2^0.5 * em[9]
+    energy += l3^0.5 * em[10]
+    energy += l4^0.5 * em[11]
+    
+    if verbose
+        energy_arr[1] += l1^2 * em[1]
+        energy_arr[2] += l2^2 * em[2]
+        energy_arr[3] += l3^2 * em[3]
+        energy_arr[4] += l4^2 * em[4]
+
+        energy_arr[5] += l1*l2 * em[5]
+        energy_arr[6] += l2*l3 * em[6]
+        energy_arr[7] += l3*l4 * em[7]
+        
+
+        energy_arr[8] += l1^0.5 * em[8]
+        energy_arr[9] += l2^0.5 * em[9]
+        energy_arr[10] += l3^0.5 * em[10]
+        energy_arr[11] += l4^0.5 * em[11]
+    end        
+
+#    energy += l4^0.5 * em[11]
+#    energy += l4 * em[12]
+    
+#    energy += l3^0.5 * em[12]
+
+    return energy
+end    
+
+
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -885,9 +1021,12 @@ Main function for classical energy calculation from crystal structure.
 """
 function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
 
-    no_errors = true
     
-#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody")
+    
+    no_errors = true
+
+    
+    println("calc_energy_cl use_em $use_em use_threebody $use_threebody !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 #    verbose=true
 
 #    println("CRYS.nat ", crys.nat)
@@ -910,7 +1049,13 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #    if verbose  println("LV $var_type")  end
     
     
-    
+    if verbose == true
+        energy_arr = zeros(n_2body_em)
+        energy_arr_minus = zeros(n_2body_em)
+    else
+        energy_arr = missing
+        energy_arr_minus = missing
+    end
 
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
@@ -973,6 +1118,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     end
 
     if check_frontier
+    #if false
         violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
         if vio_bool
             no_errors = false
@@ -1236,9 +1382,10 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     
     lag_arr_TH = zeros(var_type, n_2body_cl, nthreads())
     energy_2bdy_TH = zeros(var_type,nthreads())
+    energy_2bdy_EM = zeros(var_type,nthreads())
 
-    rho = zeros(var_type, crys.nat, types_counter)
-    rho2 = zeros(var_type, crys.nat, types_counter)
+    rho = zeros(var_type, crys.nat, types_counter, 6)
+#    rho2 = zeros(var_type, crys.nat, types_counter)
 #    rho3 = zeros(var_type, crys.nat, types_counter)
     if verbose println("2body CL") end
      twobody_Cl = begin
@@ -1279,8 +1426,53 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             
             laguerre_fast!(dist_a, lag_arr, a=2.0)
             energy_2bdy_TH[id] += core_cl(t1, t2, lag_arr, DAT_IND_ARR, var_type) * cut_a
-            rho[a1,t2] += exp(-1.0*dist_a)
-            rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
+#            if use_em
+#                l1 = exp(-1.0*dist_a)
+#                l2 = (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
+#                em = DAT_EM_ARR[t1,t2,1:n_2body_em]
+#                energy_2bdy_EM[id] += em[1]*l1^2 + em[2]*l1^3  + em[3]*l2^2 + em[4]*l2^3 + em[5]*l1*l2
+#                rho[a1,t2] += exp(-1.0*dist_a)
+#                rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
+            #            end
+
+            if use_em
+                a=1.0
+                ad = a*dist_a
+                #expa=exp.(-2.0*ad)*cut_a
+                #l1 = 1.0 * expa
+                #l2 = (1.0 .- ad) .* expa
+                #l3 = 0.5*(ad.^2 .- 4.0*ad .+ 2) .* expa
+                #l4 = exp.(-1.0*ad)*cut_a
+
+                #old
+                #                l1 = exp(-2.0*ad)*cut_a  / exp(-2.0*3.0)
+#                l2 = exp(-1.5*ad)*cut_a  / exp(-1.5*3.0)
+#                l3 = exp(-1.0*ad)*cut_a  / exp(-1.0*3.0)
+                #                l4 = exp(-0.5*ad)*cut_a  / exp(-0.5*3.0)
+                l1 = 1 ./ (exp.( (dist_a .- 2.0) / 1.0 ) .+ 1.0) * cut_a
+                l2 = 1 ./ (exp.( (dist_a .- 3.0) / 1.0 ) .+ 1.0) * cut_a
+                l3 = 1 ./ (exp.( (dist_a .- 4.0) / 1.0 ) .+ 1.0) * cut_a
+                l4 = 1 ./ (exp.( (dist_a .- 5.0) / 1.0 ) .+ 1.0) * cut_a
+                l5 = 1 ./ (exp.( (dist_a .- 6.0) / 1.0 ) .+ 1.0) * cut_a
+                l6 = 1 ./ (exp.( (dist_a .- 1.0) / 1.0 ) .+ 1.0) * cut_a
+                
+                rho[a1,t2,1] += l1
+                rho[a1,t2,2] += l2
+                rho[a1,t2,3] += l3
+                rho[a1,t2,4] += l4
+                rho[a1,t2,5] += l5
+                rho[a1,t2,6] += l6
+
+
+                em = DAT_EM_ARR[t1,t2,1:n_2body_em]
+                energy_2bdy_EM[id] += em_energy_fn(l1,l2,l3,l4,l5,l6, em; verbose=verbose, energy_arr = energy_arr_minus)
+                
+#                energy_2bdy_EM[id] += em[1]*l1^2 + em[2]*l1^3  + em[3]*l2^2 + em[4]*l2^3 + em[5]*l1*l2
+#                rho[a1,t2] += exp(-1.0*dist_a)
+#                rho2[a1,t2] += (1.0 .- dist_a * 2.0)* exp(-1.0*dist_a)
+            end
+           
+            
 #            rho3[a1, t2] +=0.5*((dist_a * 2.0).^2 .- 4.0*dist_a * 2.0 .+ 2)*exp(-1.0*dist_a)
         end
         
@@ -1288,20 +1480,22 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     
     energy_embed = zero(var_type)
     if verbose; println("do em"); end
-     if use_em
+    if use_em
         for a1 = 1:crys.nat
-#            if var_type == Float64
-#                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
-#            end
+            #            if var_type == Float64
+            #                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
+            #            end
             t1 = types_arr[a1]
             for t=1:types_counter
                 em = DAT_EM_ARR[t1,t,1:n_2body_em]
-                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3  #+ em[6] * rho[a1,t]^1
-                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3  #+ em[7] * rho2[a1,t]^1
-                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] #+ em[6]*(rho[a1,t]*rho2[a1,t])^2
+                energy_embed += em_energy_fn(rho[a1,t,1], rho[a1,t,2],rho[a1,t,3], rho[a1,t,4], rho[a1,t,5],rho[a1,t,6], em ; verbose=verbose, energy_arr = energy_arr)
+                
+#                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3  #+ em[6] * rho[a1,t]^1
+#                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3  #+ em[7] * rho2[a1,t]^1
+#                energy_embed +=  em[5]*rho[a1,t]*rho2[a1,t] #+ em[6]*(rho[a1,t]*rho2[a1,t])^2
 
-#                energy_embed +=  em[6]*rho3[a1,t]^2 + em[7]*rho3[a1,t]^3  + em[12]* rho3[a1,t]^4
-#                energy_embed +=  em[8]*rho[a1,t]*rho3[a1,t] + em[9]*rho2[a1,t]*rho3[a1,t]
+                #                energy_embed +=  em[6]*rho3[a1,t]^2 + em[7]*rho3[a1,t]^3  + em[12]* rho3[a1,t]^4
+                #                energy_embed +=  em[8]*rho[a1,t]*rho3[a1,t] + em[9]*rho2[a1,t]*rho3[a1,t]
                 
             end
             
@@ -1309,6 +1503,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 
             
         end
+        energy_embed = energy_embed - sum(energy_2bdy_EM)
     end
         
 
@@ -1336,7 +1531,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             
             #println("meta_count $meta_count")
             
-            @threads for mc in meta_count 
+            for mc in meta_count 
                 for counter in mc
                     
 
@@ -1444,7 +1639,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             
             #println("meta_count $meta_count")
             
-            @threads for mc in meta_count 
+            for mc in meta_count 
                 for counter in mc
                     
                     id = threadid()
@@ -1526,6 +1721,17 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #        println(" energy comps  $(sum(energy_2bdy_TH))    $(sum(energy_3bdy_TH))    $(sum(energy_4bdy_TH))    $energy_embed")
 #    end
     if verbose; println("done e cl");end
+    if verbose
+        println("energy_arr ", energy_arr)
+        println()
+        println("energy_arr_minus ", energy_arr_minus)
+        println()
+        println("energy_arr_ned ", energy_arr - energy_arr_minus)
+        println()
+    end
+    if typeof(energy_2bdy_TH[1]) == Float64
+        println("energy ", [sum(energy_2bdy_TH) , sum(energy_3bdy_TH) , sum(energy_4bdy_TH) , energy_embed])
+    end
     return sum(energy_2bdy_TH) + sum(energy_3bdy_TH) + sum(energy_4bdy_TH) + energy_embed, no_errors
     
     

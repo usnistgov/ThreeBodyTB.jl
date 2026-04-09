@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100, input_occupations=missing)
 """
 Run SCF calculation using QE
 """
@@ -128,7 +128,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -155,7 +155,7 @@ Run SCF calculation using QE
     if ret != 0 && updated == false
         println("failed DFT, trying with different mixing")
         #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
-        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx)
+        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations)
         
 
         f = open(directory*"/"*inputstr, "w")
@@ -230,10 +230,13 @@ end
 Make QE inputfile for SCF DFT calculation.
 """
 
-function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0)
+function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0, input_occupations=missing)
 """
 Make inputfile for SCF calculation
 """
+
+
+    
     println("makeSCF hybrid ", hybrid)
     println("electron_maxstep ", electron_maxstep)
     c_dict = make_commands(1)
@@ -275,7 +278,7 @@ Make inputfile for SCF calculation
         temp = replace(temp, "STARTATOMIC" => "atomic")
     end
 
-    if calculation == "nscf" 
+    if calculation == "nscf"  
         temp = replace(temp, "nosym = false" => "nosym = true")
         temp = replace(temp, "noinv = false" => "noinv = true")
     end
@@ -379,7 +382,23 @@ Make inputfile for SCF calculation
     kpoints = [k1, k2, k3]
 =#
     qpoints = [1,1,1]
-    if ismissing(klines)
+    if !ismissing(input_occupations)
+
+#        temp = replace(temp, "nosym = false" => "nosym = true")
+#        temp = replace(temp, "noinv = false" => "noinv = true")
+        
+        input_occupations = round.(input_occupations, digits=9)
+        kpoints = [1,1,1] #gamma only
+        temp = replace(temp, "JULIAKTYPE" => "K_POINTS automatic")
+        st = ""
+        for i in input_occupations
+            st = st*"$i "
+        end
+            
+        temp = replace(temp, "JULIAKPOINTS" => arr2str(kpoints)*" 0 0 0 \nOCCUPATIONS\n$st\n")
+        temp = replace(temp, "smearing" => "from_input")
+        
+    elseif ismissing(klines)
         if ismissing(grid)
             kpoints = get_grid(crys)
         else
@@ -467,6 +486,25 @@ Make inputfile for SCF calculation
     temp = replace(temp, "TMPDIR" => tmpdir)    
 
     other=""
+
+    nbandsemi = 0
+    nbandval = 0        
+    nval = 0.0
+    for t in crys.types
+        nbandsemi += atoms[t].nsemicore
+        nval += atoms[t].nval
+    end
+    
+    
+    if !ismissing(input_occupations)
+        other *="nbnd = "*string(length(input_occupations))*"\n"
+        if abs(nbandsemi + nbandval - (sum(input_occupations) + tot_charge)) > 1e-5
+            println("check total charge and input_occupations", [nbandsemi + nbandval , sum(input_occupations) , tot_charge])
+        end
+        tot_charge = nbandsemi + nval - sum(input_occupations)
+        println("nbandsemi $nbandsemi nval $nval sum(input_occupations) $(sum(input_occupations))")
+    end
+    
     println("wannier $wannier ")
     if (typeof(wannier) == Bool && wannier==true) || wannier == 2
         nbandsemi = 0
@@ -503,7 +541,7 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.5 / 2.0))   #no spin yet
+        nbandtot = 1+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.0 / 2.0))   #no spin yet
         other *="nbnd = "*string(nbandtot)*"\n"
     end
 
@@ -648,7 +686,10 @@ function loadXML(savedir)
     outdir = d["espresso"]["input"]["control_variables"]["outdir"]    
 
     tot_charge = parse(Float64, d["espresso"]["input"]["bands"]["tot_charge"])
-    degauss = parse(Float64, d["espresso"]["input"]["bands"]["smearing"][:degauss]) * convert_ha_ryd
+    degauss = 0.0
+    if "smearing" in keys(d["espresso"]["input"]["bands"])
+        degauss = parse(Float64, d["espresso"]["input"]["bands"]["smearing"][:degauss]) * convert_ha_ryd
+    end
     #println("tot_charge $tot_charge")
     
     kgrid = [nk1, nk2,nk3]
@@ -743,7 +784,18 @@ function loadXML(savedir)
     if occursin(savedir, "qe.save")
         savedir=replace(savedir, "qe.save" => "")
     end
-    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=savedir)
+
+    occupations = :smearing
+    input_occupations = zeros(0)
+    if  d["espresso"]["input"]["bands"]["occupations"] == "from_input"
+        occupations = :from_input
+        println(d["espresso"]["input"]["bands"]["input_occupations"])
+        input_occupations = parse_str_ARR_float(d["espresso"]["input"]["bands"]["input_occupations"][""])
+    end
+        
+    
+
+    d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=savedir, occupations=occupations, input_occupations=input_occupations)
 
 #    println("end loadXML")
 
@@ -870,7 +922,7 @@ using ..CrystalMod:crystal
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx=-1.0, electron_maxstep=100)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx=-1.0, electron_maxstep=100, input_occupations=missing)
     
     if exx > 1e-5
         hybrid = true
@@ -895,11 +947,11 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         end
         qeout = missing
         try
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
             return qeout
         catch
             println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
             return qeout
 
         end

@@ -11,6 +11,7 @@ Create TB matrix sets from coefficients, or prepare to fit the coefficients.
 """
 module ClassicalFit
 
+using JLD
 using ..Utility:arr2str
 using ..Utility:str_w_spaces
 using ..Utility:parse_str_ARR_float
@@ -20,6 +21,7 @@ using ..Utility:str2tuplesdict
 using Random
 using LinearAlgebra
 using SpecialFunctions
+using Statistics
 using GZip
 using EzXML
 using XMLDict
@@ -131,7 +133,7 @@ Main CLASSICAL fitting routine. Runs DFT in recursive active-learning styel fram
 as well as an EAM (embedded atom model) style term.
 Experimental.
 """
-function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, niters=20 )
+function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thresh, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, use_twobody=true,  subtract_scf=false, niters=20 )
 
     vtot = missing
     rtot = missing
@@ -144,7 +146,7 @@ function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thre
     for iter = 1:niters
 
         println("ITER $iter -----------------------------")
-        database, vtot2, rtot2, BAD = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+        database, vtot2, rtot2, BAD = do_fit_cl(DFT, Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot, use_twobody=use_twobody)
         if length(BAD) > 0 
             println("issue BAD ", BAD)
             goodind = setdiff(1:length(DFT), BAD)
@@ -153,7 +155,7 @@ function do_fit_cl_RECURSIVE(DFT_start; GEN_FN=missing, procs=procs, thresh=thre
             if length(goodind) == 0
                 continue
             else
-                database, vtot2, rtot2, BAD = do_fit_cl(DFT[goodind], Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot)
+                database, vtot2, rtot2, BAD = do_fit_cl(DFT[goodind], Vtot_start = vtot, Rtot_start=rtot, use_threebody=use_threebody, energy_weight=energy_weight, use_energy=use_energy, use_force=use_force, use_stress = use_stress , database_start=database_start, lambda = lambda, use_fourbody=use_fourbody, use_em = use_em, subtract_scf=subtract_scf, return_mats = true, CRYS_tot = CRYS_tot, use_twobody=use_twobody)
             end
         end
         vtot = vtot2
@@ -182,7 +184,7 @@ end
 
 For fitting the classical model to a specific set of DFT calculations in the list `DFT`
 """
-function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing)
+function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing, use_twobody=true)
 
     println("DFT version")
     println("database_start ", database_start)
@@ -224,11 +226,11 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
 
         
         #subtract old forces
-        if !ismissing(database_start)
+        if !ismissing(database_start) && length(database_start) != 0
 
             println("subtract old forces, ", keys(database_start))
 
-            energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
+            energyT, flag = calc_energy_cl(dft.crys, database=database_start, use_threebody=true, verbose=false, use_fourbody=true, use_em = use_em, turn_off_warn=true)
 
 #            println("dft")
 #            println(dft)
@@ -236,7 +238,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
             if flag == true
                 continue
             end
-            energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=use_threebody, verbose=false, use_fourbody=use_fourbody, use_em = use_em, turn_off_warn=true)
+            energyTT, forceTT, stressTT = energy_force_stress_cl(dft.crys, database=database_start, use_threebody=true, verbose=false, use_fourbody=true, use_em = true, turn_off_warn=true)
             #energyT += energyTT (already added, former bug)
             forceT += forceTT
             stressT += stressTT
@@ -298,7 +300,7 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
 
 #    println("ENERGIES ", ENERGIES[1:5])
     
-    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot)
+    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot, use_twobody=use_twobody)
     
 end
 
@@ -307,7 +309,7 @@ end
 
 Does the main fitting for CLASSICAL MODEL
 """
-function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing)
+function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing, use_twobody=true)
 
     #ENERGIES PER ATOM. 
     
@@ -329,8 +331,18 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         get_force = false
     end
 
-    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em)
+    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em, use_twobody=use_twobody)
 
+    
+
+    x = ENERGIES  \ Ve
+    println()
+    println("x $x ")
+    println(x)
+    println("ENERGIES ", ENERGIES)
+    println()
+    println("Ve $Ve")
+    println()
     ntot = max(size(Ve)[2], size(Vf)[2], size(Vs)[2])
     if ismissing(Vtot_start)
         Vtot_start = zeros(0,ntot)
@@ -429,10 +441,17 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     println("size Vtot_lam ", size(Vtot_lam))
     
     x = Vtot_lam \ Rtot_lam
+ 
+    #@save "a.jld" x Vtot_lam Rtot_lam
 
     
     println("err_tot (in samp)  " , sum( (Vtot * x  - Rtot).^2), " vs ",  sum(Rtot.^2) )
 
+    println("corr  cor = ")
+    println()
+    println(cor(Vtot_lam, Vtot_lam))
+    println()
+    
     #Vx = Vtot_lam*x
 
     if !ismissing(ENERGIES)
@@ -447,6 +466,8 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
                 push!(BAD, i)
             end
         end
+        println("YYY ma error : ", sum(1/length(etemp) * abs.(etemp - Vex)))
+        println("YYY rms error : ", sqrt(1/length(etemp) * sum(abs.(etemp - Vex).^2)))
         println("--")
         println("BAD ", BAD)
     end
@@ -472,7 +493,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             else
                 c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1)
             end                
-            database[ind] = c
+            database[t1,t2] = c
         elseif length(ind) == 3 && ind[3] == :em
             t1,t2,em_var = ind
             println("vars ", [t1,t2,em_var])
@@ -495,7 +516,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             else
                 c = make_coefs_cl([t1, t2, t3], 3, datH = x[ind_set[ind]], version = 1)
             end
-            database[ind] = c
+            database[t1,t2,t3] = c
 
         elseif length(ind) == 4
             t1,t2,t3,t4 = ind
@@ -535,8 +556,11 @@ function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fou
 end
 
 
-function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true)
-    println("prepare_fit_cl $use_threebody $use_em ")
+function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true, use_twobody=true)
+    if ismissing(database)
+        database = Dict()
+    end
+    println("prepare_fit_cl $use_threebody $use_em use_twobody $use_twobody")
     types_dict = Dict()
     types_dict_reverse = Dict()
     types_counter = 0
@@ -553,6 +577,12 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
                     if ! ( (s1,s2) in keys(database))
                         push!(vars,[Set([s1,s2]),2])
                     end 
+                    if use_em
+                        if ! ( (s1,s2, :em) in keys(database))
+                            push!(vars,[Set([s1,s2]),2])
+                        end
+                    end
+
                 else
                     push!(vars,[Set([s1,s2]),2])
                 end
@@ -640,10 +670,12 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
             else
                 println("something wrong v length(v[1]) ", length(v[1]) )
             end
-            ind_set[(t1,t2)] = collect(1:n_2body_cl) .+ ntot
-            ind_set[(t2,t1)] = collect(1:n_2body_cl) .+ ntot
-            ntot += n_2body_cl
-            if use_em
+            if use_twobody && !( (t1,t2) in keys(database))
+                ind_set[(t1,t2)] = collect(1:n_2body_cl) .+ ntot
+                ind_set[(t2,t1)] = collect(1:n_2body_cl) .+ ntot
+                ntot += n_2body_cl
+            end
+            if use_em && !( (t1,t2, :em) in keys(database))
                 println("add em" , (t1,t2,:em))
                 ind_set[(t1,t2,:em)] = collect(1:n_2body_em) .+ ntot
                 ntot += n_2body_em
@@ -659,7 +691,8 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
                 println("elemental")
                 t1 = collect(v[1])[1]
                 #ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8, 9,9,9,9,9,9]
-                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8]
+                #ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,7,7,7,7,7,7, 8, 8, 8,9,9,9,9,9,9]
+                ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,3,3,4,5,5,5,6,6,6,6,6,6, 7, 7, 7,8,8,8,8,8,8]
                 #ind_set[(t1,t1,t1)] = ntot .+ [1,2,2,2,3,4,4,4]
                 ntot += n_3body_cl_same
                 

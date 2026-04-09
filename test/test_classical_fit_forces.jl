@@ -34,24 +34,39 @@ function test1()
                 v = v * 1.12;
                 for c in [c2];
                     push!(C, c*v);
-                    energy, force, stress = ThreeBodyTB.Classical.energy_force_stress(c*v, database=database, use_threebody=false)
-                    push!(EN, energy)
+                    energy, force, stress = ThreeBodyTB.Classical.energy_force_stress_cl(c*v, database=database, use_threebody=false, use_em=false)
+                    push!(EN, energy/c.nat)
                     FORCES=vcat(FORCES, force[:])
                     STRESSES = vcat(STRESSES, [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
                 end;
             end
-            V,Vf,Vs, _ = ThreeBodyTB.Classical.prepare_fit_cl(C, use_threebody=false, get_force=true);
+            V,Vf,Vs, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=true, use_em=false);
             x = V \ EN
-            @test sum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            @test sum(abs.(x[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
 
+            println("energy")
+            println(x[1:6])
+            println([1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
+            println(x[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
+            
             xf = Vf \ FORCES
-            @test sum(abs.(xf - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            @test sum(abs.(xf[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
 
+            println("force")
+            println(xf[1:6])
+            println([1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
+            println(xf[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
+            
             xs = Vs \ STRESSES
-            @test sum(abs.(xs - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            @test sum(abs.(xs[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+
+            println("stress")
+            println(xs[1:6])
+            println([1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
+            println(xs[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])
             
             xtot = [V;Vf;Vs] \ [EN; FORCES; STRESSES]
-            @test sum(abs.(xtot - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+            @test sum(abs.(xtot[1:6] - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
             
         end
     end

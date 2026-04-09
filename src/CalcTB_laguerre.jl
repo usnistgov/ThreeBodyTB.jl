@@ -82,7 +82,7 @@ const n_3body_same_default = 5
 const n_3body_triple_default = 4
 const n_3body_onsite_default = 2
 const n_3body_onsite_same_default = 5
-const n_eam_default = 3
+const n_eam_default = 6
 
 function fitting_version_params(version=fitting_version_default)
 
@@ -108,7 +108,7 @@ function fitting_version_params(version=fitting_version_default)
         n_3body_triple = 4
         n_3body_onsite = 2
         n_3body_onsite_same = 7
-        n_eam = 3
+        n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
 
@@ -121,7 +121,7 @@ function fitting_version_params(version=fitting_version_default)
         n_3body_triple = 4
         n_3body_onsite = 2
         n_3body_onsite_same = 7
-        n_eam = 3
+        n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
         
@@ -134,7 +134,7 @@ function fitting_version_params(version=fitting_version_default)
         n_3body_triple = 4
         n_3body_onsite = 2
         n_3body_onsite_same = 5
-        n_eam = 3
+        n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
     elseif version > 3
@@ -146,7 +146,7 @@ function fitting_version_params(version=fitting_version_default)
         n_3body_triple = 4
         n_3body_onsite = 2
         n_3body_onsite_same = 5
-        n_eam = 3
+        n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
     else
@@ -158,7 +158,7 @@ function fitting_version_params(version=fitting_version_default)
         n_3body_triple = 4
         n_3body_onsite = 2
         n_3body_onsite_same = 5
-        n_eam = 3
+        n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
         
@@ -1094,7 +1094,7 @@ function get_data_info_v2(at_set, dim; use_eam=false)
             if use_eam 
                 if same_at == true
                     for orb in orbs1
-                        data_info[[at1, at2, :eam, orb]] = tot+1:tot+n_eam
+                        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
                         tot += n_eam
                     end
                 else
@@ -1478,7 +1478,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
             if use_eam 
                 if same_at == true
                     for orb in orbs1
-                        data_info[[at1, at2, :eam, orb]] = tot+1:tot+n_eam
+                        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
                         tot += n_eam
                     end
                 else
@@ -1890,7 +1890,7 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
             if use_eam 
                 if same_at == true
                     for orb in orbs1
-                        data_info[[at1, at2, :eam, orb]] = tot+1:tot+n_eam
+                        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
                         tot += n_eam
                     end
                 else
@@ -4953,6 +4953,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 ############
 ############ONSITE
 
+    if use_eam
+        eam_atom_coefs = zeros(crys.nat, n_eam)
+    else
+        eam_atom_coefs = zeros(0)
+    end
+    
     if true
         for c = 1:nkeep_ab
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
@@ -4988,8 +4994,16 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 #                expa=exp.(-0.5*ad)
 
                 if use_eam
-                    rho[a1, 1] += exp.(-1.5*dist) * cut
-                    rho[a1, 2] += exp.(-3.0*dist) * cut
+
+                    l1 = 1 ./ (exp.( (dist .- 2.0) / 1.0 ) .+ 1.0) * cut
+                    l2 = 1 ./ (exp.( (dist .- 3.0) / 1.0 ) .+ 1.0) * cut
+                    l3 = 1 ./ (exp.( (dist .- 4.0) / 1.0 ) .+ 1.0) * cut
+                    rho[a1, 1] += l1 
+                    rho[a1, 2] += l2
+                    rho[a1, 3] += l3
+                    eam_atom_coefs[a1,:] += eam_fn_prepare(l1,l2,l3)
+                    #                    rho[a1, 1] += exp.(-1.5*dist) * cut
+#                    rho[a1, 2] += exp.(-3.0*dist) * cut
                 end
                 #    println("ADD RHO FIT $a1 dist $dist 1 $((1.0 * expa) * cut)   2  $( (1.0 .- ad) * expa * cut)     cut $cut")
             end
@@ -5061,17 +5075,21 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 coef = twobody_arrays[at_set][3]
                 println("coef")
                 println(coef)
-                #            for o = orb2ind[a]
+                l1 = rho[a,1]
+                l2 = rho[a,2]
+                l3 = rho[a,3]
                 for o = orb2ind[a]
                     a2a,t2a,s2 = ind2orb[o]
                     sum2 = summarize_orb(s2)
 
                     
-                    io = coef.inds[[t1,t1,:eam, sum2]] #fix later
+                    io = coef.inds[[t1,t1,:eam]] #fix later
 
                     aa,t,s = ind2orb[o]
                     ind = ind_conversion[(o,o,c_zero)]
-                    twobody_arrays[at_set][1][ind,io] += [rho[a,1]^0.5, rho[a,2]^0.5, (rho[a,1]*rho[a,2])^0.25]
+                    #twobody_arrays[at_set][1][ind,io] += [rho[a,1]^0.5, rho[a,2]^0.5, (rho[a,1]*rho[a,2])^0.25]
+                    twobody_arrays[at_set][1][ind,io] += eam_fn_prepare(l1, l2, l3) - eam_atom_coefs[a,:]
+                        #[rho[a,1]^0.5, rho[a,2]^0.5, (rho[a,1]*rho[a,2])^0.25]
                 end
             end
         end
@@ -9225,7 +9243,20 @@ function calc_tb_lowmem2(crys::crystal, database=missing; reference_tbc=missing,
 end
 
 
+function eam_fn(l1, l2, l3, d)
+    
+    temp =  d[1] * l1^2 + d[2] * l2^2 + d[3] * l3^2
+    temp += d[4] * log(l1 + 1) + d[5] * log(l2 + 1) + d[6] * log(l3 + 1)
+    
+    return temp
+    
+end
 
+function eam_fn_prepare(l1, l2, l3)
+    
+    return [  l1^2 ,  l2^2 ,  l3^2,  log(l1 + 1) ,  log(l2 + 1) ,  log(l3 + 1)]
+    
+end
 
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------
@@ -9607,7 +9638,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     twobody_LV = begin
         
         rho_th = zeros(var_type, crys.nat, 3, nthreads())
-        
+        if use_eam
+            eam_atom = zeros(var_type, crys.nat)
+        end
         #println("nkeep_ab $nkeep_ab")
         begin
             #@time twobody(nkeep_ab)
@@ -9684,9 +9717,27 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         laguerre_fast!(dist_a, lag_arr)
 
+                        
                         if use_eam
-                            rho_th[a1, 1, id] += exp.(-1.5*dist_a) * cut_on
-                            rho_th[a1, 2, id] += exp.(-3.0*dist_a) * cut_on
+#                            rho_th[a1, 1, id] += exp.(-1.5*dist_a) * cut_on
+#                            rho_th[a1, 2, id] += exp.(-3.0*dist_a) * cut_on
+                            #                            rho_th[a1, 3, id] += exp.(-3.0*dist_a) * cut_on
+                            l1 = 1 ./ (exp.( (dist_a .- 2.0) / 1.0 ) .+ 1.0) * cut_on
+                            l2 = 1 ./ (exp.( (dist_a .- 3.0) / 1.0 ) .+ 1.0) * cut_on
+                            l3 = 1 ./ (exp.( (dist_a .- 4.0) / 1.0 ) .+ 1.0) * cut_on
+                            rho_th[a1, 1, id] += l1 
+                            rho_th[a1, 2, id] += l2
+                            rho_th[a1, 3, id] += l3
+                            #                            co  = database[(t1,t1)]
+                            t = crys.stypes[a1]
+                            co  = database[(t,t)]
+                            println("add eam atom")
+                            if [t,t,:eam] in keys(co.inds)
+                                d = co.datH[co.inds[[t,t,:eam]]]
+                                println("add dist_a $dist_a $l1 $l2 $l3 eam ", eam_fn(l1,l2,l3,d))
+                                eam_atom[a1] += eam_fn(l1,l2,l3,d)
+                            end
+                            
                         end
 
                         core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
@@ -9703,7 +9754,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             end
         end
     end
-    if use_eam #&& !only_U
+    if use_eam
+    #if use_eam #&& !only_U
         rho = sum(rho_th, dims=3)
 #        println("rho $rho")
         for a = 1:crys.nat
@@ -9719,14 +9771,19 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
  #                   sum1 = orbs_arr[a,o1,3]
  #                   oxx = orbs_arr[a,o1,1]
 #                    println("try to add $([t,t,:eam, sum2])~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-                    if [t,t,:eam, sum2] in keys(co.inds)
+                    if [t,t,:eam] in keys(co.inds)
                         
-                        
-                        d = co.datH[co.inds[[t,t,:eam, sum2]]]
+
+                        d = co.datH[co.inds[[t,t,:eam]]]
+                        println("d $d co inds ", co.inds[[t,t,:eam]] )
 #                        println("try to o $o  add d $(d)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-                        temp = d[1]*rho[a,1]^0.5 +  d[2]*rho[a,2]^0.5 + d[3]*(rho[a,1]*rho[a,2])^0.25
-                        
-                        H[ o, o, c_zero] += temp
+                        #temp = d[1]*rho[a,1]^0.5 +  d[2]*rho[a,2]^0.5 + d[3]*(rho[a,1]*rho[a,2])^0.25
+#                        temp =  d[1] * rho[a,1]^2 + d[2] * rho[a,2]^2 + d[3] * rho[a,3]^2
+                        #                        temp += d[4] * log(rho[a,1] + 1) + d[5] * log(rho[a,1] + 2) + d[6] * log(rho[a,1] + 3)
+
+                        temp = eam_fn(rho[a,1], rho[a,2], rho[a,3], d)
+                        println("add eam a $a o $o $o temp $temp eam_atom[a] $(eam_atom[a]) tot ", temp - eam_atom[a])
+                        H[ o, o, c_zero] += temp - eam_atom[a]
                     end
                 end
             end

@@ -36,7 +36,24 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     
     database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
 
+  
     println("AAAAAAAA ch_lin ", ch_lin)
+
+    SSS = []
+    ORB2IND = []
+    ATOMTRANS = []
+    println("use_sym $use_sym !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    if use_sym
+        for tbc in list_of_tbcs
+            sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys);
+            push!(SSS, SS)
+            push!(ATOMTRANS, atom_trans)
+            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+            push!(ORB2IND, orb2ind)
+            
+        end
+    end
+    
 
     if false
     list_of_tbcs_new = []
@@ -190,9 +207,9 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     @time for (tbc, kpoints, kweights, d, spin ) in zip(list_of_tbcs_new, KPOINTS, KWEIGHTS, dft_list, SPIN)
         c+=1
 
-#        println("c $c")
-#        println("kpoints $kpoints")
-#        println("kweights ", sum(kweights))
+        println("c $c")
+        println("kpoints $kpoints")
+        println("kweights ", sum(kweights))
         
         NAT[c] = tbc.crys.nat
 
@@ -260,12 +277,13 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
                     #VECTS[c,k,1:nw,1:nw,spin] = vects
                     vects_arr[k,:,:,spin] = vects
                     s_arr[k,:,:] = sk
-                    if c == 1 && k == 1
-                        println("ref vals")
-                        println(vals)
-                        println("ref vals0")
-                        println(vals0)
-                    end
+#                    if c == 1 && k <= 2
+#                        println("ref vals      oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo")
+#                        println(" $c k $k $(kpoints[k,:])")
+#                        println(vals)
+#                        println("ref vals0")
+#                        println(vals0)
+#                    end
                     vmat[spin, k, :,:] = vects
                     smat[k, :,:] = sk
                     #if fit_to_dft_eigs
@@ -479,7 +497,8 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
 #    return 
 
-    return list_of_tbcs_new,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT , SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS
+    return list_of_tbcs_new,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT , SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS,     SSS,ORB2IND,ATOMTRANS
+
 
 end
 
@@ -574,22 +593,23 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     println("cs_lin ", cs_lin)
 #    return missing
     
-    list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS =
+    list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS ,   SSS,ORB2IND,ATOMTRANS =
         topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max, use_sym=use_sym)
 
-    SSS = []
-    ORB2IND = []
-    ATOMTRANS = []
-    if use_sym
-        for tbc in list_of_tbcs_nonscf
-            sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys);
-            push!(SSS, SS)
-            push!(ATOMTRANS, atom_trans)
-            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
-            push!(ORB2IND, orb2ind)
-            
-        end
-    end
+#    SSS = []
+#    ORB2IND = []
+#    ATOMTRANS = []
+#    println("use_sym $use_sym !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#    if use_sym
+#        for tbc in list_of_tbcs_nonscf
+#            sgn, dat, SS, TT, atom_trans = get_symmetry(tbc.crys);
+#            push!(SSS, SS)
+#            push!(ATOMTRANS, atom_trans)
+#            ind2orb, orb2ind, etotal, nval = orbital_index(tbc.crys)
+#            push!(ORB2IND, orb2ind)
+#            
+#        end
+#    end
 
 #    println("gamma kfg")
 #    #kfg update gamma
@@ -666,6 +686,11 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         end
         
         for (tbc, kpoints, kweights, dft) in zip(list_of_tbcs, KPOINTS, KWEIGHTS, dft_list)
+            #tbc.gamma[:,:] .= 0.0 #kfg gamma
+
+            println("kpoints 1 ", kpoints[1,:])
+            println("kweights sum ", sum(kweights) , " uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu")
+            
             c+=1
             #            println("construct_fitted c $c")
 
@@ -801,8 +826,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                             end 
 
                             
-#                            if k == 1 && c == 5
-#                                println("get eigen h1[1,1] = $(h1_in[1,1]) ")
+                            if k <= 2 && c == 1
+                                println("vals k $k c $c $vals")
+                            end
+                                #                                println("get eigen h1[1,1] = $(h1_in[1,1]) ")
 #                                println("get eigen vals[1] = $(vals[1]) ")
 #                                println("get eigen H0[1,1] = $(H0[1,1]) ")
 #                                println("get eigen S[1,1] = $(S[1,1]) ")
@@ -1358,6 +1385,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                         NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
 
+                        if k <= 2 && calc == 1
+                            println("test calc $calc k $k  counter $counter VALS0 $(VALS0[calc,k,jjj_min, spin] ) VALS_FITTED $(VALS_FITTED[calc, k,i,spin]) ")
+                        end
+                        
 #                        if k == 1 && calc == 1
 #                            if !ismissing(cref)
 #                                println("test i $i vals_test_other*c ", vals_test_other[[i],:]*cref, " VALS0 ", VALS0[calc,k,i, spin] - vals_test_on[i] - h1val[i])
@@ -1746,7 +1777,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             mix_iter = 0.05
             err_old_bigiter = 10.0^10
             err = 10.0^9.0
-            for big_iter = 1:60
+            for big_iter = 1:10
                 println("BIG ITER $big_iter solve_scf_mode $solve_scf_mode scf $scf sum DQ $(sum(abs.(DQ))) ---------------------------------------------------------------------------------------------------------------------------- $err_old_bigiter")
                 println("ch $ch")
                 println("cs $cs")

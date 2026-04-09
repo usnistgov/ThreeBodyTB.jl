@@ -24,7 +24,8 @@ include("Utility.jl")
 include("BandTools.jl")
 include("Atomic.jl")
 #include("Atomdata.jl")
-include("Atomdata_new.jl")
+#include("Atomdata_new.jl")
+include("Atomdata_new2.jl")
 include("AtomicMag.jl")
 include("Crystal.jl")
 include("Symmetry.jl")
@@ -137,10 +138,11 @@ include("CalcTB_laguerre.jl")
 #export calc_tb_fast
 using .CalcTB:calc_twobody
 
+include("Classical.jl")
+
 include("ManageDatabase.jl")
 
 
-include("Classical.jl")
 
 using .Classical:energy_force_stress_cl
 
@@ -498,7 +500,9 @@ function scf_energy_force_stress(tbc::tb_crys; database = missing, smearing = 0.
         energy_tot, f_cart, stress = Force_Stress.get_energy_force_stress_fft_LV(tbc, database, do_scf=true, smearing=smearing, grid=grid, nspin=size(tbc.eden)[1], repel=repel)
     end
 
+    
     if do_classical && !ismissing(database_classical)
+        
         energy_cl, force_cl, stress_cl = energy_force_stress_cl(tbc.crys, database=database_classical)
         energy_tot += energy_cl
         f_cart += force_cl
@@ -556,9 +560,15 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
         println()
     end
     
-    if ismissing(database_classical)
-        do_classical=false
-    end
+    if ismissing(database_classical) && do_classical==true
+        ManageDatabase.prepare_database(c, mode=:cl)
+        database_classical = ManageDatabase.database_classical
+        if length(keys(database_classical)) == 0
+            println("problem with classical database")
+        end
+        println()
+    end        
+
         
     if sparse == :auto
         if c.nat >= 100
@@ -568,7 +578,11 @@ function scf_energy(c::crystal; database = missing, smearing=0.01, grid = missin
             sparse = false
         end
     end
-    
+
+    println("scf energy $do_tb $do_classical")
+#    println("database_classical")
+#    println(database_classical)
+    println()
     energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse)
 
     conv_flag = !error_flag
@@ -700,6 +714,9 @@ function get_twobody(t1::String,t2::String,orb1::String,orb2::String, R; databas
     return get_twobody(t1,t2,orb1, orb2, dist, lmn, database=database)
     
 end
+
+
+
 
 
 include("ClassicalFit.jl")

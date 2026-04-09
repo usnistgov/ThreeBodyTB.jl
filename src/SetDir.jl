@@ -26,9 +26,12 @@ DOCSDIR = joinpath(dirname(pathof(ThreeBodyTB)), "..", "docs")
 #DATSDIR2 = "/home/kfg/codes/TB_fit/binary_v10/datab/"
 
 
-println("isdir /lab/hpc/raritan/  ", isdir("/lab/hpc/raritan/"))
+#println("isdir /lab/hpc/raritan/  ", isdir("/lab/hpc/raritan/"))
 
-if isdir("/lab/hpc/raritan/") #we are on blackbird
+t = String(read(`hostname`))
+println("check host $t")
+#if isdir("/lab/hpc/raritan/") #we are on blackbird
+if t == "blackbird.nist.gov\n"
     global MPI_STRING="mpirun -n  "
 else #we are on raritan
     global MPI_STRING="srun --mpi=pmi2  -n  "

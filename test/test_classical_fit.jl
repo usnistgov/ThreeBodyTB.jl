@@ -48,6 +48,51 @@ function test1()
     end
 end
 
+function test1a()
+
+    @testset "testing classical elemental" begin
+        @suppress begin
+
+            database = Dict()
+            coef2 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
+            coef2.datH[:] = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+            database[(:Al, :Al)] = coef2
+            
+            c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.15], ["Al", "Al"])
+            v = 1.0;
+            C = ThreeBodyTB.CrystalMod.crystal[];
+            EN = Float64[];
+            DFT = []
+            CRYS  = ThreeBodyTB.CrystalMod.crystal[];
+            for x in 1:12;
+                v = v * 1.12;
+                for c in [c2];
+                    push!(C, c*v);
+                    push!(CRYS, c*v);
+                    en, _ = ThreeBodyTB.Classical.calc_energy_cl(c*v, database=database, use_threebody=false, use_em=false);
+                    push!(EN, en / c.nat ); #normalize per atom
+
+                    ind2orb, orb2ind, etotal_atoms, nval =                      ThreeBodyTB.CrystalMod.orbital_index(c*v)
+
+                    push!(DFT, ThreeBodyTB.DFToutMod.makedftout(c*v, en + etotal_atoms, 0.0, zeros(2,3), zeros(3,3)))
+                end;
+            end
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=false);
+            x = V \ EN
+            @test sum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1])) < 1e-8
+
+            database_new =  ThreeBodyTB.ClassicalFit.do_fit_cl(CRYS, ENERGIES=EN,  use_threebody=false, use_em=false, lambda = 1e-10);
+
+            @test sum(abs.(database_new[(:Al, :Al)].datH - database[(:Al, :Al)].datH)) < 1e-5
+
+            database_new2 =  ThreeBodyTB.ClassicalFit.do_fit_cl(DFT, use_threebody=false, use_em=false, lambda = 1e-10, use_force=false, use_stress=false);
+
+            @test sum(abs.(database_new2[(:Al, :Al)].datH - database[(:Al, :Al)].datH)) < 1e-5
+            
+        end
+    end
+end
+
 function test3()
     @testset "testing classical elemental 3body" begin
         @suppress begin
@@ -251,7 +296,7 @@ function test3_3atoms()
 end
 
 
-test1();
+test1a();
 test3();
 database_NEW2 = test3_2atoms();
 database_NEW3 = test3_3atoms();

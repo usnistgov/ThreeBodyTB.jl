@@ -9,7 +9,7 @@ using ..ThreeBodyTB:set_units
 using Suppressor
 using LinearAlgebra
 
-function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, adjust_strain = true, nsteps = 1000, nsteps_thermal = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
+function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, adjust_strain = true, nsteps = 1000, nsteps_thermal = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, twod_only=false)
 
     old_units = set_units()
     set_units(both="atomic")
@@ -26,7 +26,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
         mix = 0.02
     end
     
-    energies_thermal, c_thermal, step_size_thermal,step_size_strain_thermal = mc_helper(c_start, beta, true, step_size, step_size_strain, adjust_strain = adjust_strain, nsteps = nsteps_thermal, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
+    energies_thermal, c_thermal, step_size_thermal,step_size_strain_thermal = mc_helper(c_start, beta, true, step_size, step_size_strain, adjust_strain = adjust_strain, nsteps = nsteps_thermal, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, twod_only=twod_only)
 
     println("c_thermal")
     println(c_thermal)
@@ -34,7 +34,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
     flush(stdout)
     
     println("final run")
-    energies, c_final, step_size, step_size_strain = mc_helper(c_thermal, beta, false, step_size_thermal, step_size_strain_thermal, adjust_strain = adjust_strain, nsteps = nsteps, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse)
+    energies, c_final, step_size, step_size_strain = mc_helper(c_thermal, beta, false, step_size_thermal, step_size_strain_thermal, adjust_strain = adjust_strain, nsteps = nsteps, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, eden=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, twod_only=twod_only)
 
     set_units(energy=old_units[1], length=old_units[2])
 
@@ -50,7 +50,7 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
 end
 
 
-function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
+function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=0.01, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, twod_only=false)
 
     c_current = deepcopy(c_start)
     c_work = deepcopy(c_start)
@@ -100,7 +100,7 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
             if atom == 0 && mod(step, 3) == 0
                 continue
             end
-            generate_guess(atom, c_work, step_size, step_size_strain)
+            generate_guess(atom, c_work, step_size, step_size_strain, twod_only)
 
       #      println("c_curent after")
       #      println(c_current)
@@ -109,29 +109,32 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
 
             en_new = 0.0
             @suppress begin
-                if !ismissing(tbc)
+#                 println("tbc $tbc")
+#                 println("eden $eden")
+                 if !ismissing(tbc)
                     eden = tbc.eden
                 else
                     eden = missing
                 end
                 try
-                    en_new, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, eden = tbc.eden)
-                catch err
+                    en_new, tbc, flag = scf_energy(c_work, database = database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode,  nspin=nspin, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, do_tb=do_tb, database_classical= database_classical, sparse=sparse, eden = eden)
+#                 println("flag $flag")
+                                    catch err
                     println("err ", err)
                     println("c_work")
                     println(c_work)
                     flag = false
                 end
             end
-#            println("en_new $en_new")
+#            println("en $en en_new $en_new")
             
             rand_num = rand(1)[1]
             W = min(1.0, exp(-beta * (en_new - en)))
-
+#            println("W $W !!!!!!!!!!!!!!!!")
             if flag == false
                 W = 0.0
             end
-            
+#            println("W $W !!!!!!!!!!!!!!!!")            
             if rand_num < W #accept
 
                 en = en_new
@@ -187,12 +190,15 @@ function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adj
 
 end
 
-function generate_guess(atom, c_work, step_size, step_size_strain)
+function generate_guess(atom, c_work, step_size, step_size_strain, twod_only)
 
     if atom >= 1
 
         Ainv = inv(c_work.A)
         atom_step = ((rand(c_work.nat,3) .- 0.5)*step_size ) * Ainv
+        if twod_only
+            atom_step[:,3] .= 0.0
+        end
         c_work.coords[:, :] += atom_step[:,:]
         c_work.coords = mod.(c_work.coords, 1.0)
 

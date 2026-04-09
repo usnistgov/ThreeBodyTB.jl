@@ -581,7 +581,44 @@ function make_random_crystal(types; database=missing)
             return crys * 1.03
         end
 
-        total_vol = total_vol * 1.04
+        total_vol = total_vol * 1.05
+        
+    end
+    println("failed to generate crystal")
+    return missing
+        
+end
+
+function make_random_2D_molecule(types; database=missing)
+
+    nat = length(types)
+
+    db = database
+    if ismissing(database)
+        prepare_database(types)
+        db = database_cached
+    end
+
+    
+    for i = 1:200
+
+        A = zeros(3,3)
+        A[3,3] = 16.0
+        A[1,1] = 24.0
+        A[2,2] = 24.0
+        
+        c = rand(nat, 3)
+        c[:,1:2] = c[:,1:2] .* 0.6 .+ 0.2
+        c[:,3] .= 0.5
+        
+        crys = makecrys(A, c, types, units="Bohr")
+        
+        within_fit, rsum = calc_tb_LV(crys*0.97, db, check_only=true)
+        if within_fit
+            return crys 
+        end
+
+#        total_vol = total_vol * 1.05
         
     end
     println("failed to generate crystal")

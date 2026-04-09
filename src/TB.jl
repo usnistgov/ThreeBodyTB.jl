@@ -4764,13 +4764,19 @@ end
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = missing, eden_start = missing, mix = 0.15)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = missing, eden_start = missing, mix = 0.15, fixed_occupations=missing)
 
     if ismissing(use_scf)
         use_scf = tbcK.scf
     end
-    
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
+
+    if !ismissing(fixed_occupations)
+        tot_charge = nval - sum(fixed_occupations)*2
+        println("nval $nval sum(fixed_occupations) $(sum(fixed_occupations)) sum(fixed_occupations)*2 $(sum(fixed_occupations)*2) tot_charge $tot_charge")
+        println("detected input occs, set tot_charge to $(tot_charge)")
+    end
+    
 
     if ismissing(eden_start)
         eden_start = tbcK.eden
@@ -4800,7 +4806,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     
     println("eden start $eden_start sum $(sum(eden_start)) tot_charge $tot_charge nelec $(tbcK.nelec)")
     
-    bandenergy0, eden, VECTS, VALS, efermi, error_flag, VALS0, bandenergy = get_energy_electron_density_kspace(tbcK.tb, nval - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15)
+    bandenergy0, eden, VECTS, VALS, efermi, error_flag, VALS0, bandenergy = get_energy_electron_density_kspace(tbcK.tb, nval - tot_charge, smearing=smearing, use_scf=use_scf, eden_start = eden_start, gamma = tbcK.gamma, crys = tbcK.crys, mix = 0.15, fixed_occupations=fixed_occupations)
     tbcK.efermi = efermi
 
     ind2orb, orb2ind, etotal, nval = orbital_index(tbcK.crys)
@@ -4841,9 +4847,14 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
     etypes = types_energy(tbcK.crys)
 
     #     println("efermi $efermi")
-    
-    energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
-    #     println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
+
+    if ismissing(fixed_occupations)
+        energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
+    else
+        energy_smear = 0.0
+    end
+
+    println("CALC ENERGIES t $etypes charge $echarge band $bandenergy smear $energy_smear  mag $emag = ", bandenergy + etypes + echarge + energy_smear + emag)
 
     etot = bandenergy0 + etypes + echarge + energy_smear + emag
 
@@ -4860,19 +4871,25 @@ end
 
      K-space get energy and electron density from `tb_k`
      """
-function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, mix = 0.15)
+function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, mix = 0.15, fixed_occupations=missing)
 
-
+    if !ismissing(fixed_occupations)
+        nk = 1
+    else
+        nk = tb_k.nk
+    end
+    
     println("in get_energy_electron_density_kspace  use_scf $use_scf")
     
     temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
     denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
 
-    VALS = zeros(Float64, tb_k.nk,  tb_k.nwan,tb_k.nspin)
-    VALS0 = zeros(Float64, tb_k.nk,  tb_k.nwan,tb_k.nspin)
-    VECTS = zeros(Complex{Float64}, tb_k.nk, tb_k.nspin, tb_k.nwan, tb_k.nwan)
-    SK = zeros(Complex{Float64}, tb_k.nk,  tb_k.nwan, tb_k.nwan)
+    VALS = zeros(Float64, nk,  tb_k.nwan,tb_k.nspin)
+    VALS0 = zeros(Float64, nk,  tb_k.nwan,tb_k.nspin)
+    VECTS = zeros(Complex{Float64}, nk, tb_k.nspin, tb_k.nwan, tb_k.nwan)
+    SK = zeros(Complex{Float64}, nk,  tb_k.nwan, tb_k.nwan)
 
+    occs = zeros(Float64,  nk,  tb_k.nwan,tb_k.nspin)
     if !ismissing(crys)
         ind2orb, orb2ind, etotal, nval = orbital_index(crys)
         sgn, dat, SS, TT, atom_trans = get_symmetry(crys, verbose=true);
@@ -4938,7 +4955,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
         end
         
         for spin = 1:tb_k.nspin
-            for k in 1:tb_k.nk
+            for k in 1:nk
                 #             try
                 vects, vals, hk, sk, vals0 = Hk(tb_k, tb_k.K[k,:], spin=spin)
                 VALS[k, :, spin] = vals
@@ -4963,8 +4980,13 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
             end
         end
 
-        
-        bandenergy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
+        if ismissing(fixed_occupations)
+            
+            bandenergy, efermi, occs = band_energy(VALS, tb_k.kweights, nelec, smearing, returnboth=true)
+        else
+            n = min(length(fixed_occupations), length(occs))
+            occs[1:n] = fixed_occupations[1:n]
+        end
 
         energy0 = sum(occs .* VALS0 .* tb_k.kweights) / sum(tb_k.kweights)
         if tb_k.nspin == 1
@@ -4974,7 +4996,7 @@ function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, 
 
         denmat .= 0.0
         for spin = 1:tb_k.nspin
-            for k in 1:tb_k.nk
+            for k in 1:nk
                 for a = 1:tb_k.nwan
                     for i = 1:tb_k.nwan
                         for j = 1:tb_k.nwan
@@ -5207,7 +5229,7 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = m
         end
         
             
-        #         println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
+        println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
         
     end
 

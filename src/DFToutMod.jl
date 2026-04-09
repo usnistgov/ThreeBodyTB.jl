@@ -117,6 +117,9 @@ mutable struct dftout
     degauss::Float64
     directory::String
     eig_norm_val::Float64
+    occupations::Symbol #only for fixed occupations
+    input_occupations::Array{Float64,1} #only for fixed occupations
+    occ::Array{Float64,3}
 end
 
 """
@@ -279,7 +282,7 @@ end
 
 Constructor for dftout. Usually called by function that loads DFT output files, not called directly.
 """
-function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; nspin=1, mag_tot = 0.0, mag_abs = 0.0, prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, exx=-1.0, hybrid=false, degauss=0.01, directory="???????")
+function makedftout(crys::crystal, energy::Number, energy_smear::Number,  forces, stress, bandstruct=missing; nspin=1, mag_tot = 0.0, mag_abs = 0.0, prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, exx=-1.0, hybrid=false, degauss=0.01, directory="???????", occupations=:smearing, input_occupations=zeros(0))
 """
 Creates a struct with the desired data
 """
@@ -293,7 +296,14 @@ Creates a struct with the desired data
         error("Error converting types")
         return
     end
-        
+
+
+    ns = 0
+    for t in crys.stypes
+        ns +=  atoms[t].nsemicore
+    end
+    ns = Int64(round(ns / 2))
+    
     nat = crys.nat
     if (nat,3) != size(forces)
         println( forces)
@@ -314,7 +324,14 @@ Creates a struct with the desired data
     
     
     if ismissing(bandstruct)
-        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0, atomize_energy, 0.0) #, missing, False, False)
+        if occupations == :from_input || occupations == :fixed
+            input_occupations = input_occupations[ns+1:end]/2.0
+        end
+#        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0, atomize_energy, 0.0,occupations, input_occupations[ns+1:end]/2.0, zeros(0,0,0)) #, missing, False, False)
+        println("before")
+#        return dftout(crys, energy, energy_smear,forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0,        atomize_energy, 0.0,  occupations, input_occupations[ns+1:end]/2.0, zeros(0,0,0),   zeros(0,0,0))
+        return dftout(crys, energy, energy_smear,forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0,        atomize_energy, 0.0,   directory,     0.0,          occupations,        zeros(0),         zeros(0,0,0))        
+        
     else
 
 #        println("degauss $degauss")
@@ -322,21 +339,24 @@ Creates a struct with the desired data
 #        println("energy shift ", energy_shift)
         beigs = deepcopy(bandstruct.eigs)
         beigs .-= energy_shift
-
-        ns = 0
-        for t in crys.stypes
-            ns +=  atoms[t].nsemicore
-        end
-        ns = Int64(round(ns / 2))
 #        println("ns $ns")
 
 #        println([eigs[1], sum( bandstruct.kweights),  bandstruct.nelec,degauss])
-        bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
-        bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+
+        if occupations == :smearing
+            bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+            bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+            println("fn mode ", [bandenergy, bandenergy_orig])            
+        else
+
+            bandenergy = 0.5*sum(beigs[:, ns+1:end][:] .* bandstruct.kweights[:] .* input_occupations[ns+1:end])
+            bandenergy_orig = 0.5*sum(bandstruct.eigs[:, ns+1:end][:] .* bandstruct.kweights[:] .* input_occupations[ns+1:end])
+            println("sum mode ", [bandenergy, bandenergy_orig])
+        end
         etypes = types_energy(crys) #- types_energy(crys, mode=:core)
 
 #        println("band energy ", bandenergy)
-        Bbandenergy = band_energy(beigs[:, 1:end], bandstruct.kweights, bandstruct.nelec ,degauss)
+#        Bbandenergy = band_energy(beigs[:, 1:end], bandstruct.kweights, bandstruct.nelec ,degauss)
 #        println("big band energy ", Bbandenergy)
 #        println("types eneryg core ", types_energy(crys, mode=:core))
 
@@ -356,7 +376,22 @@ Creates a struct with the desired data
         eig_norm_val = ( atomize_energy - etypes - bandenergy_orig - energy_smear ) / bandstruct.nelec
         println("eig_norm_val $eig_norm_val atomize_energy $atomize_energy bandenergy_orig $bandenergy_orig bandstruct.nelec $(bandstruct.nelec)")        
         
-        return dftout(crys, energy, energy_smear,forces, stress, bandstruct, true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy, degauss, directory, eig_norm_val) #, missing, False, False)
+        if occupations == :smearing
+            Benergy, Befermi, Bocc  = band_energy(bandstruct.eigs, bandstruct.kweights, bandstruct.nelec,degauss, returnboth=true)
+        else
+            Bocc = zeros(size(bandstruct.eigs))
+            Bocc[:] = input_occupations / 2.0
+        end
+
+        
+        if occupations == :from_input || occupations == :fixed
+            input_occupations = input_occupations[ns+1:end]/2.0
+        end
+        
+        return dftout(crys, energy, energy_smear,forces, stress, bandstruct,        true, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, bandenergy, repelenergy,    degauss, directory,   eig_norm_val, occupations,       input_occupations, Bocc) #, missing, False, False)
+
+
+
     end    
 end
 
@@ -364,12 +399,12 @@ end
 """
     function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0)
 """
-function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0, hybrid=false, exx=-1.0, degauss=0.01, directory="?????")
+function makedftout(A, pos, types, energy::Number,energy_smear::Number,  forces, stress, bandstruct=missing; prefix="PREFIX", outdir="TMPDIR", tot_charge=0.0, nspin = 1, mag_tot = 0.0, mag_abs = 0.0, hybrid=false, exx=-1.0, degauss=0.01, directory="?????", occupations=:smearing, input_occupations=zeros(0))
     c = makecrys(A,pos,types, units="Bohr")
     if ismissing(bandstruct)
-        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory)
+        return makedftout(c, energy, energy_smear, forces,stress, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory, occupations=occupations, input_occupations=input_occupations)
     else
-        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory)
+        return makedftout(c, energy, energy_smear, forces,stress, bandstruct,prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot= mag_tot, mag_abs = mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=directory, occupations=occupations, input_occupations=input_occupations)
     end
 end
 

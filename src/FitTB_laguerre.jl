@@ -1024,7 +1024,8 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     println("return ch ", ch)
     println("return ch_refit ", ch_refit)
-    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
+    return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H,
+    Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
            
 
 end
@@ -1526,16 +1527,18 @@ function get_k(dft_list,  list_of_tbcs; NLIM = 100)
 #randomly downselect kpoints of number kpoints > NLIM            
             if size(kpts)[1] > NLIM
                 println("limit kpoints to $NLIM, from ",  size(kpts)[1])
-                ind = reverse(sortperm(wghts)) #largest weights first
-                
+                ind = (sortperm(wghts)) #largest weights first #kfg reverse?
+#                println("ind $ind")
 #                keepN = 30 #keep this many from beginning of weighted list
                 keepN = min(min(20, length(ind)), NLIM)
-                ind1 = ind[1:keepN]
+                ind1 = sort(ind[1:keepN])
                 if size(kpts)[1]-keepN > 0
                     N = randperm(size(kpts)[1]-keepN) .+ keepN #randomly sample the rest
                     ind2 = [ind1;ind[N]]
+                else
+                    ind2 = ind1
                 end
-
+#                println("ind2 $ind2")
 #                kpts = kpts[N[1:NLIM],:]
 #                wghts = wghts[N[1:NLIM]]
 
@@ -1962,7 +1965,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
+                energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -2396,7 +2399,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         h1 = h1*(1-mix) + h1_new * mix
                         h1spin = h1spin*(1-mix) + h1spin_new * mix
 
-                        energy_charge, pot = ewald_energy(tbc, dq)
+                        energy_charge  = ewald_energy(tbc, dq)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -2467,7 +2470,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             
 #            if scf
-#                energy_charge, pot = ewald_energy(tbc, dq)
+#                energy_charge  = ewald_energy(tbc, dq)
 #            else
 #                energy_charge = 0.0
             #            end
@@ -2482,7 +2485,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 
             
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge  = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
@@ -2609,7 +2612,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             if scf
                 nat = list_of_tbcs[calc].crys.nat
-                energy_charge, pot = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+                energy_charge  = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
             else
                 energy_charge = 0.0
             end
@@ -3212,12 +3215,15 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             if scf
                 h1 = deepcopy(H1[c,1:nw,1:nw])
                 dq = deepcopy(DQ[c,1:tbc.crys.nat])
-                dq_eden = deepcopy(DQ_EDEN[c,1:tbc.crys.nat])
+                dq_eden = deepcopy(DQ_EDEN[c,1:nw])
             else
                 h1 = zeros(Float64, nw, nw)
                 dq = zeros(tbc.crys.nat)
                 dq_eden = zeros(nw)                
             end
+
+            println("dq_eden $dq_eden xxxxxxxxxxxxxxxxxxxxxgh scf $scf ") 
+            
             if tbc.tb.scfspin
                 h1spin = deepcopy(H1spin[c,:,1:nw,1:nw])
             else
@@ -3379,7 +3385,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                         h1 = h1*(1-mix) + h1_new * mix
                         h1spin = h1spin*(1-mix) + h1spin_new * mix
 
-                        energy_charge, pot = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
+                        energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -3453,7 +3459,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             
 #            if scf
-#                energy_charge, pot = ewald_energy(tbc, dq)
+#                energy_charge  = ewald_energy(tbc, dq)
 #            else
 #                energy_charge = 0.0
             #            end
@@ -3468,7 +3474,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
                 
             
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
+                energy_charge = ewald_energy(tbc, dq=dq, dq_eden=dq_eden)
             else
                 energy_charge = 0.0
             end
@@ -3604,7 +3610,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             
             if scf
                 nat = list_of_tbcs[calc].crys.nat
-                energy_charge, pot = ewald_energy(list_of_tbcs[calc], dq=DQ[calc,1:nat], dq_eden=DQ_EDEN[calc,1:nw])
+                energy_charge = ewald_energy(list_of_tbcs[calc], dq=DQ[calc,1:nat], dq_eden=DQ_EDEN[calc,1:nw])
             else
                 energy_charge = 0.0
             end
@@ -4369,7 +4375,7 @@ function do_fitting_recursive_all(list_of_tbcs; dft_list=missing,X_cv = missing,
         s1 = sum(occs .* VALS0[c,1:nk,1:nw], dims=2)
         energy_band = sum(s1 .* kweights)
         if scf
-            energy_charge, pot = ewald_energy(tbc, dq)
+            energy_charge  = ewald_energy(tbc, dq)
         else
             energy_charge = 0.0
         end
@@ -4526,7 +4532,7 @@ function do_fitting_recursive_all(list_of_tbcs; dft_list=missing,X_cv = missing,
                     dq = dq*(1-mix) + dq_new * mix
 
                     
-                    energy_charge, pot = ewald_energy(tbc, dq)
+                    energy_charge  = ewald_energy(tbc, dq)
                     
                     energy_new = energy_charge + energy_band
 
@@ -4557,7 +4563,7 @@ function do_fitting_recursive_all(list_of_tbcs; dft_list=missing,X_cv = missing,
             
             
 #            if scf
-#                energy_charge, pot = ewald_energy(tbc, dq)
+#                energy_charge  = ewald_energy(tbc, dq)
 #            else
 #                energy_charge = 0.0
             #            end
@@ -4568,7 +4574,7 @@ function do_fitting_recursive_all(list_of_tbcs; dft_list=missing,X_cv = missing,
             energy_band = sum(s1 .* kweights)
 
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge  = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
@@ -4612,7 +4618,7 @@ function do_fitting_recursive_all(list_of_tbcs; dft_list=missing,X_cv = missing,
 
             if scf
                 nat = list_of_tbcs[calc].crys.nat
-                energy_charge, pot = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+                energy_charge  = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
             else
                 energy_charge = 0.0
             end
@@ -5733,7 +5739,7 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 #            println("ENERGY_BAND ", energy_band, " " , tbc.nspin)
 #            println("before ", typeof(tbc), " " , typeof(dq))
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
@@ -6134,7 +6140,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                         h1 = h1*(1-mix) + h1_new * mix
                         h1spin = h1spin*(1-mix) + h1spin_new * mix
 
-                        energy_charge, pot = ewald_energy(tbc, dq)
+                        energy_charge = ewald_energy(tbc, dq)
                         if tbc.tb.scfspin
                             energy_magnetic = magnetic_energy(tbc, eden)
                         else
@@ -6202,7 +6208,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
             
             #            if scf
-            #                energy_charge, pot = ewald_energy(tbc, dq)
+            #                energy_charge  = ewald_energy(tbc, dq)
             #            else
             #                energy_charge = 0.0
             #            end
@@ -6217,7 +6223,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             
             
             if scf
-                energy_charge, pot = ewald_energy(tbc, dq)
+                energy_charge = ewald_energy(tbc, dq)
             else
                 energy_charge = 0.0
             end
@@ -6757,7 +6763,7 @@ function construct_newXY_popout(VECTS_FITTED::Dict{Int64, Array{Complex{Float64}
         
         if scf
             nat = list_of_tbcs[calc].crys.nat
-            energy_charge, pot = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
+            energy_charge = ewald_energy(list_of_tbcs[calc], DQ[calc,1:nat])
         else
             energy_charge = 0.0
         end

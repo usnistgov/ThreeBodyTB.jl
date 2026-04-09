@@ -170,6 +170,7 @@ mutable struct atom
     Uarr::Array{Float64,1}
     Umat::Array{Float64,2}
     neutral_occ::Array{Float64,1}
+    background_charge_interaction::Float64
 end
 
 
@@ -195,7 +196,7 @@ end
 
 Constructor for atom.
 """
-function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0, U=0.0; adj=0.0, semicore_orbitals=[], semicore_eigs=zeros(5), fullU=false, Uarr=zeros(8))
+function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs, vac_potential=0.0 ;U=0.0, adj=0.0, semicore_orbitals=[], semicore_eigs=zeros(5), fullU=false, Uarr=zeros(8), background_charge_interaction=0.0)
     #vac potential in ryd
 
 #    adj = 0.0
@@ -470,7 +471,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     end
     
     println("makeatom name $name adj $adj")
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0, efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Uarr, Umat, occ[:])
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0, efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Uarr, Umat, occ[:], background_charge_interaction)
     
 end
     

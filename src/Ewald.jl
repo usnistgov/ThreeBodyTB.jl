@@ -17,7 +17,7 @@ Electrostatics
 
 #include("Atomdata.jl")
 using ..Atomdata:atoms
-using ..Atomdata:uniform_charge_interaction
+
 
 using LinearAlgebra
 using ..CrystalMod:crystal
@@ -218,7 +218,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
 
     background_charge_correction = 0.0
     for t = crys.stypes
-        background_charge_correction += uniform_charge_interaction[t]
+        background_charge_correction += atoms[t].background_charge_interaction
     end
     background_charge_correction = background_charge_correction / abs(det(crys.A)) #/ crys.nat
        

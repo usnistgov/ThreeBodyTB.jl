@@ -133,14 +133,16 @@ end
 
 Calculate band energy. Has options for additional return variables. Calculates fermi energy internally.
 """
-function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false)
+function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false, occ = missing)
 
     efermi = calc_fermi_sp(eigs, weights, nelec, smearing)
 #    println("band_energy efermi $efermi")
     norm = sum(weights)
-    
-    occ = gaussian.(eigs.-efermi, smearing)
 
+    if ismissing(occ)
+        occ = gaussian.(eigs.-efermi, smearing)
+    end
+    
     nspin = 1
     if length(size(eigs)) == 3
         nspin = size(eigs)[3]
