@@ -1036,7 +1036,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default)
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict())
     println("make_database function")
     if ismissing(starting_database)
         database = Dict()
@@ -1082,9 +1082,15 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
             dmin = DMIN_TYPES3[atomkey]   
         end
 
-        
+        if fit_umat == true && dim == 2 &&  length(at_arr) == 1
+            Uarr = U_dict[at_arr[1]]
+            background_charge_correction = U_dict[at_arr[1], :backval]
+        else
+            Uarr = missing
+            background_charge_correction = 0.0
+        end
 
-        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version)
+        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction)
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
         if dim == 2

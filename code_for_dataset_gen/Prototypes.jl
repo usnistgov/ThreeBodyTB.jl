@@ -136,6 +136,7 @@ function setup_proto_data()
 
 
     CalcD["dimer_charge_mediumbig"] = ["$STRUCTDIR/binary/dimer.in.mediumbig", "relax", "all", "dimer-charge-mediumbig", "nscf", false]
+    CalcD["dimer_charge_mediumbig2"] = ["$STRUCTDIR/binary/dimer.in.mediumbig", "relax", "all", "dimer-charge-mediumbig2", "nscf", false]
     CalcD["trimer_charge_mediumbig"] = ["$STRUCTDIR/binary/dimer.in.mediumbig", "relax", "all", "trimer-charge-mediumbig", "nscf", false]
     
     CalcD["trimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "trimer-charge-verybig", "nscf", false]
@@ -190,6 +191,7 @@ function setup_proto_data()
     CalcD["atom2"] = ["$STRUCTDIR/atom2.in", "scf", "all", "scf", "nscf", false]
     CalcD["double_atom"] = ["$STRUCTDIR/atom.in", "scf", "all", "double-atom", "nscf", false]
     CalcD["atom_set"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set", "nscf", false]
+    CalcD["atom_set_charge_double"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge-double", "nscf", false]
     CalcD["atom_set_charge"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge", "nscf", false]
     CalcD["atom_set_charge2"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge2", "nscf", false]
     CalcD["atom_set_charge3"] = ["$STRUCTDIR/atom.in", "scf", "all", "atom-set-charge3", "nscf", false]    
@@ -743,7 +745,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 50
         elseif newst == "dimer-charge-mediumbig"
             ncalc = 40
-        elseif newst == "trimer-charge-mediumbig"
+        elseif newst == "dimer-charge-mediumbig2"
+            ncalc = 8 
+       elseif newst == "trimer-charge-mediumbig"
             ncalc = 20
         elseif newst == "trimer_YYY"
             ncalc = 10
@@ -859,6 +863,8 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             ncalc = 7
         elseif newst == "atom-set-charge"
             ncalc = 15
+        elseif newst == "atom-set-charge-double"
+            ncalc = 4
         elseif newst == "atom-set-charge2"
             ncalc = 15
         elseif newst == "atom-set-charge3"
@@ -1119,6 +1125,21 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     println(deepcopy(cnew) * (x / 25.0 ))
                     println()
                     push!(torun, deepcopy(cnew) * (x / 25.0))
+                end
+
+            elseif newst == "atom-set-charge-double"
+
+                println("in atom_set")
+                println("cnew")
+                println(cnew)
+                println()
+                tot_charge = []
+                for charge in [0.1, 0.2]
+                    for x in [19.5, 22.0]
+                        c = makecrys([x 0 0; 0 x 0; 0 0 x*2], [0 0 0], [cnew.stypes[1]])
+                        push!(torun, deepcopy(cnew) * (x / 25.0))
+                        push!(tot_charge, charge)
+                    end
                 end
 
             elseif newst == "atom-set-charge2"
@@ -1442,31 +1463,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     end
                 end
 
-            elseif newst == "dimer-charge-mediumbig"
+            elseif newst == "dimer-charge-mediumbig2"
                 tot_charge = []
                 dist = cnew.coords[2,3] -  cnew.coords[1,3]
-                for charge = [0.0, 0.2]
+                for charge = [-0.05, 0.4]
                     #                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.02:1.18, 1.2:0.05:1.45, 1.5:0.05:2.45, 2.5:0.25:4.0)
-                    for x in vcat(0.70:0.05:1.2, 1.3:0.1:2.0, [2.25, 2.5, 3.0, 3.5])
-
-                        c = deepcopy(cnew)
-                        c.coords[1,3] =  0.5 - dist/2 * x
-                        c.coords[2,3] =  0.5 + dist/2 * x
-                        if c.coords[1,3] < 0.25
-                            c.coords[1,3] =  0.25
-                            c.coords[2,3] =  0.75
-                            push!(torun, deepcopy(c))
-                            push!(tot_charge, charge)
-                            break
-                        end                            
-                        push!(torun, deepcopy(c))
-                        push!(tot_charge, charge)
-                    end
-                end
-
-                for charge = [0.05, 0.1]
-                    #                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.02:1.18, 1.2:0.05:1.45, 1.5:0.05:2.45, 2.5:0.25:4.0)
-                    for x in [1.0]
+                    for x in [0.9, 1.0, 1.1, 1.5, 2.0]
 
                         c = deepcopy(cnew)
                         c.coords[1,3] =  0.5 - dist/2 * x

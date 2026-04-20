@@ -63,6 +63,8 @@ using ..Utility:str2tuplesdict
 using ForwardDiff
 using ..CrystalMod:makecrys
 
+using ..Ewald:electrostatics_getgamma
+
 using Random
 
 #include("Coef_format_convert.jl")
@@ -253,8 +255,9 @@ mutable struct coefs
     n_3body_onsite::Int64
     n_3body_onsite_same::Int64
     n_eam::Int64
-
-    
+    use_Uarr::Bool
+    Uarr::Array{Float64,2}
+    background_charge_correction::Float64
     
 end
 
@@ -342,6 +345,13 @@ function write_coefs(filename, co::coefs; compress=true)
     addelement!(c, "use_eam", "$(co.use_eam)" )
     addelement!(c, "use_pert", "$(co.use_pert)" )
 
+    addelement!(c, "use_Uarr", "$(co.use_Uarr)" )
+    addelement!(c, "background_charge_correction", "$(co.background_charge_correction)" )
+
+    if co.use_Uarr
+        addelement!(c, "Uarr", "$(co.Uarr[:])" )
+    end
+    
     if compress
         io=gzopen(filename*".gz", "w")
     else
@@ -457,10 +467,33 @@ function read_coefs(filename, directory = missing)
         use_eam = parse(Bool, d["coefs"]["use_eam"])
     end
     use_pert = false
-#    if haskey(d["coefs"], "use_pert")
+
+    if haskey(d["coefs"], "use_Uarr")
+        use_Uarr = parse(Bool, d["coefs"]["use_Uarr"])
+        if use_Uarr
+            Uarr_flat  = parse_str_ARR_float(d["coefs"]["Uarr"])
+            n = Int64(round(sqrt(length(Uarr_flat))))
+            Uarr = reshape(Uarr_flat, (n, n) )
+        else
+            Uarr = missing
+        end
+    else
+        use_Uarr = false
+        Uarr = missing
+    end
+
+    if haskey(d["coefs"], "background_charge_correction")
+        background_charge_correction = parse(Float64, d["coefs"]["background_charge_correction"])
+    else
+        background_charge_correction = 0.0
+    end
+
+    
+
+    #    if haskey(d["coefs"], "use_pert")
 #        use_eam = parse(Bool, d["coefs"]["use_pert"])
 #    end
-    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=use_eam, use_pert=use_pert, datH_ensemble = datH_ensemble)
+    co = make_coefs(names,dim, datH=datH, datS=datS, min_dist=min_dist, dist_frontier = dist_frontier, version=version, lim=lim, repval=repval, use_eam=use_eam, use_pert=use_pert, datH_ensemble = datH_ensemble, Uarr=Uarr, background_charge_correction=background_charge_correctoin)
 
     return co
     
@@ -475,7 +508,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=5, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=5, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing, Uarr = missing, background_charge_correction = 0.0)
 
 #    println("make coefs")
 #    sort!(at_list)
@@ -712,8 +745,15 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     n_ensemble = Int64(round(length(datH_ensemble) / length(datH)))
 
     n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(version)
+
+    if ismissing(Uarr)
+        Uarr = zeros(0,2)
+        use_Uarr = false
+    else
+        use_Uarr = true        
+    end
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble, n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam)
+    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble, n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam, use_Uarr, Uarr, background_charge_correction)
 
 end
     
@@ -1889,10 +1929,13 @@ function get_data_info_v5(at_set, dim; use_eam=false, use_pert = false, version=
             end
             if use_eam 
                 if same_at == true
-                    for orb in orbs1
-                        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
-                        tot += n_eam
-                    end
+                #    for orb in orbs1
+                #        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
+                #        tot += n_eam
+                    #    end
+
+                    data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
+                    tot += n_eam
                 else
                     data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
                     tot += n_eam
@@ -2489,7 +2532,7 @@ Base.show(io::IO, d::coefs) = begin
     for t in keys(d.dist_frontier)
         println(io, t, "    ", d.dist_frontier[t])
     end
-
+    println(io, "use_arr $(d.use_Uarr) use_eam $(d.use_eam)")
     println(io)
 end
 
@@ -9264,7 +9307,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=true)
 
     repel=false
 
@@ -10000,6 +10043,34 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     end
 
 
+    if use_Uarr
+        println("use_uarr")
+        gamma_add = zeros(nwan, nwan)
+
+        ind = 0
+        back = 0.0
+        for a in crys.stypes
+            nw = Int64(atoms[a].nwan/2)
+            
+            coef = database[(a,a)]
+            if coef.use_Uarr
+                gamma_add[ind .+ (1:nw), ind .+ (1:nw)] += coef.Uarr
+            end
+            ind += nw
+
+            back += coef.background_charge_correction
+        end
+        println("gamma add ", gamma_add)
+        println()
+        if ismissing(gamma) 
+            gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        end
+        gamma += gamma_add
+        println("back $back background_charge_correction before $background_charge_correction")
+        background_charge_correction += back / abs(det(crys.A))
+        println("background_charge_correction after $background_charge_correction")        
+    end
+    
 
     if retmat
         #return H, S

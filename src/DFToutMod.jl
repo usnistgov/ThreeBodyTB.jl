@@ -328,7 +328,7 @@ Creates a struct with the desired data
             input_occupations = input_occupations[ns+1:end]/2.0
         end
 #        return dftout(crys, energy, energy_smear, forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0, atomize_energy, 0.0,occupations, input_occupations[ns+1:end]/2.0, zeros(0,0,0)) #, missing, False, False)
-        println("before")
+#        println("before")
 #        return dftout(crys, energy, energy_smear,forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0,        atomize_energy, 0.0,  occupations, input_occupations[ns+1:end]/2.0, zeros(0,0,0),   zeros(0,0,0))
         return dftout(crys, energy, energy_smear,forces, stress, make_empty_bs() , false, false, prefix, outdir, tot_charge, atomize_energy, nspin, mag_tot, mag_abs, hybrid, exx, 0.0,        atomize_energy, 0.0,   directory,     0.0,          occupations,        zeros(0),         zeros(0,0,0))        
         
@@ -346,12 +346,12 @@ Creates a struct with the desired data
         if occupations == :smearing
             bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
             bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
-            println("fn mode ", [bandenergy, bandenergy_orig])            
+#            println("fn mode ", [bandenergy, bandenergy_orig])            
         else
 
             bandenergy = 0.5*sum(beigs[:, ns+1:end][:] .* bandstruct.kweights[:] .* input_occupations[ns+1:end])
             bandenergy_orig = 0.5*sum(bandstruct.eigs[:, ns+1:end][:] .* bandstruct.kweights[:] .* input_occupations[ns+1:end])
-            println("sum mode ", [bandenergy, bandenergy_orig])
+#            println("sum mode ", [bandenergy, bandenergy_orig])
         end
         etypes = types_energy(crys) #- types_energy(crys, mode=:core)
 
@@ -374,7 +374,7 @@ Creates a struct with the desired data
 
 
         eig_norm_val = ( atomize_energy - etypes - bandenergy_orig - energy_smear ) / bandstruct.nelec
-        println("eig_norm_val $eig_norm_val atomize_energy $atomize_energy bandenergy_orig $bandenergy_orig bandstruct.nelec $(bandstruct.nelec)")        
+#        println("eig_norm_val $eig_norm_val atomize_energy $atomize_energy bandenergy_orig $bandenergy_orig bandstruct.nelec $(bandstruct.nelec)")        
         
         if occupations == :smearing
             Benergy, Befermi, Bocc  = band_energy(bandstruct.eigs, bandstruct.kweights, bandstruct.nelec,degauss, returnboth=true)

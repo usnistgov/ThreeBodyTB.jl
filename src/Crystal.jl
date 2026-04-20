@@ -2222,9 +2222,9 @@ function orbital_shift(c)
     voladj = 0.0
     for t in c.stypes
         voladj += atoms[t].voladj
-        println("add voladj ", atoms[t].voladj)
+#        println("add voladj ", atoms[t].voladj)
     end
-    println("return voladj $voladj vol $vol = ", voladj / vol)
+#    println("return voladj $voladj vol $vol = ", voladj / vol)
     return voladj / vol
 
 end
