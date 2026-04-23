@@ -48,6 +48,60 @@ function test1()
     end
 end
 
+
+function test_em()
+
+    @testset "testing classical elemental em" begin
+        @suppress begin
+
+            database = Dict()
+            coef2 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
+            coef2.datH[:] = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+            database[(:Al, :Al)] = coef2
+            N_em = 1; r_locs = [4.0]; N_cheb = 5; rho_max = [100.0]; M = [3]
+            coef_e = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2, em=true, N_em = N_em, r_locs = r_locs, M= M, N_cheb = N_cheb, rho_max = rho_max)
+            database[(:Al, :Al, :em)] = coef_e
+            
+            c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.1], ["Al", "Al"])
+            v = 1.0;
+            C = ThreeBodyTB.CrystalMod.crystal[];
+            for x in 1:12;
+                v = v * 1.12;
+                for c in [c2];
+                    push!(C, c*v);
+                end;
+            end
+            v = 1.0
+            for x in 1:5
+                v = v * 1.12;
+                c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.1; 0 0 0.2], ["Al", "Al", "Al"])
+                push!(C, c2*v);
+            end
+
+            ThreeBodyTB.ClassicalFit.auto_determine_rho_max!(C, em_settings)
+            N_em, r_locs, M, N_cheb, rho_max = em_settings[:Al, :Al] 
+            coef_e = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2, em=true, N_em = N_em, r_locs = r_locs, M= M, N_cheb = N_cheb, rho_max = rho_max)
+            database[(:Al, :Al, :em)] = coef_e
+            EN = Float64[];
+            for c in C
+                en, _ = ThreeBodyTB.Classical.calc_energy_cl(c, database=database, use_threebody=false, use_em=true);
+                push!(EN, en / c.nat ); #normalize per atom
+            end
+            
+#            em_settings = Dict()
+#            en, _ = ThreeBodyTB.Classical.calc_energy_cl(c2 * v, database=database, use_threebody=false, use_em=true);
+#            push!(EN, en / c2.nat ); #normalize per atom
+
+#            em_settings[:Al, :Al] = (N_em, r_locs, M, N_cheb, rho_max)
+            V, _ = ThreeBodyTB.ClassicalFit.prepare_fit_cl(C, use_threebody=false, get_force=false, use_em=true, em_settings=em_settings);
+            x = V \ EN
+            @test maximum(abs.(x - [1.0, 0.8, 0.6, 0.4, 0.2, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0])) < 1e-3
+            
+            
+        end
+    end
+end
+
 function test1a()
 
     @testset "testing classical elemental" begin
@@ -298,6 +352,7 @@ end
 
 test1a();
 test3();
+test_em();
 database_NEW2 = test3_2atoms();
 database_NEW3 = test3_3atoms();
 Nothing;

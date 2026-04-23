@@ -120,9 +120,9 @@ end
 
 function cutoff_fn(num, min_c, max_c)
 
-    if num < 1e-4
-        return 0.0
-    end
+    #if num < 1e-10
+    #    return 0.0
+    #end
     if num < min_c
         return 1.0
     elseif num > max_c
@@ -211,6 +211,15 @@ function parse_str_ARR_float(sp)
         return map(x->parse(Float64,x),split(sp))
     else
         return map(x->parse(Float64,x),sp)
+    end
+end
+
+function parse_str_ARR_int(sp)
+
+    if typeof(sp) == String
+        return map(x->parse(Int64,x),split(sp))
+    else
+        return map(x->parse(Int64,x),sp)
     end
 end
 

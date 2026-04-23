@@ -184,7 +184,7 @@ end
 
 For fitting the classical model to a specific set of DFT calculations in the list `DFT`
 """
-function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing, use_twobody=true)
+function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=true, energy_weight=1.0, use_energy=true, use_force=true, use_stress = true , database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, subtract_scf=false, return_mats = false, CRYS_tot=missing, use_twobody=true, em_settings=Dict(), auto_rho_max=true)
 
     println("DFT version")
     println("database_start ", database_start)
@@ -300,16 +300,52 @@ function do_fit_cl(DFT; Vtot_start = missing, Rtot_start=missing, use_threebody=
 
 #    println("ENERGIES ", ENERGIES[1:5])
     
-    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot, use_twobody=use_twobody)
+    return do_fit_cl(CRYS, Vtot_start=Vtot_start, Rtot_start=Rtot_start, use_threebody=use_threebody, energy_weight = energy_weight, weights_train = weights_train, ENERGIES=ENERGIES, FORCES=FORCES, STRESSES=STRESSES, database_start=database_start, lambda=lambda, use_fourbody=use_fourbody, use_em = use_em, return_mats=return_mats, CRYS_tot=CRYS_tot, use_twobody=use_twobody, em_settings=em_settings,auto_rho_max=auto_rho_max)
     
 end
+
+function auto_determine_rho_max!(CRYS, em_settings)
+
+    database_fake = Dict()
+    for k in keys(em_settings)
+        coef2 = make_coefs_cl([k[1], k[2]], 2)
+        coef2.datH[:] .= 0.0
+        N_em, r_locs, M, N_cheb, rho_max = em_settings[k]
+        rho_max .= 0.0
+        coef_e = make_coefs_cl([k[1], k[2]], 2, em=true, N_em = N_em, r_locs = r_locs, M=M, N_cheb = N_cheb, rho_max = rho_max)
+        coef_e.datH .= 0.0
+        
+        database_fake[k[1], k[2]] = coef2
+        database_fake[k[1], k[2], :em] = coef_e
+        
+    end
+
+    for c in CRYS
+        rho_dict = calc_energy_cl(c;  database=database_fake,verbose=false, use_threebody=false, use_fourbody=false, use_em=true, check_frontier=false, return_rho=true)
+#        println("typeof rho_dict ", typeof(rho_dict))
+#        println("keys rho_dict ", keys(rho_dict), " em settings ", keys(em_settings))
+        for k in keys(em_settings)
+            
+#           println("k $k")
+            N_em, r_locs, M, N_cheb, rho_max = em_settings[k]
+            for n = 1:N_em
+#                println("rho dict k $k n $n ", rho_dict[k[1], k[2], n])
+                rho_max[n] = max(rho_max[n], rho_dict[k[1], k[2], n])
+            end
+#            println("new rho_max ", rho_max)
+            em_settings[k] = N_em, r_locs, M, N_cheb, rho_max
+            
+        end
+    end
+end
+
 
 """
     function do_fit_cl(CRYS::Array{crystal,1})
 
 Does the main fitting for CLASSICAL MODEL
 """
-function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing, use_twobody=true)
+function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = missing, use_threebody=true,ENERGIES=missing, FORCES=missing, STRESSES=missing, energy_weight = 1.0, database_start=missing, lambda = -1.0, use_fourbody=false, use_em = true, return_mats=false, weights_train = missing, CRYS_tot = missing, use_twobody=true, em_settings = Dict(), auto_rho_max = true, constrain_f=true)
 
     #ENERGIES PER ATOM. 
     
@@ -331,7 +367,11 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         get_force = false
     end
 
-    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em, use_twobody=use_twobody)
+    if use_em && auto_rho_max
+        auto_determine_rho_max!(CRYS, em_settings)
+    end
+    
+    Ve,Vf,Vs, vars, at_types, ind_set = prepare_fit_cl(CRYS; use_threebody=use_threebody, get_force=get_force, database=database_start, use_fourbody=use_fourbody, use_em=use_em, use_twobody=use_twobody, em_settings=em_settings)
 
     
 
@@ -372,8 +412,18 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         return Dict()
     end
 
-    if lambda > 1e-10
-        LAM = I(ntot) * lambda
+    LAM_mat = collect(1.0*I(ntot))
+    for k in keys(ind_set)
+        if length(k) == 2
+            for i in ind_set[k]
+                LAM_mat[i,i] = LAM_mat[i,i] / 1000.0
+            end
+        end
+    end
+
+    
+    if lambda > 1e-9
+        LAM = LAM_mat * lambda
         Vtot_lam = vcat(Vtot, LAM)
         Rtot_lam = vcat(Rtot, zeros(ntot))
         
@@ -384,20 +434,20 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             lambda = 1e-5
             println("WARNING, too few items to auto determine lambda")
         else
-            l = L ÷ 5
+            #l = L ÷ 5
 
             #            println("L $L l $l")
 
             
-            LAM = [2.5e-8, 1e-7,2.5e-7,1e-6, 2.5e-6, 1e-5, 2.5e-5, 1e-4, 2.5e-4, 1e-3,2.5e-3, 1e-2, 2.5e-2, 1e-1, 2.5e-1, 1e0, 2.5e0,1e1]
+            LAM = [1e-7, 2e-7, 5e-7,1e-6, 2e-6, 5e-6,1e-5, 2e-5, 5e-5,1e-4, 2e-4, 5e-4,1e-3, 2e-3, 5e-3,1e-2, 2e-2, 5e-2,1e-1, 2e-1, 5e-1, 1.0, 2.0, 5.0]
             ERR = zeros(length(LAM))
             TOT_ERR = zeros(length(LAM))
 
             niter=3
             for iter = 1:niter
-                IND_TRAIN, IND_TEST = kfold(L, 5)
+                IND_TRAIN, IND_TEST = kfold(L, 10)
                 
-                for n = 1:5  #very simple cross-validation determination of lambda
+                for n = 1:10  #very simple cross-validation determination of lambda
 
                     ind_test = IND_TEST[n]
                     ind_train = IND_TRAIN[n]
@@ -405,7 +455,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
                     #                ind_test = r[1:l]
                     #                ind_train = r[l+1:end]
                     for (cind, lambda) = enumerate(LAM)
-                        V = vcat(Vtot[ind_train,:], I(ntot) * lambda)
+                        V = vcat(Vtot[ind_train,:], LAM_mat * lambda)
                         R = vcat(Rtot[ind_train], zeros(ntot))
                         x = V \ R
                         ERR[cind] += sum( (Vtot[ind_test,:]*x - Rtot[ind_test,:]).^2)
@@ -426,7 +476,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             println("auto lambda $lambda")
         end
         
-        LAM = I(ntot) * lambda
+        LAM = LAM_mat * lambda
         Vtot_lam = vcat(Vtot, LAM)
         Rtot_lam = vcat(Rtot, zeros(ntot))
         
@@ -439,9 +489,16 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
 
 
     println("size Vtot_lam ", size(Vtot_lam))
+
+    if constrain_f && use_em
+
+        x = constrain_lsq(Vtot_lam , Rtot_lam, ind_set, em_settings)
+        
+    else
     
-    x = Vtot_lam \ Rtot_lam
- 
+        x = Vtot_lam \ Rtot_lam
+    end
+    
     #@save "a.jld" x Vtot_lam Rtot_lam
 
     
@@ -479,7 +536,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         database = deepcopy(database_start)
     end
 
-    frontier = calc_frontier_list(CRYS_tot)
+    frontier = calc_frontier_list(CRYS_tot[1:5])
     
     println("put stuff in database")
     for ind in keys(ind_set)
@@ -498,10 +555,11 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
             t1,t2,em_var = ind
             println("vars ", [t1,t2,em_var])
             println("keys ", keys(frontier))
+            N_em, r_locs, M, N_cheb, rho_max = em_settings[t1,t2]
             if (t1,t2) in keys(frontier)
-                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1, min_dist = frontier[(t1,t2)],  em=true)
+                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], dist_frontier = frontier, version = 1, min_dist = frontier[(t1,t2)],  em=true, N_em=N_em, r_locs = r_locs, M = M, N_cheb = N_cheb, rho_max=rho_max)
             else
-                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1, em=true)
+                c = make_coefs_cl([t1, t2], 2, datH = x[ind_set[ind]], version = 1, em=true, N_em=N_em, r_locs = r_locs, M = M, N_cheb = N_cheb, rho_max=rho_max)
             end
             database[ind] = c
             
@@ -544,11 +602,11 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
     end
 end    
 
-function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, DIST)
+function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, DIST, em_settings)
     var_type = eltype(dat_vars)
 #    println("EFS ----------------------------------------------------------------------------------------")
     #energy = calc_energy_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody)
-    energy, force, stress = energy_force_stress_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type, verbose=false, use_fourbody=use_fourbody, use_em = use_em, DIST=DIST)
+    energy, force, stress = energy_force_stress_cl(crys, dat_vars=dat_vars, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, var_type=var_type, verbose=false, use_fourbody=use_fourbody, use_em = use_em, DIST=DIST, em_settings=em_settings)
     #return energy 
     v = vcat(force[:], [stress[1,1], stress[1,2],stress[1,3],stress[2,2],stress[2,3],stress[3,3]])
     #    return v
@@ -556,7 +614,7 @@ function efs(crys, dat_vars, at_types, ind_set,vars_list, use_threebody, use_fou
 end
 
 
-function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true, use_twobody=true)
+function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missing, use_fourbody=false, use_em = true, use_twobody=true, em_settings=Dict())
     if ismissing(database)
         database = Dict()
     end
@@ -677,12 +735,14 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
             end
             if use_em && !( (t1,t2, :em) in keys(database))
                 println("add em" , (t1,t2,:em))
-                ind_set[(t1,t2,:em)] = collect(1:n_2body_em) .+ ntot
-                ntot += n_2body_em
-                if t1 != t2
-                    ind_set[(t2,t1,:em)] = collect(1:n_2body_em) .+ ntot
-                    ntot += n_2body_em
-                end
+                N_em, r_locs, M, N_cheb, rho_max = em_settings[t1,t2]
+                
+                ind_set[(t1,t2,:em)] =  collect(1:(N_em * N_cheb))  .+ ntot #collect(1:n_2body_em) .+ ntot
+                ntot += (N_em * N_cheb)
+                #if t1 != t2
+                #    ind_set[(t2,t1,:em)] = collect(1:n_2body_em) .+ ntot
+                #    ntot += n_2body_em
+                #end
             end
                 
         elseif v[2] == 3
@@ -775,7 +835,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
     crysX = CRYS[1]
     DIST = []
     function go(x)
-        en, _ = calc_energy_cl(crysX, verbose=false, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, use_fourbody=use_fourbody, use_em = use_em, DIST=DIST, check_frontier=false)
+        en, _ = calc_energy_cl(crysX, verbose=false, dat_vars=x, at_types=at_types, ind_set=ind_set,vars_list= vars_list, use_threebody=use_threebody, use_fourbody=use_fourbody, use_em = use_em, DIST=DIST, check_frontier=false, em_settings=em_settings)
         return en
     end
 
@@ -818,7 +878,7 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
         counter_s = 0
 
         function go2(x)
-            return efs(crysX, x, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, DIST)
+            return efs(crysX, x, at_types, ind_set,vars_list, use_threebody, use_fourbody, use_em, DIST, em_settings)
         end
         cfg2 = ForwardDiff.JacobianConfig(go2, ones(ntot), ForwardDiff.Chunk{chunksize}())
         
@@ -856,6 +916,47 @@ function prepare_fit_cl(CRYS; use_threebody=true, get_force=true, database=missi
     return V, Vf, Vs, vars, at_types, ind_set
     
 end
+
+
+function constrain_lsq(Vtot_lam , Rtot_lam, ind_set, em_settings)
+
+    ncols = size(Vtot_lam)[2]
+    constraints = zeros(0,ncols)
+    for k in keys(ind_set)
+        if length(k) == 3 && k[3] == :em
+            N_em, r_locs, M, N_cheb, rho_max = em_settings[k[1],k[2]]
+            ind = ind_set[k]
+
+            for n = 1:N_em
+                z = zeros(1,ncols)
+                p = 1
+                for i in ind[ (n-1)*N_cheb .+ (1:N_cheb)]
+                    z[i] = p
+                    p = p * -1
+                end
+                constraints = vcat(constraints, z)                
+            end
+
+            
+        end
+    end
+
+    n_con= size(constraints)[1]
+    constrain_val = zeros(n_con)
+    println("constraints")
+    println(constraints)
+
+    newX = [2 * Vtot_lam'*Vtot_lam  constraints' ; constraints zeros(n_con, n_con)]
+    newY = [2 * Vtot_lam' * Rtot_lam; constrain_val]
+
+    newx = newX \ newY
+    println("newx ", size(newx))
+    x = Vtot_lam \ Rtot_lam
+    println("size old x ",  size(x))
+    return newx[1:ncols]
+end
+
+
 
 
 #function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)

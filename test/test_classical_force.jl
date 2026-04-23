@@ -11,7 +11,7 @@ function test1()
             database = Dict()
             coef2 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
             coef2.datH[:] = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
-            database[(:Al, :Al, :cl)] = coef2
+            database[(:Al, :Al)] = coef2
             
             c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.1], ["Al", "Al"])
             c2a = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.100001], ["Al", "Al"])
@@ -73,6 +73,41 @@ function test3()
     end
 end
 
+function test_eam()
+
+    @testset "testing classical force eam" begin
+        @suppress begin
+
+            database = Dict()
+            coef2 = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2)
+            coef2.datH[:] = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+            database[(:Al, :Al)] = coef2
+            coef_e = ThreeBodyTB.Classical.make_coefs_cl([:Al, :Al], 2, em=true, N_em =1, r_locs = [4.0], M=[3], N_cheb = 5, rho_max = [100.0])
+            database[(:Al, :Al, :em)] = coef_e
+            
+            c2 = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.1], ["Al", "Al"])
+            c2a = makecrys([30 0 0; 0 30 0; 0 0 30], [0 0 0; 0 0 0.100001], ["Al", "Al"])
+
+            energy2, force2, stress2 = ThreeBodyTB.Classical.energy_force_stress_cl(c2, database=database, use_em = true, use_threebody=false);
+            energy2a, force2a, stress2a = ThreeBodyTB.Classical.energy_force_stress_cl(c2a, database=database, use_em = true, use_threebody=false);
+            
+            finitediff = (energy2a - energy2) / (0.100001 - 0.1) / 30.0
+
+            @test abs(finitediff + force2[2,3]) < 1e-5
+            @test abs(finitediff + stress2[3,3] * abs(det(c2.A))/3) < 1e-5
+
+            println("finitediff ", finitediff)
+            println("force2")
+            println(force2)
+            println("stress2")
+            println(stress2)
+        end
+    end
+end
+
+
 test1()
 test3()
+test_eam()
+
 Nothing;

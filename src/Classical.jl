@@ -58,6 +58,8 @@ using Random
 
 
 const n_2body_cl = 6
+const n_rlocs_max = 5
+const chebmax = 20
 
 #const n_2body_em = 5
 #n_2body_em = 11
@@ -129,6 +131,11 @@ struct coefs_cl
     em::Bool
     lim::Dict
     repval::Dict
+    N_em::Int64
+    r_locs::Array{Float64,1}
+    M::Array{Int64, 1}
+    N_cheb::Int64
+    rho_max::Array{Float64,1}
 end
 
 
@@ -171,6 +178,13 @@ function write_coefs_cl(filename, co::coefs_cl; compress=true)
     end
     
 
+    addelement!(c, "N_em", string(co.N_em))
+    addelement!(c, "r_locs", arr2string(co.r_locs))
+    addelement!(c, "M", arr2string(co.M))
+    addelement!(c, "N_cheb", string(N_cheb))
+
+    addelement!(c, "rho_max", arr2string(co.rho_max))
+    
     if compress
         io=gzopen(filename*".gz", "w")
     else
@@ -245,6 +259,44 @@ function read_coefs_cl(filename, directory = missing)
     end
 
 
+#    addelement!(c, "N_em", string(co.N_em))
+#    addelement!(c, "r_locs", arr2string(co.r_locs))
+#    addelement!(c, "M", arr2string(co.M))
+#    addelement!(c, "N_cheb", string(N_cheb))
+
+    if haskey(d["coefs"], "N_em")
+        N_em = parse(Int64, d["coefs"]["N_em"])
+    else
+        N_em = 0
+    end
+
+    if haskey(d["coefs"], "r_locs")
+        r_locs = parse_str_ARR_float(d["coefs"]["r_locs"])
+    else
+        r_locs = Float64[]
+    end
+
+    if haskey(d["coefs"], "M")
+        M = parse_str_ARR_int(d["coefs"]["M"])
+    else
+        M = Int64[]
+    end
+    
+    if haskey(d["coefs"], "N_cheb")
+        N_cheb = parse(Int64, d["coefs"]["N_cheb"])
+    else
+        N_cheb = 0
+    end
+
+    if haskey(d["coefs"], "rho_max")
+        rho_max = parse_str_ARR_float(Int64, d["coefs"]["rho_max"])
+    else
+        rho_max = ones(N_em) * 1e-10
+    end
+    
+    
+        
+    
 #    println("read ----------------")
 #    println("names $names")
 #    println("dim $dim")
@@ -256,7 +308,7 @@ function read_coefs_cl(filename, directory = missing)
 #    println("dist_frontier ", dist_frontier)
 #    println("-")
     
-    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em, lim=lim, repval=repval)
+    co = make_coefs_cl(names,dim, datH=datH, min_dist=min_dist, dist_frontier = dist_frontier, version=version, em=em, lim=lim, repval=repval, N_em=N_em, r_locs=r_locs, M=M, N_cheb=N_cheb, rho_max=rho_max)
 
     return co
     
@@ -271,7 +323,8 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs_cl` to understand arguments.
 """
-function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=3, em=false,  lim=missing, repval=missing)
+function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=4, em=false,  lim=missing, repval=missing,
+                       N_em=0, r_locs = Float64[], M = Int64[], N_cheb=0, rho_max = Float64[])
 
     if ismissing(lim)
         lim = Dict()
@@ -387,17 +440,39 @@ function make_coefs_cl(at_list, dim; datH=missing, min_dist = 3.0, fillzeros=fal
         
     end
     
-    println("dim $dim")
-    println("datH $datH")
-    println("totH $totH")
-    println("at_list, $(Set(at_list))")
-    println("min_dist $min_dist")
-    println("version $version")
-    println("em $em")
-    println(typeof.([dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em]))
-    println("lim ", lim)
-    println("repval ", repval)
-    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em, lim, repval)
+#    println("dim $dim")
+#    println("datH $datH")
+#    println("totH $totH")
+#    println("at_list, $(Set(at_list))")
+#    println("min_dist $min_dist")
+#    println("version $version")
+#    println("em $em")
+#    println(typeof.([dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em]))
+#    println("lim ", lim)
+#    println("repval ", repval)
+
+    if typeof(M) == Int64
+        M = [M]
+        println("convert M int to $M")
+    end
+    if typeof(r_locs) == Float64
+        r_locs = [r_locs]
+        println("convert r_locs float to $r_locs")
+    end
+
+    if em
+        if length(rho_max) != N_em
+            println("agreement issue rho_max $(length(rho_max)) N_cheb $N_em")
+        end
+        if length(r_locs) != N_em
+            println("agreement issue r_locs $(length(r_locs)) N_cheb $N_em")
+        end
+        if length(M) != N_em
+            println("agreement issue M $(length(M)) N_cheb $N_em")
+        end
+    end
+    
+    return coefs_cl(dim, datH, totH, Set(at_list), min_dist, dist_frontier2, version, em, lim, repval, N_em, r_locs, M, N_cheb, rho_max)
     
 end
     
@@ -416,6 +491,9 @@ Base.show(io::IO, d::coefs_cl) = begin
         end
     end
     println(io)
+    if d.em
+        println(io, "em: N_em $(d.N_em)  r_locs $(d.r_locs)  M $(d.M)  N_cheb $(d.N_cheb)  rho_max $(d.rho_max)")
+    end
     println(io, "datH ", round.(d.datH[:], digits=3))
     println(io)
 end
@@ -423,14 +501,14 @@ end
 
 
 
-function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)
+function ham(x :: Vector, ct, database, donecheck, DIST, FloatX, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, em_settings)
     T=eltype(x)
 
     x_r, x_r_strain = reshape_vec(x, ct.nat, strain_mode=true)
     A = FloatX.(ct.A) * (I(3) + x_r_strain)
     crys_dual = makecrys( A , ct.coords + x_r, ct.types, units="Bohr")
 
-    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, check_frontier=false)
+    energy, _ = calc_energy_cl(crys_dual;  database=database, DIST=DIST, verbose=verbose, use_threebody=use_threebody, var_type=T, dat_vars=dat_vars, at_types=at_types, vars_list=vars_list, ind_set=ind_set, turn_off_warn=turn_off_warn, use_fourbody=use_fourbody , use_em=use_em, check_frontier=false, em_settings=em_settings)
 
     return energy
     
@@ -441,7 +519,7 @@ end
 
 Main function for running classical model. Returns energy/force/stress from crystal structure.
 """
-function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true)
+function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false, use_threebody=true, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, ind_set=missing, var_type=Float64, turn_off_warn = false, use_fourbody=false, use_em = true, em_settings=Dict())
 
     if verbose; println("dist energy_force_stress");end
     if ismissing(DIST)
@@ -469,7 +547,7 @@ function energy_force_stress_cl(crys::crystal;  database=missing, verbose=false,
 #    return energy
     #    energy = calc_energy_cl(crys,  database=missing,  DIST=missing, verbose=false,  use_threebody=use_threebody,  dat_vars=dat_vars, at_types=at_types)
 
-    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em)
+    FN_ham = x->ham(x,crys,database, true, DIST, var_type, use_threebody, dat_vars, at_types, vars_list, ind_set, turn_off_warn, verbose, use_fourbody, use_em, em_settings)
 
     if verbose; println("energy test "); end
     energy_test = FN_ham(zeros(var_type, 3*crys.nat + 6))
@@ -1019,14 +1097,14 @@ end
 
 Main function for classical energy calculation from crystal structure.
 """
-function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true)
+function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_types = missing, vars_list = missing,  DIST=missing, verbose=false, use_threebody=true, ind_set=missing, var_type=missing, turn_off_warn = false, use_fourbody = false, use_em = true, check_only=false, check_frontier=true, em_settings=Dict(), return_rho=false)
 
     
     
     no_errors = true
 
     
-    println("calc_energy_cl use_em $use_em use_threebody $use_threebody !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#    println("calc_energy_cl use_em $use_em use_threebody $use_threebody !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 #    verbose=true
 
 #    println("CRYS.nat ", crys.nat)
@@ -1132,7 +1210,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     ind_arr = zeros(Int64, nkeep, 3)
     ind_arr[:,:] = R_keep[:,2:4]
 
-    if verbose; println("types stuff "); end
+   if verbose; println("types stuff "); end
      if !ismissing(database)
         types_dict = Dict()
         types_dict_reverse = Dict()
@@ -1211,9 +1289,15 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     if verbose; println("setup database stuff"); end
     #println("ismissing database ", ismissing(database))
      begin
-        DAT_IND_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_cl )
+        DAT_IND_ARR = zeros(var_type, types_counter, types_counter,n_2body_cl )
         if use_em
-            DAT_EM_ARR = zeros(var_type, types_counter, types_counter,1:n_2body_em )
+            DAT_EM_ARR = zeros(var_type, types_counter, types_counter, n_rlocs_max * chebmax )
+            DAT_EM_N_EM = zeros(Int64, types_counter, types_counter )
+            DAT_EM_R_LOCS = zeros(Float64, types_counter, types_counter,n_rlocs_max )
+            DAT_EM_M = zeros(Int64, types_counter, types_counter,n_rlocs_max )
+            DAT_EM_N_CHEB = zeros(Int64, types_counter, types_counter )
+            DAT_EM_RHO_MAX = zeros(Float64, types_counter, types_counter, n_rlocs_max )
+                        
         end
 
         #        DAT_IND_ARR3 = zeros(var_type, types_counter, types_counter, types_counter, 1: max(n_3body_cl_same,n_3body_cl_pair,n_3body_cl_diff) )
@@ -1253,7 +1337,13 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 
                     if use_em
                         if (t1,t2,:em) in keys(database)
-                            DAT_EM_ARR[c1,c2,1:n_2body_em] = database[(t1,t2, :em)].datH
+                            DAT_EM_ARR[c1,c2,1:length(database[(t1,t2, :em)].datH)] = database[(t1,t2, :em)].datH
+                            DAT_EM_N_EM[c1,c2] = database[(t1,t2, :em)].N_em
+                            DAT_EM_M[c1,c2,1:DAT_EM_N_EM[c1,c2]] = database[(t1,t2, :em)].M
+                            DAT_EM_N_CHEB[c1,c2] = database[(t1,t2, :em)].N_cheb
+                            DAT_EM_R_LOCS[c1,c2,1:DAT_EM_N_EM[c1,c2]] = database[(t1,t2, :em)].r_locs
+                            DAT_EM_RHO_MAX[c1,c2,1:DAT_EM_N_EM[c1,c2]] = database[(t1,t2, :em)].rho_max
+                            
                         end
                     end
                     
@@ -1318,7 +1408,14 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
                                     ind = ind_set[(t1,t2,:em)] 
 #                                    println(v , " " , v[1])
                                     if t1 in v[1] && t2 in v[1]
-                                        DAT_EM_ARR[c1,c2,1:n_2body_em] = dat_vars[ind]
+                                        N_em, r_locs, M, N_cheb, rho_max = em_settings[t1,t2]
+                                        DAT_EM_N_EM[c1,c2] = N_em
+                                        DAT_EM_M[c1,c2,1:DAT_EM_N_EM[c1,c2]] = M
+                                        DAT_EM_N_CHEB[c1,c2] = N_cheb
+                                        DAT_EM_R_LOCS[c1,c2,1:DAT_EM_N_EM[c1,c2]] = r_locs
+                                        DAT_EM_ARR[c1,c2,1:length(ind) ] = dat_vars[ind]
+                                        DAT_EM_RHO_MAX[c1,c2,1:N_em ] = rho_max
+                                        
 #                                        println("add $t1 $t2 xxxxxxxxxxxxxxxxxxxxxxxxxxx")
                                     end
                                 end
@@ -1384,7 +1481,7 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     energy_2bdy_TH = zeros(var_type,nthreads())
     energy_2bdy_EM = zeros(var_type,nthreads())
 
-    rho = zeros(var_type, crys.nat, types_counter, 6)
+    rho = zeros(var_type, crys.nat, types_counter, n_rlocs_max )
 #    rho2 = zeros(var_type, crys.nat, types_counter)
 #    rho3 = zeros(var_type, crys.nat, types_counter)
     if verbose println("2body CL") end
@@ -1436,8 +1533,8 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
             #            end
 
             if use_em
-                a=1.0
-                ad = a*dist_a
+                #a=1.0
+                #ad = a*dist_a
                 #expa=exp.(-2.0*ad)*cut_a
                 #l1 = 1.0 * expa
                 #l2 = (1.0 .- ad) .* expa
@@ -1449,23 +1546,37 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #                l2 = exp(-1.5*ad)*cut_a  / exp(-1.5*3.0)
 #                l3 = exp(-1.0*ad)*cut_a  / exp(-1.0*3.0)
                 #                l4 = exp(-0.5*ad)*cut_a  / exp(-0.5*3.0)
-                l1 = 1 ./ (exp.( (dist_a .- 2.0) / 1.0 ) .+ 1.0) * cut_a
-                l2 = 1 ./ (exp.( (dist_a .- 3.0) / 1.0 ) .+ 1.0) * cut_a
-                l3 = 1 ./ (exp.( (dist_a .- 4.0) / 1.0 ) .+ 1.0) * cut_a
-                l4 = 1 ./ (exp.( (dist_a .- 5.0) / 1.0 ) .+ 1.0) * cut_a
-                l5 = 1 ./ (exp.( (dist_a .- 6.0) / 1.0 ) .+ 1.0) * cut_a
-                l6 = 1 ./ (exp.( (dist_a .- 1.0) / 1.0 ) .+ 1.0) * cut_a
+                #l1 = 1 ./ (exp.( (dist_a .- 2.0) / 1.0 ) .+ 1.0) * cut_a
+                #l2 = 1 ./ (exp.( (dist_a .- 3.0) / 1.0 ) .+ 1.0) * cut_a
+                #l3 = 1 ./ (exp.( (dist_a .- 4.0) / 1.0 ) .+ 1.0) * cut_a
+                #l4 = 1 ./ (exp.( (dist_a .- 5.0) / 1.0 ) .+ 1.0) * cut_a
+                #l5 = 1 ./ (exp.( (dist_a .- 6.0) / 1.0 ) .+ 1.0) * cut_a
+                #l6 = 1 ./ (exp.( (dist_a .- 1.0) / 1.0 ) .+ 1.0) * cut_a
                 
-                rho[a1,t2,1] += l1
-                rho[a1,t2,2] += l2
-                rho[a1,t2,3] += l3
-                rho[a1,t2,4] += l4
-                rho[a1,t2,5] += l5
-                rho[a1,t2,6] += l6
+                #rho[a1,t2,1] += l1
+                #rho[a1,t2,2] += l2
+                #rho[a1,t2,3] += l3
+                #rho[a1,t2,4] += l4
+                #rho[a1,t2,5] += l5
+                #rho[a1,t2,6] += l6
+                N_cheb = DAT_EM_N_CHEB[t1,t2]
+                
+                for n = 1:DAT_EM_N_EM[t1,t2]
+#                    println("get rho $n $(DAT_EM_R_LOCS[t1,t2,n]) $(DAT_EM_M[t1,t2,n]) $(DAT_EM_N_CHEB[t1,t2])")
+                    g_t = get_g(dist_a, DAT_EM_R_LOCS[t1,t2,n],  DAT_EM_M[t1,t2,n], DAT_EM_N_CHEB[t1,t2])
+#                    println("a1 $a1 a2 $a2 n $n g_t $g_t")
+                    rho[a1,t2,n ] += g_t
+
+                    energy_2bdy_EM[id] += cheb_energy_fn(DAT_EM_ARR[t1, t2, (1:N_cheb) .+ (n - 1)*N_cheb], g_t, N_cheb, DAT_EM_RHO_MAX[t1,t2,n])
+                    
+                    #energy_2bdy_EM[id] += sum(rho_t .* DAT_EM_ARR[t1, t2, (1:N_cheb) .+ (n - 1)*N_cheb])
+                end
+                                              
+                
+#                em = DAT_EM_ARR[t1,t2,1:n_2body_em]
+#                energy_2bdy_EM[id] += em_energy_fn(l1,l2,l3,l4,l5,l6, em; verbose=verbose, energy_arr = energy_arr_minus)
 
 
-                em = DAT_EM_ARR[t1,t2,1:n_2body_em]
-                energy_2bdy_EM[id] += em_energy_fn(l1,l2,l3,l4,l5,l6, em; verbose=verbose, energy_arr = energy_arr_minus)
                 
 #                energy_2bdy_EM[id] += em[1]*l1^2 + em[2]*l1^3  + em[3]*l2^2 + em[4]*l2^3 + em[5]*l1*l2
 #                rho[a1,t2] += exp(-1.0*dist_a)
@@ -1480,15 +1591,48 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
     
     energy_embed = zero(var_type)
     if verbose; println("do em"); end
-    if use_em
+
+    if use_em && return_rho
+
+#        println("rho cl ", rho)
+        rho_dict = Dict()
         for a1 = 1:crys.nat
+            id = 1
+            t1 = types_arr[a1]
+            for t=1:types_counter
+                N_cheb = DAT_EM_N_CHEB[t1,t]
+                for n = 1:DAT_EM_N_EM[t1,t]
+                    t1_symbol = types_dict_reverse[t1]
+                    t_symbol = types_dict_reverse[t]
+                    if ! ( (t1_symbol,t_symbol, n)  in keys(rho_dict))
+                        rho_dict[t1_symbol,t_symbol, n] = 1e-10
+                    end
+                    rho_dict[t1_symbol, t_symbol, n] = max(rho_dict[t1_symbol,t_symbol, n], rho[a1,t,n])
+                end
+            end
+        end
+        return rho_dict
+    end
+    
+    
+    
+     if use_em
+        energy_embed = 0.0
+        for a1 = 1:crys.nat
+            id = 1
             #            if var_type == Float64
             #                println("rho $a1 $(rho[a1])  $( em[1]*rho[a1] + em[2]*rho[a1]^2 + em[3]*rho[a1]^3)")
             #            end
             t1 = types_arr[a1]
             for t=1:types_counter
-                em = DAT_EM_ARR[t1,t,1:n_2body_em]
-                energy_embed += em_energy_fn(rho[a1,t,1], rho[a1,t,2],rho[a1,t,3], rho[a1,t,4], rho[a1,t,5],rho[a1,t,6], em ; verbose=verbose, energy_arr = energy_arr)
+                N_cheb = DAT_EM_N_CHEB[t1,t]
+                for n = 1:DAT_EM_N_EM[t1,t]
+                    #energy_2bdy_EM[id] += sum(rho[a1,t,n ] .* DAT_EM_ARR[t1, t, (1:N_cheb) .+ (n - 1)*N_cheb])
+                    energy_embed +=  cheb_energy_fn(DAT_EM_ARR[t1, t, (1:N_cheb) .+ (n - 1)*N_cheb], rho[a1,t,n], N_cheb, DAT_EM_RHO_MAX[t1,t,n]) 
+                end
+
+                                              #                em = DAT_EM_ARR[t1,t,1:n_2body_em]
+#                energy_embed += em_energy_fn(rho[a1,t,1], rho[a1,t,2],rho[a1,t,3], rho[a1,t,4], rho[a1,t,5],rho[a1,t,6], em ; verbose=verbose, energy_arr = energy_arr)
                 
 #                energy_embed +=  em[1]*rho[a1,t]^2 + em[2]*rho[a1,t]^3  #+ em[6] * rho[a1,t]^1
 #                energy_embed +=  em[3]*rho2[a1,t]^2 + em[4]*rho2[a1,t]^3  #+ em[7] * rho2[a1,t]^1
@@ -1729,14 +1873,17 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
         println("energy_arr_ned ", energy_arr - energy_arr_minus)
         println()
     end
+    if verbose
     if typeof(energy_2bdy_TH[1]) == Float64
         println("energy ", [sum(energy_2bdy_TH) , sum(energy_3bdy_TH) , sum(energy_4bdy_TH) , energy_embed])
+    end
     end
     return sum(energy_2bdy_TH) + sum(energy_3bdy_TH) + sum(energy_4bdy_TH) + energy_embed, no_errors
     
     
 end
 
+include("ClassicalChebEam.jl")
 
 end #end module
 
