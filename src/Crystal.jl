@@ -1312,9 +1312,9 @@ function get_grid(c, kden=55.0)
     k2 = max(k2, 2)
     k3 = max(k3, 2)
 
-    k1 = min(k1, 14)
-    k2 = min(k2, 14)
-    k3 = min(k3, 14)
+    k1 = min(k1, 18)
+    k2 = min(k2, 18)
+    k3 = min(k3, 18)
 
 #    k1 = min(k1, 30)
 #    k2 = min(k2, 30)

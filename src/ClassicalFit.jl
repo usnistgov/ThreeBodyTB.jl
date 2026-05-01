@@ -536,7 +536,7 @@ function do_fit_cl(CRYS::Array{crystal,1}; Vtot_start = missing, Rtot_start = mi
         database = deepcopy(database_start)
     end
 
-    frontier = calc_frontier_list(CRYS_tot[1:5])
+    frontier = calc_frontier_list(CRYS_tot)
     
     println("put stuff in database")
     for ind in keys(ind_set)

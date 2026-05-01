@@ -65,12 +65,12 @@ using ..Symmetry:symmetrize_charge_den
 using ..Classical:calc_energy_cl
 using ..ThreeBodyTB:set_units
 
-
+using ..BandTools:smear_default
 
 export scf_energy
 
 """
-    function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
+    function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = missing, conv_thr = 1e-5, iters = 75, mix = -1.0, mixing_mode=:pulay, verbose=true)
 
 Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user version is `scf_energy` in ThreeBodyTB, which calls this one.
 
@@ -83,7 +83,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true, sparse=false)
+function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true, sparse=false)
 
 
 #    println("SCF.jl $tot_charge")
@@ -119,9 +119,9 @@ function scf_energy(c::crystal, database::Dict; smearing=0.01, grid = missing, c
 end
 
 """
-    function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
+    function scf_energy(tbc::tb_crys; smearing=smear_default, grid = missing, e_den0 = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:pulay, verbose=true)
 """
-function scf_energy(tbc::tb_crys; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
+function scf_energy(tbc::tb_crys; smearing=smear_default, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """
@@ -996,7 +996,7 @@ end
 
 #=
 #descreening
-function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den = missing)
+function remove_scf_from_tbc(tbc::tb_crys; smearing=smear_default, grid = missing, e_den = missing)
    """
         this function removes the scf effects from the tight-binding elements
         if you then do an scf solution to the new tbc, you should get the old tbc back.
@@ -1165,12 +1165,12 @@ end
 =#
 
 """
-    function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missing)
+    function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=smear_default, e_den = missing)
 
 This function takes a `tbc_crys_kspace` object that does not require scf and adjusts it 
 so that it does require scf, but gives the same energy and band structure.
 """
-function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missing)
+function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=smear_default, e_den = missing)
 
     old_units1, old_units2 = set_units()
     set_units(both="atomic")
@@ -1308,12 +1308,12 @@ function remove_scf_from_tbc(tbcK::tb_crys_kspace; smearing=0.01, e_den = missin
 end
 
 """
-    function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den = missing)
+    function remove_scf_from_tbc(tbc::tb_crys; smearing=smear_default, grid = missing, e_den = missing)
 
 This function takes a `tbc_crys` object that does not require scf and adjusts it 
 so that it does require scf, but gives the same energy and band structure.
 """
-function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den = missing)
+function remove_scf_from_tbc(tbc::tb_crys; smearing=smear_default, grid = missing, e_den = missing)
     if tbc.scf == true
         println("do not need to adjust, already scf")
         return tbc
@@ -1326,7 +1326,7 @@ function remove_scf_from_tbc(tbc::tb_crys; smearing=0.01, grid = missing, e_den 
     hk3, sk3 = myfft_R_to_K(tbc, grid)
     #println("size hk3 ", size(hk3))
 
-    hk3, sk3, e_den_NEW, h1, h1spin, efermi = remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = tbc.eden)
+    hk3, sk3, e_den_NEW, h1, h1spin, efermi = remove_scf_from_tbc(hk3, sk3, tbc; smearing=smear_default, e_den = tbc.eden)
 #    println("size hk3 v2 ", size(hk3))
 
     grid = size(hk3)[4:6]
@@ -1369,12 +1369,12 @@ end
 
 
 """
-    function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
+    function remove_scf_from_tbc(hk3, sk3, tbc; smearing=smear_default, e_den = missing)
 
 This function takes a hk3, sk3 set of hamiltonian / overlap that does not require scf and adjusts it 
 so that it does require scf, but gives the same energy and band structure.
 """
-function remove_scf_from_tbc(hk3, sk3, tbc; smearing=0.01, e_den = missing)
+function remove_scf_from_tbc(hk3, sk3, tbc; smearing=smear_default, e_den = missing)
    """
         this function removes the scf effects from the tight-binding elements
         if you then do an scf solution to the new tbc, you should get the old tbc back.

@@ -778,7 +778,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
         elseif newst == "2D-oxygen"
             ncalc = 4
         elseif newst == "vol-dense"
-            ncalc = length( [ 0.87 ])
+            ncalc = length( [ 0.87, 0.85 ])
         elseif newst == "vol-verydense"
             ncalc = length( [0.77 0.82 0.75 0.70 0.65 0.60 0.55 0.50])
         elseif newst == "vol-big"
@@ -1274,13 +1274,13 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 end
 
             elseif newst == "vol-dense"
-                for x in [ 0.87 ]
+                for x in [ 0.87, 0.84, 0.80 ]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
                 end
             elseif newst == "vol-verydense"
-                for x in [0.77 0.82 0.75 0.70 0.65 0.60 0.55 0.50]
+                for x in [0.82 0.77 0.75 0.70 0.65 0.60 0.55 0.50]
                     c = deepcopy(cnew)
                     c.A = c.A * x
                     push!(torun, deepcopy(c))
@@ -1484,7 +1484,47 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                         push!(tot_charge, charge)
                     end
                 end
+            elseif newst == "dimer-charge-mediumbig"
+                tot_charge = []
+                dist = cnew.coords[2,3] -  cnew.coords[1,3]
+                for charge = [0.0, 0.2]
+                    for x in vcat([0.65, 0.7, 0.75, 0.8] , 0.82:0.04:1.18, 1.2:0.05:1.45, 1.5:0.2:2.45, 2.5:0.5:4.0)
+                    #for x in [0.9, 1.0, 1.1, 1.5, 2.0]
 
+                        c = deepcopy(cnew)
+                        c.coords[1,3] =  0.5 - dist/2 * x
+                        c.coords[2,3] =  0.5 + dist/2 * x
+                        if c.coords[1,3] < 0.25
+                            c.coords[1,3] =  0.25
+                            c.coords[2,3] =  0.75
+                            push!(torun, deepcopy(c))
+                            push!(tot_charge, charge)
+                            break
+                        end                            
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+
+                for charge = [0.05, 0.1, 0.25]
+                    for x in [1.0]
+                    #for x in [0.9, 1.0, 1.1, 1.5, 2.0]
+
+                        c = deepcopy(cnew)
+                        c.coords[1,3] =  0.5 - dist/2 * x
+                        c.coords[2,3] =  0.5 + dist/2 * x
+                        if c.coords[1,3] < 0.25
+                            c.coords[1,3] =  0.25
+                            c.coords[2,3] =  0.75
+                            push!(torun, deepcopy(c))
+                            push!(tot_charge, charge)
+                            break
+                        end                            
+                        push!(torun, deepcopy(c))
+                        push!(tot_charge, charge)
+                    end
+                end
+                
             elseif newst == "trimer-charge-mediumbig"
                 tot_charge = []
                 dist = cnew.coords[2,3] -  cnew.coords[1,3]

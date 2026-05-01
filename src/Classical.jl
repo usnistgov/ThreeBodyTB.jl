@@ -14,6 +14,7 @@ module Classical
 using ..Utility:arr2str
 using ..Utility:str_w_spaces
 using ..Utility:parse_str_ARR_float
+using ..Utility:parse_str_ARR_int
 using ..Utility:dict2str
 using ..Utility:str2tuplesdict
 
@@ -179,11 +180,11 @@ function write_coefs_cl(filename, co::coefs_cl; compress=true)
     
 
     addelement!(c, "N_em", string(co.N_em))
-    addelement!(c, "r_locs", arr2string(co.r_locs))
-    addelement!(c, "M", arr2string(co.M))
-    addelement!(c, "N_cheb", string(N_cheb))
+    addelement!(c, "r_locs", arr2str(co.r_locs))
+    addelement!(c, "M", arr2str(co.M))
+    addelement!(c, "N_cheb", string(co.N_cheb))
 
-    addelement!(c, "rho_max", arr2string(co.rho_max))
+    addelement!(c, "rho_max", arr2str(co.rho_max))
     
     if compress
         io=gzopen(filename*".gz", "w")
@@ -264,34 +265,45 @@ function read_coefs_cl(filename, directory = missing)
 #    addelement!(c, "M", arr2string(co.M))
 #    addelement!(c, "N_cheb", string(N_cheb))
 
-    if haskey(d["coefs"], "N_em")
-        N_em = parse(Int64, d["coefs"]["N_em"])
+    if em
+        if haskey(d["coefs"], "N_em")
+            N_em = parse(Int64, d["coefs"]["N_em"])
+        else
+            N_em = 0
+        end
+
+        if haskey(d["coefs"], "r_locs")
+            println("r_locs ")
+            println(d["coefs"]["r_locs"])
+            r_locs = parse_str_ARR_float(d["coefs"]["r_locs"])
+        else
+            r_locs = Float64[]
+        end
+
+        if haskey(d["coefs"], "M")
+            M = parse_str_ARR_int(d["coefs"]["M"])
+        else
+            M = Int64[]
+        end
+        
+        if haskey(d["coefs"], "N_cheb")
+            N_cheb = parse(Int64, d["coefs"]["N_cheb"])
+        else
+            N_cheb = 0
+        end
+
+        if haskey(d["coefs"], "rho_max")
+            rho_max = parse_str_ARR_float( d["coefs"]["rho_max"])
+        else
+            rho_max = ones(N_em) * 1e-10
+        end
     else
         N_em = 0
-    end
-
-    if haskey(d["coefs"], "r_locs")
-        r_locs = parse_str_ARR_float(d["coefs"]["r_locs"])
-    else
         r_locs = Float64[]
-    end
-
-    if haskey(d["coefs"], "M")
-        M = parse_str_ARR_int(d["coefs"]["M"])
-    else
         M = Int64[]
-    end
-    
-    if haskey(d["coefs"], "N_cheb")
-        N_cheb = parse(Int64, d["coefs"]["N_cheb"])
-    else
         N_cheb = 0
-    end
-
-    if haskey(d["coefs"], "rho_max")
-        rho_max = parse_str_ARR_float(Int64, d["coefs"]["rho_max"])
-    else
         rho_max = ones(N_em) * 1e-10
+        
     end
     
     
@@ -676,6 +688,9 @@ function core_3_cl_laguerre_fast_threebdy_cl!(dist_1, dist_2, dist_3, t1,t2,t3, 
 #        
 #    elseif t1 != t2 && t1 != t3 && t1 != t2
 
+#    println("core3a $(DAT_ARR3[1,t1,t2,t3] * L_A_1 * L_B_1 * L_C_1) ", [ DAT_ARR3[1,t1,t2,t3] ,  L_A_1 ,  L_B_1 ,  L_C_1 ])
+#    println("core3b $(DAT_ARR3[2,t1,t2,t3] * L_A_2 * L_B_1 * L_C_1) ", [ DAT_ARR3[2,t1,t2,t3] ,  L_A_2,  L_B_1 ,  L_C_1 ])    
+    
     #println("b")
     @inbounds @fastmath begin
         energy = zero(var_type)
@@ -1755,6 +1770,9 @@ function calc_energy_cl(crys::crystal;  database=missing, dat_vars=missing, at_t
 #                    ntot = laguerre_fast_threebdy_cl!(dist12,dist13,dist23, t1,t2,t3, lag_arr3)
                     #                    energy_3bdy_TH[id] += core_3_cl(t1,t2,t3,ntot,lag_arr3,DAT_IND_ARR3, var_type) * cut_h * 100.0
 
+#                    if var_type == Float64
+#                        println("core3 $a1 $a2 $a3  ", core_3_cl_laguerre_fast_threebdy_cl!(dist12, dist13, dist23, t1,t2,t3, DAT_IND_ARR3, var_type)  * cut_h * 100.0 * factor, " $dist12 $dist13 $dist23  cut_h $cut_h 100  factor $factor")
+#                    end
                     energy_3bdy_TH[id] += core_3_cl_laguerre_fast_threebdy_cl!(dist12, dist13, dist23, t1,t2,t3, DAT_IND_ARR3, var_type)  * cut_h * 100.0 * factor
                     
                 end

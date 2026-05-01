@@ -3,11 +3,11 @@ using ..Symmetry:symmetrize_vector_tensor
 
 ##############################################################################################################
 """
-    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing)
+    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing)
 
 Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_force_stress`, which calls this. Uses automatic differentation for jacobian.
 """
-function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
+function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("get_energy_force_stress_fft")
 
@@ -856,7 +856,7 @@ function forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
     
 end
 
-function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
+function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("SINGLE tot", tbc.tot_charge)
 #    println("get_energy_force_stress_fft")

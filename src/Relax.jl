@@ -32,14 +32,14 @@ export relax_structure
 #using ..ThreeBodyTB:global_length_units
 #using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:set_units
-
+using ..BandTools:smear_default
 
 """
-    function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr=2e-4)
+    function relax_structure(crys::crystal, database; smearing = smear_default, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr=2e-4)
 
 Relax structure. Primary user function is relax_structure in ThreeBodyTB.jl, which calls this one.
 """
-function relax_structure(crys::crystal, database; smearing = 0.01, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0, sparse=false)
+function relax_structure(crys::crystal, database; smearing = smear_default, grid = missing, mode="vc-relax", nsteps=50, update_grid=true, conv_thr = 1e-2, energy_conv_thr = 2e-4, filename="t.axsf", nspin=1, repel=true, do_tb=true, database_classical=missing, do_classical=true, tot_charge=0.0, sparse=false)
 
 #    println("relax_structure conv_thr $conv_thr energy_conv_thr (Ryd) $energy_conv_thr ")
 

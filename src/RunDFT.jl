@@ -34,7 +34,7 @@ include("Commands.jl")
 using ..ThreeBodyTB:TEMPLATES
 using ..ThreeBodyTB:PSEUDOS
 
-
+using ..BandTools:smear_default
 """
     function run_pwscf(inputstr, outputstr, nprocs=1, directory="./", use_backup=false)
 
@@ -88,7 +88,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100, input_occupations=missing)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100, input_occupations=missing)
 """
 Run SCF calculation using QE
 """
@@ -230,7 +230,7 @@ end
 Make QE inputfile for SCF DFT calculation.
 """
 
-function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = 0.01, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0, input_occupations=missing)
+function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0, input_occupations=missing)
 """
 Make inputfile for SCF calculation
 """
@@ -912,6 +912,7 @@ Scripts to run DFT codes
 #using ..CrystalMod
 using ..QE
 using ..CrystalMod:crystal
+using ..BandTools:smear_default
 
 #include("Atomdata.jl")
 #using ..Atomdata:atoms
@@ -934,7 +935,7 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
 
     if ismissing(smearing)
         if calculation=="scf"
-            smearing = 0.01
+            smearing = smear_default
         else
             smearing = 0.02
         end

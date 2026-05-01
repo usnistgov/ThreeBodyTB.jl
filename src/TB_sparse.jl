@@ -177,7 +177,7 @@ function make_tb_crys_sparse(ham::tb_sparse,crys::crystal, nelec::Float64, dften
     return tb_crys_sparse{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq)
 end
 
-function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
+function calc_energy_charge_fft_band2_sym_sparse(hk3, sk3, nelec; smearing=smear_default, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, nk_red=nk_red, kweights = [2.0],SI=[], SJ=[], rSV=[], iSV=[], maxS=0 )
 
     if length(SI) == 0
         SI = []
@@ -600,7 +600,7 @@ function Hk(h::tb_sparse, kpoint; spin=1)
 end
 
 #sparse version.
-function calc_energy_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
+function calc_energy_fft(tbc::tb_crys_sparse; grid=missing, smearing=smear_default, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
 
     etypes = types_energy(tbc.crys)
 
@@ -666,7 +666,7 @@ function calc_energy_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01, retur
 
 end
 
-function calc_energy_fft_band_sparse(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
+function calc_energy_fft_band_sparse(hk3, sk3, nelec; smearing=smear_default, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
 
     thetype=typeof(real(sk3[1][1]))
     nwan = size(hk3[1])[1]
@@ -739,11 +739,11 @@ function go_sym_sparse(grid, sk3, hk3, h1, h1spin, VALS, VECTS, nk_red, grid_ind
 end
 
 """
-         function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01)
+         function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=smear_default)
 
 Sparse matrix non-scf energy/eigenvectors.
 """
-function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=0.01)
+function calc_energy_charge_fft(tbc::tb_crys_sparse; grid=missing, smearing=smear_default)
 
     #     println("asdf")
     etypes = types_energy(tbc.crys)

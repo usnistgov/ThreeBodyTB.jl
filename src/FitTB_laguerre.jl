@@ -5,7 +5,7 @@ Fit tight binding using Laguere polynomials times decaying exponentials
 
 #using PyPlot
 using Plots
-#using JLD
+using JLD
 using LinearAlgebra
 #using Statistics
 using Optim
@@ -56,6 +56,8 @@ using ..SCF:remove_scf_from_tbc
 
 using Random
 using Base.Iterators: partition
+
+using ..BandTools:smear_default
 
 #using ..CalcTB:n_2body_default                 
 #using ..CalcTB:n_2body_onsite_default          
@@ -108,9 +110,9 @@ Used for simple linear fitting of coefficients. Interface for more complicated f
 """
 
 
-function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, fit_eam=false, fit_pert=false, fitting_version=fitting_version_default)
+function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, fit_eam=false, fit_pert=false, fitting_version=fitting_version_default,  N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
 
-    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version)
+    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
     return ret[1]
 
 end
@@ -208,7 +210,7 @@ end
 
 Make lots of preperations for fitting. Moves things around, put stuff in materices, etc.
 """
-function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default)
+function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
 
 
     tbc_list = []
@@ -279,9 +281,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #        for spin = 1:tbc.nspin
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version)
+        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
         if tbc.nspin == 2
-            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version)
+            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
         end
         #            println("INDVEC ", INDvec)
         
@@ -775,6 +777,13 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     YH_new = X_Hnew_BIG * ch
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     println("ch $ch")
+
+    chtemp = zeros(size(ch))
+    chtemp[end] = 1.0
+    println("new test ", sum( ( Y_Hnew_BIG - X_Hnew_BIG * chtemp).^2))
+
+    save("a.jld", "X_Hnew_BIG", X_Hnew_BIG, "Y_Hnew_BIG", Y_Hnew_BIG)
+    
     flush(stdout)
     sleep(0.001)
 #    println("ones test ", sum(abs.(X_Hnew_BIG * ones(size(ch)) - (Y_Hnew_BIG  - Xc_Hnew_BIG))))
@@ -817,7 +826,7 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-8, fitting_version=fitting_version_default)
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-8, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
 
     println("MODE $mode")
 
@@ -842,7 +851,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  =
         prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite,
-                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version)
+                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -983,7 +992,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     
     if return_database
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert, fitting_version=fitting_version)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
     else
         database = Dict()
     end
@@ -1036,7 +1045,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict())
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict(), N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
     println("make_database function")
     if ismissing(starting_database)
         database = Dict()
@@ -1090,7 +1099,7 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
             background_charge_correction = 0.0
         end
 
-        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction)
+        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
         if dim == 2
@@ -1627,7 +1636,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[],  rho_max = Float64)
 
     println("do_fitting_recursive   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc  ")
     
@@ -1655,14 +1664,14 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
             starting_database_t = starting_database
         end
 
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
 
 end
 
@@ -1920,19 +1929,19 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
 #        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights), " d.nspin ", d.nspin, " tbc.nspin ", tbc.nspin, " nw $nw nk $nk sum kweights ", sum(kweights))
 #        println("kweights[1:6] of ", size(kweights), "  " , kweights[1:6])
 
-        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, 0.01, returnef=true) 
+        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, smear_default, returnef=true) 
         println("nval for band energy $nval efermi $efermi")
 #        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
         
-        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, 0.01)
+        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, smear_default1)
         
 #        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
 
 #        println("occs early $efermi $nval ",occs)
 #        println("VALS ", VALS)
         
-        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
+        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, smear_default)
         
 
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
@@ -3102,7 +3111,7 @@ end
 
 
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default)
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
 
     if typeof(lambda) <: Float64
         lambda = [lambda, lambda]
@@ -3356,14 +3365,14 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
 
                     #efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, nval, 0.01)
-                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true) 
+                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true) 
 
-                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, 0.01)
+                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, smear_default)
 
 #                    println("occs late $efermi $nval ",occs)
 #                    println("valsf ", size(VALS_FITTED), " " , size(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin]))
                     
-                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
+                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, smear_default)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
 
@@ -3450,15 +3459,15 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
 
             get_eigen(h1, h1spin, tbc.tb.nspin, 2)
 
-            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true)             
+            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true)             
             #            efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01)
-            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, 0.01)
+            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, smear_default)
             OCCS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin] = occs
 
 #            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnocc=true)
 #            OCCS_FITTED[c,1:nk,1:nw] = occs_fitted
             
-            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, 0.01)
+            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, smear_default)
             ENERGY_SMEAR[c] = energy_smear
             
 #            println("$c smear $energy_smear")
@@ -4119,7 +4128,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             return chX, sum((TOTX * chX .- TOTY).^2) + 10000.0 * sum(ERROR)  #sum(abs.((TOTX*chX) - TOTY))
         end
         
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
 
         if gen_add_ham
 
@@ -5699,19 +5708,19 @@ function prepare_rec_data( list_of_tbcs, KPOINTS, KWEIGHTS, dft_list, SPIN, ind_
 #        println("VALS ", VALS[c, 1, :,:])
 #        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights), " d.nspin ", d.nspin, " tbc.nspin ", tbc.nspin, " nw $nw nk $nk sum kweights ", sum(kweights))
 #        println("kweights[1:6] of ", size(kweights), "  " , kweights[1:6])
-        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, 0.01, returnef=true) 
+        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, smear_default, returnef=true) 
 
 #        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
 
-        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, 0.01)
+        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, smear_default)
         
 #        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
 
 #        println("occs early $efermi $nval ",occs)
 #        println("VALS ", VALS)
         
-        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
+        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, smear_default)
         
 
         if !ismissing(tbc) && typeof(tbc) == tb_crys{Float64}
@@ -6114,14 +6123,14 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
                     #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
 
                     #efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, nval, 0.01)
-                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true) 
+                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true) 
 
-                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, 0.01)
+                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, smear_default)
 
                     #                    println("occs late $efermi $nval ",occs)
                     #                    println("valsf ", size(VALS_FITTED), " " , size(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin]))
                     
-                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
+                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, smear_default)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
                     eden, h1_new, dq_new, dq_eden_new, h1spin_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c], occs, Smat)         #updated h1
@@ -6199,15 +6208,15 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
 
             get_eigen(h1, h1spin, tbc.tb.nspin)
 
-            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true)             
+            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true)             
             #            efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01)
-            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, 0.01)
+            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, smear_default)
             OCCS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin] = occs
 
             #            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnocc=true)
             #            OCCS_FITTED[c,1:nk,1:nw] = occs_fitted
             
-            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, 0.01)
+            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, smear_default)
             ENERGY_SMEAR[c] = energy_smear
             
             #            println("$c smear $energy_smear")

@@ -8,11 +8,13 @@ module BandTools
 using LinearAlgebra
 using SpecialFunctions
 
-function gaussian(de, smearing=0.01)
+const smear_default = 0.01 #Ryd
+
+function gaussian(de, smearing=smear_default)
     return 0.5 * (erfc.(de/smearing))
 end    
 
-function gaussian_derivative(de, smearing=0.01)
+function gaussian_derivative(de, smearing=smear_default)
     return (-0.5 / sqrt(pi)) * exp.(-1.0*(de/smearing).^2)
 end    
 
@@ -22,7 +24,7 @@ end
 
 calculate fermi energy using bisection
 """
-function calc_fermi(eigs, weights, nelec, smearing = 0.01)
+function calc_fermi(eigs, weights, nelec, smearing=smear_default)
 
 
 #    println("calc_fermi eigs ", size(eigs))
@@ -101,7 +103,7 @@ end
 
 
 
-function calc_fermi_sp(eigs, weights, nelec, smearing = 0.01)
+function calc_fermi_sp(eigs, weights, nelec, smearing=smear_default)
     nspin = 1
     if length(size(eigs)) == 3
         nspin = size(eigs)[3]
@@ -129,11 +131,11 @@ function calc_fermi_sp(eigs, weights, nelec, smearing = 0.01)
 end
 
 """
-    function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false)
+    function band_energy(eigs, weights, nelec, smearing=smear_default; returnk=false, returnocc=false, returnef=false, returnboth=false)
 
 Calculate band energy. Has options for additional return variables. Calculates fermi energy internally.
 """
-function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, returnocc=false, returnef=false, returnboth=false, occ = missing)
+function band_energy(eigs, weights, nelec, smearing=smear_default; returnk=false, returnocc=false, returnef=false, returnboth=false, occ = missing)
 
     efermi = calc_fermi_sp(eigs, weights, nelec, smearing)
 #    println("band_energy efermi $efermi")
@@ -174,13 +176,13 @@ function band_energy(eigs, weights, nelec, smearing = 0.01; returnk=false, retur
 end
 
 """
-    function smearing_energy(eigs, weights, efermi, smearing = 0.01)
+    function smearing_energy(eigs, weights, efermi, smearing=smear_default)
 
 Smearing contribution to total energy. If you don't take this int account in metals or 
 small gap semiconductors, your energy is not variational 
 in the correct way, and things like forces and stresses become wrong.
 """
-function smearing_energy(eigs, weights, efermi, smearing = 0.01)
+function smearing_energy(eigs, weights, efermi, smearing=smear_default)
 
 #    efermi = calc_fermi(eigs, weights, nelec, smearing)
     norm = sum(weights)

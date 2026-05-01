@@ -59,6 +59,7 @@ using ..Ewald:estimate_best_kappa
 using ..SCF:scf_energy
 
 using ..BandTools:gaussian
+using ..BandTools:smear_default
 using ..CrystalMod:get_grid
 using ..TB:get_spin_h1
 using ..TB:magnetic_energy
@@ -68,7 +69,7 @@ export get_energy_force_stress
 
 
 """
-    function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing)
+    function get_energy_force_stress(crys::crystal, database; smearing = smear_default, grid = missing)
 
 Get force and stress, non-fft algorithm. Generally use the fft algorithm.
 
@@ -78,7 +79,7 @@ Returns Ryd units. Generally users should use the `scf_energy_force_stress` func
 
 Uses automatic differentation for gradient.
 """
-function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing, nspin=1, repel=true)
+function get_energy_force_stress(crys::crystal, database; smearing = smear_default, grid = missing, nspin=1, repel=true)
 
 #    println("crys")
 #    tbc = []
@@ -87,11 +88,11 @@ function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid 
 end
 
 """
-    function get_energy_force_stress(crys::crystal, database; smearing = 0.01, grid = missing)
+    function get_energy_force_stress(crys::crystal, database; smearing = smear_default, grid = missing)
 
 Get force and stress, non-fft algorithm
 """
-function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, cs = 4)
+function get_energy_force_stress_NOFFT(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing, cs = 4)
 
     if tbc.nspin == 2
         nspin = 2
@@ -309,7 +310,7 @@ end
 
 #primarily for testing
 """
-    function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing)
+    function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = smear_default, grid = missing)
 
 Finite differences force/stress, for testing.
 # Arguments
@@ -319,10 +320,10 @@ Finite differences force/stress, for testing.
 - `ind2` cartesian index or second stress index
 - `stress_mode=false` true for stress, otherwise force.
 - `step = 0.0002` step_size for finite steps.
-- `smearing = 0.01` smearing energy
+- `smearing = smear_default` smearing energy
 - `grid = missing` kpoint grid
 """
-function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = 0.01, grid = missing, nspin=1, repel=true, tot_charge=0.0)
+function finite_diff(crys::crystal, database, ind1, ind2; stress_mode=false, step = 0.0002, smearing = smear_default, grid = missing, nspin=1, repel=true, tot_charge=0.0)
     if ismissing(grid)
         grid = get_grid(crys)
     end
@@ -519,11 +520,11 @@ end
 
 ##############################################################################################################
 """
-    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing)
+    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing)
 
 Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_force_stress`, which calls this. Uses automatic differentation for jacobian.
 """
-function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
+function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("get_energy_force_stress_fft")
     do_scf = true
@@ -872,11 +873,11 @@ end
 
 ##############################################################################################################
 """
-    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing)
+    function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing)
 
 Calculate energy/force/stress using fft algorithm. Users should use `scf_energy_force_stress`, which calls this. Uses automatic differentation for jacobian.
 """
-function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, smearing = 0.01, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
+function get_energy_force_stress_fft_LV(tbc::tb_crys, database; do_scf=false, smearing = smear_default, grid = missing, e_den0=missing, vv = missing, nspin = 1, repel=true)
 
 #    println("get_energy_force_stress_fft")
 

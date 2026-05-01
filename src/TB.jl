@@ -57,6 +57,8 @@ using ..Symmetry:get_kgrid_sym
 
 import ..CrystalMod:types_energy
 
+using ..BandTools:smear_default
+
 export tb
 export tb_crys
 export tb_k
@@ -2060,7 +2062,7 @@ end
 
 
 """
-         function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=0.01, return_more_info=false)
+         function calc_energy_fft(tbc::tb_crys; grid=missing, smearing=smear_default, return_more_info=false)
 
      Get energy using fft.
 
@@ -2070,7 +2072,7 @@ end
      `etot, efermi, vals, vects`
 
      """
-function calc_energy_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
+function calc_energy_fft(tbc::tb_crys_dense; grid=missing, smearing=smear_default, return_more_info=false, use_sym=false, scissors_shift = 0.0, scissors_shift_atoms = [])
 
     etypes = types_energy(tbc.crys)
 
@@ -2307,12 +2309,12 @@ end
 
 
 """
-         function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing)
+         function calc_energy_fft_band(hk3, sk3, nelec; smearing=smear_default, return_more_info=false, h1 = missing)
 
      Return energy from hamiltonian `hk3`, overlap `sk3`, `nelec`, etc.
      Primarly for internal calling after fft.
      """
-function calc_energy_fft_band(hk3, sk3, nelec; smearing=0.01, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
+function calc_energy_fft_band(hk3, sk3, nelec; smearing=smear_default, return_more_info=false, h1 = missing, h1spin = missing, nspin=1, use_sym=false, nk_red=missing, grid_ind = missing, kweights=missing)
     #h1 is the scf contribution
 
     grid = size(sk3)[3:5]
@@ -2424,7 +2426,7 @@ end
 
 
 
-function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing )
+function calc_energy_charge_fft_band2(hk3, sk3, nelec; smearing=smear_default, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing )
 
     #println("begin")
     begin
@@ -2584,13 +2586,13 @@ end
 
 
 """
-         function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing)
+         function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=smear_default, h1 = missing)
 
      Calculate energy and charge density. For internal use.
 
      `return energy0, efermi, chargeden[:], VECTS, VALS, error_flag`
      """
-function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing)
+function calc_energy_charge_fft_band(hk3, sk3, nelec; smearing=smear_default, h1 = missing, h1spin=missing)
 
     #     println("ismissing h1spin ", ismissing(h1spin))
 
@@ -2980,11 +2982,11 @@ end
 
 
 """
-         function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=0.01)
+         function calc_energy_charge_fft(tbc::tb_crys; grid=missing, smearing=smear_default)
 
      Do fft, then calculate energy and charge.
      """
-function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
+function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=smear_default)
 
     #     println("asdf")
     etypes = types_energy(tbc.crys)
@@ -3032,11 +3034,11 @@ function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=0.01)
 end
 
 """
-        function dumb_cd(tbc; grid=missing, smearing=0.01)
+        function dumb_cd(tbc; grid=missing, smearing=smear_default)
 
     I don't remember what this function is for. It seems to have something to do with charge density, but it doesn't pay attention to the occupations
     """
-function dumb_cd(tbc; grid=missing, smearing=0.01)
+function dumb_cd(tbc; grid=missing, smearing=smear_default)
 
     if ismissing(grid)
         grid = get_grid(tbc.crys)
@@ -3109,11 +3111,11 @@ function dumb_cd(tbc; grid=missing, smearing=0.01)
 end
 
 """
-         function calc_energy(tbc::tb_crys; smearing=0.01, returnk=false)
+         function calc_energy(tbc::tb_crys; smearing=smear_default, returnk=false)
 
      Calculate energy without fft.
      """
-function calc_energy(tbc::tb_crys_dense; smearing=0.01, returnk=false)
+function calc_energy(tbc::tb_crys_dense; smearing=smear_default, returnk=false)
     """
          calculate the energy from a kgrid
          """
@@ -3146,11 +3148,11 @@ end
 
 
 """
-         function calc_energy(h::tb_crys, kgrid; smearing=0.01, returnk=false)
+         function calc_energy(h::tb_crys, kgrid; smearing=smear_default, returnk=false)
 
      Calculate energy no fft
      """
-function calc_energy(h::tb_crys_dense, kgrid; smearing=0.01, returnk=false)
+function calc_energy(h::tb_crys_dense, kgrid; smearing=smear_default, returnk=false)
     """
          calculate the energy from a kgrid
          """
@@ -3185,11 +3187,11 @@ function calc_energy(h::tb_crys_dense, kgrid; smearing=0.01, returnk=false)
 end 
 
 """
-         function calc_energy_band(h::tb, nelec, kgrid; smearing=0.01, returnk=false)
+         function calc_energy_band(h::tb, nelec, kgrid; smearing=smear_default, returnk=false)
 
      calculate energy no fft
      """
-function calc_energy_band(h::tb, nelec, kgrid; smearing=0.01, returnk=false)
+function calc_energy_band(h::tb, nelec, kgrid; smearing=smear_default, returnk=false)
 
     kpts, kweights = make_kgrid(kgrid)
 
@@ -4611,14 +4613,14 @@ end
 
 
 #"""
-#         function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01)
+#         function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing=smear_default)
 #
 #     Get energy / charge density from k-space tight binding object.
 #
 #     `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 #
 #     """
-#function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01)
+#function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing=smear_default)
 #
 #    bandenergy, eden, VECTS, VALS, efermi, error_flag = get_energy_electron_density_kspace(tbcK.tb, tbcK.nelec, smearing=smearing)
 #
@@ -4656,11 +4658,11 @@ end
 #end
 #
 #"""
-#         function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
+#         function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing=smear_default)
 #
 #     K-space get energy and electron density from `tb_k`
 #     """
-#function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
+#function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing=smear_default)
 #
 #    temp = zeros(Complex{Float64}, tb_k.nwan, tb_k.nwan)
 #    denmat = zeros(Float64, tb_k.nspin, tb_k.nwan, tb_k.nwan)
@@ -4757,14 +4759,14 @@ end
 
 
 """
-         function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01)
+         function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing=smear_default)
 
      Get energy / charge density from k-space tight binding object.
 
      `return bandenergy + etypes + echarge + energy_smear, eden, VECTS, VALS, error_flag`
 
      """
-function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.01, tot_charge = missing, use_scf = missing, eden_start = missing, mix = 0.15, fixed_occupations=missing)
+function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing=smear_default, tot_charge = missing, use_scf = missing, eden_start = missing, mix = 0.15, fixed_occupations=missing)
 
     if ismissing(use_scf)
         use_scf = tbcK.scf
@@ -4867,11 +4869,11 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing = 0.0
 end
 
 """
-         function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01)
+         function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing=smear_default)
 
      K-space get energy and electron density from `tb_k`
      """
-function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing = 0.01, use_scf = false, eden_start = missing, crys=missing, gamma = missing, mix = 0.15, fixed_occupations=missing)
+function get_energy_electron_density_kspace(tb_k::tb_k, nelec; smearing=smear_default, use_scf = false, eden_start = missing, crys=missing, gamma = missing, mix = 0.15, fixed_occupations=missing)
 
     if !ismissing(fixed_occupations)
         nk = 1
@@ -5122,7 +5124,7 @@ end
 
 
 
-function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=0.01, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
+function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=smear_default, h1 = missing, h1spin=missing, VECTS=missing, DEN=missing, SK = missing, nk_red=nk_red, grid_ind=[1 1 1], kweights = [2.0] )
 
 #    println("begin")
     begin

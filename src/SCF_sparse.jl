@@ -13,7 +13,7 @@ using SparseArrays
 Sparse matrix implmentation of self-consistent field. Uses dense eigen routines, but sparse matrix mulitplication.
 Repeats a lot of code currently. TODO : refactor with less waste.
 """
-function scf_energy(tbc::tb_crys_sparse; smearing=0.01, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
+function scf_energy(tbc::tb_crys_sparse; smearing=smear_default, grid = missing, e_den0 = missing, conv_thr = 0.5e-4, iters = 200, mix = -1.0, mixing_mode=:simple, verbose=true, nspin=1, tot_charge=missing, use_sym=true, database_classical=missing, do_classical=true)
 """
 Solve for scf energy, also stores the updated electron density and h1 inside the tbc object.
 """

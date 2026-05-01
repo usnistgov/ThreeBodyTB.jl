@@ -60,7 +60,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     for (c, tbck) in enumerate(list_of_tbcs)
         tbck_new = missing
         @suppress begin
-            tbck_new = remove_scf_from_tbc(deepcopy(tbck); smearing=0.01, e_den = EDEN_input[c,[1],1:tbck.tb.nwan])
+            tbck_new = remove_scf_from_tbc(deepcopy(tbck); smearing=smear_default, e_den = EDEN_input[c,[1],1:tbck.tb.nwan])
         end
         push!(list_of_tbcs_new, tbck_new)
     end
@@ -336,19 +336,19 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 #        println("size ", size(VALS[c, 1:nk,1:nw, 1:d.nspin]), " " , size(kweights), " d.nspin ", d.nspin, " tbc.nspin ", tbc.nspin, " nw $nw nk $nk sum kweights ", sum(kweights))
 #        println("kweights[1:6] of ", size(kweights), "  " , kweights[1:6])
 
-        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, 0.01, returnef=true) 
+        energy_tmp,  efermi = band_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, nval, smear_default, returnef=true) 
         println("nval for band energy $nval efermi $efermi")
 #        println("energy_tmp $energy_tmp $efermi $efermi nval $nval")
         
         
-        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, 0.01)
+        occs = gaussian.(VALS[c,1:nk,1:nw,1:tbc.nspin].-efermi, smear_default)
         
 #        println("sum occs ", sum(sum(occs[:,:,:], dims=[2,3]).* kweights))
 
 #        println("occs early $efermi $nval ",occs)
 #        println("VALS ", VALS)
         
-        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, 0.01)
+        energy_smear = smearing_energy(VALS[c, 1:nk,1:nw,1:tbc.nspin], kweights, efermi, smear_default)
         
 
         if !ismissing(tbc) && typeof(tbc) <: tb_crys
@@ -545,7 +545,7 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
 #    for tbck in list_of_tbcs_nonscf
 #        tbck_new = missing
 #        @suppress begin
-#            tbck_new = remove_scf_from_tbc(tbck; smearing=0.01)
+#            tbck_new = remove_scf_from_tbc(tbck; smearing=smear_default)
 #        end
 #        push!(list_of_tbcs, tbck_new)
 #    end
@@ -965,17 +965,17 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     #mix = 0.05 * 0.95^c_scf  #start aggressive, reduce mixing slowly if we need most iterations
                     
                     
-                    #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnef=true) 
+                    #                    energy_tmp,efermi   = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, smear_default, returnef=true) 
 
-                    #efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, nval, 0.01)
-                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true) 
+                    #efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, nval, smear_default)
+                    energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true) 
 
-                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, 0.01)
+                    occs = gaussian.(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin].-efermi, smear_default)
 
                     #                    println("occs late $efermi $nval ",occs)
                     #                    println("valsf ", size(VALS_FITTED), " " , size(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin]))
                     
-                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, 0.01)
+                    energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw, 1:tbc.tb.nspin], kweights, efermi, smear_default)
 
                     #                    eden, h1_new, dq_new = get_electron_density(tbc, kpoints, kweights, VECTS_FITTED[c,:,1:nw,1:nw], occs, Smat)         #updated h1
 
@@ -1106,15 +1106,15 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
             get_eigen(h1, h1spin, tbc.tb.nspin, 2)
 
-            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01, returnef=true)             
-            #            efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, 0.01)
-            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, 0.01)
+            energy_tmp,  efermi = band_energy(VALS_FITTED[c, 1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default, returnef=true)             
+            #            efermi = calc_fermi(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, nval, smear_default)
+            occs = gaussian.(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin].-efermi, smear_default)
             OCCS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin] = occs
 
-            #            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, 0.01, returnocc=true)
+            #            energy_tmp, occs_fitted = band_energy(VALS_FITTED[c,1:nk,1:nw], kweights, tbc.nelec, smear_default, returnocc=true)
             #            OCCS_FITTED[c,1:nk,1:nw] = occs_fitted
             
-            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, 0.01)
+            energy_smear = smearing_energy(VALS_FITTED[c,1:nk,1:nw,1:tbc.tb.nspin], kweights, efermi, smear_default)
             ENERGY_SMEAR[c] = energy_smear
             
             #            println("$c smear $energy_smear")
@@ -1734,7 +1734,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             err1 = error_fn(NEWX, NEWY, ch, cs)
             if err1 > err_old  && adjust_mix
                 mix_iterS = mix_iterS * 0.8
-                mix_iterS = max(mix_iterS, 0.05)
+                mix_iterS = max(mix_iterS, 0.5)
             else
                 mix_iterS = mix_iterS * 1.05
             end
@@ -1921,7 +1921,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             if fit_umat == true
                 nbig = 60
             else
-                nbig = 15
+                nbig = 60
             end
             
             for big_iter = 1:nbig
@@ -1937,7 +1937,12 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 if fit_umat
                     n_iterate_iter = 5
                 else
-                    n_iterate_iter = 5
+                    if opt_S
+                        n_iterate_iter = 20
+                    else
+                        n_iterate_iter = 8
+                    end
+                        
                 end
                 if opt_S
                     ch, cs, err, mix_iter, mix_iterS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), mix_iterS , adjust_mix=true)
