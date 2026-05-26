@@ -1187,7 +1187,7 @@ function ham(x :: Vector, ct, database, dontcheck, repel, DIST, nz_arr, FloatX, 
     return ret
 end
 
-function ew(x :: Vector, ct, FloatX, dq)
+function ew(x :: Vector, ct, FloatX, dq, dq_eden)
     #            println("ew top")
     T=typeof(x[1])
     ret = zeros(T, 1)
@@ -1199,7 +1199,7 @@ function ew(x :: Vector, ct, FloatX, dq)
     
     kappa = estimate_best_kappa(FloatX.(ct.A))
     gamma_dual, background_charge_correction = electrostatics_getgamma(crys_dual, kappa=kappa)
-    eewald, pot = ewald_energy(crys_dual, gamma_dual,background_charge_correction, dq)
+    eewald = ewald_energy(crys_dual, gamma_dual,background_charge_correction, dq, dq_eden)
     ret[end] = eewald
     return ret
 end

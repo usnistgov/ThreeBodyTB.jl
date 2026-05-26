@@ -24,8 +24,11 @@ function test1()
 
             database = Dict()
             database[(:H, :H)] = ThreeBodyTB.CalcTB.make_coefs(Set(["H", "H"]), 2)
+            database[(:H, :H)].datH[:] .= 0.0            
             database[(:H, :H, :H)] = ThreeBodyTB.CalcTB.make_coefs(Set(["H", "H", "H"]), 3)
 
+            database[(:H, :H, :H)].datH[:] .= 0.1
+            #database[(:H, :H, :H)].datH[1] = 0.1
             function prepare_data()
                 c1 = makecrys([10.0 0 0; 0 10.0 0; 0 0 10.0], [0 0 0], ["H"], units="Bohr");
                 c2 = makecrys([10.0 0 0; 0 10.0 0; 0 0 10.0], [0 0 0;0 0 0.49], ["H", "H"], units="Bohr");
@@ -57,30 +60,30 @@ function test1()
                 #        if true
 
                 
-                tbc1 = ThreeBodyTB.CalcTB.calc_tb_fast(c1, database, use_threebody=true);
-                tbc2 = ThreeBodyTB.CalcTB.calc_tb_fast(c2, database, use_threebody=true);
-                tbc3 = ThreeBodyTB.CalcTB.calc_tb_fast(c3, database, use_threebody=true);
-                tbc4 = ThreeBodyTB.CalcTB.calc_tb_fast(c4, database, use_threebody=true);
-                tbc5 = ThreeBodyTB.CalcTB.calc_tb_fast(c5, database, use_threebody=true);
-                tbc6 = ThreeBodyTB.CalcTB.calc_tb_fast(c6, database, use_threebody=true);
-                tbc7 = ThreeBodyTB.CalcTB.calc_tb_fast(c7, database, use_threebody=true);
-                tbc8 = ThreeBodyTB.CalcTB.calc_tb_fast(c8, database, use_threebody=true);
-                tbc9 = ThreeBodyTB.CalcTB.calc_tb_fast(c9, database, use_threebody=true);
-                tbc10 = ThreeBodyTB.CalcTB.calc_tb_fast(c10, database, use_threebody=true);
+                tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=true, use_threebody_onsite=true);
+                tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=true, use_threebody_onsite=true);
+                tbc3 = ThreeBodyTB.CalcTB.calc_tb_LV(c3, database, use_threebody=true, use_threebody_onsite=true);
+                tbc4 = ThreeBodyTB.CalcTB.calc_tb_LV(c4, database, use_threebody=true, use_threebody_onsite=true);
+                tbc5 = ThreeBodyTB.CalcTB.calc_tb_LV(c5, database, use_threebody=true, use_threebody_onsite=true);
+                tbc6 = ThreeBodyTB.CalcTB.calc_tb_LV(c6, database, use_threebody=true, use_threebody_onsite=true);
+                tbc7 = ThreeBodyTB.CalcTB.calc_tb_LV(c7, database, use_threebody=true, use_threebody_onsite=true);
+                tbc8 = ThreeBodyTB.CalcTB.calc_tb_LV(c8, database, use_threebody=true, use_threebody_onsite=true);
+                tbc9 = ThreeBodyTB.CalcTB.calc_tb_LV(c9, database, use_threebody=true, use_threebody_onsite=true);
+                tbc10 = ThreeBodyTB.CalcTB.calc_tb_LV(c10, database, use_threebody=true, use_threebody_onsite=true);
 
-                tbc20 = ThreeBodyTB.CalcTB.calc_tb_fast(c20, database, use_threebody=true);
-                tbc21 = ThreeBodyTB.CalcTB.calc_tb_fast(c21, database, use_threebody=true);
-                tbc22 = ThreeBodyTB.CalcTB.calc_tb_fast(c22, database, use_threebody=true);
-                tbc23 = ThreeBodyTB.CalcTB.calc_tb_fast(c23, database, use_threebody=true);
-                tbc24 = ThreeBodyTB.CalcTB.calc_tb_fast(c24, database, use_threebody=true);
-                tbc25 = ThreeBodyTB.CalcTB.calc_tb_fast(c25, database, use_threebody=true);
-                tbc26 = ThreeBodyTB.CalcTB.calc_tb_fast(c26, database, use_threebody=true);
-                tbc27 = ThreeBodyTB.CalcTB.calc_tb_fast(c27, database, use_threebody=true);
+                tbc20 = ThreeBodyTB.CalcTB.calc_tb_LV(c20, database, use_threebody=true, use_threebody_onsite=true);
+                tbc21 = ThreeBodyTB.CalcTB.calc_tb_LV(c21, database, use_threebody=true, use_threebody_onsite=true);
+                tbc22 = ThreeBodyTB.CalcTB.calc_tb_LV(c22, database, use_threebody=true, use_threebody_onsite=true);
+                tbc23 = ThreeBodyTB.CalcTB.calc_tb_LV(c23, database, use_threebody=true, use_threebody_onsite=true);
+                tbc24 = ThreeBodyTB.CalcTB.calc_tb_LV(c24, database, use_threebody=true, use_threebody_onsite=true);
+                tbc25 = ThreeBodyTB.CalcTB.calc_tb_LV(c25, database, use_threebody=true, use_threebody_onsite=true);
+                tbc26 = ThreeBodyTB.CalcTB.calc_tb_LV(c26, database, use_threebody=true, use_threebody_onsite=true);
+                tbc27 = ThreeBodyTB.CalcTB.calc_tb_LV(c27, database, use_threebody=true, use_threebody_onsite=true);
 
 
-                tbc6a = ThreeBodyTB.CalcTB.calc_tb_fast(c6a, database, use_threebody=true);
-                tbc6b = ThreeBodyTB.CalcTB.calc_tb_fast(c6b, database, use_threebody=true);
-                tbc6c = ThreeBodyTB.CalcTB.calc_tb_fast(c6c, database, use_threebody=true);
+                tbc6a = ThreeBodyTB.CalcTB.calc_tb_LV(c6a, database, use_threebody=true, use_threebody_onsite=true);
+                tbc6b = ThreeBodyTB.CalcTB.calc_tb_LV(c6b, database, use_threebody=true, use_threebody_onsite=true);
+                tbc6c = ThreeBodyTB.CalcTB.calc_tb_LV(c6c, database, use_threebody=true, use_threebody_onsite=true);
 
                 
                 tbc_list = [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc10, tbc20, tbc21, tbc22, tbc23, tbc24, tbc25, tbc26, tbc27, tbc6a, tbc6b, tbc6c]
@@ -91,12 +94,13 @@ function test1()
 #            kpts, kweights = ThreeBodyTB.TB.make_kgrid([4,4, 4])
             #KPOINTS, KWEIGHTS, nk_max = ThreeBodyTB.FitTB.get_k_simple(kpts, tbc_list)
 
-                #newdatabase, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN\
-                #_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN = ThreeBodyTB.FitTB.do_fitting_linear(tbc_list, fit_threebody=true, do_plot=true, mode=:kspace, kpoints=KPOINTS);
-                #            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, do_plot=false)
+            #newdatabase, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN\
+            #_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN = ThreeBodyTB.FitTB.do_fitting_linear(tbc_list, fit_threebody=true, do_plot=true, mode=:kspace, kpoints=KPOINTS);
+
+            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=true, fit_threebody_onsite=true, fit_eam=false, do_plot=false)
 
 
-            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=true, fit_threebody_onsite=true, do_plot=false)
+            #newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=true, fit_threebody_onsite=true, do_plot=false, fit_eam=false)
 
 
                 #        println("newdartabase")

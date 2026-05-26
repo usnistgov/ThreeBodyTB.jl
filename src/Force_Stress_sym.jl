@@ -77,7 +77,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
+                    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
                 else
 #                    println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing)
@@ -86,7 +86,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
                     println("warning, trouble with eigenvectors/vals in initial step get_energy_force_stress")
                 end
             end
-            h1, dq = get_h1(tbc, e_den)
+            h1, dq, dq_eden = get_h1(tbc, e_den)
             if nspin == 2
                 h1spin = get_spin_h1(tbc, e_den)
             else
@@ -138,7 +138,7 @@ function get_energy_force_stress_fft_LV_sym(tbc::tb_crys, database; do_scf=false
 
             #println("ew")
             EW = @spawn begin
-                FN_ew = x->ew(x,ct,FloatX, dq)
+                FN_ew = x->ew(x,ct,FloatX, dq, dq_eden)
                 if scf
                     cfg = ForwardDiff.JacobianConfig(FN_ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                     g_ew = ForwardDiff.jacobian(FN_ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}
@@ -929,7 +929,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                 error_flag = false
                 if do_scf
 #                    println("do_scf")
-                    energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
+                    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=e_den0, conv_thr = 1e-6, nspin=nspin, verbose=false, use_sym = true)
                 else
                     println("calc_energy_charge_fft")
                     energy_tot, efermi, e_den, VECTS, VALS, error_flag =  calc_energy_charge_fft(tbc, grid=grid, smearing=smearing, repel=repel)
@@ -938,7 +938,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
                     println("warning, trouble with eigenvectors/vals in initial step get_energy_force_stress")
                 end
             end
-            h1, dq = get_h1(tbc, e_den)
+            h1, dq, dq_eden = get_h1(tbc, e_den)
             if nspin == 2
                 h1spin = get_spin_h1(tbc, e_den)
             else
@@ -996,7 +996,7 @@ function get_energy_force_stress_fft_LV_sym_SINGLE(tbc::tb_crys, database; do_sc
 
             #println("ew")
             EW = begin
-                FN_ew = x->ew(x,ct,FloatX, dq)
+                FN_ew = x->ew(x,ct,FloatX, dq, dq_eden)
                 if scf
                     cfg = ForwardDiff.JacobianConfig(FN_ew, zeros(FloatX, 3*ct.nat + 6), ForwardDiff.Chunk{chunksize}())
                     g_ew = ForwardDiff.jacobian(FN_ew, zeros(FloatX, 3*ct.nat + 6) , cfg ) ::  Array{FloatX,2}

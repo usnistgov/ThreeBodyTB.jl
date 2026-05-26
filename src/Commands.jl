@@ -47,11 +47,30 @@ and mpi commands (if any)
         pw = "$qebin/pw.x"
     end
 
-    pwscf_command_serial=`$mpi 1 $pw -input `
-    pwscf_command_parallel=`$mpi $nprocs $pw -npool 2 -input `
 
-    pwscf_command_parallel_backup=`$mpi $nprocs $pw -ndiag 1 -npool 1 -input `
+    #OMP="export OMP_NUM_THREADS=1;"
+    OMP=split("OMP_NUM_THREADS=1 ")
+#    pwscf_command_serial=`OMP_NUM_THREADS=1\; $mpi 1  $pw -input `
+#    pwscf_command_parallel=` OMP_NUM_THREADS=1\;  $mpi $nprocs $pw -npool 2 -input `#
 
+#    pwscf_command_parallel_backup=`OMP_NUM_THREADS=1\; $mpi $nprocs   $pw -ndiag 1 -npool 1 -input `
+
+
+#    pwscf_command_serial= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $mpi 1  $pw -input $fil '`
+#    pwscf_command_parallel= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $mpi $procs  $pw -npool 2  -input $fil '`
+#    pwscf_command_parallel_backup= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $mpi $procs  $pw -ndiag 1 -input $fil' `
+
+    pwscf_command_serial= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun -np 1  pw.x -input $fil '`
+
+    function f(fil, procs); println("in f $fil $procs"); st = "export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -ndiag 1 -input $fil"; println("st"); println(st); println(); return `bash -c $st `; end
+    pwscf_command_parallel=f
+    #pwscf_command_parallel= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun $procs  pw.x -npool 2  -input $fil '`
+    pwscf_command_parallel_backup= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -ndiag 1 -input $fil' `
+    
+    #pwscf_command_serial=`bash -c 'export OMP_NUM_THREADS=1; $mpi 1  $pw -input `
+    #pwscf_command_parallel=` OMP_NUM_THREADS=1\;  $mpi $nprocs $pw -npool 2 -input `#
+    #pwscf_command_parallel_backup=`OMP_NUM_THREADS=1\; $mpi $nprocs   $pw -ndiag 1 -npool 1 -input `
+    
     
     #qe-to-wannier90 code
     pw2wan_command_serial=`$qebin/pw2wannier90.x -input `
@@ -71,12 +90,16 @@ and mpi commands (if any)
     end
 
     
-    
-    proj_command_serial=`$mpi 1 $proj -nd 1 -input `
-    proj_command_parallel=`$mpi $nprocs $proj -nd 1 -input `
 
-    proj_command_serial_backup=`$proj  -input `
-    proj_command_parallel_backup=`$mpi 1 $proj  -input `
+    function fproj(fil, procs); procs = 1; println("in fproj $fil $procs"); st = "export OMP_NUM_THREADS=1; mpirun -np $procs  projwfc.x -nd 1 -input $fil"; println("st"); println(st); println(); return `bash -c $st `; end
+    proj_command_serial=fproj
+    proj_command_parallel=fproj
+    
+#    proj_command_serial=` $mpi 1 OMP_NUM_THREADS=1  $proj -nd 1 -input `
+#    proj_command_parallel=` $mpi $nprocs OMP_NUM_THREADS=1  $proj -nd 1 -input `
+
+    proj_command_serial_backup=` $proj  -input `
+    proj_command_parallel_backup=` $mpi 1 $proj  -input `
     
     
     #w90 (serial)

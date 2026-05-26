@@ -428,6 +428,9 @@ function get_cutoff(at1, at2)
 end
 
 function get_cutoff(at1, at2, at3)
+#    at1 = :H
+#    at2 = :H
+#    at3 = :H
     #return 20.0
     if (at1,at2,at3) in keys(cutoff_dist)
         return cutoff_dist[(at1,at2,at3)]

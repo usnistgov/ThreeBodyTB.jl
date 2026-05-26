@@ -232,7 +232,7 @@ function electrostatics_getgamma(crys::crystal;  kappa=missing, noU=false, onlyU
         gamma_tot_expand = U
     else
 
-        gamma_tot_expand = U
+        gamma_tot_expand = U * one(T)
 
         o1 = 1
         for i = 1:crys.nat

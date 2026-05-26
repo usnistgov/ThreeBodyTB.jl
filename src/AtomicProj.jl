@@ -131,7 +131,7 @@ function make_projwfcx(prefix, tmpdir)
 """
 makes the proj input file
 """
-    c_dict = make_commands(1)
+#    c_dict = make_commands(1)
 
 
     template_file=open("$TEMPLATES/template.proj")
@@ -161,7 +161,8 @@ run projwfc.x QE command
     
     c_dict = make_commands(nprocs)
     proj = c_dict["proj"]
-    command = `$proj $directory/$projfile `
+    command = proj("$directory/$projfile", 1)
+#    command = `$proj $directory/$projfile `
     println("projwfc.x command 1")
     println(command)
     println()
@@ -1374,7 +1375,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                             #dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
                             #                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd  + 1 / (x + 1e-3)
 
-                            dist =  (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
+                            dist = 1000.0* (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
 
                             #=
                             if k == 3
@@ -1464,8 +1465,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     end
                     ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
                     ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
-                    val_tb_new, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
-                    
+                    val_tb_new2, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
+                    m = min(length(val_pw), length(val_tb_new2))
+                    println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
                 end
             end
         end

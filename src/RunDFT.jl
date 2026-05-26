@@ -55,7 +55,8 @@ run command
         qe = c_dict["qe"]
     end    
 
-    command = `$qe $directory/$inputstr`
+    #command = `$qe $directory/$inputstr`
+    command = qe("$directory/$inputstr", nprocs)
     println("actual command")
     println(command)
     s=""
@@ -789,7 +790,7 @@ function loadXML(savedir)
     input_occupations = zeros(0)
     if  d["espresso"]["input"]["bands"]["occupations"] == "from_input"
         occupations = :from_input
-        println(d["espresso"]["input"]["bands"]["input_occupations"])
+#        println(d["espresso"]["input"]["bands"]["input_occupations"])
         input_occupations = parse_str_ARR_float(d["espresso"]["input"]["bands"]["input_occupations"][""])
     end
         

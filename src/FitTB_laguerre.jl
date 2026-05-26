@@ -281,6 +281,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #        for spin = 1:tbc.nspin
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
+        println("calc_tb_prepare_fast input $N_cheb $n_eam $rho_decay $rho_max ")
         @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
         if tbc.nspin == 2
             @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
@@ -778,11 +779,11 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     println("error fit H ch , ", sum( (YH_new  - (Y_Hnew_BIG  - Xc_Hnew_BIG)).^2))
     println("ch $ch")
 
-    chtemp = zeros(size(ch))
-    chtemp[end] = 1.0
-    println("new test ", sum( ( Y_Hnew_BIG - X_Hnew_BIG * chtemp).^2))
+#    chtemp = zeros(size(ch))
+#    chtemp[end] = 1.0
+#    println("new test ", sum( ( Y_Hnew_BIG - X_Hnew_BIG * chtemp).^2))
 
-    save("a.jld", "X_Hnew_BIG", X_Hnew_BIG, "Y_Hnew_BIG", Y_Hnew_BIG)
+#    save("a.jld", "X_Hnew_BIG", X_Hnew_BIG, "Y_Hnew_BIG", Y_Hnew_BIG)
     
     flush(stdout)
     sleep(0.001)
@@ -826,7 +827,8 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-8, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-15, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+
 
     println("MODE $mode")
 
@@ -928,6 +930,10 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         else
 
             @time ch = X_Hnew_BIG_2 \ Float64.(Y_Hnew_BIG_2[:,1] - Xc_Hnew_BIG_2)
+            println("kspace lsq ")
+            println("klsq test ", sum(X_Hnew_BIG_2*ch - (Y_Hnew_BIG_2[:,1] - Xc_Hnew_BIG_2)))
+#            save("a.jld", "X_Hnew_BIG_2", X_Hnew_BIG_2, "Y_Hnew_BIG_2", Y_Hnew_BIG_2)
+            
         end
 
 
@@ -936,8 +942,6 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
 #        println("sum Xc ", sum(abs.(Xc_Hnew_BIG)), " " , sum(abs.(Xc_Snew_BIG)))
 
-#        println("kspace lsq ")
-#        println("klsq test ", sum(X_Hnew_BIG*ch - (Y_Hnew_BIG[:,1] - Xc_Hnew_BIG)))
 #        println("sum " , sum(abs.(X_S)) ,  " ", sum(abs.(Y_Snew_BIG)))
 #        println("sumH " , sum(abs.(X_H)) ,  " ", sum(abs.(Y_Hnew_BIG)))
 
@@ -1061,6 +1065,9 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
     else
         println("calc frontier")
         frontier = calc_frontier_list(tbc_list)
+        println("frontier from $(length(tbc_list))")
+        println(frontier)
+        println()
     end
 
     function add(AT_ARRS, coef)
@@ -1440,11 +1447,14 @@ end
 This is used to reduce memory by only keeping track of independet coefficients of Hermetian matrices, which is nearly a factor of 2 reduction.
 """
 function hermetian_index(i::Int64,j::Int64,nwan::Int64)
-    if i <= j
-        return nwan * (i-1) + j - (i-1)*(i)÷2
-    else
-        return nwan * (j-1) + i - (j-1)*(j)÷2
-    end
+#    if i <= j
+    it = min(i,j)
+    jt = max(i,j)
+    
+    return nwan * (it-1) + jt - (it-1)*(it)÷2
+#    else
+#        return nwan * (j-1) + i - (j-1)*(j)÷2
+#    end
 end
 
 

@@ -73,7 +73,7 @@ function relax_structure(crys::crystal, database; smearing = smear_default, grid
         else
             tbc = calc_tb_LV_sparse(deepcopy(crys), database, verbose=false, repel=repel)
         end
-        energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge )
+        energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, conv_thr=1e-7,nspin=nspin, verbose=false,database_classical=database_classical, do_classical=do_classical, tot_charge=tot_charge )
         eden = deepcopy(tbc.eden)
     else
         tbc = missing
@@ -170,7 +170,7 @@ function relax_structure(crys::crystal, database; smearing = smear_default, grid
         end
 
         if do_tb
-            energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7,nspin=nspin,database_classical=database_classical, do_classical=do_classical   )
+            energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=5e-7,nspin=nspin,database_classical=database_classical, do_classical=do_classical   )
             eden = deepcopy(tbcx.eden)
         else
             energy_tot, error_flag = calc_energy_cl(crys_working, database=database_classical)
@@ -238,7 +238,7 @@ function relax_structure(crys::crystal, database; smearing = smear_default, grid
 #            println(crys_working)
 
             if do_tb
-                energy_tot, efermi, e_den, dq, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6,nspin=nspin,database_classical=database_classical, do_classical=do_classical    )
+                energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbcx  = scf_energy(tbc, smearing=smearing, grid=grid, e_den0=eden, verbose=false, conv_thr=1e-6,nspin=nspin,database_classical=database_classical, do_classical=do_classical    )
                 eden = deepcopy(tbcx.eden)
 
             else

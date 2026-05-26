@@ -129,13 +129,13 @@ function fitting_version_params(version=fitting_version_default)
 
     elseif version == 6
         n_2body = 5
-        n_2body_onsite = 4
+        n_2body_onsite = 5
         n_2body_S = 5
         n_3body = 8
         n_3body_same = 5
         n_3body_triple = 4
         n_3body_onsite = 2
-        n_3body_onsite_same = 7
+        n_3body_onsite_same = 5
         n_eam = 6
 
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
@@ -372,10 +372,10 @@ function write_coefs(filename, co::coefs; compress=true)
     else
         io=open(filename, "w")
     end
-    prettyprint(io, doc);
-    close(io)
 
+    println("write xml ", co.use_eam)
     if co.use_eam
+        println("in use_eam")
         addelement!(c, "n_eam", "$(co.n_eam)" )
         addelement!(c, "N_cheb", "$(co.N_cheb)" )
         addelement!(c, "rho_max", arr2str(co.rho_max) )
@@ -385,6 +385,8 @@ function write_coefs(filename, co::coefs; compress=true)
         addelement!(c, "N_cheb", "0" )
     end
     
+    prettyprint(io, doc);
+    close(io)
     
     return Nothing
     
@@ -502,7 +504,7 @@ function read_coefs(filename, directory = missing)
         n_eam = 0
         N_cheb = 0
         rho_max = Float64[]
-        eam_deacy = Float64[]
+        rho_decay = Float64[]
     end
     
     use_pert = false
@@ -1418,6 +1420,8 @@ end
 
 
 function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=6, num_eam_tot = 0)
+
+    println("get_data_info_v6 $at_set $dim version $version use_eam $use_eam  num_eam_tot $num_eam_tot")
     
     n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam = fitting_version_params(version)
 
@@ -1590,7 +1594,8 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
         end
 
     elseif dim == 3 #3body
-        
+
+        println("dim == 3")
         totS = 0 #no 3body overlap terms
 
         at_list = Symbol.([i for i in at_set])
@@ -1757,6 +1762,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
 
                     data_info[[at1, at2, at3,o1,  symb]] = collect(tot+1:tot+n)
                     data_info[[at1, at3, at2,o1,  symb]] = collect(tot+1:tot+n)
+                    println(" add n $n")
                     tot += n                               #       1 2 3 4 5 6 7 8
                 end
             else
@@ -1777,7 +1783,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
             #                tot += n                               #       1 2 3 4 5 6 7 8
             #            end                
 
-
+            println("get3bdy_onsite return tot $tot")
             return tot
         end
         
@@ -1791,18 +1797,25 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
             end
         end
 
+        println("tot_size $tot_size")
+
         #        println("data_info between")
         #        println(data_info)
-
+        tot_sizeO = 0
+        println("n_3body_onsite_same $n_3body_onsite_same")
         for p in perm_on
+            println("p $p")
             #            if  (p[1] == p[2] ||  p[2] == p[3] || p[1] == p[3])
             if p[2] == p[3] && p[2] == p[1]
                 tot_size = get3bdy_onsite(n_3body_onsite_same,true, :O, tot_size, p[1], p[2], p[3]) #all diff
             else
                 tot_size = get3bdy_onsite(n_3body_onsite,false, :O, tot_size, p[1], p[2], p[3]) #
             end
+
         end
         
+        
+
         totHO = tot_size
 
     else
@@ -4612,12 +4625,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
     if use_threebody || use_threebody_onsite || use_pert
         #println("distances")
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX)
-        #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
+        #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
         
     else
-        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,Rind = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0)
-        #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)        
+        #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,Rind = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0)
+        R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)        
     end
 
 #    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel(crys,cutoff2X, 0.0)
@@ -4770,8 +4783,10 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
         c_ref = reference_tbc.tb.r_dict[R_keep_ab[c,4:6]]
 
-        dist = dist_arr[a1,a2,cind,1]
-        lmn[:] = dist_arr[a1,a2,cind,2:4]
+        dist = dist_arr[c,1]
+        lmn[:] = dist_arr[c,2:4]
+        #dist = dist_arr[a1,a2,cind,1]
+        #lmn[:] = dist_arr[a1,a2,cind,2:4]
 
 
         for o1 = orb2ind[a1]
@@ -4888,12 +4903,13 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             dist31 = array_floats3[counter, 2]
             dist32 = array_floats3[counter, 3]
             
-#            lmn[:] = array_floats3[counter, 4:6]
-            lmn31[:] = array_floats3[counter, 4:6]
-            lmn32[:] = array_floats3[counter, 7:9]
+            lmn[:] = array_floats3[counter, 4:6]
+            lmn31[:] = array_floats3[counter, 7:9]
+            lmn32[:] = array_floats3[counter, 10:12]
+            
 
-            cut = array_floats3[counter, 10]
-            cut2 = array_floats3[counter, 11]
+            cut = array_floats3[counter, 13]
+            cut2 = array_floats3[counter, 14]
 
             t1 = crys.stypes[a1]
             t2 = crys.stypes[a2]
@@ -4948,7 +4964,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 #                            println(ind)
 #                            println(h)
 #                            println("asdf", at_set3,[t1,t2,t3], size(h), size(ih))
-                            threebody_arrays[at_set3][1][ind,ih] += h[1:size(ih)[1]] * cut * 1000
+                            threebody_arrays[at_set3][1][ind,ih] += h[1:size(ih)[1]] *cut * 1000 #* cut
 
 #                            println("add $ind $ih  $h[1:size(ih)[1]] * cut * 1000 ")
                             
@@ -5057,9 +5073,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             at_set = Set((t1,t2))
             
+            dist = dist_arr[c,1]
+            lmn[:] = dist_arr[c,2:4]
 
-            dist = dist_arr[a1,a2,cind,1]
-            lmn[:] = dist_arr[a1,a2,cind,2:4]
+#            dist = dist_arr[a1,a2,cind,1]
+#            lmn[:] = dist_arr[a1,a2,cind,2:4]
             if (dist > cutoff_onX)
                 continue
             end
@@ -5083,7 +5101,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                         g_t = get_g(dist, rho_decay[n]) * cut
                         rho[a1, n] += g_t
                         eam_atom_coefs[a1, (1:N_cheb) .+ (n-1)*N_cheb ] += cheb_energy_fn_prepare(g_t, N_cheb, rho_max[n])
-                        println("add rho a1 $a1 n $n $(rho[a1, n])")
+#                        println("add rho a1 $a1 n $n $(rho[a1, n])")
                     end
                     
 #                    l1 = 1 ./ (exp.( (dist .- 2.0) / 1.0 ) .+ 1.0) * cut
@@ -5182,7 +5200,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     ind = ind_conversion[(o,o,c_zero)]
                     for n = 1:n_eam
                         twobody_arrays[at_set][1][ind,io[(1:N_cheb) .+ (n-1)*N_cheb]  ] += cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]) #- eam_atom_coefs[a,:]
-                        println("add eam arrays n $n a $a o $o  ", cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]))
+                        #println("add eam arrays n $n a $a o $o  ", cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]))
                     end
                 end
             end
@@ -6125,7 +6143,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
         if same_atom
             
             if  isa(dist1, Array)
-                V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) d1[:,2].*d2[:,2]   d1[:,2].*d2[:,2].*d3[:,1]]
+                #V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) d1[:,2].*d2[:,2]   d1[:,2].*d2[:,2].*d3[:,1]]
+                V = [d1[:,1].*d2[:,1].*d3[:,1] (d1[:,2].*d2[:,1].*d3[:,1] + d1[:,1].*d2[:,2].*d3[:,1]) d1[:,1].*d2[:,1].*d3[:,2] d1[:,1].*d2[:,1] (d1[:,1].*d2[:,2] + d1[:,2].*d2[:,1]) ]
             else
 
                 if ismissing(memoryV)
@@ -6138,8 +6157,8 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
                 V[3] = d1[1].*d2[1].*d3[2]
                 V[4] = d1[1].*d2[1]
                 V[5] = (d1[1].*d2[2] + d1[2].*d2[1])
-                V[6] = d1[2].*d2[2]
-                V[7] = d1[2].*d2[2].*d3[1]
+                #V[6] = d1[2].*d2[2]
+                #V[7] = d1[2].*d2[2].*d3[1]
             end
         else
             if  isa(dist1, Array)
@@ -9358,7 +9377,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=true)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false)
 
     repel=false
 
@@ -9764,6 +9783,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     
                     n_2body, n_2body_S, n_2body_onsite = DAT_NTYPES_ARR[t1,t2,:]
                     
+
                     if use_dist_arr
                         dist_a = dist_arr[c,1]
                         lmn_arr[1] = dist_arr[c,2]
@@ -9775,9 +9795,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         dist_a, lmn_arr[:] = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
                         cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
                         cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
-                        cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
+                        cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                          
+                        
                     end
-                    
                     
                     if dist_a <  1e-5    # true onsite
 
@@ -9813,7 +9833,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
                         
                         if use_eam
-                            println("use eam $use_eam")
+#                            println("use eam $use_eam")
                             t = crys.stypes[a1]
                             co  = database[(t,t)]
                             if [t,t,:eam] in keys(co.inds)
@@ -9825,7 +9845,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                                     g_t = get_g(dist_a, co.rho_decay[n]) * cut_on
                                     rho_th[a1, n, id] += g_t
                                     eam_atom[a1] += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], g_t, N_cheb, co.rho_max[n])
-                                    println("add eam n $n $t $a1 $a2 dist $dist_a g_t $g_t ")
+#                                    println("add eam n $n $t $a1 $a2 dist $dist_a g_t $g_t ")
                                 end
                             end
                             
@@ -9865,10 +9885,12 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             end
         end
     end
+
+    
     if use_eam
     #if use_eam #&& !only_U
         rho = sum(rho_th, dims=3)
-        
+#        println("rho $rho")
 
         #        println("rho $rho")
         for a = 1:crys.nat
@@ -10077,6 +10099,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                 if use_threebody
                     laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory,version)
                     core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn12, lmn13, lmn23)
+                    #core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, 1.0, H,sym_arr1, sym_arr2, lmn12, lmn13, lmn23)
 
                     
                     #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
@@ -10100,6 +10123,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                     #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
 
                     core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
+                    #core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
+
                 end
             end
         end
@@ -10114,7 +10139,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
 
     if use_Uarr
-        println("use_uarr")
+#        println("use_uarr")
         gamma_add = zeros(nwan, nwan)
 
         ind = 0
@@ -10130,15 +10155,15 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 
             back += coef.background_charge_correction
         end
-        println("gamma add ", gamma_add)
+#        println("gamma add ", gamma_add)
         println()
         if ismissing(gamma) 
             gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
         end
         gamma += gamma_add
-        println("back $back background_charge_correction before $background_charge_correction")
+#        println("back $back background_charge_correction before $background_charge_correction")
         background_charge_correction += back / abs(det(crys.A))
-        println("background_charge_correction after $background_charge_correction")        
+#        println("background_charge_correction after $background_charge_correction")        
     end
     
 
@@ -10550,6 +10575,63 @@ function core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND
         #        end
     end
     
+end
+
+
+
+function calc_rho_max(crys::crystal, N_cheb, n_eam,  rho_decay)
+
+    repel=false
+    
+    At = crys.A'
+    
+    
+    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+    R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, 0.0,var_type=Float64, return_floats=false)
+    #    DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3             
+        
+    rho = zeros(crys.nat, n_eam)
+    nkeep_ab = size(R_keep_ab)[1]
+    ind_arr = R_keep[:,2:4]
+    
+    for c = 1:nkeep_ab
+        begin
+            id = threadid()
+
+            cind = R_keep_ab[c,1]
+            cham = R_keep_ab[c,7]
+            a1 = R_keep_ab[c,2]
+            a2 = R_keep_ab[c,3]
+
+            rind1 = ind_arr[cham,1:3]
+            dist_a = dist_arr[c,1]
+            
+#            t1 = types_arr[a1]
+#            t2 = types_arr[a2]
+            
+                    
+#            dist_a, lmn_arr[:] = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+#            cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
+            cutoff2, cutoff2on = get_cutoff( crys.stypes[a1], crys.stypes[a2])[:] 
+            #            cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
+            cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
+
+        end
+                    
+                    
+        if dist_a >  1e-5    
+            
+            #println("use eam $use_eam")
+            t = crys.stypes[a1]
+
+            for n = 1:n_eam
+                g_t = get_g(dist_a, rho_decay[n]) * cut_on
+                rho[a1, n] +=  g_t
+            end
+        end
+    end
+    
+    return maximum(rho, dims=1)[:]
 end
 
 

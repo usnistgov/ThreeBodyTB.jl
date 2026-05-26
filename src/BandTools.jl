@@ -49,7 +49,7 @@ function calc_fermi(eigs, weights, nelec, smearing=smear_default)
             return maximum(eigs[:])
         end
     else
-        println("lenght(eigs) $(length(eigs)) (nelec + 1e-10) $((nelec + 1e-10))")
+#        println("lenght(eigs) $(length(eigs)) (nelec + 1e-10) $((nelec + 1e-10))")
         if length(eigs) <= (nelec/2.0 + 1e-10)
             efermi = efermi_max
             println("case 2")            

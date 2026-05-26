@@ -193,10 +193,13 @@ end
 
 function generate_guess(atom, c_work, step_size, step_size_strain, twod_only)
 
+    
     if atom >= 1
 
+        r = gen_rand_3d(c_work.nat, step_size)
+
         Ainv = inv(c_work.A)
-        atom_step = ((rand(c_work.nat,3) .- 0.5)*step_size ) * Ainv
+        atom_step = (r  ) * Ainv
         if twod_only
             atom_step[:,3] .= 0.0
         end
@@ -205,12 +208,26 @@ function generate_guess(atom, c_work, step_size, step_size_strain, twod_only)
 
     else #strain case
 
-        strain = (rand(3,3) .- 0.5)
+        strain = zeros(3,3)
+        for i = 1:3
+            for j = 1:3
+                strain[i,j] = max(-2.0, min(2.0, randn(1)[1])) * step_size_strain
+            end
+        end
         strain = 0.5*(strain + strain') * step_size_strain
         c_work.A[:,:] = c_work.A*(I(3) + strain)
 
     end
     
+end
+
+function gen_rand_3d(n, step)
+    r = rand(n,3) .- 0.5
+    for i = 1:n
+        r[i,:] = r[i,:] / sqrt(sum(r[i,:].^2)) #random normalized vector
+        r[i,:] = r[i,:] * max(-2.0, min(2.0, randn(1)[1])) * step # truncated gaussian magnitude * step size
+    end
+    return r
 end
 
 end  #end module
