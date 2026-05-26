@@ -1347,13 +1347,17 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     val_pw = EIGS[k,1:nxxx, spin]
 
                     if k == 1
-                        println("EIGS ", EIGS[k,1:nxxx, spin])
+                        println("val_pw ", val_pw)
+                        println()
+                        println("val_tb ", val_tb)
+                        println()
                     end
                     
                     order = Dict()
                     
                     score_mat = zeros(nxxx, nwan)
-                    
+
+                    proj_sort = sortperm(PROJECTABILITY[spin,k,:], rev=true)
 
                     for n2 = 1:nwan
                         cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
@@ -1361,21 +1365,23 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                         dist_min = 1000.0
                         nmin = 0
                         
-                        for n1 = 1:nxxx
+                        #for n1 = 1:nxxx
+                        for (counter_n1, n1) = enumerate(proj_sort[1:nwan])
                             
                             #                    t = p.proj[k,wan, nsemi + n1] 
-                            t = PROJ[k,:,spin, n1]
-                            x = PROJECTABILITY[spin,k,n1]
+                            #t = PROJ[k,:,spin, n1]
+                            #x = PROJECTABILITY[spin,k,n1]
                             
-                            cd_dft = real(t .* conj(t))
+                            #cd_dft = real(t .* conj(t))
                             
                             #                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
-                            dist_cd = sum((cd_dft - cd_vect).^2)
+                            #dist_cd = sum((cd_dft - cd_vect).^2)
                             #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
                             #dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
                             #                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd  + 1 / (x + 1e-3)
 
-                            dist = 1000.0* (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
+                            #dist = abs(n1 - n2) #+ 0.-1 * (val_tb[n2] - val_pw[n1]).^2 + 
+                            #dist = 1000.0* (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
 
                             #=
                             if k == 3
@@ -1391,7 +1397,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                             end
                             end
                             =#
-                            score_mat[n1,n2] = dist 
+                            #score_mat[n1,n2] = dist
+                            score_mat[n1,n2] =  abs(n1 - n2)#abs(n1 - n2)
                             #                    if dist < dist_min
                             #                        dist_min = dist
                             #                        nmin = n1
@@ -1401,15 +1408,15 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     doneset = Set()
                     for n = 1:nwan
                         s = sortperm(score_mat[:,n], rev=false)
-                        if k == 3
-                            println("scoremat ", score_mat[:,n])
-                            println("scoremat sort ", score_mat[s,n])
-                        end
+                        #if k == 3
+                        #    println("scoremat ", score_mat[:,n])
+                        #    println("scoremat sort ", score_mat[s,n])
+                        #end
                         for ss in s
                             if !(ss in doneset)
                                 order[n] = ss
                                 push!(doneset, ss)
-                                if k == 3
+                                if k == 1
                                     println("orer $n $ss")
                                 end
                                 break
@@ -1421,9 +1428,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     #acutally do the change
                     for n in 1:nwan
                         if val_pw[order[n]] < energy_froz
-                            if k == 1
-                                println("case 1 $n ", val_pw[order[n]])
-                            end
+                            #if k == 1
+                            #    println("case 1 $n ", val_pw[order[n]])
+                            #end
                             val_tb_new[n] = val_pw[order[n]]
                             #elseif val_pw[order[n]] < energy_froz2
                         else
@@ -1431,9 +1438,9 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                             x = PROJECTABILITY[spin,k,order[n]]
                             #      if x > 0.1
                             #x = x^2
-                            if k == 1
-                                println("case 2 $n x $x val ", val_pw[order[n]] * x + val_tb[n]*(1.0-x))
-                            end
+                            #if k == 1
+                            #    println("case 2 $n x $x val ", val_pw[order[n]] * x + val_tb[n]*(1.0-x))
+                            #end
                             
                             val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
 
@@ -1444,11 +1451,11 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                         
                     end
 
-                    if k == 1
-                        println()
-                        println("val_tb_new ", val_tb_new, " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-                        println()                        
-                    end
+                    #if k == 1
+                    #    println()
+                    #    println("val_tb_new ", val_tb_new, " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    #    println()                        
+                    #end
 
                     #resym
                     for n = 1:nwan-1
@@ -1467,7 +1474,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
                     val_tb_new2, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
                     m = min(length(val_pw), length(val_tb_new2))
-                    println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
+                    #println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
                 end
             end
         end

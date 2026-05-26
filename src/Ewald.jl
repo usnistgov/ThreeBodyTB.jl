@@ -628,7 +628,7 @@ function rs_core_R0false(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, ga
 end
 
 function rs_core_R0false_thread(nat, coords_cartTij, R, kappa, Uconst, gamma_ij_new, gamma_U_new, useU, R0)
-    @inbounds @threads for i = 1:nat
+    @inbounds @simd for i = 1:nat
         id = threadid()
         for j = i:nat
            r=0.0
@@ -919,7 +919,7 @@ end
 
 function ks_core(crys, coords_cart, K, factor_k, gamma_ij_new_th)
 
-    @inbounds @threads for i = 1:crys.nat
+    @inbounds @simd for i = 1:crys.nat
         id = threadid()
         for j = i:crys.nat
             kr = 0.0
