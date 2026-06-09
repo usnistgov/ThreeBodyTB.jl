@@ -225,12 +225,14 @@ function read_coefs_cl(filename, directory = missing)
     else
         println("found $filename")
     end
-    f = gzopen(filename, "r")
+#    f = gzopen(filename, "r")
     
-    fs = read(f, String)
-    close(f)
+#    fs = read(f, String)
+#    close(f)
 
-    d = xml_dict(fs)["root"]
+    #d = xml_dict(fs)["root"]
+    d = my_xmldict(filename)["root"]
+    
     
     dim = parse(Int64, (d["coefs"]["dim"]))
     sizeH = parse(Int64, d["coefs"]["sizeH"])

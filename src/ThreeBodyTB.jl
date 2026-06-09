@@ -550,7 +550,7 @@ returns energy, tight-binding-crystal-object, error-flag
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge. Starting default is smaller for larger unit cells.
 - `mixing_mode = :simple`: default is simple. Other options are `:simple` and `:DIIS` / `:pulay` (direct inversion of iterative subspace). Will automatically switch to simple if Pulay fails. 
 """
-function scf_energy(c::crystal; database = missing, smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 200, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto)
+function scf_energy(c::crystal; database = missing, smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 200, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, use_threebody=true, use_threebody_onsite=true)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -584,7 +584,7 @@ function scf_energy(c::crystal; database = missing, smearing=smear_default, grid
 #    println("database_classical")
 #    println(database_classical)
     println()
-    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse)
+    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite)
 
     conv_flag = !error_flag
     if do_tb

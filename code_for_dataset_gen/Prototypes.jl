@@ -249,6 +249,7 @@ function setup_proto_data()
     CalcD["fourAtet"] =       ["$STRUCTDIR/fourAtet.in", "relax", "2Dxy", "vol-mid", "scf", false]
 
 
+    CalcD["dimer_narrow"] =       ["$STRUCTDIR/dimer_narrow.in", "relax", "2Dxy", "coords", "nscf", false]
     CalcD["dimer"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords", "nscf", false]
     CalcD["dimer_play"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "coords_play", "nscf", false]
 
@@ -322,7 +323,7 @@ function setup_proto_data()
     CalcD["sc_shape"] = ["$STRUCTDIR/sc.in.up", "vc-relax", "all", "shape", "nscf", false]
     CalcD["diamond_shear"] = ["$STRUCTDIR/diamond.in.up", "vc-relax", "all", "shear", "nscf", false]
 
-    CalcD["hh_mono"] = ["$STRUCTDIR/POSCAR_hh_mono", "vc-relax", "all", "vol-mid", "nscf", false]
+    CalcD["hh_mono"] = ["$STRUCTDIR/POSCAR_hh_mono", "vc-relax", "all", "scf", "nscf", false]
 
 
     #    CalcD["cscl"] = ["$STRUCTDIR/binary/cscl.in", "vc-relax", "all", "vol-big", "nscf", false]
@@ -536,6 +537,8 @@ function setup_proto_data()
     CalcD["mol_h2o_v1"] = ["$STRUCTDIR/binary/POSCAR_mol_h2o_v1", "relax", "all", "coords-small2", "nscf", false]
     CalcD["mol_h2o_v2"] = ["$STRUCTDIR/binary/POSCAR_mol_h2o_v2", "relax", "all", "coords-small2", "nscf", false]
 
+    CalcD["aaa_line"] = ["$STRUCTDIR/binary/aaa_line.in", "relax", "all", "coords-small2", "nscf", false]
+    
     CalcD["abb_line"] = ["$STRUCTDIR/binary/abb_line.in", "relax", "all", "coords-small2", "nscf", false]
     CalcD["baa_line"] = ["$STRUCTDIR/binary/baa_line.in", "relax", "all", "coords-small2", "nscf", false]
 
@@ -810,7 +813,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
             #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
-            ncalc = 22
+            ncalc = 14
         elseif newst == "coordsa"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
@@ -2076,7 +2079,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
             elseif newst == "coords"
                 println("start coords")
                 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
-                for x in [-0.20, -0.15, -0.10, -0.07, -0.03, 0.0 ,0.03, 0.07, 0.10 ,0.15, 0.2, 0.25, 0.35, 0.5 ,-0.175, -0.125, 0.6, 1.0]
+                for x in [-0.20, -0.15, -0.10, -0.07, -0.03, 0.0 ,0.03, 0.07, 0.10 ,0.15, 0.2, 0.25, 0.35, 0.5 , 0.6, 1.0]
                    # c = deepcopy(cnew)
                    # c.coords = c.coords * (1+x)
                     # push!(torun, deepcopy(c))

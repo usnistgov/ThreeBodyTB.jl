@@ -60,12 +60,37 @@ and mpi commands (if any)
 #    pwscf_command_parallel= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $mpi $procs  $pw -npool 2  -input $fil '`
 #    pwscf_command_parallel_backup= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $mpi $procs  $pw -ndiag 1 -input $fil' `
 
-    pwscf_command_serial= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun -np 1  pw.x -input $fil '`
+    #pwscf_command_serial= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; $MPI_STRING 1  pw.x -input $fil '`
 
-    function f(fil, procs); println("in f $fil $procs"); st = "export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -ndiag 1 -input $fil"; println("st"); println(st); println(); return `bash -c $st `; end
+    #function f(fil, procs); println("in f $fil $procs"); st = "export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -npool 2 -input $fil"; println("st"); println(st); println(); return `bash -c $st `; end
+
+
+    function f(fil, procs);
+        println("in f $fil $procs");
+        r="$(rand(1)[1])";
+        f = open("torun.$r.x", "w")
+        println(f, "OMP_NUM_THREADS=1; export OMP_NUM_THREADS; $MPI_STRING $procs  pw.x -npool 2 -input $fil")#
+        close(f)
+        st = ""
+        try
+            read(`chmod +x torun.$r.x`, String)
+            st = read(`./torun.$r.x` , String)
+        catch err
+            println(err)
+            println("possible error running qe pwscf")
+        end
+        
+        rm("torun.$r.x")
+        return st
+    end
+
     pwscf_command_parallel=f
+    pwscf_command_serial=f
+
+    pwscf_command_parallel_backup=f
+
     #pwscf_command_parallel= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun $procs  pw.x -npool 2  -input $fil '`
-    pwscf_command_parallel_backup= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -ndiag 1 -input $fil' `
+    #pwscf_command_parallel_backup= (fil, procs) -> `bash -c 'export OMP_NUM_THREADS=1; mpirun -np $procs  pw.x -ndiag 1 -input $fil' `
     
     #pwscf_command_serial=`bash -c 'export OMP_NUM_THREADS=1; $mpi 1  $pw -input `
     #pwscf_command_parallel=` OMP_NUM_THREADS=1\;  $mpi $nprocs $pw -npool 2 -input `#

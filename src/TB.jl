@@ -16,6 +16,7 @@ using LinearAlgebra
 using SpecialFunctions
 using EzXML
 using XMLDict
+using ..Utility:my_xmldict
 using GZip
 using Printf
 using Plots
@@ -34,6 +35,7 @@ using ..AtomicMod:atom
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys
 using ..Utility:arr2str
+using ..Utility:arr2str3
 using ..Utility:str_w_spaces
 using ..Utility:parse_str_ARR_float
 using ..BandTools:calc_fermi
@@ -253,7 +255,7 @@ mutable struct tb_k{T}
     h1::Array{T,2} #scf term
     h1spin::Array{T,3} #scf term
     grid::Array{Int64,1}
-
+    projectability::Array{Float64,3}
 end
 
 
@@ -390,16 +392,17 @@ function read_tb_crys(filename; directory=missing, sparse=false)
         println("found $filename")
     end
 
-    try
-        f = gzopen(filename, "r")
-    catch
-        println("error opening $filename")
-    end
-    
-    fs = read(f, String)
-    close(f)
+#    try
+#        f = gzopen(filename, "r")
+#    catch
+#        println("error opening $filename")
+#    end
+#    
+#    fs = read(f, String)
+#    close(f)
 
-    d = xml_dict(fs)["root"]
+    #d = xml_dict(fs)["root"]
+    d = my_xmldict(filename)["root"]
 
     ##crys
     nat = parse(Int64, d["crystal"]["nat"])
@@ -605,11 +608,11 @@ function read_tb_crys_kspace(filename; directory=missing)
         println("read_tb_crys_kspace found $filename")
     end
 
-    try
-        f = gzopen(filename, "r")
-    catch
-        println("error opening $filename")
-    end
+    #try
+    #    f = gzopen(filename, "r")
+    #catch
+    #    println("error opening $filename")
+    #end
 
 
     #    try
@@ -630,10 +633,12 @@ function read_tb_crys_kspace(filename; directory=missing)
     #       end
     #    end
     
-    fs = read(f, String)
-    close(f)
+    #fs = read(f, String)
+    #close(f)
 
-    d = xml_dict(fs)["root"]
+    #d = xml_dict(fs)["root"]
+    d = my_xmldict(filename)["root"]
+    
 
     ##crys
     nat = parse(Int64, d["crystal"]["nat"])
@@ -747,6 +752,26 @@ function read_tb_crys_kspace(filename; directory=missing)
         h1spin =  missing
     end
 
+        
+    nwan = parse(Int64,d["tightbinding"]["nwan"])
+
+    if "projectability" in keys(d["tightbinding"])
+        projectability_temp = parse_str_ARR_float(d["tightbinding"]["projectability"])
+        pp = projectability_temp[:]
+        counter = 0
+        projectability = zeros(nk, nwan, nspin)
+        for i = 1:nk
+            for j = 1:nwan
+                for k = 1:nspin
+                    counter += 1
+                    projectability[i,j,k] = pp[counter]
+                end
+            end
+        end
+    else
+        projectability =missing
+    end
+    
     
     function readstr(st)
 
@@ -782,15 +807,15 @@ function read_tb_crys_kspace(filename; directory=missing)
     #    println("h1")
     #    println(h1)
 
-    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth)
+    tb = make_tb_k(Hk, kind_arr, kweights, Sk, h1=h1, h1spin=h1spin, grid=grid, nonorth=nonorth, projectability=projectability)
 
-    println("start checking")
-    println(tb)
-    println(typeof(tb))
-    println("crys " , crys)
-    println("nelec $nelec")
-    println("scf $scf")
-    println("eden $eden")
+#    println("start checking")
+#    println(tb)
+#    println(typeof(tb))
+#    println("crys " , crys)
+#    println("nelec $nelec")
+#    println("scf $scf")
+#    println("eden $eden")
     println("background_charge_correction $background_charge_correction")
     tbck = make_tb_crys_kspace(tb, crys, nelec, dftenergy, scf=scf, eden=eden, background_charge_correction = background_charge_correction)
     get_energy_electron_density_kspace(tbck, use_scf = scf)
@@ -964,6 +989,9 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
+
+    addelement!(tightbinding, "projectability",arr2str3(tbc.tb.projectability))
+
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
 
     addelement!(tightbinding, "grid",arr2str(tbc.tb.grid))
@@ -1230,7 +1258,7 @@ end
 
     Constructor for `tb_kspace`
     """
-function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,0], nonorth=true)
+function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,0], nonorth=true, projectability=missing)
     nw=size(Hk,1)
     nk=size(Hk,3)
     nspin=size(Hk,4)
@@ -1270,7 +1298,9 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,
         scfspin = true
     end
     
-
+    if ismissing(projectability)
+        projectability = ones(nk, nw, nspin)
+    end
 
     #=
     println("make_tb_k")
@@ -1286,7 +1316,7 @@ function make_tb_k(Hk, K, kweights, Sk; h1=missing, h1spin = missing, grid=[0,0,
     println(typeof(h1))
     println(typeof(grid))
     =#
-    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, h1spin, grid)
+    return tb_k{T}(Hk, K2, kweights, k_dict,nw, nk,nspin,  nonorth, Sk, scf, scfspin, h1, h1spin, grid, projectability)
 end
 
 
@@ -4852,6 +4882,7 @@ function get_energy_electron_density_kspace(tbcK::tb_crys_kspace; smearing=smear
 
     if ismissing(fixed_occupations)
         energy_smear = smearing_energy(VALS, tbcK.tb.kweights, efermi, smearing)
+        println("energy smear $energy_smear fermi $efermi smearing $smearing")
     else
         energy_smear = 0.0
     end

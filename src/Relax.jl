@@ -260,11 +260,11 @@ function relax_structure(crys::crystal, database; smearing = smear_default, grid
         f_cart = zeros(crys_working.nat,3)
         stress = zeros(3,3)
         if do_tb
-            if database["SCF"] == true
-                energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
-            else
-                energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
-            end
+#            if database["SCF"] == true
+            energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV_sym_SINGLE(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+#            else
+#                energy_tmp,  f_cart_tb, stress_tb =  get_energy_force_stress_fft_LV(tbc, database; do_scf = false, smearing = smearing, grid = grid, vv=[VECTS, VALS, efermi] ,nspin=nspin, repel=repel)
+#            end
             
             f_cart += f_cart_tb
             stress += stress_tb

@@ -505,7 +505,9 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
                 etmp, occs3 = band_energy(VALS[c,1:nk,1:nw,1:nspin], kweights, nval+0.35, 0.1, returnocc=true)
             end
            
-            WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2*0.5 + occs3*0.5)/(1 + 0.5 + 0.5)
+            #WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2*0.5 + occs3*0.5)/(1 + 0.5 + 0.5)
+            #WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs3*0.5)/(1 + 0.5)
+            WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs )/(1 )
 
 
 #        else
@@ -611,7 +613,12 @@ function get_rho_max(list_of_tbcs_nonscf, N_cheb, n_eam, rho_decay)
     return rho_max
 end
 
-function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0, 1e-5], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false, conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false,
+                           fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing,
+                           niters=50, lambda=[0.0,0.0, 1e-5], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100,
+                           refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing,
+                           energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
+                           conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25)
 
     println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
@@ -687,10 +694,10 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
 
 #    return pd[1],pd[2], pd[3]
     
-    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig)
 end
 
-function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25)
 
     leave_out = -1
 
@@ -1523,10 +1530,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                             w_special = 1.0
                         end
                         
-                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special 
+                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special * list_of_tbcs[n].tb.projectability[k, i, spin]
 
                         X_TOTEN[:] +=            vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin])  #* list_of_tbcs[calc].nspin
-                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] 
+                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] * list_of_tbcs[n].tb.projectability[k, i, spin]
 
                         #NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
 
@@ -1557,7 +1564,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                         #NEWY[counter] =  (VALS[calc,k,jjj_min, spin] - vals_test_on[i] - (VALS_FITTED[calc,k,jjj_min, spin] - VALS0_FITTED[calc,k,jjj_min, spin]) + SHIFTS[calc] - SHIFTS_FITTED[calc] ) .* WEIGHTS[calc, k, i, spin] * w_special
 
-                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special                           #no h1 val kfg
+                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special * list_of_tbcs[n].tb.projectability[k, i, spin]                          #no h1 val kfg
 
 #                        if k <= 2 && calc == 1
 #                            println("test calc $calc k $k  counter $counter VALS0 $(VALS0[calc,k,jjj_min, spin] ) VALS_FITTED $(VALS_FITTED[calc, k,i,spin]) ")
@@ -2579,19 +2586,26 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
 
             #scf = true
-            mix_iterS = 0.005
-            mix_iter = 0.05
+            mix_iterS = 0.01
+            mix_iter = 0.03
             err_old_bigiter = 10.0^10
             err = 10.0^9.0
             badS = false
             
-            if fit_umat == true
-                nbig = 25
-            else
-                nbig = 25
-            end
-
-
+#            if fit_umat == true
+#                nbig = 1000
+#            else
+#                nbig = 1000
+#            end
+#            if opt_S
+#                nbig = 2000
+            #            end
+            #if opt_S
+            #    nbig = 30
+            #else
+            #    nbig = 25
+            #end
+            
             for big_iter = 1:nbig
                 println("BIG ITER $big_iter solve_scf_mode $solve_scf_mode scf $scf sum DQ $(sum(abs.(DQ))) ------------ $err_old_bigiter")
 #                println("ch $ch")
@@ -2612,10 +2626,12 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     end
                         
                 end
+                n_iterate_iter = 1
                 if opt_S
-                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), mix_iterS , adjust_mix=true)
+                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=true)
                 else
-                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
+                    #ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
+                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=true)
                 end
 
  #               println("DQ AFTER ITERATE")
@@ -2684,19 +2700,26 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #err = error_fn(NEWX, NEWY, ch, cs)
                 #println("err Y ", err)
                 #solve_scf_mode=false
-
-                if fit_umat
-                    if abs(err_old_bigiter - err) < 5e-4 && big_iter >= 50
-                        println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
-                        break
-                    end
-                else
-                    if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 1e-1 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 5e-1 && big_iter >= 15)
-                        
-                        println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
-                        break
-                    end
+                
+                if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 1e-1 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 5e-1 && big_iter >= 15)
+                    println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
+                    break
                 end
+                
+#                if false
+#                if fit_umat
+#                    if abs(err_old_bigiter - err) < 5e-4 && big_iter >= 50
+#                        println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
+#                        break
+#                    end
+#                else
+#                    if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 1e-1 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 5e-1 && big_iter >= 15)
+#                        
+#                        println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
+#                        break
+#                    end
+#                end
+                #                end
                 err_old_bigiter = err
             end
             println("final, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")

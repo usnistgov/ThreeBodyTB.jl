@@ -19,6 +19,7 @@ using LinearAlgebra
 
 #using ExXML
 using XMLDict
+using ..Utility:my_xmldict
 using GZip
 using ..DFToutMod
 using ..CrystalMod:crystal
@@ -44,6 +45,7 @@ function run_pwscf(inputstr, outputstr, nprocs=1, directory="./", use_backup=fal
 """
 run command
 """
+    println("in run_pwscf")
     directory=rstrip(directory, '/')
     
     #get commandline
@@ -56,17 +58,19 @@ run command
     end    
 
     #command = `$qe $directory/$inputstr`
-    command = qe("$directory/$inputstr", nprocs)
-    println("actual command")
-    println(command)
+#    command = qe("$directory/$inputstr", nprocs)
+#    println("actual command")
+#    println(command)
     s=""
     try
         println("Running DFT")
 
-        s = read(command, String)
-        
-        println("Writing output")
+        #s = read(command, String)
+        #
+        #println("Writing output")
+
         f = open(directory*"/"*outputstr, "w")
+        s = qe("$directory/$inputstr", nprocs)
         write(f, s)
         close(f)
         
@@ -93,6 +97,7 @@ function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", direc
 """
 Run SCF calculation using QE
 """
+    println("in runSCF QE version")
     println("runSCF hybrid ", hybrid)
     qeout = []
     #    println("runSCF 1")
@@ -516,11 +521,14 @@ Make inputfile for SCF calculation
             nbandval += atoms[t].nwan
         end
         nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.5 / 2.0))   #no spin yet
-        println("nbandtot ", [4,1,convert(Int64, round(nbandsemi/2.0)), convert(Int64, nbandval * 3.5 / 2.0)])
+        ############println("nbandtot ", [4,1,convert(Int64, round(nbandsemi/2.0)), convert(Int64, nbandval * 3.5 / 2.0)])
         if "La" in crys.types
             nbandtot += 7*crys.nat
         end
 
+
+        nbandtot += 4
+        
         println("nbandtot $nbandtot")
         
         other *="nbnd = "*string(nbandtot)*"\n"
@@ -608,14 +616,18 @@ function makedict(savedir)
         println("ERROR warning missing data-file-schema.xml or data-file-schema.xml.gz")
         println()
         filename=missing
+        return missing
     end
-
-
-    f = gzopen(filename, "r")
-    fs = read(f, String)
-    close(f)
     
-    d = xml_dict(fs)
+
+#    f = gzopen(filename, "r")
+#    fs = read(f, String)
+#    close(f)
+    
+    #d = xml_dict(fs)
+
+    d = my_xmldict(filename)
+    
 
     return d
 end
@@ -630,6 +642,7 @@ function loadXML(savedir)
 
 #    println("start loadXML")
     convert_ha_ryd = 2.0
+
     
     d= makedict(savedir)
 
@@ -926,6 +939,7 @@ Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
 function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx=-1.0, electron_maxstep=100, input_occupations=missing)
     
+    println("in runSCF DFT version")
     if exx > 1e-5
         hybrid = true
     end
@@ -938,7 +952,7 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         if calculation=="scf"
             smearing = smear_default
         else
-            smearing = 0.02
+            smearing = smear_default
         end
     end
 
@@ -948,15 +962,19 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
             prefix="qe"
         end
         qeout = missing
-        try
+        #try
+            println([crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations])
+            
             qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
-            return qeout
-        catch
-            println("WARNING failure, restart qe with higher smearing, hope that helps!!")
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
-            return qeout
-
-        end
+        #    return qeout
+        #catch err
+        #    println("err")
+        #    println(err)
+        #    println("WARNING failure, restart qe with higher smearing, hope that helps!!")
+        #    qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing*5, magnetic, cleanup, true, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
+        #    return qeout#
+#
+        #end
 
     else
         println("code variable not recognized", code)

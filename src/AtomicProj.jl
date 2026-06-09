@@ -23,8 +23,9 @@ using DelimitedFiles
 #include("Atomdata.jl")
 using ..Atomdata:atoms
 #using JLD
-#using ExXML
+using EzXML
 using XMLDict
+using ..Utility:my_xmldict
 using GZip
 
 using FFTW
@@ -61,6 +62,7 @@ using ..TB:tb_crys_kspace
 using ..TB:make_tb_crys_kspace
 using ..TB:make_tb_k
 using ..TB:write_tb_crys_kspace
+using ..TB:get_energy_electron_density_kspace
 
 
 include("Commands.jl")
@@ -113,11 +115,13 @@ function makedict_proj(savedir)
         filename = missing
     end
     
-    f = gzopen(filename, "r")
-    fs = read(f, String)
-    close(f)
+#    f = gzopen(filename, "r")
+#    fs = read(f, String)
+#    close(f)
     
-    d = xml_dict(fs)
+    #d = xml_dict(fs)
+    d = my_xmldict(filename)
+    
 
     return d
 end
@@ -377,12 +381,14 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
     end
     
     try
+        println("try 0")
         dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid, klines=klines, magnetic=magnetic)
     catch
         println()
         println("first nscf failed, trying backup nscf with fewer extra bands")
         println()
         try
+            println("try 1")
             dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
         catch
             println("try 2")
@@ -451,6 +457,7 @@ Steps:
 """
     prefix=dft.prefix
     outdir=dft.outdir
+    println("projwfc_workflow $prefix $outdir")
     println()
     println("projwfc_workflow---------------------------------------------------------------------------")
     println()
@@ -620,15 +627,15 @@ Steps:
 
 
         en_froz = minimum(dft_nscf.bandstruct.eigs[:,band_froz,:])
-        en_froz = max(en_froz, dft.bandstruct.efermi + 0.05)
+        en_froz = max(en_froz, dft.bandstruct.efermi + 0.2)
         println("en_froz: ", en_froz, " band froz $band_froz")
         println("efermi energy ", dft.bandstruct.efermi)
         println("nk ", size(dft_nscf.bandstruct.kpts), "     ", size(dft_nscf.bandstruct.kweights))
-        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf, energy_froz=en_froz+.05, shift_energy=shift_energy);
+        ham_k, EIG, Pmat, Nmat, VAL, projection_warning, projectability = AtomicProj.create_tb(p, dft_nscf, dft, energy_froz=en_froz+.05, shift_energy=shift_energy);
         #A,B,C = AtomicProj.create_tb(p, dft, energy_froz=en_froz+.01); 
         #return A,B,C        
     else
-        ham_k, EIG, Pmat, Nmat, VAL, projection_warning = AtomicProj.create_tb(p, dft_nscf);
+        ham_k, EIG, Pmat, Nmat, VAL, projection_warning, projectability = AtomicProj.create_tb(p, dft_nscf);
     end
 
 #    println("done")
@@ -642,7 +649,7 @@ Steps:
 
 
     #get tight binding
-    tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening)
+    tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening, projectability = projectability)
 
 #    return tbck
     
@@ -1070,9 +1077,9 @@ Does the main creation of TB hamiltonian from DFT projection data in k-space.
 - `nfroz=0` number of frozen bands.
 - `shift_energy=true` if `true` shift eigenvalues so band energy `==` total energy
 """
-function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_energy=true)
+function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, nfroz=0, shift_energy=true)
 
-    println("create_tb XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+    println("create_tb XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX atomize $(d_scf.atomize_energy) ")
 
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
@@ -1151,7 +1158,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
         
         etot_dft = d.energy
-        e_smear = d.energy_smear
+        e_smear = d_scf.energy_smear
 
         atomization_energy = etot_dft - etotal_atoms - etypes  - e_smear
 
@@ -1329,13 +1336,18 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     println("EIG TEST ", eigvals(ham_k[:,:,1,1]))
     
 
+    projectability = ones(p.bs.nks, nwan, p.nspin)
     #here we shift the eigenvalues around to match DFT eigenvalues below a cutoff.
     #this requires identifying which bands are supposed to match which eigenvlues, which
     #can be tricky. I use a projection heuriestic, but it can fail at band crossings that mix bands.
+
     function do_freeze()
         if !(ismissing(energy_froz))
             energy_froz2 = energy_froz+2.0
             println("energy_froz: $energy_froz , $energy_froz2")
+
+            vals_freeze = zeros(p.bs.nks, nwan, p.nspin)
+            vals_freeze_target = zeros(p.bs.nks, nwan, p.nspin)
             for spin = 1:p.nspin
                 for k = 1:p.bs.nks
                     val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
@@ -1427,6 +1439,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     
                     #acutally do the change
                     for n in 1:nwan
+                        #if true
                         if val_pw[order[n]] < energy_froz
                             #if k == 1
                             #    println("case 1 $n ", val_pw[order[n]])
@@ -1436,6 +1449,8 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                         else
                             #x=cutoff(val_tb[n], energy_froz, energy_froz2)
                             x = PROJECTABILITY[spin,k,order[n]]
+                            projectability[k,n,spin] = x
+                            
                             #      if x > 0.1
                             #x = x^2
                             #if k == 1
@@ -1475,9 +1490,15 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
                     val_tb_new2, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
                     m = min(length(val_pw), length(val_tb_new2))
                     #println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
+                    vals_freeze[k, :,spin] = val_tb_new2
+                    vals_freeze_target[k, :,spin] = val_pw[1:nwan]
+                    
                 end
             end
         end
+        band_en_freeze, efermi_freeze = band_energy(vals_freeze, p.bs.kweights, p.bs.nelec, 0.01, returnef=true)
+        band_en_pw, efermi_pw = band_energy(vals_freeze_target, p.bs.kweights, p.bs.nelec, 0.01, returnef=true)
+        println("freeze energy ", [band_en_freeze, band_en_pw, band_en_pw - band_en_freeze], " fermi ", [efermi_freeze, efermi_pw, efermi_pw - efermi_freeze])
     end
     println()
     println("do freeze 1 ")
@@ -1542,11 +1563,13 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
             
 #            band_en = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge)
             band_en,ef_calc = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge, returnef=true)
-            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d.degauss)
-
+            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d_scf.degauss)
+            println("energy_smear_calc $energy_smear_calc ef_calc $ef_calc d.degauss $(d.degauss)  $(d_scf.degauss)")
+            
             println("band_en_old " , band_en)
 
-            shift = (atomization_energy - band_en - energy_smear_calc + e_smear)/(nval - d.tot_charge + 1e-12)
+            shift = (atomization_energy - band_en + energy_smear_calc  - e_smear)/(nval - d.tot_charge + 1e-12)
+            println("atomization_energy $atomization_energy band_en $band_en energy_smear_calc $energy_smear_calc e_smear $e_smear")
             VAL = VAL .+ shift
             for spin = 1:p.nspin
                 for k = 1:p.bs.nks
@@ -1569,9 +1592,10 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
 
                         
             band_en,ef_calc = band_energy(VAL, d.bandstruct.kweights, nval - d.tot_charge, returnef=true)
-            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d.degauss)
+            energy_smear_calc = smearing_energy(VAL, d.bandstruct.kweights, ef_calc, d_scf.degauss)
             println("band_en_new " , band_en, " " , band_en+etypes, " diff atom ", atomization_energy+e_smear - (band_en+energy_smear_calc), " atomization_energy ", atomization_energy, "e types ", etypes)
 
+            println("total energy calculated  ", band_en + etypes + e_smear , " total energy dft ", d_scf.atomize_energy)
 
         end
     end
@@ -1581,7 +1605,7 @@ function create_tb(p::proj_dat, d::dftout; energy_froz=missing, nfroz=0, shift_e
     
     #    println("SIZE ham_k ", size(ham_k))
     
-    return ham_k, EIGS, Pmat, Nmat, VAL, warn_badk
+    return ham_k, EIGS, Pmat, Nmat, VAL, warn_badk,     projectability
 
 
 
@@ -1777,7 +1801,7 @@ Constructs the actual k-space hamiltonain, which involves lots of putting matric
 - `localized_factor = 0.15` increase localization of overlaps.
 - `screening=1.0` mulitply U by this factor. usually not used.
 """
-function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 4}; nonorth=true, K=missing, localized_factor = 0.15, screening=1.0)
+function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 4}; nonorth=true, K=missing, localized_factor = 0.15, screening=1.0, projectability = missing)
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
     
@@ -1888,11 +1912,23 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
             for spin = 1:p.nspin
                 ham_kS[:,:,k, spin] = Sk2[:,:,k]*ham_k[:,:,k, spin]*Sk2[:,:,k]
                 ham_kS[:,:,k, spin] = (ham_kS[:,:,k, spin]  + ham_kS[:,:,k, spin]')/2.0
+#                println(size(ham_k[:,:,k, spin][:,:]))
+#                println(size(ham_kS[:,:,k, spin][:,:]))
+#                println(size(S))
+#                println("deorth error", eigvals(Hermitian(ham_k[:,:,k, spin][:,:])) - eigvals(Hermitian(ham_kS[:,:,k, spin][:,:]), Hermitian(S)))
+                
             end
         end
 
-        tbk = make_tb_k(ham_kS, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=true)
+        
+        tbk = make_tb_k(ham_kS, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=true, projectability = projectability)
+#        println("get energy 1 !!!!!!!!!!!!!!!!!!!")
+#        get_energy_electron_density_kspace(tbk, nval)
+#        println()
         tbck = make_tb_crys_kspace(tbk, d.crys, nval, d.energy - etotal_atoms, scf=false, screening=screening)
+#        println("get energy 2 !!!!!!!!!!!!!!!!!!!")
+#        get_energy_electron_density_kspace(tbck)
+#        println()
 
 #        println("nspin k ", tbck.nspin)
         
