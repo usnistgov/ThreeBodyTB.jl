@@ -618,7 +618,8 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
                            niters=50, lambda=[0.0,0.0, 1e-5], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100,
                            refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing,
                            energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
-                           conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25)
+                           conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
+                           use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
     println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
@@ -680,7 +681,7 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
 #        println("fitting_version $fitting_version")
         
     @time begin
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
     end
     println("do_fitting_linear time (above)")
 #        println("pd 2 $(pd[2])")
@@ -694,10 +695,12 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
 
 #    return pd[1],pd[2], pd[3]
     
-    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig)
+    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig,
+                                  use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
 end
 
-function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25)
+function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
+                               use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
     leave_out = -1
 
@@ -2586,8 +2589,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
 
             #scf = true
-            mix_iterS = 0.01
-            mix_iter = 0.03
+            mix_iterS = 0.001
+            mix_iter = 0.003
             err_old_bigiter = 10.0^10
             err = 10.0^9.0
             badS = false
@@ -2605,7 +2608,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             #else
             #    nbig = 25
             #end
-            
+
+            adjust_mix = true
             for big_iter = 1:nbig
                 println("BIG ITER $big_iter solve_scf_mode $solve_scf_mode scf $scf sum DQ $(sum(abs.(DQ))) ------------ $err_old_bigiter")
 #                println("ch $ch")
@@ -2626,14 +2630,34 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                     end
                         
                 end
-                n_iterate_iter = 1
+                n_iterate_iter = 2
                 if opt_S
-                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=true)
+                    n_iterate_iter = 1
+                    ch_new, cs_new, err_new, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=adjust_mix)
                 else
                     #ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
-                    ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=true)
+                    ch_new, cs_new, err_new, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=adjust_mix)
                 end
 
+                if err_new > err
+                    mix_iter = mix_iter/10
+                    mix_iterS = mix_iterS/10
+                    adjust_mix=false
+                    if opt_S
+                        n_iterate_iter = 1
+                        ch_new, cs_new, err_new, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=adjust_mix)
+                    else
+                        #ch, cs, err, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, max(0.001, mix_iter * 0.8), max(0.02, mix_iterS * 0.8) , adjust_mix=true)
+                        ch_new, cs_new, err_new, mix_iter, mix_iterS, badS = iterate(ch, cs,true , opt_S, n_iterate_iter, mix_iter, mix_iterS, adjust_mix=adjust_mix)
+                    end
+                    
+                else
+                    ch = ch_new
+                    cs = cs_new
+                end
+                err = err_new
+                    
+                
  #               println("DQ AFTER ITERATE")
  #               println(DQ)
  #               println()
@@ -2701,7 +2725,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #println("err Y ", err)
                 #solve_scf_mode=false
                 
-                if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 1e-1 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 5e-1 && big_iter >= 15)
+                if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 0.5e-2 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 15)
                     println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
                     break
                 end
@@ -2773,7 +2797,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         end
         
         if cg == false
-            @time database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, fit_umat=fit_umat, U_dict=U_dict, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+            @time database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, fit_umat=fit_umat, U_dict=U_dict, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
             println("time make database (above)")
             return database, err, badS
         end
@@ -2873,7 +2897,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
         good = good .&& .!(Bool.(ERROR))
         
-        database = make_database(ch, cs,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        database = make_database(ch, cs,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
         return database
 
     end

@@ -102,18 +102,19 @@ function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = m
         return energy_cl, missing, missing, missing, missing, missing, missing, err_flag, missing
     end
     
-    #println("calc tb")
-    if sparse == false
+    println("calc tb")
+    @time if sparse == false
         tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite);
     else
         tbc = calc_tb_LV_sparse(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite);
     end
-    #println("done calc tb")
+    println("done calc tb")
     #    println("asdf ", tbc.eden, ", tc ", tot_charge, " tbc.tot_charge $(tbc.tot_charge)   nelec ", tbc.nelec)
     #println("lowmem")
     #@time tbc = calc_tb_lowmem(c, database, verbose=verbose, repel=repel);
-    
-    t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
+    println("calc scf")
+    @time t = scf_energy(tbc, smearing = smearing, grid=grid, conv_thr = conv_thr, iters=iters, mix=mix,mixing_mode=mixing_mode, nspin=nspin, e_den0=e_den0, verbose=verbose, use_sym = use_sym, database_classical=database_classical, do_classical=do_classical)
+    println("done scf")
     return t
     
 end
@@ -129,7 +130,8 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
 
     @time    begin
         
-        if do_classical
+        #if do_classical
+        if false
             if !ismissing(database_classical)
                 println("DO CLASSICAL $do_classical")
                 energy_classical, _ = calc_energy_cl(tbc.crys, database=database_classical)

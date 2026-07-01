@@ -51,8 +51,9 @@ function run_mc(c_start::crystal, tempK; step_size = 0.1, adjust_step = true, ad
 end
 
 
-function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=smear_default, grid = missing, conv_thr = 1e-4, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, twod_only=false)
+function mc_helper(c_start, beta, adjust_step, step_size, step_size_strain ; adjust_strain = false, nsteps = 100, database = missing, smearing=smear_default, grid = missing, conv_thr = 0.0005, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, twod_only=false)
 
+    conv_thr = conv_thr * c_start.nat
     c_current = deepcopy(c_start)
     c_work = deepcopy(c_start)
 

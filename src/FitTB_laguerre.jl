@@ -110,9 +110,9 @@ Used for simple linear fitting of coefficients. Interface for more complicated f
 """
 
 
-function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, fit_eam=false, fit_pert=false, fitting_version=fitting_version_default,  N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting(list_of_tbcs; dft_list = missing, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, fit_eam=false, fit_pert=false, fitting_version=fitting_version_default,  N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
-    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+    ret = do_fitting_linear(list_of_tbcs; dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite = fit_threebody_onsite, do_plot = do_plot, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
     return ret[1]
 
 end
@@ -210,7 +210,7 @@ end
 
 Make lots of preperations for fitting. Moves things around, put stuff in materices, etc.
 """
-function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors = missing)
 
 
     tbc_list = []
@@ -246,6 +246,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     ARR2 = []
     ARR3 = []
     HVEC = []
+    FRAC_VEC = []
     SVEC = []
     HIND = Dict()
     SIND = Dict()
@@ -282,9 +283,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
         println("calc_tb_prepare_fast input $N_cheb $n_eam $rho_decay $rho_max ")
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist)
         if tbc.nspin == 2
-            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3 =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist)
         end
         #            println("INDVEC ", INDvec)
         
@@ -365,6 +366,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 #            println(h_onsite2)
         end
 
+
+        push!(FRAC_VEC, frac_vec)
+        
         push!(HON, h_onsite)
         
         push!(SVEC, svec)
@@ -535,6 +539,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         X_S = zeros(rows, snum_new)
     
         Y_H = zeros(rows)
+        Y_frac = zeros(rows)
         Y_S = zeros(rows)
 
     else
@@ -555,6 +560,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     Y_Hnew_BIG = zeros(Float64, 0,1)
     Y_Snew_BIG = Float64[]
 
+    Y_frac_new_BIG = Float64[]
+    
     Xc_Hnew_BIG = Float64[]
     Xc_Snew_BIG = Float64[]
 
@@ -570,7 +577,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
     #reformat the data into matrices, fourier transform the real-space fitting data to k-space if using kspace
     c=0
-    for (arr2, arr3, hvec, svec, rind, Rvec, INDvec, h_on, ind_convert, tbc_real, tbc, spin) in zip(ARR2,ARR3, HVEC, SVEC, RIND, RVEC, INDVEC, HON, IND_convert, tbc_list_real, list_of_tbcs[keepind], SPIN)
+    for (arr2, arr3, hvec, svec, frac_vec, rind, Rvec, INDvec, h_on, ind_convert, tbc_real, tbc, spin) in zip(ARR2,ARR3, HVEC, SVEC, FRAC_VEC, RIND, RVEC, INDVEC, HON, IND_convert, tbc_list_real, list_of_tbcs[keepind], SPIN)
         c+=1
         
 #        println("asdf tbc $c  $(keepind[c])")
@@ -600,6 +607,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
             if !ismissing(Y_H)
                 Y_H[rind] = hvec[1][:]
                 Y_S[rind] = svec[:]
+                Y_frac[rind] = frac_vec[:]
             end
 #            end
 
@@ -625,13 +633,15 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                 end
             end
 
-            Xhc[:,1] = X_H_temp * ch
+            Xhc[:,1] = X_H_temp * ch 
             Xsc[:,1] = X_S_temp * cs
 
-
+            
 #            if tbc_real
 
 
+            println("ismissing kpoints ", ismissing(kpoints))
+            
             if ismissing(kpoints)
                 Y_H[rind] -= Xhc
                 Y_S[rind] -= Xsc
@@ -646,7 +656,29 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
             X_S_new[:,:] = X_S_temp[:,toupdate_inds_S]
 
             nw = maximum(INDvec)
-#            println("nw $nw")
+
+        if use_neighbors && ! ismissing(ch_neighbors)
+            #println("DOING NEIGHBOR")
+            X_H_new_frac = deepcopy(X_H_new)
+            for i = 1:size(X_H_new)[1]
+#                println("size i $i  ", [(size(X_H_new)) , size(X_H_new[i,:]), size(frac_vec[i])])
+             #   println("i $i frac $(frac_vec[i]) 1-f $(( 1 - frac_vec[i]))")
+                X_H_new[i,:] = X_H_new[i,:] * (  frac_vec[i])
+                X_H_new_frac[i,:] = X_H_new_frac[i,:] * ( 1  -  frac_vec[i])
+            end
+            #println("we add ", sum(abs.(X_H_new_frac * ch_neighbors)), " from ch ", sum(abs.(ch_neighbors)), " and X ", sum(abs.(X_H_new_frac)))
+            Xhc += X_H_new_frac * ch_neighbors
+            #println("types ", typeof(Xhc), " " ,  typeof(hvec[1]), " " ,  typeof(ch_neighbors), " " ,  typeof(X_H_new))
+            #println("size ", [size(Xhc), size(hvec[1]), size(ch_neighbors), size(X_H_new)])
+            #ch_temp = [ 1.0 , 0.05  , 0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05  , 0.05 ,  0.05]
+            #println("test XHc ", sum(Xhc - hvec[1]), " test hnew ", sum(X_H_new * ch_temp - hvec[1]), " test both ", sum(X_H_new * ch_temp + X_H_new_frac * ch_neighbors - hvec[1]) , " BOTH!!!!!!!!!!!!!!!!!!!!!!")
+        end
+
+            
+            #ch_temp = [ 1.0 , 0.05  , 0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05  , 0.05 ,  0.05]
+            #println("x test cH_temp ", sum(X_H_new * ch_temp - hvec[1]))
+            
+            #            println("nw $nw")
         end
 
 
@@ -671,7 +703,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 #                println("Xsc_Snew ", sum(abs.(Xsc_Snew - Xsc_Snew2)))
 #                println()
 
-                @time X_Hnew, X_Snew, Y_Hnew2, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[2], svec, Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=2)  #get kspace
+                @time X_Hnew, X_Snew, Y_Hnew2, Y_Snew, Xhc_Hnew, Xsc_Snew =  fourierspace(tbc, kpoints[keepind[c]], X_H_new, X_S_new, hvec[2], svec,  Xhc, Xsc, 1:size(rind)[1], Rvec, INDvec, h_on, ind_convert, spin=2)  #get kspace
 
                 Y_Hnew_BIG = vcat(Y_Hnew_BIG, 0.5*(Y_Hnew1+Y_Hnew2))
             end
@@ -687,6 +719,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
 
             Y_Snew_BIG = vcat(Y_Snew_BIG, Y_Snew)
+            #Y_frac_new_BIG = vcat(Y_Snew_BIG, Y_frac_new)
 
 
             ind_BIG[c, 2] = size(Xc_Hnew_BIG)[1] 
@@ -827,8 +860,14 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `NLIM=100` Largest number of k-points per structure. Set to smaller numbers to make code go faster / reduce memory, but may be less accurate.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
-function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-15, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-15, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false,neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
+    if rho_max == :auto && fit_eam
+        rho_max = get_rho_max(list_of_tbcs_nonscf, N_cheb, n_eam, rho_decay )
+    elseif rho_max == :auto
+        rho_max = zeros(n_eam)
+    end
+    
 
     println("MODE $mode")
 
@@ -853,7 +892,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  =
         prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite,
-                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -996,7 +1035,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
     
     if return_database
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, tbc_list = list_of_tbcs[keepind] , fit_eam=fit_eam, fit_pert = fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
     else
         database = Dict()
     end
@@ -1049,7 +1088,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict(), N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict(), N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
     println("make_database function")
     if ismissing(starting_database)
         database = Dict()
@@ -1106,7 +1145,11 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
             background_charge_correction = 0.0
         end
 
-        coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        if use_neighbors
+            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, datH_lowdim=ch_neighbors[hind], datH_dense=ch[hind])
+        else
+            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        end
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
         if dim == 2
@@ -1316,6 +1359,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
     
     Y_Hnew = zeros(nk*N * 2)
     Y_Snew = zeros(nk*N * 2)
+#    Y_frac_new = zeros(nk*N * 2)
 
     Xhc_Hnew = zeros(nk*N * 2)
     Xsc_Snew = zeros(nk*N * 2)
@@ -1379,9 +1423,13 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
                 Y_Hnew[indr] += Y_H[ri] .* real_expirk[i]
                 Y_Snew[indr] += Y_S[ri] .* real_expirk[i]
 
+
                 Y_Hnew[indi] += Y_H[ri] .* imag_expirk[i]
                 Y_Snew[indi] += Y_S[ri] .* imag_expirk[i]
-
+#                if use_frac
+#                    Y_frac_new[indr] += Y_frac[ri] .* real_expirk[i]
+#                    Y_frac_new[indi] += Y_S[ri] .* imag_expirk[i]
+#                end
 
 
             end
@@ -1431,7 +1479,7 @@ function fourierspace(tbc, kpoints, X_H, X_S, Y_H, Y_S, Xhc, Xsc, rind, Rvec, IN
         end
     end
 
-    return X_Hnew', X_Snew', Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew
+    return X_Hnew', X_Snew', Y_Hnew, Y_Snew, Xhc_Hnew, Xsc_Snew #, Y_frac_new
 end
 
 #########################################################################################################################################
@@ -1646,7 +1694,7 @@ This is the primary function for fitting. Uses the self-consistent linear fittin
 - `start_small = false` When fitting only 3body data, setting this to true will start the 3body terms with very small values, which can improve convergence. Not useful if also fitting 2body terms.
 
 """
-function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[],  rho_max = Float64)
+function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing, niters=50, lambda=[0.0,0.0], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100, refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[],  rho_max = Float64, use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
     println("do_fitting_recursive   niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc  ")
     
@@ -1674,14 +1722,14 @@ function do_fitting_recursive(list_of_tbcs ; weights_list = missing, dft_list=mi
             starting_database_t = starting_database
         end
 
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
 #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
-    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+    return do_fitting_recursive_main(list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
 
 end
 
@@ -3121,7 +3169,7 @@ end
 
 
 
-function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[])
+function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
 
     if typeof(lambda) <: Float64
         lambda = [lambda, lambda]
@@ -4138,7 +4186,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             return chX, sum((TOTX * chX .- TOTY).^2) + 10000.0 * sum(ERROR)  #sum(abs.((TOTX*chX) - TOTY))
         end
         
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
 
         if gen_add_ham
 
@@ -4147,7 +4195,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
             #for chX in vcat([ch_mean], ch_arr)
             for chX2a in chX2_arr
                 println("chX2a $chX2a")
-                databaseX = make_database(chX2a, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], fitting_version=fitting_version)
+                databaseX = make_database(chX2a, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = [], fitting_version=fitting_version,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
                 if update_all == false && !ismissing(starting_database)
                     for key in keys(databaseX)
                         if key in keys(starting_database)
@@ -6432,7 +6480,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         println(good)
         println("make database")
 
-        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good])
+        database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
 
         if update_all == false && !ismissing(starting_database)
             for key in keys(database)

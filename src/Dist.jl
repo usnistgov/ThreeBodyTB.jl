@@ -1264,7 +1264,7 @@ end
 
 function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; var_type=Float64, return_floats=true, shrink = 1.0, R=missing, cutoff4 = -1.0)
     #    println("cutoff $cutoff $cutoff2")
-
+    #println("in 1distances_etc_3bdy_parallel_LV")
     begin
         
         if ismissing(cutoff)
@@ -1517,7 +1517,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         
         dmin_types3_TT = Dict()
     end
-#    println("threebody dist")
+    #println("threebody dist")
     if threebody
 
         nz_ab = ones(Int64, nat, size(nz_ints,1)*nat,4)
@@ -1678,7 +1678,7 @@ function distances_etc_3bdy_parallel_LV(crys, cutoff=missing, cutoff2=missing; v
         nz_ind3 = zeros(Int64 ,1,5)
         dist3_nonzero = zeros(Int64 ,1,5)
     end
-
+    #println("fourbody")
     if fourbody
 
         nz_ab = ones(Int64, nat, size(nz_ints,1)*nat,4)
