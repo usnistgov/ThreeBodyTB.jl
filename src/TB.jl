@@ -184,6 +184,7 @@ mutable struct tb_crys_dense{T} <: tb_crys
     tot_charge::Float64
     dq::Array{Float64,1}
     dq_eden::Array{Float64,1}
+    energy_var::Float64 # the extra energy from classical model
 end
 
 
@@ -441,6 +442,12 @@ function read_tb_crys(filename; directory=missing, sparse=false)
         efermi = 0.0
     end
 
+    if "energy_var" in keys(d)
+        energy_var = parse(Float64,d["energy_var"])
+    else
+        energy_var = 0.0
+    end
+    
     
 
     #SCF stuff is optional
@@ -551,7 +558,7 @@ function read_tb_crys(filename; directory=missing, sparse=false)
         tb = make_tb(H, ind_arr, r_dict, h1=h1, h1spin=h1spin)
     end    
     
-    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi)
+    tbc = make_tb_crys(tb, crys, nelec, dftenergy, scf=scf, eden=eden, gamma=gamma, background_charge_correction = background_charge_correction, tb_energy=energy, fermi_energy=efermi, energy_var=energy_var)
 
     if sparse
         tbc = convert_sparse_dense(tbc)
@@ -866,7 +873,7 @@ function write_tb_crys(filename, tbc::tb_crys)
 
     addelement!(root, "efermi", string(tbc.efermi))
     addelement!(root, "energy", string(tbc.energy))
-
+    addelement!(root, "energy_var",string(tbc.energy_var))
     
     tightbinding = ElementNode("tightbinding")
     link!(root, tightbinding)
@@ -881,6 +888,8 @@ function write_tb_crys(filename, tbc::tb_crys)
     addelement!(tightbinding, "scf",string(tbc.tb.scf))
     addelement!(tightbinding, "h1",arr2str(tbc.tb.h1))
     addelement!(tightbinding, "scfspin",string(tbc.tb.scfspin))
+
+
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
     
     function makestr(H,S, nonorth, ind_arr)
@@ -1065,7 +1074,7 @@ end
 
     Constructor function for `tb_crys` object
     """
-function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 )
+function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64; scf=false, eden = missing, gamma=missing, background_charge_correction=0.0, within_fit=true, screening=1.0, tb_energy=-999, fermi_energy=0.0 , energy_var = 0.0)
 
     T = typeof(crys.coords[1,1])
     nspin = ham.nspin
@@ -1100,7 +1109,7 @@ function make_tb_crys(ham::tb,crys::crystal, nelec::Float64, dftenergy::Float64;
     
     #    return tb_crys{T}(ham,crys,nelec, dftenergy, scf, gamma, eden)
     
-    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, dq_eden)
+    return tb_crys_dense{T}(ham,crys,nelec, dftenergy, scf, gamma, background_charge_correction, eden, within_fit, tb_energy, fermi_energy, nspin, tot_charge, dq, dq_eden, energy_var)
 end
 
 """
@@ -3055,7 +3064,7 @@ function calc_energy_charge_fft(tbc::tb_crys_dense; grid=missing, smearing=smear
     tbc.efermi = efermi
     tbc.eden[:,:] = chargeden[:,:]
     #println("energy comps $eband $etypes $echarge $emag")
-    energy = eband + etypes + echarge + emag
+    energy = eband + etypes + echarge + emag + tbc.energy_var
 
     #     println("end asdf")
 

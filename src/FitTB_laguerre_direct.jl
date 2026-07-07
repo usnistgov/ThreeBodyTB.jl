@@ -619,7 +619,8 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
                            refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing,
                            energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
                            conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
-                           use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
+                           use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,
+                           use_energy=false, use_energy_threebody=false)
 
     println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
@@ -681,7 +682,7 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
 #        println("fitting_version $fitting_version")
         
     @time begin
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
+        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
     end
     println("do_fitting_linear time (above)")
 #        println("pd 2 $(pd[2])")
@@ -696,11 +697,11 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
 #    return pd[1],pd[2], pd[3]
     
     return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig,
-                                  use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
+                                  use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
 end
 
 function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
-                               use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
+                               use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing, use_energy=false, use_energy_threebody=false)
 
     leave_out = -1
 

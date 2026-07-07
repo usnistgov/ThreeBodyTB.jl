@@ -164,9 +164,13 @@ function fitting_version_params(version=fitting_version_default)
         n_eam = 12
 
         n_2body_energy = 4
-        n_3body_allsame_energy = 3
-        n_3body_twosame_energy = 10
-        n_3body_diff_energy = 7
+        n_3body_allsame_energy = 2
+        n_3body_twosame_energy = 2
+        n_3body_diff_energy = 2
+
+        #        n_3body_allsame_energy = 3
+#        n_3body_twosame_energy = 10
+#        n_3body_diff_energy = 7
         
         return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam, n_2body_energy,  n_3body_allsame_energy, n_3body_twosame_energy, n_3body_diff_energy
 #        return n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam
@@ -293,17 +297,12 @@ mutable struct coefs
     datS::Array{Float64,1}
     sizeH::Int64
     sizeS::Int64
-    #    inds::Dict{Tuple, Array{Int64,1}}
     inds::Dict{Array{Symbol}, Array{Int64,1}}
     inds_int::Dict{Array{Symbol}, Any}
-
-#    names::Array{String,1}
     names::Set
     orbs::Array{Any,1}
     cutoff::Float64
     min_dist::Float64
-
-#    maxmin_val_train::Dict
     dist_frontier::Dict
     version::Int64
     lim::Dict
@@ -312,7 +311,6 @@ mutable struct coefs
     use_pert::Bool
     datH_ensemble::Array{Float64,1}
     n_ensemble::Int64
-
     n_2body::Int64
     n_2body_onsite::Int64
     n_2body_S::Int64
@@ -335,6 +333,7 @@ mutable struct coefs
     neighbor_spread::Float64
     neighbor_number::Float64
     use_energy::Bool
+    use_energy_threebody::Bool
     n_2body_energy::Int64
     n_3body_allsame_energy::Int64
     n_3body_twosame_energy::Int64
@@ -462,6 +461,7 @@ function write_coefs(filename, co::coefs; compress=true)
     addelement!(c, "datH_lowdim", arr2str(co.datH_lowdim))
 
     addelement!(c, "use_energy", "$(co.use_energy)" )
+    addelement!(c, "use_energy_threebody", "$(co.use_energy_threebody)" )
 
     addelement!(c, "n_2body_energy", "$(co.n_2body_energy)")
     addelement!(c, "n_3body_allsame_energy", "$(co.n_3body_allsame_energy)")
@@ -639,7 +639,11 @@ function read_coefs(filename, directory = missing)
 
     use_energy = false
     if haskey(d["coefs"], "use_energy")
-        use_neighbors = parse(Bool, d["coefs"]["use_energy"])
+        use_energy = parse(Bool, d["coefs"]["use_energy"])
+    end
+    use_energy_threebody = false
+    if haskey(d["coefs"], "use_energy_threebody")
+        use_energy_threebody = parse(Bool, d["coefs"]["use_energy_threebody"])
     end
     if use_energy
         n_2body_energy = parse(Int64, d["coefs"]["n_2body_energy"])
@@ -657,7 +661,12 @@ function read_coefs(filename, directory = missing)
         datE = Float64[]
         datE_ensemble = Float64[]
     end    
-
+    if use_energy_threebody == false
+        n_3body_allsame_energy= 0
+        n_3body_twosame_energy= 0
+        n_3body_diff_energy= 0
+        datE_ensemble = Float64[]
+    end
     
 
     #    if haskey(d["coefs"], "use_pert")
@@ -682,7 +691,7 @@ function read_coefs(filename, directory = missing)
                     rho_max = rho_max,
                     rho_decay=rho_decay,
                     neighbor_dist=neighbor_dist, neighbor_spread=neighbor_spread, neighbor_number=neighbor_number, datH_dense = datH_dense, datH_lowdim=datH_lowdim, use_neighbors=use_neighbors,
-                    use_energy=use_energy, datE = datE, datE_ensemble = datE_ensemble
+                    use_energy=use_energy, datE = datE, datE_ensemble = datE_ensemble, use_energy_threebody = use_energy_threebody
                     )
 
     return co
@@ -698,17 +707,18 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=6, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing, Uarr = missing, background_charge_correction = 0.0, n_eam=0, N_cheb = 0, rho_max = Float64[], rho_decay = Float64[], datH_dense  = Float64[], datH_lowdim = Float64[], use_neighbors=false, neighbor_dist = 4.0, neighbor_spread = 0.5, neighbor_number = 3.25 , use_energy = false, datE = Float64, datE_ensemble = Float64[] )
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=6, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing, Uarr = missing, background_charge_correction = 0.0, n_eam=0, N_cheb = 0, rho_max = Float64[], rho_decay = Float64[], datH_dense  = Float64[], datH_lowdim = Float64[], use_neighbors=false, neighbor_dist = 4.0, neighbor_spread = 0.5, neighbor_number = 3.25 , use_energy = false, datE = missing, datE_ensemble = Float64[] , use_energy_threebody=false)
 
-#    println("make coefs")
-#    sort!(at_list)
-
+    #    println("make coefs")
+    #    sort!(at_list)
+    totE = 0
+    at_list = Set(at_list)
     if  version == 4 || version == 5 || version == 99 || version == 51
         totH,totS, data_info, orbs = get_data_info_v5(at_list, dim, use_eam=use_eam, version=version)
     elseif  version == 7
-        totH,totS, data_info, orbs = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version, num_eam_tot=n_eam * N_cheb)
+        totH,totS, data_info, orbs, totE = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version, num_eam_tot=n_eam * N_cheb)
     elseif  version == 6
-        totH,totS, data_info, orbs = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version, num_eam_tot=n_eam * N_cheb, use_energy=use_energy)
+        totH,totS, data_info, orbs, totE = get_data_info_v6(at_list, dim, use_eam=use_eam, version=version, num_eam_tot=n_eam * N_cheb, use_energy=use_energy)
     elseif  version == 2 || version == 3
         totH,totS, data_info, orbs = get_data_info_v2(at_list, dim, use_eam=use_eam)
     elseif version == 1
@@ -718,20 +728,20 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         version = 2
         totH,totS, data_info, orbs = get_data_info_v2(at_list, dim, use_eam=use_eam, use_pert=use_pert)
     end
+    
+    println("make_coefs ", at_list , " totE ", totE)
+    #    for key in keys(data_info)
+    #        println(key, " data_info ", minimum(data_info[key]), " " ,maximum(data_info[key]))
+    #    end
 
-#    println("make_coefs ", at_list)
-#    for key in keys(data_info)
-#        println(key, " data_info ", minimum(data_info[key]), " " ,maximum(data_info[key]))
-#    end
+    #    println("make coeffs $totH $totS")
 
-#    println("make coeffs $totH $totS")
-
-#    if ismissing(maxmin_val_train)
-#        maxmin_val_train = Dict()
-#        for d in keys(data_info)
-#            maxmin_val_train[d] = (1e7, -1e7)
-#        end
-#    end
+    #    if ismissing(maxmin_val_train)
+    #        maxmin_val_train = Dict()
+    #        for d in keys(data_info)
+    #            maxmin_val_train[d] = (1e7, -1e7)
+    #        end
+    #    end
 
     if ismissing(datH)
         if fillzeros
@@ -757,7 +767,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     if !ismissing(dist_frontier)
         
         for key in keys(dist_frontier)
-#            println("key ", key, " at_list ", at_list)
+            #            println("key ", key, " at_list ", at_list)
             if dim == length(key)
                 dist_frontier2[key] = dist_frontier[key]
                 dist_frontier2[Symbol.(key)] = dist_frontier[key]
@@ -774,7 +784,7 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
 
         for k in keys(data_info)
 
-#            println("k $k")
+            #            println("k $k")
 
             if length(k) == 5
                 t1,s1,t2,s2,HH = k
@@ -808,8 +818,15 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
                     inds_int[[t1]][2][i1,i2] = n
                     inds_int[[t1]][1][i1,i2,1:n] = data_info[[t1,s1,s2,HH]]
                 end
+            elseif length(k) == 3
+                t1,t2,HH = k
+                if HH == :E
+                    n = length(data_info[[t1,t2,:E]])
+                    inds_int[[t1,t2,:E]] =  (zeros(UInt16, 8),n)
+                    inds_int[[t1,t2,:E]][1][1:n] = data_info[[t1,t2,HH]]
+                end
             end
-                
+            
         end
     end
 
@@ -866,8 +883,15 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
                     inds_int[[t1,t2,t3,:O]][1][i1,1:n] = data_info[[t1,t2,t3,s1,HH]]
                     
                 end
+            elseif length(k) == 4
+                t1,t2,t3,HH = k
+                if HH == :E 
+                    n = length(data_info[[t1,t2,t3,:E]])                   
+                    inds_int[[t1,t2,t3,:E]] = (zeros(UInt16, 32), n)
+                    inds_int[[t1,t2,t3,:E]][1][1:n] = data_info[[t1,t2,t3,:E]]
+                end
             end                
-                
+            
 
         end
     end
@@ -936,6 +960,27 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
 
     n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam_old, n_2body_energy,  n_3body_allsame_energy, n_3body_twosame_energy, n_3body_diff_energy = fitting_version_params(version)
 
+    if ismissing(datE)
+        if fillzeros
+            datE = zeros(totE)
+        else
+            datE = ones(totE)
+        end
+    end
+    
+    if use_energy == false
+        n_2body_energy = 0
+        n_3body_allsame_energy = 0
+        n_3body_twosame_energy = 0
+        n_3body_diff_energy = 0
+    end
+    if use_energy_threebody == false
+        n_3body_allsame_energy = 0
+        n_3body_twosame_energy = 0
+        n_3body_diff_energy = 0
+    end
+    
+
     if ismissing(Uarr)
         Uarr = zeros(0,2)
         use_Uarr = false
@@ -944,12 +989,70 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
     end
 
     
+#    println("use energy ", use_energy)
+#    println(use_energy_threebody)
+#    println(n_2body_energy)
+#    println(n_3body_allsame_energy)
+#    println(n_3body_twosame_energy)
+#    println(n_3body_diff_energy)
+#    println(datE)
+#    println(datE_ensemble)
+#    println(length(datE))
+
+
 #        datH_sr = , datH_lr = missing, use_neighbors=false, neightbor_dist = 4.0, neighbor_spread = 0.5, neighbor_number = 4.0 )
     
-    return coefs(dim, datH, datS, totH, totS, data_info, inds_int, at_list, orbs, cutoff, min_dist, dist_frontier2, version, lim, repval, use_eam, use_pert, datH_ensemble, n_ensemble, n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, use_Uarr, Uarr, background_charge_correction, n_eam, N_cheb, rho_max, rho_decay, use_neighbors,  datH_dense, datH_lowdim,  neighbor_dist, neighbor_spread,  neighbor_number, use_energy, n_2body_energy,  n_3body_allsame_energy, n_3body_twosame_energy, n_3body_diff_energy, datE, datE_ensemble, length(datE))
-
+    return coefs(dim,
+                 datH,
+                 datS,
+                 totH,
+                 totS,
+                 data_info,
+                 inds_int,
+                 at_list,
+                 orbs,
+                 cutoff,
+                 min_dist,
+                 dist_frontier2,
+                 version,
+                 lim,
+                 repval,
+                 use_eam,
+                 use_pert,
+                 datH_ensemble,
+                 n_ensemble,
+                 n_2body,
+                 n_2body_onsite,
+                 n_2body_S,
+                 n_3body,
+                 n_3body_same,
+                 n_3body_triple,
+                 n_3body_onsite,
+                 n_3body_onsite_same,
+                 use_Uarr,
+                 Uarr,
+                 background_charge_correction,
+                 n_eam,
+                 N_cheb,
+                 rho_max,
+                 rho_decay,
+                 use_neighbors,
+                 datH_dense,
+                 datH_lowdim,
+                 neighbor_dist,
+                 neighbor_spread,
+                 neighbor_number,
+                 use_energy,
+                 use_energy_threebody,
+                 n_2body_energy,
+                 n_3body_allsame_energy,
+                 n_3body_twosame_energy,
+                 n_3body_diff_energy,
+                 datE,
+                 datE_ensemble,
+                 length(datE))
 end
-    
+   
 
 """
     function plot_database(database, entry, t=missing)
@@ -1682,7 +1785,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
         totS = get2bdy(n_2body_S, :S)
 
                 #2body part
-        function get2bdyE()
+        function get2bdyE(n_2body_energy)
             tot=n_2body_energy
             data_info[[at1, at2, :E]] =  (1:n_2body_energy)
             data_info[[at2, at1, :E]] =  (1:n_2body_energy)
@@ -1690,12 +1793,12 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
         end
 
         if use_energy
-            totE = get2bdyE(n_2body_E)
+            totE = get2bdyE(n_2body_energy)
         else
             totE = 0
         end
         
-        #        println("totH $totH totS $totS")
+        println("totH $totH totS $totS totE $totE")
         #onsite part
         function getonsite(atX,orbsX, tot, n)
             for o1 in orbsX
@@ -1999,20 +2102,22 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
         totHO = tot_size
 
                 #2body part
-        function get3bdyE()
-            num = legnth(Set([a1,a2,a3]))
+        #good
+        function get3bdyE(at_list)
+            num = length(Set([at_list]))
             if num == 1
-                data_info[[at1, at2, at3, :E]] =  [1,2,2,2,3,3,3]
+                at1 = at_list[1]
+                data_info[[at1, at1, at1, :E]] =  [1,2]
             elseif num == 2
-                t1,t2 = sort(collect(Set([a1,a2,a3])))
+                t1,t2 = sort(collect(Set(at_list)))
 
-                data_info[[t1, t2, t2, :E]] =  [1,2,2,3,4,4,5]
-                data_info[[t2, t1, t2, :E]] =  [1,2,3,2,4,5,4]
-                data_info[[t2, t2, t1, :E]] =  [1,3,2,2,5,4,4]
+#                data_info[[t1, t2, t2, :E]] =  [1,2,2,3,4,4,5]
+#                data_info[[t2, t1, t2, :E]] =  [1,2,3,2,4,5,4]
+#                data_info[[t2, t2, t1, :E]] =  [1,3,2,2,5,4,4]
 
-                data_info[[t1, t1, t2, :E]] =  [1,2,2,3,4,4,5] .+ 5
-                data_info[[t1, t2, t1, :E]] =  [1,2,3,2,4,5,4] .+ 5
-                data_info[[t2, t1, t1, :E]] =  [1,3,2,2,5,4,4] .+ 5
+#                data_info[[t2, t1, t1, :E]] =  [1,2,2,3,4,4,5] .+ 5
+#                data_info[[t1, t2, t1, :E]] =  [1,2,3,2,4,5,4] .+ 5
+#                data_info[[t1, t1, t2, :E]] =  [1,3,2,2,5,4,4] .+ 5
                 
                 
             elseif num == 3
@@ -2040,16 +2145,17 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
 
                 a = [2,3,4]
                 b = [5,6,7]
-                A123 = sort([at1,at2,at3])
+                A123 = sort(at_list)
                 for perm in PERM
-
+                    
                     dist_perm = atom_perm_to_dist_perm(perm)
                     data_info[[A123[perm[1]],A123[perm[2]], A123[perm[3]], :E]] =  [1,a[dist_perm[1]], a[dist_perm[2]], a[dist_perm[3]],b[dist_perm[1]], b[dist_perm[2]], b[dist_perm[3]]]
                 end
             end
+            return 2
         end
         if use_energy
-            totE = get3bdyE()
+            totE = get3bdyE(at_list)
         else
             totE = 0
         end
@@ -2058,6 +2164,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
     else
         println("error, only 2 or 3 body terms, you gave me : ", at_list)
     end
+    println("final totE check $totE")
     return totHO ,totS, data_info, orbs, totE
 
 end            
@@ -4844,14 +4951,31 @@ Where
 - `dmin_types` - shortest 2body distances
 - `dmin_types` - shortest 3body distances
 """
-function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_threebody_onsite=false, use_pert = false, spin=1, use_eam=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_max = Float64[], rho_decay=Float64[], use_neighbors=false, neighbor_number = 3.25, neighbor_spread = 0.5, neighbor_dist = 3.5, use_energy=false)
+function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
+                              use_threebody_onsite=false,
+                              use_pert = false,
+                              spin=1,
+                              use_eam=false,
+                              fitting_version = fitting_version_default,
+                              N_cheb = 0,
+                              n_eam = 0,
+                              rho_max = Float64[],
+                              rho_decay=Float64[],
+                              use_neighbors=false,
+                              neighbor_number = 3.25,
+                              neighbor_spread = 0.5,
+                              neighbor_dist = 3.5,
+                              use_energy=false,
+                              use_energy_threebody=false)
 
-    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam_old, n_2body_energy,  n_3body_allsame_energy, n_3body_twosame_energy, n_3body_diff_energy  = fitting_version_params(fitting_version)
+
 
     
 #    println("calc_tb_prepare_fast 3bdy $use_threebody    3bdy-onsite $use_threebody_onsite")
 #    println(reference_tbc.crys)
 #    println()
+
+    n_2body, n_2body_onsite, n_2body_S, n_3body, n_3body_same, n_3body_triple, n_3body_onsite, n_3body_onsite_same, n_eam_old, n_2body_energy,  n_3body_allsame_energy, n_3body_twosame_energy, n_3body_diff_energy  = fitting_version_params(fitting_version)
     
     crys = reference_tbc.crys
     
@@ -4863,7 +4987,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
     
     ind2orb, orb2ind, etotal, nval = orbital_index(crys)
 
-    if use_threebody || use_threebody_onsite || use_pert
+    if use_threebody || use_threebody_onsite || use_pert || (use_energy && use_energy_threebody)
         #println("distances")
         #R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3,Rind = distances_etc_3bdy_parallel(crys,cutoff2X, cutoff3bX)
         R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
@@ -4926,7 +5050,8 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             if !haskey(twobody_arrays, at_set)
 
-                coef = make_coefs(at_set, 2, use_eam=use_eam, version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_max = rho_max, rho_decay= rho_decay, use_energy=use_energy)
+                println("use energy $use_energy  use_energy_threebody $use_energy_threebody")
+                coef = make_coefs(at_set, 2, use_eam=use_eam, version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_max = rho_max, rho_decay= rho_decay, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
 
 #                println("2bdy $at_set")                
 #                println("atset ", at_set)
@@ -4936,13 +5061,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
                 hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
                 smat = zeros(var_type, nkeep*nwan*nwan, coef.sizeS)
-                emat = zeros(var_type, nkeep*nwan*nwan, coef.sizeS)
+                emat = zeros(var_type, 1, coef.sizeE)
+                println("add emat $(size(emat))  sizeE $(coef.sizeE)")
 
 #                hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                smat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeS)
 
 
-                twobody_arrays[at_set] = [hmat, smat, coef]
+                twobody_arrays[at_set] = [hmat, smat, coef, emat]
 
             end
         end
@@ -4950,7 +5076,8 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
     threebody_arrays = Dict()
 
-    if use_threebody || use_threebody_onsite || use_pert
+    if use_threebody || use_threebody_onsite || use_pert ||  (use_energy && use_energy_threebody)
+
 
         for c in crys.stypes
             for c2 in crys.stypes
@@ -4958,11 +5085,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                     at_set = Set((c, c2, c3))
                     if !haskey(threebody_arrays, at_set)
 #                        println("3bdy $at_set")
-                        coef = make_coefs(at_set, 3, use_pert=use_pert, version = fitting_version)
+                        coef = make_coefs(at_set, 3, use_pert=use_pert, version = fitting_version, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
                         hmat = zeros(var_type, nkeep*nwan*nwan, coef.sizeH)
 #                        hmat = spzeros(var_type, nkeep*nwan*nwan, coef.sizeH)
+                        emat = zeros(var_type, 1, coef.sizeE)
 
-                        threebody_arrays[at_set] = [hmat, coef]
+                        threebody_arrays[at_set] = [hmat, coef, emat]
 
                     end
 
@@ -5072,7 +5200,23 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         lmn[:] = dist_arr[c,2:4]
         #dist = dist_arr[a1,a2,cind,1]
         #lmn[:] = dist_arr[a1,a2,cind,2:4]
+ 
+        if use_energy && dist > 1e-5
+            t1 = crys.stypes[a1]
+            t2 = crys.stypes[a2]
+            cutoff2X = get_cutoff(t1,t2)[1]
+            cut = cutoff_fn(dist, cutoff2X - cutoff_length, cutoff2X)
 
+            at_set = Set((t1, t2))
+            coef = twobody_arrays[at_set][3]
+            ie = coef.inds[[t1,t2,:E]]
+            n_2body_energy = coef.n_2body_energy
+            println("ie $ie  n_2body_energy $n_2body_energy")
+            println("two ", size(twobody_arrays[at_set][4]))
+            println("fit ", size( fit_twobody_energy(dist, n_2body_energy) * cut))
+            println("add a1 $a1 at $a2  dist $dist  ",  fit_twobody_energy(dist, n_2body_energy) * cut)
+            twobody_arrays[at_set][4][ie] += fit_twobody_energy(dist, n_2body_energy) * cut
+        end
 
         for o1 = orb2ind[a1]
             a1a,t1,s1 = ind2orb[o1]
@@ -5111,7 +5255,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
                 dist2[ind] = dist
 #                if abs(svec[ind]) > 0.001
 #                    println(" svec $ind $o1 $o2 $c_ref ",   svec[ind] )
-#                end
+                #                end
 
                 if (dist > cutoff2X || dist < 1e-5)
                     continue
@@ -5142,6 +5286,10 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         end
     end
 
+    println("done twobody ")
+    println(twobody_arrays[Set([:Al])][4])
+    println("!!!!!!!!!!!!")
+    
 #    println("counter: ", counter)
 
 #resize arrays
@@ -5163,7 +5311,9 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
         hmat = hmat[1:counter,:]
         smat = smat[1:counter,:]
 
-        twobody_arrays[key] = [hmat, smat, coef]
+        emat = twobody_arrays[key][4]
+        
+        twobody_arrays[key] = [hmat, smat, coef, emat]
     end
 
     if use_threebody || use_threebody_onsite || use_pert
@@ -5171,14 +5321,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             hmat = threebody_arrays[key][1] 
             hmat = hmat[1:counter,:]
             coef = threebody_arrays[key][2] 
-            threebody_arrays[key] = [hmat, coef]
+            threebody_arrays[key] = [hmat, coef, emat]
         end
     end
 
 ############3body
 
     println("assign three body")
-    @time if use_threebody  || use_threebody_onsite || use_pert
+    @time if use_threebody  || use_threebody_onsite || use_pert || (use_energy_threebody && use_energy)
         for counter = 1:size(array_ind3)[1]
             a1 = array_ind3[counter,1]
             a2 = array_ind3[counter,2]
@@ -5205,6 +5355,14 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             at_set3 = Set((t1, t2, t3))
 
+            if use_energy && use_energy_threebody
+                coef = threebody_arrays[at_set3][2]
+                ie = coef.inds[[t1, t2, t3, :E]]
+#                println("ie $ie size $(size(threebody_arrays[at_set3][3][1,ie]))  fit $(size(fit_threebody_energy(coef, t1,t2,t3,dist,dist31,dist32) * cut2))")
+#                println(threebody_arrays[at_set3][3])
+                threebody_arrays[at_set3][3][ie] +=  fit_threebody_energy(coef, t1,t2,t3,dist,dist31,dist32)[:] * cut2
+            end
+            
             if use_threebody
 
                 for o1 = orb2ind[a1]
@@ -5615,7 +5773,8 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
             th =  deepcopy(twobody_arrays[key][1][keep,:])
             ts =  deepcopy(twobody_arrays[key][2][keep,:])
             coef = deepcopy(twobody_arrays[key][3])
-            twobody_arrays[key] = [th, ts, coef]
+            emat = deepcopy(twobody_arrays[key][4])
+            twobody_arrays[key] = [th, ts, coef,emat]
 
         end
 
@@ -5623,8 +5782,9 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false, use_t
 
             th =  deepcopy(threebody_arrays[key][1][keep,:])
             coef = deepcopy(threebody_arrays[key][2])
+            emat = deepcopy(threebody_arrays[key][3])
 
-            threebody_arrays[key] = [th, coef]
+            threebody_arrays[key] = [th, coef,emat]
 
         end
         
@@ -5916,9 +6076,6 @@ function calc_tb_prepare_fast_old(reference_tbc::tb_crys; use_threebody=false, u
 
                 twobody_arrays[at_set][1][ind,ih] += h[:] * cut
                 twobody_arrays[at_set][2][ind,is] += s[:] * cut
-                if use_energy
-                    
-                end
                 
 #                if (s1 == :px) && (s2 == :dxz) && dist < 7.0
 #                    println(c," q ", ind,  " " , (t1,s1,t2,s2,:S), " " , is, " " , s[:] * cut)
@@ -8902,11 +9059,17 @@ function fit_twobody(orb1,orb2,dist,lmn, n_2body, n_2body_S)
 
 
     end
+
     
     return H, S
     
 end
 
+function fit_twobody_energy( dist, n_2body_energy)
+    t =  two_body_H(dist, missing, n_2body_energy)
+    println("t $t")
+    return t
+end
 
 """
     function calc_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, database) 
@@ -9103,6 +9266,80 @@ function calc_threebody(c,ind, t1,t2,t3,orb1,orb2,dist,dist31,dist32,lmn12, lmn3
     return  H1
 
 
+end
+
+function fit_threebody_energy(coef,t1,t2,t3, dist12,dist13,dist23)
+
+    a0 = 1.0
+    b0 = 1.0
+    c0 = 1.0
+
+    a1 = exp(-dist12)
+    b1 = exp(-dist13)
+    c1 = exp(-dist23)
+
+#    a2 = (1.0 .- dist12) * a1
+#    b2 = (1.0 .- dist13) * b1
+#    c2 = (1.0 .- dist23) * c1
+
+    return [a1*b1*c1*10^3 a1*b1*c0*10^2]
+    
+#=    v = [ a1*b1*c1 a0*b1*c1  a1*b0*c1  a1*b1*c0  a1*b1*c2  a1*b2*c1  a2*b1*c1 ]
+
+    if t1 == t2 && t1 == t3
+        n = coef.n_3body_allsame_energy
+        vn = zeros(n)
+        vn[1] = v[1]
+        vn[2] = sum(v[2:4])
+        vn[3] = sum(v[5:7])
+    elseif t1 != t2 && t1 != t3 && t2 != t3
+        vn = v
+    else
+        if t2 == t3
+            n = coef.n_3body_twosame_energy
+            vn = zeros(n)
+            vn[1] = v[1]
+            vn[2] = sum(v[2:3])
+            vn[3] = v[4]
+            vn[4] = sum(v[5:6])
+            vn[5] = v[7]
+        elseif t1 == t3
+            n = coef.n_3body_twosame_energy
+            vn = zeros(n)
+            vn[1] = v[1]
+            vn[2] = sum(v[[2,4]])
+            vn[3] = v[3]
+            vn[4] = sum(v[[5,7]])
+            vn[5] = v[6]
+        elseif t1 == t2
+            n = coef.n_3body_twosame_energy
+            vn = zeros(n)
+            vn[1] = v[1]
+            vn[2] = sum(v[[3,4]])
+            vn[3] = v[2]
+            vn[4] = sum(v[[6,7]])
+            vn[5] = v[5]
+        end            
+=#            
+#    ie = coef.inds[t1,t2,t3,:E]
+#    if t1 == t2 && t1 == t3
+#        n = coef.n_3body_allsame_energy
+#    elseif t1 == t2 || t1 == t3 || t2 == t3
+#        n = coef.n_3body_twosame_energy
+#    else
+#        n = n_3body_diff_energy
+#    end
+#    vn = zeros(n)
+#    for (ic, i) in enumerate(ie)
+#        vn[ie[i]] += v[ic]
+#    end
+#    return vn
+#    if t1 == t2 && t2 == t3
+#        return [ a1*a1*a1 (a0*b1*c1 + a1*b0*c1 + a1*b1*c0 )  (a2*b1*c1 + a1*b2*c1 + a1*b1*c2 )]
+#    elseif t1 == t2 && t1 != t3 && t3 != t3
+#        return [ a1*a1*a1 (a0*b1*c1 + a1*b0*c1 + a1*b1*c0 )  (a2*b1*c1 + a1*b2*c1 + a1*b1*c2 )]
+#    end
+    
 end
 
 """
@@ -10506,7 +10743,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_neighbors = true)
+function calc_tb_LV_neighbors_version(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_neighbors = true, use_energy=true, use_threebody_energy=true)
 
     repel=false
 
@@ -10944,6 +11181,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
         begin
             #@time twobody(nkeep_ab)
             for c = 1:nkeep_ab
+                println("twobody c $c")
                 begin
                     id = threadid()
                     lmn_arr = lmn_arr_TH[:,id]
@@ -11016,7 +11254,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         
                     else #normal case
                         
-
+                        println("normal case ")
                         laguerre_fast!(dist_a, lag_arr)
 
                         
@@ -11416,7 +11654,7 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false)
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_energy=false, use_energy_threebody=false)
 
     repel=false
 
@@ -11469,7 +11707,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
             R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
 
         else
-            if (use_threebody || use_threebody_onsite || use_pert ) && !ismissing(database)
+            if (use_threebody || use_threebody_onsite || use_pert || (use_energy && use_energy_threebody) ) && !ismissing(database)
                 R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
                 DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
 
@@ -11558,6 +11796,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                 S .= 0.0
             end
         end
+        energy_var = zero(var_type)
         #println("done memory")
         ind_arr = zeros(Int64, nkeep, 3)
         ind_arr[:,:] = R_keep[:,2:4]
@@ -11620,9 +11859,13 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                 DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 36 )
                 DAT_ARR = zeros(Float64, types_counter, types_counter, 2, 164)
 
+                if use_energy
+                    DAT_ARR_ENERGY = zeros(Float64, types_counter, types_counter, 9)
+                    DAT_IND_ARR_ENERGY = zeros(Int64, types_counter, types_counter, 9 )
+                end
                 DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 36 )
 
-                DAT_NTYPES_ARR = zeros(Int64, types_counter, types_counter, 3 )                
+                DAT_NTYPES_ARR = zeros(Int64, types_counter, types_counter, 4 )                
 
                 cutoff_arr = zeros(crys.nat, crys.nat, 2)
                 cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
@@ -11669,7 +11912,16 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                             
                             DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
 
-                            DAT_NTYPES_ARR[c1,c2,:] = [coef.n_2body, coef.n_2body_S, coef.n_2body_onsite]
+                            DAT_NTYPES_ARR[c1,c2,:] = [coef.n_2body, coef.n_2body_S, coef.n_2body_onsite, coef.n_2body_energy]
+                            if use_energy
+                                if coef.use_energy
+                                    DAT_ARR_ENERGY[c1,c2,1:coef.sizeE] = coef.datE
+                                    indE, inE = coef.inds_int[[t1, t2, :E]]
+                                    DAT_IND_ARR_ENERGY[c1,c2, 1] = inE
+                                    println("size DAT_IND_ARR_ENERGY $(size(DAT_IND_ARR_ENERGY))  inE $inE indE $(size(indE))")
+                                    DAT_IND_ARR_ENERGY[c1,c2, 2:(inE+1)] = indE[1:inE]
+                                end
+                            end
                             
                         else
                             println("WARNING, ",(t1,t2), " database not found")
@@ -11680,11 +11932,17 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                     end
                 end
 
-                if use_threebody || use_threebody_onsite || use_pert
+                if use_threebody || use_threebody_onsite || use_pert || use_energy_threebody
                     
                     DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
-                    DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 224)
+                    if use_threebody || use_threebody_onsite
+                        DAT_ARR_3 = zeros(Float64, types_counter, types_counter, types_counter, 224)
+                    end
                     DAT_VERSION_3 = zeros(Int64, types_counter, types_counter, types_counter )                
+                    if use_energy &&  use_energy_threebody
+                        DAT_ARR_ENERGY_3 = zeros(Float64, types_counter, types_counter, types_counter, 16)
+                        DAT_IND_ARR_ENERGY_3 = zeros(Int64, types_counter, types_counter, types_counter, 17 )
+                    end
                     
                     for c1 = 1:types_counter
                         t1 = types_dict_reverse[c1]
@@ -11697,8 +11955,20 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                                     (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
                                     DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
                                     DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
-                                    DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
-                                    DAT_VERSION_3[c1,c2,c3] = cdat.version
+                                    if use_threebody || use_threebody_onsite
+                                        DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
+                                        DAT_VERSION_3[c1,c2,c3] = cdat.version
+                                    end
+                                    if use_energy && use_energy_threebody
+                                        if cdat.use_energy
+                                            (cindX, nindX) = cdat.inds_int[[t1,t2,t3,:E]]
+                                            DAT_IND_ARR_ENERGY_3[c1,c2,c3,1] = nindX
+                                            println("nindX $nindX  cindX $(Int64.(cindX))")
+                                            DAT_IND_ARR_ENERGY_3[c1,c2,c3,2:(nindX+1)] = cindX[1:nindX]
+                                            DAT_ARR_ENERGY_3[c1,c2,c3,1:nindX] = cdat.datE[1:nindX]
+                                        end
+                                    end
+                                    
                                 else
                                     println("WARNING, ",(t1,t2,t3), " database not found")
                                     within_fit = false
@@ -11786,6 +12056,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
     end
 
     
+    
     if verbose println("2body LV") end
 
 
@@ -11822,7 +12093,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                     t2 = types_arr[a2]
 
                     
-                    n_2body, n_2body_S, n_2body_onsite = DAT_NTYPES_ARR[t1,t2,:]
+                    n_2body, n_2body_S, n_2body_onsite, n_2body_energy = DAT_NTYPES_ARR[t1,t2,:]
                     
 
                     if use_dist_arr
@@ -11872,6 +12143,10 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
 
                         laguerre_fast!(dist_a, lag_arr)
 
+                        if use_energy
+                            energy_var = core_energy!(a1, a2, t1, t2, lag_arr, DAT_IND_ARR_ENERGY, DAT_ARR_ENERGY, cut_a, n_2body_energy, energy_var)
+                        end
+                        
                         
                         if use_eam
 #                            println("use eam $use_eam")
@@ -12007,7 +12282,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
             memory_TH = zeros(var_type, 8, nthreads())
         end
         
-        if use_threebody || use_threebody_onsite || use_pert
+        if use_threebody || use_threebody_onsite || use_pert || (use_energy_threebody && use_energy)
 
             meta_count = []
             old = 1
@@ -12034,7 +12309,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
                 a2 = array_ind3[counter,2]
                 a3 = array_ind3[counter,3]
 
-#                println("atoms $a1 $a2 $a3")
+                println("atoms3 $a1 $a2 $a3")
                 
                 if atom > 0 && !(a1 == atom || a2 == atom || a3 == atom)
                     continue
@@ -12136,6 +12411,13 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
 
                 memory = memory_TH[:,id]
 
+                if use_energy && use_energy_threebody
+                    energy_var = core_energy_3!(a1, a2, a3, t1, t2, t3, DAT_IND_ARR_ENERGY_3, DAT_ARR_ENERGY_3, cut_h, dist12, dist13, dist23, energy_var)
+                    println("energy_var3 $energy_var a1 $a1 a2 $a2 a3 $a3 dist12 $dist12 dist13 $dist13 dist23 $dist23")
+                            
+                    
+                end
+
                 
                 if use_threebody
                     laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory,version)
@@ -12211,7 +12493,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
 
     if retmat
         #return H, S
-        return 
+        return energy_var
     end
     if verbose println("make") end
     begin #@time 
@@ -12228,7 +12510,7 @@ function calc_tb_LV_old(crys::crystal, database=missing; reference_tbc=missing, 
 #        println(database)
         
         #println("make")
-        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening, energy_var=energy_var)
         tbc.tot_charge = tot_charge
         tbc.nelec = tbc.nelec - tot_charge
     end
@@ -12299,6 +12581,39 @@ function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_A
         end
     end
 end
+
+function core_energy!(a1, a2, t1, t2, lag_arr, DAT_IND_ARR_ENERGY, DAT_ARR_ENERGY, cut_a, n_2body_energy, energy_var)
+
+
+    for n = 1:DAT_IND_ARR_ENERGY[t1,t2,1] #
+        energy_var +=  lag_arr[n]*DAT_ARR_ENERGY[t1,t2, DAT_IND_ARR_ENERGY[t1,t2,n+1]] * cut_a
+        println("add energy a1 $a1 a2 $a2 n $n lag $(lag_arr[n]) coef $(DAT_ARR_ENERGY[t1,t2, DAT_IND_ARR_ENERGY[t1,t2,n+1]]) cut $cut_a =  $(lag_arr[n]*DAT_ARR_ENERGY[t1,t2, DAT_IND_ARR_ENERGY[t1,t2,n+1]] * cut_a) ")
+    end
+
+    return energy_var
+end
+
+function core_energy_3!(a1, a2, a3, t1, t2, t3, DAT_IND_ARR_ENERGY_3, DAT_ARR_ENERGY_3, cut_a, dist12, dist13, dist23, energy_var)
+
+    n = DAT_IND_ARR_ENERGY_3[t1,t2,t3,1]
+    inds = DAT_IND_ARR_ENERGY_3[t1,t2,t3,2:(n+1)]
+    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[1]] *exp(-dist12) * exp(-dist13) * exp(-dist23) * 10^3
+    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[2]] *exp(-dist12) * exp(-dist13) * 10^2
+        
+#    exx =  exp(-dist12) * exp(-dist13) * exp(-dist23) * 10^3
+#    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[1]] * exx * cut_a
+#    
+#    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[2]] * exp(-dist13) * exp(-dist23) * cut_a * 10^2
+#    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[3]] * exp(-dist12) * exp(-dist23) * cut_a * 10^2
+#    energy_var +=  DAT_ARR_ENERGY_3[t1,t2,t3,inds[4]] * exp(-dist12) * exp(-dist13) * cut_a * 10^2
+
+ #   energy_var +=  (1.0 - dist23)*DAT_ARR_ENERGY_3[t1,t2,t3,inds[5]] * exx * cut_a
+ #   energy_var +=  (1.0 - dist13)*DAT_ARR_ENERGY_3[t1,t2,t3,inds[6]] * exx * cut_a
+ #   energy_var +=  (1.0 - dist12)*DAT_ARR_ENERGY_3[t1,t2,t3,inds[7]] * exx * cut_a
+    
+    return energy_var
+end
+
 
 function core_x!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, DAT_ARR_S, cut_a, H, S, lmn, sym_dat, sym_datS, n_2body, n_2body_S)
     

@@ -634,9 +634,9 @@ Solve for scf energy, also stores the updated electron density and h1 inside the
                 energy_magnetic = 0.0
             end
             if verbose == true
-                println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical")
+                println("energy_charge $energy_charge energy_band $energy_band etypes $etypes energy_magnetic $energy_magnetic ec $energy_classical energy_var $(tbc.energy_var)")
             end
-            energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical
+            energy_tot = etypes + energy_band + energy_charge + energy_magnetic + energy_classical + tbc.energy_var
 
             #            if iter > 4 && (delta_eden >= delta_eden_old*0.99999 )  #|| delta_energy_old < abs(energy_old - energy_tot)
             if iter == 2 && maximum(delta_dq) > 1.0

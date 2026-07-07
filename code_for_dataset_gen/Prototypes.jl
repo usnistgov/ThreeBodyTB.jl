@@ -179,6 +179,9 @@ function setup_proto_data()
     CalcD["dimer_f_mag"] =       ["$STRUCTDIR/dimer.in.f", "relax", "2Dxy", "coords-small2", "nscf", true]
     CalcD["dimer_h_mag"] =       ["$STRUCTDIR/dimer.in.h", "relax", "2Dxy", "coords-small2", "nscf", true]
 
+
+    CalcD["dimer_arr"] =       ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "dimer-arr", "nscf", false]
+    
     #    CalcD["dimer_fe_nomag"] =       ["$STRUCTDIR/dimer.in.fe", "relax", "2Dxy", "coords-small2", "nscf", false]
     #    CalcD["dimer_mn_nomag"] =       ["$STRUCTDIR/dimer.in.mn", "relax", "2Dxy", "coords-small2", "nscf", false]
     #    CalcD["dimer_f_nomag"] =       ["$STRUCTDIR/dimer.in.f", "relax", "2Dxy", "coords-small2", "nscf", false]
@@ -213,6 +216,9 @@ function setup_proto_data()
 
     CalcD["line_bin"] = ["$STRUCTDIR/binary/line.in", "vc-relax", "z", "scf", "nscf", false]
 
+    CalcD["buckle_graphene"] = ["$STRUCTDIR/buckle_graphene.in", "vc-relax", "z", "vol2", "nscf", false]
+
+    
     CalcD["line"] = ["$STRUCTDIR/line.in.up", "vc-relax", "z", "vol2", "nscf", false]
     CalcD["line_big"] = ["$STRUCTDIR/line.in.up.big", "vc-relax", "z", "vol-mid", "nscf", false]
     CalcD["line_rumple"] = ["$STRUCTDIR/line.in.rumple.up", "vc-relax", "z", "scf", "nscf", false]
@@ -300,6 +306,7 @@ function setup_proto_data()
 
 
     CalcD["trimer_hex"] =       ["$STRUCTDIR/trimer.in.hex", "relax", "all", "vol2", "nscf", false]
+    CalcD["trimer_4"] =       ["$STRUCTDIR/trimer.in.4hex", "relax", "all", "vol2", "nscf", false]    
     CalcD["trimer_relax"] =       ["$STRUCTDIR/trimer_relax.in", "relax", "all", "vol2", "nscf", false]
 
     CalcD["trimer_YYY"] =       ["$STRUCTDIR/trimer_relax_big.in", "relax", "all", "trimer_YYY", "scf", false]
@@ -584,6 +591,9 @@ function setup_proto_data()
 
     CalcD["trimer_rand"] =       ["$STRUCTDIR/ternary/POSCAR_rand", "relax", "all", "vol2", "nscf", false]
 
+    CalcD["trimer_tet"] =       ["$STRUCTDIR/trimer_tet.in", "relax", "all", "vol2", "nscf", false]
+    CalcD["trimer_square"] =       ["$STRUCTDIR/trimer_square.in", "relax", "all", "vol2", "nscf", false]
+    
 
     CalcD["trimer_tern"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern", "none", "2Dxy", "trimer_tern", "nscf", false]
     CalcD["trimer_tern_right"] =       ["$STRUCTDIR/ternary/POSCAR_trimer_tern_right", "none", "2Dxy", "trimer_tern_right", "nscf", false]
@@ -814,6 +824,12 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
             #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
             ncalc = 14
+        elseif newst == "dimer-arr"
+#            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
+#            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
+            #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
+            ncalc = 2
+
         elseif newst == "coordsa"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
@@ -967,7 +983,7 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 
         randi = Int64(round(rand()*1000000))
         try
-            println("read crys")
+            println("read crys file $file")
             c = ThreeBodyTB.CrystalMod.makecrys(file)
 
             if newst == "2D_tern" || newst == "3D_tern"
@@ -2076,6 +2092,14 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                     push!(torun, deepcopy(c))
                 end
 
+            elseif newst == "dimer-arr"
+                dist = abs.(cnew.coords[1,3] - cnew.coords[2,3])
+                dist = minimum([abs(dist), abs(dist + 1), abs(dist-1)])
+                dist = dist * cnew.A[3,3]
+                c = makecrys([dist * 3 0 0; 1.0 dist * 1.5 0; 1.0 0.5 dist*1.5], [0 0 0; 1/3 0 0 ], [cnew.stypes[1], cnew.stypes[2]])
+                push!(torun, deepcopy(c))
+                push!(torun, deepcopy(c*0.95))
+                
             elseif newst == "coords"
                 println("start coords")
                 #                for x in [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5]
