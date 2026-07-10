@@ -94,7 +94,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds, X_Enew_BIG, Xc_Enew_BIG, EIND  = prepare_data
 
   
 #    println("AAAAAAAA ch_lin ", ch_lin)
@@ -130,7 +130,7 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
     
     ##########    
     
-    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
 
 
 
@@ -466,10 +466,12 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
             end
 #            println("energy_magnetic $energy_magnetic")
             etypes = types_energy(tbc)
-            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic)
+            println(min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)," $c CALC ENERGIES $etypes $energy_charge $energy_band $energy_smear $energy_magnetic $(tbc.energy_var) = ", etypes + energy_charge + energy_band + energy_smear + energy_magnetic + tbc.energy_var)
 #            println("VALS ", VALS[c,1:nk,1:nw,1:tbc.nspin])
+
+
             
-            ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic
+            ENERGIES[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic + tbc.energy_var
 
             s1 = sum(occs .* VALS[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
             energy_band_vals = sum(s1 .* kweights) #/ tbc.nspin
@@ -620,8 +622,8 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
                            energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
                            conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
                            use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,
-                           use_energy=false, use_energy_threebody=false)
-
+                           fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0)
+    
     println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
     if rho_max == :auto && fit_eam
@@ -630,37 +632,37 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
         rho_max = zeros(n_eam)
     end
     
-#    if true
-#    list_of_tbcs = []
-#    for tbck in list_of_tbcs_nonscf
-#        tbck_new = missing
-#        @suppress begin
-#            tbck_new = remove_scf_from_tbc(tbck; smearing=smear_default)
-#        end
-#        push!(list_of_tbcs, tbck_new)
-#    end
-#    else
-list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)        
-#    end
+    #    if true
+    #    list_of_tbcs = []
+    #    for tbck in list_of_tbcs_nonscf
+    #        tbck_new = missing
+    #        @suppress begin
+    #            tbck_new = remove_scf_from_tbc(tbck; smearing=smear_default)
+    #        end
+    #        push!(list_of_tbcs, tbck_new)
+    #    end
+    #    else
+    list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)        
+    #    end
     
     #list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
     
     #if ismissing(kpoints)
     #    kpoints, kweights = make_kgrid([2,2,2])
     #end
-#    if !ismissing(dft_list)
-#        println("top")
+    #    if !ismissing(dft_list)
+    #        println("top")
     KPOINTS, KWEIGHTS, nk_max = get_k(dft_list, list_of_tbcs, NLIM=NLIM)
-#    else
-#        println("bot")
-#        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
-##        println("KPOINTS ", KPOINTS)
-#    end
+    #    else
+    #        println("bot")
+    #        KPOINTS, KWEIGHTS, nk_max = get_k_simple(kpoints, list_of_tbcs)
+    ##        println("KPOINTS ", KPOINTS)
+    #    end
 
 
 
     
-#    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
+    #    println("KWEIGHTS 3 ", size(KWEIGHTS[3]), " " , KWEIGHTS[3][1:6])
     
     if ismissing(prepare_data)
         println("DO LINEAR FITTING")
@@ -671,37 +673,38 @@ list_of_tbcs  = deepcopy(list_of_tbcs_nonscf)
             starting_database_t = starting_database
         end
 
-#        println("KPOINTS $KPOINTS")
-#        println("dft_list $dft_list")
-#        println("fit_threebody $fit_threebody")
-#        println("fit_threebody_onsite $fit_threebody_onsite")
-#        println("starting_database_t $starting_database_t")
-#        println("NLIM $NLIM")
-#        println("refit_database $refit_database")
-#        println("fit_eam $fit_eam")
-#        println("fitting_version $fitting_version")
+        #        println("KPOINTS $KPOINTS")
+        #        println("dft_list $dft_list")
+        #        println("fit_threebody $fit_threebody")
+        #        println("fit_threebody_onsite $fit_threebody_onsite")
+        #        println("starting_database_t $starting_database_t")
+        #        println("NLIM $NLIM")
+        #        println("refit_database $refit_database")
+        #        println("fit_eam $fit_eam")
+        #        println("fitting_version $fitting_version")
         
-    @time begin
-        pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
-    end
-    println("do_fitting_linear time (above)")
-#        println("pd 2 $(pd[2])")
-#        println()
+        @time begin
+            pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody)
+        end
+        println("do_fitting_linear time (above)")
+        #        println("pd 2 $(pd[2])")
+        #        println()
     else
         println("SKIP LINEAR MISSING")
         pd = prepare_data
-#        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
+        #        database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG, X_H, X_Snew_BIG, Y_H, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3 = prepare_data
     end
 
 
-#    return pd[1],pd[2], pd[3]
+    #    return pd[1],pd[2], pd[3]
     
     return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig,
-                                  use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
+                                  use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody, conv_thr=conv_thr)
+
 end
 
 function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
-                               use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing, use_energy=false, use_energy_threebody=false)
+                                use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing, fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0)
 
     leave_out = -1
 
@@ -714,8 +717,18 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     println("test scf ", list_of_tbcs_nonscf[1].scf, " ", list_of_tbcs[1].scf)
 
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds,X_Enew_BIG, Xc_Enew_BIG, EIND  = prepare_data
 
+    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S,ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
+#    println("keep_inds_E $keep_inds_E ")
+#    println("toupdate_inds_E $toupdate_inds_E")
+#    for (tk, k) in enumerate(keepdata)
+#        println("keep data $tk ", k)
+#    end
+#    sleep(10)
+
+    n_E = size(X_Enew_BIG, 2)
+    
 #    println("ch_lin ", ch_lin)
 #    println("cs_lin ", cs_lin)
 #    return missing
@@ -723,6 +736,9 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     @time  begin
         list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS ,   SSS,ORB2IND,ATOMTRANS, U_dict, n_U, ENERGY_CHARGE =
             topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max, use_sym=use_sym, fit_umat=fit_umat)
+
+        (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
+
     end
     println("topstuff_direct time (above)")
     
@@ -769,6 +785,17 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     
     weights_list = weights_list ./ maximum(weights_list)
 
+    if fit_umat
+        ch = vcat(ch, zeros(n_U))
+    end
+    
+
+    if fit_energy
+        ch = vcat(ch, zeros(n_E))
+        #ch = vcat(ch, [4.0, 3.0, 2.0, 1.0])
+    end
+    println("ch ", ch)
+    println("size(ch) $(size(ch))")
     if !ismissing(ch_startX)
         ch[1:length(ch_startX)] = ch_startX
         ch[1+length(ch_startX):end] = ch[1+length(ch_startX):end] * 0.0
@@ -776,12 +803,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     if !ismissing(cs_startX)
         cs[1:length(cs_startX)] = cs_startX
     end
-
-    if fit_umat
-        ch = vcat(ch, zeros(n_U))
-    end
+    println("chv2 ", ch)
+    println("size(ch) $(size(ch))")
+    #return
     
-
     #    ch = ones(size(ch))
 #    println("chcs !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 #    println("begin ch $ch")
@@ -825,6 +850,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
 
         
+        
         if solve_self_consistently == true
             #            println("SCF SOLUTIONS")
             #niter_scf = 150
@@ -841,6 +867,20 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
             c+=1
 
+            if fit_energy
+#                println("fit energy c $c   X_Enew_BIG $(size( X_Enew_BIG)) len ch $(length(ch)) n_E $(n_E) size ch $(size(ch))")
+                ##println( X_Enew_BIG[c,:])
+                #println(length(ch))
+                #println( (n_E - 1) )
+                #println(ch[ length(ch) - (n_E - 1) : length(ch)])
+                #println( X_Enew_BIG[[c],:] * ch[ length(ch) - (n_E - 1) : length(ch)])
+                #println("a")
+                energy_var = ( X_Enew_BIG[[c],:] * ch[ length(ch) - (n_E - 1) : length(ch)])[1]
+            else
+                energy_var = 0.0
+            end
+
+            
             ERROR[c] = 0 #start assuming no error
 
             #            println("construct_fitted c $c")
@@ -1152,7 +1192,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                         en_umat = 0.0
                     end
 #                    println("en_umat $en_umat uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu")
-                    energy_new = energy_charge + energy_band + energy_smear + energy_magnetic + etypes + en_umat
+                    energy_new = energy_charge + energy_band + energy_smear + energy_magnetic + etypes + en_umat + energy_var
                     #                    if c == 34
                     #                        println( " scf $c_scf $c ", energy_new+etypes, "    $dq   $energy_charge $energy_band $energy_smear $energy_magnetic")
                     #                    end
@@ -1269,7 +1309,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
 
             
-            ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic + en_umat
+            ENERGIES_FITTED[c] = etypes + energy_charge + energy_band + energy_smear + energy_magnetic + en_umat + energy_var
 
             s1 = sum(occs .* VALS_FITTED[c,1:nk,1:nw,1:tbc.nspin], dims=[2,3])[:]
             energy_band_vals = sum(s1 .* kweights) 
@@ -1298,7 +1338,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     
     
-    function construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_S::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, SHIFTS_FITTED::Array{Float64, 1}; leave_out=-1, cref=missing, compute_XS=false)
+    function construct_newXY(VECTS_FITTED, VALS_FITTED, OCCS_FITTED::Array{Float64,4}, ncalc::Int64, ncols::Int64, ncols_S::Int64, nlam::Int64, ERROR::Array{Int64,1}, EDEN_FITTED::Array{Float64,3}, SHIFTS_FITTED::Array{Float64, 1}; leave_out=-1, cref=missing, compute_XS=false )
         
 #        println("in construct_newXY")
         #        nlam = 0
@@ -1770,7 +1810,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             end
         end
 
-        NEWX = zeros(counter + nlam, ncols + n_U)
+        NEWX = zeros(counter + nlam, ncols + n_U + n_E)
         NEWX_S = zeros(counter + nlam, ncols_S)
 
         NEWY = zeros(counter + nlam)
@@ -2094,7 +2134,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
             counter += 1
             NEWX[counter, 1:length(X_TOTEN)] = X_TOTEN[:] * energy_weight * weights_list[calc] / NAT[calc]
-
+            #            println("counter $counter       added X_Enew_BIG n_E $n_E  range $(length(X_TOTEN)+1:length(X_TOTEN)+n_E) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            if fit_energy
+                NEWX[counter, length(X_TOTEN)+1:length(X_TOTEN)+n_E] = X_Enew_BIG[calc,1:n_E] * energy_weight * weights_list[calc] / NAT[calc]
+            end
             if compute_XS
                 NEWX_S[counter, :] = SX_TOTEN[:] * energy_weight * weights_list[calc] / NAT[calc]
             end
@@ -2226,6 +2269,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     
     ##################################################endfast
     function error_fn(NEWX, NEWY, ch, cs)
+#        println("in error_fn sizes NEWX $(size(NEWX)) NEWY $(size(NEWY)) ch $(size(ch)) cs $(size(cs))")
         error = sum( (NEWX *ch - NEWY).^2)
         not_threebody_inds = setdiff(threebody_inds, 1:size(NEWX)[2])
 #        error += sum(ch[threebody_inds].^2 * lambda[2]) + sum(ch[not_threebody_inds].^2 * lambda[1])
@@ -2290,7 +2334,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         ch = x[1:nh]
         cs = x[nh .+ (1:ns)]
         err = error_fn(NEWX, NEWY, ch, cs)
-        println("err $err  x $x")
+#        println("err $err  x $x")
         return err
     end
     function g!(x,stor,buffer,last_x)
@@ -2408,7 +2452,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #                        NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY_faster(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out, cref = ch)
 #                    end
 #                    println("time optH construct_newXY_faster(above)")
-                    @time  @suppress begin
+                    @suppress   begin #@suppress 
                         NEWX, NEWY, NEWX_S, energy_counter, CALC_IND, SPECIAL = construct_newXY_faster(VECTS_FITTED, VALS_FITTED, OCCS_FITTED, NCALC, NCOLS, NCOLS_S, NLAM, ERROR, EDEN_FITTED, SHIFTS_FITTED, leave_out=leave_out, compute_XS=false)
                     end
 #                    println("DEBUG NEWX $(sum(abs.(NEWX - NEWXa)))  $(sum(abs.(NEWX))) $(sum(abs.(NEWXa)))")
@@ -2416,7 +2460,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 #                    println("DEBUG NEWY 
 
                     
-                    println("FAST time optS construct_newXY (above)")
+#                    println("FAST time optS construct_newXY (above)")
 
                     #println("size NEWX ", size(NEWX))
 
@@ -2517,7 +2561,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
     if true
 #        println("if true")
 #        println("NCOLS, NCOLS_S ", [NCOLS, NCOLS_S])
-        println("opt_S $opt_S")
+        #println("opt_S $opt_S")
         #if opt_S
             #ch, cs = iterate(ch, cs, true, false, 200, 0.05, adjust_mix=true)
             #ch, cs = iterate(ch, cs, true, true, 550, 0.2, adjust_mix=false)
@@ -2532,8 +2576,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             end
 #            scf = true
 
-            println("ch $ch")
-            println("cs $cs")
+#            println("ch $ch")
+#            println("cs $cs")
 
             begin 
                 for init_scf = 1:5
@@ -2725,12 +2769,15 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                 #err = error_fn(NEWX, NEWY, ch, cs)
                 #println("err Y ", err)
                 #solve_scf_mode=false
-                
-                if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 0.5e-2 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 15)
-                    println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
+
+                if conv_thr < 0.0
+                    if (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 3) ||  (abs(err_old_bigiter - err) < 1e-3 && big_iter >= 6) ||  (abs(err_old_bigiter - err) < 0.5e-2 && big_iter >= 10) ||  (abs(err_old_bigiter - err) < 1e-2 && big_iter >= 15)
+                        println("done, bigiter break err_old $err_old_bigiter err $err diff $(abs(err_old_bigiter - err))")
+                        break
+                    end
+                elseif (abs(err_old_bigiter - err) < conv_thr && big_iter >= 3)
                     break
                 end
-                
 #                if false
 #                if fit_umat
 #                    if abs(err_old_bigiter - err) < 5e-4 && big_iter >= 50
@@ -2772,13 +2819,23 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         good =  (abs.(ENERGIES - ENERGIES_working) ./ NAT) .< 0.05
         good = good .&& .!(Bool.(ERROR))
         
-
+#        println("keep E", keep_inds_E)
+#        println("toupdate_inds_E ", toupdate_inds_E )
+#        return ch, NEWX, NEWY
+        
         ####
-        ch_big = zeros(length(keep_inds) + length(toupdate_inds))
+        ch_big = zeros(length(keep_inds) + length(toupdate_inds) + length(toupdate_inds_E) + length(keep_inds_E))
         #println(length(keep_inds), " " , length(toupdate_inds))
 
         ch_big[toupdate_inds] = ch[1:length(toupdate_inds)]
         ch_big[keep_inds] = ch_keep[:]
+
+        h_only =  maximum(vcat(keep_inds, toupdate_inds))
+        ch_big[toupdate_inds_E .+ h_only ] = ch[toupdate_inds_E .+ h_only]
+        ch_big[keep_inds] = ch_keep[:]
+        ch_big[keep_inds_E .+ h_only] = ce_keep[:]
+
+
         chX2 = ch_big
         
         cs_big = zeros(length(keep_inds_S) + length(toupdate_inds_S))
@@ -2798,7 +2855,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
         end
         
         if cg == false
-            @time database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, fit_umat=fit_umat, U_dict=U_dict, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors)
+            println("before make_database")
+            @time database = make_database(chX2, csX2,  KEYS, HIND, SIND,DMIN_TYPES,DMIN_TYPES3, scf=scf, starting_database=starting_database, tbc_list = list_of_tbcs[good], fit_eam=fit_eam, fitting_version=fitting_version, fit_umat=fit_umat, U_dict=U_dict, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody, EIND=EIND, honly=h_only)
             println("time make database (above)")
             return database, err, badS
         end

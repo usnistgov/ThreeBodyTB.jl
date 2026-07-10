@@ -305,6 +305,7 @@ mutable struct tb_crys_kspace{T}
     efermi::Float64
     dq::Array{Float64, 1}
     dq_eden::Array{Float64, 1}
+    energy_var::Float64
 end
 
 
@@ -1149,7 +1150,7 @@ function make_tb_crys_kspace(hamk::tb_k,crys::crystal, nelec::Float64, dftenergy
 
     dq, dq_eden = get_dq(crys, eden)
 
-    tbcK = tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0, efermi, dq, dq_eden)
+    tbcK = tb_crys_kspace{T}(hamk,crys,nelec,nspin, dftenergy, scf, gamma,background_charge_correction,  eden, -999.0, efermi, dq, dq_eden, 0.0)
 
     if run
         get_energy_electron_density_kspace(tbcK)

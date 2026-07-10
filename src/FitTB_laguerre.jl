@@ -351,7 +351,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
 
         push!(ARR2, twobody_arrays)
-        if fit_threebody || fit_threebody_onsite || fit_pert
+        if fit_threebody || fit_threebody_onsite || fit_pert || (fit_energy && fit_energy_threebody)
             push!(ARR3, threebody_arrays)
         else
             push!(ARR3, Dict())
@@ -394,13 +394,13 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                 #                println("HIND ", (key,2), " ", 1+hnum:hnum+twobody_arrays[key][3].sizeH)
                 SIND[(key,2)] = 1+snum:snum+twobody_arrays[key][3].sizeS
 
-                if use_energy
+                if fit_energy
                     EIND[(key,2)] = 1+enum:enum+twobody_arrays[key][3].sizeE
                 end
                 
                 hnum += twobody_arrays[key][3].sizeH
                 snum += twobody_arrays[key][3].sizeS
-                if use_energy
+                if fit_energy
                     enum += twobody_arrays[key][3].sizeE
                 end
             end
@@ -408,7 +408,8 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
         #        println("KEYS 3 " , keys(threebody_arrays))
         
-        if fit_threebody || fit_threebody_onsite || fit_pert || fit_energy_threebody
+        if fit_threebody || fit_threebody_onsite || fit_pert || (fit_energy_threebody  && fit_energy)
+            println("WE ARE INSIDE")
             for key in keys(threebody_arrays)
                 if !((key,3) in KEYS)
                     push!(KEYS, (key,3))
@@ -421,6 +422,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                     SIND[(key,3)] = []
 
                     if (fit_energy && fit_energy_threebody)
+                        println("ADD ", (key,3), " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! enum $enum  $((1+enum):(enum+threebody_arrays[key][2].sizeE))")
                         EIND[(key,3)] = (1+enum):(enum+threebody_arrays[key][2].sizeE)
                     end
                     
@@ -512,6 +514,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                 push!(keep_inds_E, i)
             end
         end
+
         
         ch_keep = ch_start[keep_inds]
         cs_keep = cs_start[keep_inds_S]
@@ -541,7 +544,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         toupdate_inds_S = 1:length(cs_lin) #all
         keep_inds_S = Int64[]
 
-        toupdate_inds_E = 1:length(ne) #all
+        toupdate_inds_E = 1:length(ce_lin) #all
         keep_inds_E = Int64[]
         
         cs = cs_lin
@@ -549,6 +552,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         ce = ce_lin
     end
 
+    
     if !ismissing(refit_database)
         nh=hnum
         ns=snum
@@ -572,6 +576,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
 
     keepdata = Any[ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E]
+
     
     hnum_new = length(toupdate_inds)
     snum_new = length(toupdate_inds_S)
@@ -638,7 +643,7 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
         X_H_new = zeros(size(hvec[1])[1], hnum_new) #new sizes
         X_S_new = zeros(size(svec)[1], snum_new) #new sizes
-        X_E_new = zeros(size(svec)[1], enum_new) #new sizes
+        X_E_new = zeros(1, enum_new) #new sizes
 
         Xsc = zeros(size(svec)[1], 1)
         Xhc = zeros(size(hvec[1])[1], 1)
@@ -686,9 +691,12 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                     X_H_temp[:,hind] = arr3[key][1]
                 end
             end
-            if fit_energy && fit_energy_threebody 
+            if fit_energy && fit_energy_threebody
+                println("adding arr3 energy keys(arr3) $(keys(arr3))")
                 for key in keys(arr3)
+                    println("key $key")
                     eind = EIND[(key,3)]
+                    println("eind $eind arr3 $(arr3[key][3])")
                     #                println(key, " cols: ", minimum(hind), " ",  maximum(hind))
                     X_E_temp[:,eind] = arr3[key][3]
                 end
@@ -696,7 +704,13 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
             Xhc[:,1] = X_H_temp * ch 
             Xsc[:,1] = X_S_temp * cs
-            Xec[1,1] = X_E_temp * ce
+
+            println("Xec ",Xec)
+            println("ce ",ce)
+            println("X_E_temp ",X_E_temp)
+            println()
+            Xec[:,:] = X_E_temp * ce
+
             
             #            if tbc_real
 
@@ -715,6 +729,9 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
             X_H_new[:,:] = X_H_temp[:,toupdate_inds]
             X_S_new[:,:] = X_S_temp[:,toupdate_inds_S]
+            println("toupdate_inds_E $toupdate_inds_E")
+            println("size  X_E_temp $(size( X_E_temp))")
+            println("size(X_E_new) $(size(X_E_new))")
             X_E_new[:,:] = X_E_temp[:,toupdate_inds_E]
             
             nw = maximum(INDvec)
@@ -775,11 +792,11 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
 
             push!(X_Hnew_BIG_list, X_Hnew)
             push!(X_Snew_BIG_list, X_Snew)
-#            push!(X_Enew_BIG_list, X_Enew)
+            push!(X_Enew_BIG_list, X_E_new)
             
             Xc_Hnew_BIG = vcat(Xc_Hnew_BIG, Xhc_Hnew)
             Xc_Snew_BIG = vcat(Xc_Snew_BIG, Xsc_Snew)
-            Xc_Enew_BIG = vcat(Xc_Enew_BIG, Xsc_Enew)
+            Xc_Enew_BIG = vcat(Xc_Enew_BIG, Xec)
 
             
             Y_Snew_BIG = vcat(Y_Snew_BIG, Y_Snew)
@@ -901,14 +918,14 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
     flush(stdout)
     sleep(0.001)
 
-    if use_energy
-        @time X_Enew_BIG = zeros(Float64, size(Xc_Enew_BIG)[1],enum_new)
-        @time for (c,E) in enumerate(X_Enew_BIG_list)
-            X_Enew_BIG[c,:] = Float64.(E)
-        end
-    end
     
-    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds,X_Enew_BIG, Xc_Enew_BIG
+    @time X_Enew_BIG = zeros(Float64, size(Xc_Enew_BIG)[1],enum_new)
+    @time for (c,E) in enumerate(X_Enew_BIG_list)
+        X_Enew_BIG[c,:] = Float64.(E)
+    end
+
+    
+    return  X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG, Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG,  HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds,X_Enew_BIG, Xc_Enew_BIG, EIND
     
 end
 
@@ -962,7 +979,8 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     end
 
 
-    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds  =
+    X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds,
+    X_Enew_BIG, Xc_Enew_BIG, EIND=
         prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite,
                             starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody)
     
@@ -978,7 +996,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
         end
         if !ismissing(ch_startX)
             println("using ch_startX linear rspace")
-            n = length(ch_startX)
+            n = min(length(ch_startX), length(ch))
             if n == size(X_H)[1]
                 ch = ch_startX
             else
@@ -1029,11 +1047,11 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 
         if !ismissing(ch_startX)
             println("using ch_startX linear kspace")
-            n = length(ch_startX)
-            if n == size(X_Hnew_BIG)[1]
-                ch = ch_startX
+            n = min(length(ch_startX),  size(X_Hnew_BIG)[2])
+            if n == size(X_Hnew_BIG)[2]
+                ch = ch_startX[1:n]
             else
-                t = X_Hnew_BIG_2[:,1:n] * ch_startX
+                t = X_Hnew_BIG_2[:,1:n] * ch_startX[1:n]
                 @time ch_t = X_Hnew_BIG_2[:, n+1:end] \ (Y_Hnew_BIG_2 - t - Xc_Hnew_BIG_2)
                 ch = vcat(ch_startX,ch_t)
             end
@@ -1080,7 +1098,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     
     
     
-    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S,ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
 
     println("ch_keep $ch_keep")
     println("ch  $ch")
@@ -1146,10 +1164,19 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
 #        println("error k S: ", sum((X_Snew_BIG[1:rows1, :] * cs + Xc_Snew_BIG[1:rows1,1] - Y_Snew_BIG[1:rows1]).^2))
     end
 
+    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S,ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
+#    println("linear keep_inds_E $keep_inds_E ")
+#    println("toupdate_inds_E $toupdate_inds_E")
+#    for (tk, k) in enumerate(keepdata)
+#        println("keep data $tk ", k)
+#    end
+#    sleep(10)
+
     println("return ch ", ch)
     println("return ch_refit ", ch_refit)
     return database, ch, cs, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H,
-    Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds
+    Y_S, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, YS_new, cs , ch_refit, SPIN, threebody_inds,
+    X_Enew_BIG, Xc_Enew_BIG, EIND
            
 
 end
@@ -1160,7 +1187,7 @@ end
 
 Construct the `coefs` and database from final results of fitting.
 """
-function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict(), N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing)
+function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=false, starting_database=missing, tbc_list=missing, fit_eam=false, fit_pert = false, fitting_version=fitting_version_default, fit_umat=false, U_dict = Dict(), N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,  fit_energy=false, fit_energy_threebody=false, EIND=Dict(), honly = 0)
     println("make_database function")
     if ismissing(starting_database)
         database = Dict()
@@ -1195,14 +1222,35 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
     for key in KEYS
 
 
-
-        hind = HIND[key]
-        sind = SIND[key]
-
+        if key in keys(HIND)
+            hind = HIND[key]
+        else
+            hind = []
+        end
+        if key in keys(SIND)
+            sind = SIND[key]
+        else
+            sind = []
+        end
+        
         at_arr = [i for i in key[1]]
         atomkey = key[1]
         dim = key[2]
 
+        if (fit_energy  && dim ==2 ) || (fit_energy   && fit_energy_threebody && dim == 3)
+            if key in keys(EIND)
+                eind = EIND[key]
+                datE = ch[eind .+ honly]
+            else
+                eind = []
+                datE = missing
+            end
+        else
+            eind = []
+            datE = missing
+        end
+
+        
         if dim == 2
             dmin = DMIN_TYPES[atomkey]
         elseif dim == 3
@@ -1220,7 +1268,8 @@ function make_database(ch, cs,  KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3; scf=f
         if use_neighbors
             coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, datH_lowdim=ch_neighbors[hind], datH_dense=ch[hind])
         else
-            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max)
+            coef = make_coefs(atomkey,dim, datH=ch[hind], datS=cs[sind], min_dist=dmin, dist_frontier = frontier, use_eam=fit_eam, use_pert = fit_pert, version=fitting_version, Uarr=Uarr, background_charge_correction = background_charge_correction, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,
+                              use_energy=fit_energy, use_energy_threebody=fit_energy_threebody, datE=datE)
         end
 
         #here, we store "extra" copies of the data, not taking into account permutation symmetries
@@ -1371,7 +1420,7 @@ function extract_database(database_old,nh,ns, ne,KEYS, HIND, SIND,EIND)
             z[1:length(coef.datH)] = coef.datH #edit
             ch[hind] = z
             cs[sind] = coef.datS[:]
-            ce[eind] = (coef.datE[:]
+            ce[eind] = coef.datE[:]
         else
             println("        NO  found key ", t)
         end
@@ -1811,7 +1860,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
-    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
+    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds ,X_Enew_BIG, Xc_Enew_BIG, EIND  = prepare_data
 
     println("AAAAAAAA ch_lin ", ch_lin)
 
@@ -1823,7 +1872,7 @@ function topstuff(list_of_tbcs, prepare_data; weights_list=missing, dft_list=mis
     println(ind_BIG)
 #    return 
     
-    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+    (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
 
 
 
@@ -3249,7 +3298,7 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         lambda = [lambda, lambda]
     end
                     
-                    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds  = prepare_data
+                    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN, threebody_inds,X_Enew_BIG, Xc_Enew_BIG,EIND  = prepare_data
 
 #    ch_lin = ones(size(ch_lin))
     println("ch_lin ", ch_lin)
@@ -6587,7 +6636,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
         pd, KPOINTS, KWEIGHTS, nk_max = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
         database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
 
-        (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+        (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
         if ismissing(weights_list)
             weights_list = ones(Float64, length(list_of_tbcs))
         else
@@ -6741,7 +6790,7 @@ function do_fitting_recursive_ALL(list_of_tbcs; niters_global = 2, weights_list 
             pd, KPOINTS, KWEIGHTS, nk_max, list_of_tbcs, dft_list = add_data(list_of_tbcs, dft_list, starting_database_t, update_all, fit_threebody, fit_threebody_onsite, refit_database, kpoints, NLIM)
             database_linear, ch_lin, cs_lin, X_Hnew_BIG, Xc_Hnew_BIG, Xc_Snew_BIG, X_H, X_Snew_BIG, Y_H, Y_S, h_on, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, Y_Hnew_BIG, Y_Snew_BIG, Ys_new, cs, ch_refit, SPIN  = pd
 
-            (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S) = keepdata
+            (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
 
             #add extra weights to end of list
             weight_max = maximum(weights_list)

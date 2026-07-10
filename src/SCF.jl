@@ -83,7 +83,7 @@ Run scf calculation of `c::crystal`, using `database` of `coefs`. The main user 
 - `verbose=true` verbosity level.
 
 """
-function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true, sparse=false, use_threebody=true, use_threebody_onsite=true)
+function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = missing, conv_thr = 1e-5, iters = 100, mix = -1.0, mixing_mode=:simple, nspin=1, e_den0=missing, verbose=false, repel=true, tot_charge=0.0, use_sym = true, database_classical = missing, do_tb = true, do_classical=true, sparse=false, use_threebody=true, use_threebody_onsite=true, use_energy=true, use_energy_threebody=true)
 
 
 #    println("SCF.jl $tot_charge")
@@ -104,7 +104,7 @@ function scf_energy(c::crystal, database::Dict; smearing=smear_default, grid = m
     
     println("calc tb")
     @time if sparse == false
-        tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite);
+        tbc = calc_tb_LV(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite, use_energy=use_energy, use_energy_threebody=use_energy_threebody);
     else
         tbc = calc_tb_LV_sparse(c, database, verbose=verbose, repel=repel, tot_charge=tot_charge, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite);
     end
