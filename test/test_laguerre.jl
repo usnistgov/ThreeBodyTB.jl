@@ -45,22 +45,22 @@ function test1()
             database = Dict()
             database[(:Li, :Li)] = ThreeBodyTB.CalcTB.make_coefs(Set(["Li", "Li"]), 2)
             
-            tbc1 = ThreeBodyTB.CalcTB.calc_tb_fast(c1, database, use_threebody=false);
-            tbc2 = ThreeBodyTB.CalcTB.calc_tb_fast(c2, database, use_threebody=false);
-            tbc3 = ThreeBodyTB.CalcTB.calc_tb_fast(c3, database, use_threebody=false);
-            tbc4 = ThreeBodyTB.CalcTB.calc_tb_fast(c4, database, use_threebody=false);
-            tbc4a = ThreeBodyTB.CalcTB.calc_tb_fast(c4a, database, use_threebody=false);
-            tbc4b = ThreeBodyTB.CalcTB.calc_tb_fast(c4b, database, use_threebody=false);
-            tbc4c = ThreeBodyTB.CalcTB.calc_tb_fast(c4c, database, use_threebody=false);
-            tbc5 = ThreeBodyTB.CalcTB.calc_tb_fast(c5, database, use_threebody=false);
-            tbc6 = ThreeBodyTB.CalcTB.calc_tb_fast(c6, database, use_threebody=false);
-            tbc7 = ThreeBodyTB.CalcTB.calc_tb_fast(c7, database, use_threebody=false);
-            tbc8 = ThreeBodyTB.CalcTB.calc_tb_fast(c8, database, use_threebody=false);
-            tbc9 = ThreeBodyTB.CalcTB.calc_tb_fast(c9, database, use_threebody=false);
+            tbc1 = ThreeBodyTB.CalcTB.calc_tb_fast(c1, database, use_threebody=false, use_threebody_onsite=false);
+            tbc2 = ThreeBodyTB.CalcTB.calc_tb_fast(c2, database, use_threebody=false, use_threebody_onsite=false);
+            tbc3 = ThreeBodyTB.CalcTB.calc_tb_fast(c3, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4 = ThreeBodyTB.CalcTB.calc_tb_fast(c4, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4a = ThreeBodyTB.CalcTB.calc_tb_fast(c4a, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4b = ThreeBodyTB.CalcTB.calc_tb_fast(c4b, database, use_threebody=false, use_threebody_onsite=false);
+            tbc4c = ThreeBodyTB.CalcTB.calc_tb_fast(c4c, database, use_threebody=false, use_threebody_onsite=false);
+            tbc5 = ThreeBodyTB.CalcTB.calc_tb_fast(c5, database, use_threebody=false, use_threebody_onsite=false);
+            tbc6 = ThreeBodyTB.CalcTB.calc_tb_fast(c6, database, use_threebody=false, use_threebody_onsite=false);
+            tbc7 = ThreeBodyTB.CalcTB.calc_tb_fast(c7, database, use_threebody=false, use_threebody_onsite=false);
+            tbc8 = ThreeBodyTB.CalcTB.calc_tb_fast(c8, database, use_threebody=false, use_threebody_onsite=false);
+            tbc9 = ThreeBodyTB.CalcTB.calc_tb_fast(c9, database, use_threebody=false, use_threebody_onsite=false);
             
             tbc_list = [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc4a, tbc4b, tbc4c]
 
-            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, do_plot=false)
+            newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false)
 #            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false)
 
 
