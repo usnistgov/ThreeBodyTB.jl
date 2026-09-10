@@ -1,9 +1,6 @@
 ![asdf](https://github.com/usnistgov/ThreeBodyTB.jl/workflows/CI/badge.svg)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pages.nist.gov/ThreeBodyTB.jl/)
 
-##<!--
-##[![codecov](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl/branch/main/graph/badge.svg?token=U8COIKIWG6)](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl)
-##-->
 
 
 <!--  
@@ -84,3 +81,6 @@ JULIA_NUM_THREADS` or start julia with `julia --threads 8` where the
 number of threads is set as appropriate for your system.
 
 
+##<!--
+##[![codecov](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl/branch/main/graph/badge.svg?token=U8COIKIWG6)](https://codecov.io/gh/kfgarrity/ThreeBodyTB.jl)
+##-->
