@@ -2412,7 +2412,7 @@ function go_eig(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1, h1spin
 #    hermH = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))
     
-    @inbounds @fastmath @threads for c = 1:grid[1]*grid[2]*grid[3]
+    @inbounds @fastmath for c = 1:grid[1]*grid[2]*grid[3] #@threads 
         id = threadid()
         k3 = mod(c-1 , grid[3])+1
         k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
@@ -2932,7 +2932,7 @@ function go_charge14(VECTS, S, occ, nspin, max_occ, DEN)
     for spin = 1:nspin
         DEN .= 0.0
         for n = 1:max_occ
-            @threads for k = 1:nk
+            for k = 1:nk #@threads 
                 for b = 1:nw
                     for a = 1:nw
                         @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[b,n,k,spin])
@@ -3005,7 +3005,7 @@ function go_charge13(VECTS, S, occ, nspin, max_occ)
     for spin = 1:nspin
         DEN .= 0.0
         for n = 1:max_occ
-            @threads for k = 1:nk
+            for k = 1:nk #@threads 
                 for b = 1:nw
                     for a = 1:nw
                         #                             @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,spin,n,k]).*(VECTS[b,spin, n,k])
@@ -5306,7 +5306,7 @@ function go_eig_sym_old(grid, nspin, nspin_ham, VALS, VALS0, VECTS, sk3, hk3, h1
     #    hermS = Hermitian(zeros(Complex{Float64}, size(h1)[1], size(h1)[1]))                                                                                          
 
 
-    @inbounds @fastmath @threads for c = 1:nk_red
+    @inbounds @fastmath for c = 1:nk_red #@threads 
         id = threadid()
         k1,k2,k3 = grid_ind[c,:]
 

@@ -460,7 +460,7 @@ function safe_mode_energy(crys::crystal, database; var_type=Float64, check=true,
     nkeep_ab = size(R_keep_ab)[1]
     T = eltype(crys.A)
     ENERGY = ones(T, nthreads())
-    @threads for c = 1:nkeep_ab
+    for c = 1:nkeep_ab #@threads 
         id = threadid()
         cind = R_keep_ab[c,1]
         a1 = R_keep_ab[c,2]
@@ -741,7 +741,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
         DENMAT = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, prod(grid), nspin)
         DENMAT_V = zeros(Complex{FloatX}, tbc.tb.nwan, tbc.tb.nwan, prod(grid), nspin)
         for spin = 1:nspin
-            @threads for counter = 1:prod(grid) #threads
+            for counter = 1:prod(grid) #threads #@threads 
                 k3 = mod(counter-1 , grid[3])+1
                 k2 = 1 + mod((counter-1) ÷ grid[3], grid[2])
                 k1 = 1 + (counter-1) ÷ (grid[2]*grid[3])
@@ -788,7 +788,7 @@ function get_energy_force_stress_fft(tbc::tb_crys, database; do_scf=false, smear
                 
                 ind = tbc.tb.ind_arr[c,:]
                 new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
-                @threads for nb = 1:tbc.tb.nwan
+                for nb = 1:tbc.tb.nwan #@threads 
                     @inbounds hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
                     @inbounds sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
                     
@@ -1148,7 +1148,7 @@ function go_denmat!(DENMAT, DENMAT_V, grid, nspin, OCCS, VALS, pVECTS, pVECTS_co
     pg = prod(grid)
     for spin = 1:nspin
         for a =1:tbc.tb.nwan
-        @inbounds @fastmath @threads     for c1 = 1:tbc.tb.nwan
+        @inbounds @fastmath    for c1 = 1:tbc.tb.nwan #@threads  
                 for c2 = 1:tbc.tb.nwan
                     for counter = 1:pg
                         
@@ -1212,7 +1212,7 @@ function forloops!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
         
         ind = tbc.tb.ind_arr[c,:]
         new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
-        @inbounds @fastmath @threads for nb = 1:tbc.tb.nwan
+        @inbounds @fastmath for nb = 1:tbc.tb.nwan #@threads 
 
             #hr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+ ((nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)) , FIND]
             #sr_g[:,nb,new_ind[1], new_ind[2], new_ind[3]] += @view g[(1:tbc.tb.nwan) .+  (size_ret + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1)), FIND ]
@@ -1281,7 +1281,7 @@ function psi_gradH_psi2(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DEN
 #        end
         #        htemp = zeros(Complex{Float64}, nwan, nwan, 3*nat+6)
         
-        @threads for c = 1:prod(grid)
+        for c = 1:prod(grid) #@threads 
             k3 = mod(c-1 , grid[3])+1
             k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
             k1 = 1 + (c-1) ÷ (grid[2]*grid[3])
@@ -1327,7 +1327,7 @@ function psi_gradH_psi3(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DEN
         hk_g_temp = deepcopy(hk_g)
 
         if scf
-            @inbounds @fastmath @threads for a1 = 1:nwan
+            @inbounds @fastmath for a1 = 1:nwan #@threads 
                 for a2 = 1:nwan
                     for g1 = 1:G1
                         for g2 = 1:G2
@@ -1344,7 +1344,7 @@ function psi_gradH_psi3(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid, DEN
         @inbounds @fastmath for a1 = 1:nwan
             for a2 = 1:nwan
                 #c=0
-                @threads for k1 = 1:grid[1]
+                for k1 = 1:grid[1] #@threads 
                     for k2 = 1:grid[2]
                         for k3 = 1:grid[3]
                             c = (k1-1)*grid[2]*grid[3] + (k2-1)*grid[3] + k3

@@ -99,16 +99,29 @@ function plot_compare_tb(h1::tb, h2::tb; h3=missing, kpath=[0.5 0 0 ; 0 0 0; 0.5
 end
 
 
-function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=-1, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1)
+function plot_compare_tb(h1::tb_crys, h2::tb_crys_kspace; names = missing, npts=-1, efermi = missing, yrange=missing, plot_hk=false, align="vbm", spin=1, projectability=false)
     println("plot_compare_tb ")
 
     
     kpath=h2.tb.K
 
-    
-    plot_bandstr(h1, kpath=kpath, npts = 1, names = names, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
-    plot_bandstr(h2, efermi = efermi, color="orange", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
-
+    if projectability
+        MarkerSize=4.0
+        
+        vals1 = calc_bands(h1, kpath)
+        vals2 = calc_bands(h2, kpath)
+        for i = 1:size(vals1)[2]
+            plot!(vals2[:,i,1], color = :red,  linestyle=:dash)
+            scatter!(vals2[:,i,1], marker_z = -h2.tb.projectability[:,i,1],markersize=MarkerSize, markerstrokewidth=0.0, alpha=0.6, legend=false, color=:magma)
+            plot!(vals1[:,i,1], color = :blue)
+        end
+        plot!(framestyle=:box)
+        
+    else
+        
+        plot_bandstr(h1, kpath=kpath, npts = 1, names = names, efermi = efermi, color="green", MarkerSize=4, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=true, spin=spin)
+        plot_bandstr(h2, efermi = efermi, color="orange", MarkerSize=2, yrange=yrange, plot_hk=plot_hk, align=align, clear_previous=false, spin=spin)    
+    end
 end
 
 """
@@ -157,7 +170,7 @@ function plot_bandstr(h::tb_crys; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5
 end
 
 
-function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both)
+function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerSize=missing, yrange=missing, plot_hk=false, align = "vbm", proj_types = missing, proj_orbs = missing, proj_nums=missing, clear_previous=true, do_display=true, color_spin = ["green", "orange"], spin = :both, projectability=false,  projectability_exponent=1.0)
 
     kpath=h.tb.K
 
@@ -168,8 +181,23 @@ function plot_bandstr(h::tb_crys_kspace; efermi = missing, color="blue", MarkerS
         energy, efermi, occs = band_energy(VALS, h.tb.kweights, h.nelec, 0.01, returnboth=true)
     end
 
-    plot_bandstr(h.tb; kpath=kpath, npts = 1, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display, color_spin=color_spin, spin=spin)
+    if projectability == true
+
+        MarkerSize=4.0
+        
+        vals = calc_bands(h, kpath)
+        println(size(vals))
+        println(size(h.tb.projectability))
+        plot()
+        for i = 1:size(vals)[2]
+            plot!(vals[:,i,1], color = :blue)
+            scatter!(vals[:,i,1], marker_z = -(h.tb.projectability[:,i,1]).^projectability_exponent,markersize=MarkerSize, markerstrokewidth=0.0, alpha=0.6, legend=false, color=:magma)
+        end
+        plot!(framestyle=:box)
+    else
     
+        plot_bandstr(h.tb; kpath=kpath, npts = 1, efermi = efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_inds=proj_inds, clear_previous=clear_previous, do_display=do_display, color_spin=color_spin, spin=spin)
+    end
 end
 
 """
@@ -660,7 +688,7 @@ function plot_bandstr(h; kpath=[0.5 0 0 ; 0 0 0; 0.5 0.5 0.5; 0 0.5 0.5; 0 0 0 ;
             println("none $vbm     efermi $efermi")
 
             vals = vals .- vbm
-            alignstr = "Energy - VBM ($units)"
+            alignstr = "Energy ($units)"
 
             if (h.nspin == 2  || h.scfspin) && spin == 0
                 vals_up = vals_up .- vbm

@@ -161,7 +161,7 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
         proj = zeros(nk, tbc.tb.nwan, length(PROJ), nspin)
         
         for spin = 1:nspin
-            @threads for c = 1:grid[1]*grid[2]*grid[3]
+            for c = 1:grid[1]*grid[2]*grid[3] #@threads 
                 
                 k3 = mod(c-1 , grid[3])+1
                 k2 = 1 + mod((c-1) ÷ grid[3], grid[2])
@@ -214,7 +214,7 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
                 for p1 in proj_inds
                     #                for p2 in proj_inds
                     #                    for a = 1:tbc.tb.nwan
-                    @threads for c = 1:nk_red
+                    for c = 1:nk_red #@threads 
                         
                         for a = 1:tbc.tb.nwan
                             
@@ -236,7 +236,7 @@ function projection(tbc::tb_crys, vects, sk3, grid; ptype=missing, use_sym=false
                 for p1 in proj_inds
                     #                for p2 in proj_inds
                     #                    for a = 1:tbc.tb.nwan
-                    @threads for c = 1:grid[1]*grid[2]*grid[3]
+                    for c = 1:grid[1]*grid[2]*grid[3] #@threads 
                         
                         for a = 1:tbc.tb.nwan
                             
@@ -998,7 +998,7 @@ function dos_tetra(tbc::tb_crys; grid=missing, npts=missing, proj_type=missing, 
 
     for spin = 1:nspin
         
-        @threads for nt = 1: ntetra
+        for nt = 1: ntetra #@threads 
             id = threadid()
             #id = 1
             ex=zeros(4)

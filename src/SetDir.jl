@@ -34,7 +34,9 @@ println("check host $t")
 if t == "blackbird.nist.gov\n"
     global MPI_STRING="mpirun -n  "
 else #we are on raritan
-    global MPI_STRING="srun --mpi=pmi2  -n  "
+    #    global MPI_STRING="srun --mpi=pmi2  -n  "
+    global MPI_STRING="mpirun -n  "
+    
 end
 println("MPI_STRING $MPI_STRING ")
 #global MPI_STRING="mpirun -np"

@@ -140,7 +140,7 @@ function linesearch(x, dx, fn, f0, step_size, verbosity)
     if flag2 == false
         #        println("MY LS flag2 $flag2")
 #        pritntln("flag2 false ", step_size/1.75)
-        return x + dx * step_size * 0.5, step_size/1.75, false
+        return x + dx * step_size * 0.45, step_size/1.75, false
     end
 
     c = f0

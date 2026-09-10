@@ -377,7 +377,7 @@ Calculate energy, force, and stress for a crystal.
 - `grid=missing`: k-point grid, e.g. [10,10,10], default chosen automatically
 - `sparse = :auto`: Default is to use dense matricies for `nat < 100`. Can be `true` or `false` to force choice.
 """
-function scf_energy_force_stress(c::crystal; database = missing, smearing = smear_default, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, database_classical=missing, do_tb=true, tot_charge=0.0, sparse = :auto)
+function scf_energy_force_stress(c::crystal; database = missing, smearing = smear_default, grid = missing, nspin=1, repel=true , use_sym=true, verbose=false, do_classical=true, use_threebody=true, use_threebody_onsite=true, database_classical=missing, do_tb=true, tot_charge=0.0, sparse = :auto)
 
     #nothing case
     if !do_tb && !do_classical
@@ -418,7 +418,7 @@ function scf_energy_force_stress(c::crystal; database = missing, smearing = smea
         return energy_cl, force_cl, stress_cl, missing
     end
 #    println("tot_charge before 00000 ", tot_charge)
-    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, repel=repel, use_sym=use_sym, tot_charge=tot_charge, sparse=sparse )
+    energy_tot, tbc, conv_flag = scf_energy(c; database=database, smearing=smearing, grid = grid, nspin=nspin, conv_thr=1e-6, verbose=verbose, use_sym=use_sym, tot_charge=tot_charge, sparse=sparse, repel=repel, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite )
 #    println("tot charge 11111111111 ", tbc.tot_charge, " " , tbc.nelec)
     
     if ismissing(database)
@@ -550,7 +550,7 @@ returns energy, tight-binding-crystal-object, error-flag
 - `mix = -1.0`: initial mixing. -1.0 means use default mixing. Will automagically adjust mixing if SCF is failing to converge. Starting default is smaller for larger unit cells.
 - `mixing_mode = :simple`: default is simple. Other options are `:simple` and `:DIIS` / `:pulay` (direct inversion of iterative subspace). Will automatically switch to simple if Pulay fails. 
 """
-function scf_energy(c::crystal; database = missing, smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 200, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, use_threebody=true, use_threebody_onsite=true, use_energy=true, use_energy_threebody=true)
+function scf_energy(c::crystal; database = missing, smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 200, mix = -1.0, mixing_mode=:simple, nspin=1, eden=missing, verbose=false, repel=true, tot_charge=0.0, use_sym=true, do_classical=true, do_tb=true, database_classical=missing, sparse=:auto, use_threebody=true, use_threebody_onsite=true)
     println()
 #    println("Begin scf_energy-------------")
 #    println()
@@ -584,7 +584,7 @@ function scf_energy(c::crystal; database = missing, smearing=smear_default, grid
 #    println("database_classical")
 #    println(database_classical)
     println()
-    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite, use_energy=use_energy, use_energy_threebody=use_energy_threebody)
+    energy_tot, efermi, e_den, dq, dq_eden, VECTS, VALS, error_flag, tbc = SCF.scf_energy(c, database, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix,  mixing_mode=mixing_mode, nspin=nspin, e_den0=eden, verbose=verbose, repel=repel, tot_charge=tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical, do_tb=do_tb, sparse=sparse, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite)
 
     conv_flag = !error_flag
     if do_tb
@@ -615,14 +615,14 @@ end
 
     SCF energy using crystal structure from DFT object.
 """
-function scf_energy(d::dftout; database = Dict(), smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true, sparse=:auto)
+function scf_energy(d::dftout; database = Dict(), smearing=smear_default, grid = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, repel=true, use_sym=true, do_classical=true, database_classical=missing, do_tb=true, sparse=:auto,  use_threebody=true, use_threebody_onsite=true)
 
     if ismissing(database_classical)
         do_classical=false
     end
         
     
-    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=d.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb, sparse=sparse)
+    return scf_energy(d.crys, smearing=smearing, grid = grid, conv_thr = conv_thr, iters = iters, mix = mix, mixing_mode=mixing_mode, nspin=nspin, verbose=verbose, repel=repel, tot_charge=d.tot_charge, use_sym=use_sym, do_classical=do_classical, database_classical=database_classical,do_tb=do_tb, sparse=sparse, use_threebody=use_threebody, use_threebody_onsite=use_threebody_onsite)
 
 end
 
@@ -632,7 +632,7 @@ end
 
 SCF energy using crystal structure from TBC object.
 """
-function scf_energy(tbc::tb_crys; smearing=smear_default, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing, repel=true)
+function scf_energy(tbc::tb_crys; smearing=smear_default, grid = missing, e_den0 = missing, conv_thr = 2e-5, iters = 75, mix = -1.0, mixing_mode=:simple, nspin=1, verbose=true, tot_charge=missing, use_sym=true, do_classical=true, database_classical=missing)
 
     if ismissing(database_classical)
         do_classical=false

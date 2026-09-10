@@ -90,7 +90,7 @@ function eig_norm(vals, kweights, energy, occ)
 end
 
 
-function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max = 0, use_sym=true, fit_umat=false)
+function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights_list=missing, dft_list=missing, kpoints = [0 0 0; 0 0 0.5; 0 0.5 0.5; 0.5 0.5 0.5], starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_LIM = 0.4, RW_PARAM=0.0001, RW_PARAM2=0.01, KPOINTS=missing, KWEIGHTS=missing, nk_max = 0, use_sym=true, fit_umat=false)
 
 #    database_linear, ch_lin, cs_lin, X_Hnew_BIG, Y_Hnew_BIG,               X_H,               X_Snew_BIG, Y_H, h_on,              ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3,keepind, keepdata = prepare_data
     
@@ -496,9 +496,9 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
             nweight = min(Int64(ceil(nval/2.0-1e-5)) + 1, nw)
             occs2 = zeros(size(occs))
-            occs2[ :,1:nweight,1:nspin   ] .= 0.5
-            occs2[ :,nweight  ,1:nspin   ] .= 0.5
-            occs2[ :,1        ,1:nspin   ] .= 0.5
+            occs2[ :,1:nweight,1:nspin   ] .= 1.0
+            occs2[ :,nweight  ,1:nspin   ] .= 1.0
+            occs2[ :,1        ,1:nspin   ] .= 1.0
 #            occs2[1,1] = 5.0
 
             if !ismissing(tbc)
@@ -507,9 +507,9 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
                 etmp, occs3 = band_energy(VALS[c,1:nk,1:nw,1:nspin], kweights, nval+0.35, 0.1, returnocc=true)
             end
            
-            #WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2*0.5 + occs3*0.5)/(1 + 0.5 + 0.5)
+            WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs2*0.5 + occs3*0.5)/(1 + 0.5 + 0.5)
             #WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs + occs3*0.5)/(1 + 0.5)
-            WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs )/(1 )
+            #WEIGHTS[c,1:nk,1:nw,1:nspin] = (occs )/(1 )
 
 
 #        else
@@ -531,7 +531,12 @@ function topstuff_direct(list_of_tbcs, prepare_data; EDEN_input=missing, weights
 
 
         if !ismissing(tbc)
-            WEIGHTS[c,:,:,:] .+= RW_PARAM
+            x = ((efermi + RW_LIM) .- VALS[c,:,:,:]) / RW_LIM
+            x = max.(x, 0.0)
+            x = min.(x, 1.0)
+            
+            WEIGHTS[c,:,:,:] +=  RW_PARAM * x  #RW_PARAM * (  1 VALS[c,:,:,:] .< (efermi + RW_LIM))
+            WEIGHTS[c,:,:,:] .+= RW_PARAM2
         end
 
 #double check
@@ -617,14 +622,14 @@ end
 
 function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false,
                            fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing,ks_weight=missing,
-                           niters=50, lambda=[0.0,0.0, 1e-5], leave_one_out=false, prepare_data = missing, RW_PARAM=0.0, NLIM = 100,
+                           niters=50, lambda=[0.0,0.0, 1e-5], leave_one_out=false, prepare_data = missing, RW_LIM = 0.4, RW_PARAM=0.0,RW_PARAM2=0.01, NLIM = 100,
                            refit_database = missing, start_small = false, fit_to_dft_eigs=false, fit_eam=false, ch_startX = missing,
                            energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
                            conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
                            use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,
                            fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0)
     
-    println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
+    println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM RW_LIM $RW_LIM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
     if rho_max == :auto && fit_eam
         rho_max = get_rho_max(list_of_tbcs_nonscf, N_cheb, n_eam, rho_decay )
@@ -698,12 +703,12 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
 
     #    return pd[1],pd[2], pd[3]
     
-    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig,
+    return do_fitting_direct_main(list_of_tbcs_nonscf,list_of_tbcs, pd; weights_list = weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight,ks_weight = ks_weight, niters=niters, lambda=lambda, leave_one_out=leave_one_out, RW_LIM = RW_LIM, RW_PARAM=RW_PARAM,RW_PARAM2=RW_PARAM2, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max=nk_max,  start_small = start_small , fit_to_dft_eigs=fit_to_dft_eigs, fit_eam=fit_eam, ch_startX = ch_startX, energy_diff_calc = energy_diff_calc, gen_add_ham=gen_add_ham, fitting_version=fitting_version, opt_S = opt_S, cg = conjgrad, cs_startX = cs_startX, use_sym=use_sym, fit_umat=fit_umat, debug_gamma=debug_gamma, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, nbig=nbig,
                                   use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody, conv_thr=conv_thr)
 
 end
 
-function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_PARAM=0.0001, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
+function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data; weights_list=missing, dft_list=missing, kpoints = missing, starting_database = missing,  update_all = false, fit_threebody=true, fit_threebody_onsite=true, do_plot = false, energy_weight = missing, rs_weight=missing, ks_weight = missing, niters=50, lambda=[0.0, 0.0, 1e-5], leave_one_out=false, RW_LIM = 0.4, RW_PARAM=0.0001,RW_PARAM2=0.01, KPOINTS=missing, KWEIGHTS=missing, nk_max=0, start_small=false, fit_to_dft_eigs=false, fit_eam=false, optimS = false, top_vars = missing, ch_startX = missing, energy_diff_calc = false, gen_add_ham=false, fitting_version=fitting_version_default, opt_S=true, cg = false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
                                 use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing, fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0)
 
     leave_out = -1
@@ -735,7 +740,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
     @time  begin
         list_of_tbcs_nonscf,KPOINTS, KWEIGHTS, dft_list, scf, energy_weight, rs_weight, ks_weight, weights_list, NWAN_MAX, NCALC, VALS, VALS0, E_DEN, H1, H1spin, DQ, DQ_EDEN, ENERGY_SMEAR, OCCS, WEIGHTS, ENERGIES, NCOLS_orig, NCOLS, ch, NVAL, NAT, SPIN_MAX, Ys, keep_bool, keep_inds, toupdate_inds, ch_keep, keep_inds_S, toupdate_inds_S, cs_keep, VECTS_ref, S_ref, SHIFTS ,   SSS,ORB2IND,ATOMTRANS, U_dict, n_U, ENERGY_CHARGE =
-            topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_PARAM=RW_PARAM, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max, use_sym=use_sym, fit_umat=fit_umat)
+            topstuff_direct(list_of_tbcs_nonscf, prepare_data; weights_list=weights_list, dft_list=dft_list, kpoints = kpoints, starting_database = starting_database,  update_all = update_all, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = do_plot, energy_weight = energy_weight, rs_weight=rs_weight, ks_weight = ks_weight, niters=niters, lambda=lambda,  leave_one_out=false, RW_LIM = RW_LIM, RW_PARAM=RW_PARAM, RW_PARAM2=RW_PARAM2, KPOINTS=KPOINTS, KWEIGHTS=KWEIGHTS, nk_max = nk_max, use_sym=use_sym, fit_umat=fit_umat)
 
         (ch_keep, keep_inds, toupdate_inds, cs_keep, keep_inds_S, toupdate_inds_S, ce_keep, keep_inds_E, toupdate_inds_E) = keepdata
 
@@ -1574,10 +1579,10 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
                             w_special = 1.0
                         end
                         
-                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special * list_of_tbcs[n].tb.projectability[k, i, spin]
+                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special * (list_of_tbcs[n].tb.projectability[k, i, spin])^10
 
                         X_TOTEN[:] +=            vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin])  #* list_of_tbcs[calc].nspin
-                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] * list_of_tbcs[n].tb.projectability[k, i, spin]
+                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] * (list_of_tbcs[n].tb.projectability[k, i, spin])^10
 
                         #NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
 
@@ -1608,7 +1613,7 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                         #NEWY[counter] =  (VALS[calc,k,jjj_min, spin] - vals_test_on[i] - (VALS_FITTED[calc,k,jjj_min, spin] - VALS0_FITTED[calc,k,jjj_min, spin]) + SHIFTS[calc] - SHIFTS_FITTED[calc] ) .* WEIGHTS[calc, k, i, spin] * w_special
 
-                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special * list_of_tbcs[n].tb.projectability[k, i, spin]                          #no h1 val kfg
+                        NEWY[counter] =  (VALS0[calc,k,jjj_min, spin] - vals_test_on[i]  ) .* WEIGHTS[calc, k, i, spin] * w_special * (list_of_tbcs[n].tb.projectability[k, i, spin] )^10                         #no h1 val kfg)
 
 #                        if k <= 2 && calc == 1
 #                            println("test calc $calc k $k  counter $counter VALS0 $(VALS0[calc,k,jjj_min, spin] ) VALS_FITTED $(VALS_FITTED[calc, k,i,spin]) ")
@@ -2555,6 +2560,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
             
         end
         println("iterate_fn_end $err1 $err2")
+        mix_iter = min(mix_iter, 0.2)
+        mix_iterS = max(min(mix_iterS, 0.15), 0.05)
         return ch, cs, err2, mix_iter, mix_iterS, badS
     end
 
@@ -2634,8 +2641,8 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
 
             #scf = true
-            mix_iterS = 0.001
-            mix_iter = 0.003
+            mix_iterS = 0.01
+            mix_iter = 0.03
             err_old_bigiter = 10.0^10
             err = 10.0^9.0
             badS = false

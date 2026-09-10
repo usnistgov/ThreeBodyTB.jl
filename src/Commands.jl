@@ -77,10 +77,11 @@ and mpi commands (if any)
             st = read(`./torun.$r.x` , String)
         catch err
             println(err)
-            println("possible error running qe pwscf")
+            println("possible error running qe pwscf, throwing err")
+            throw(err)
         end
         
-        rm("torun.$r.x")
+#        rm("torun.$r.x")
         return st
     end
 

@@ -42,7 +42,7 @@ function get_g(dist, r_loc, m, n_cheb)
     #    rho[n] += cheb_spoly[n](gg)
     #    println("rho n $n $(cheb_spoly[n](gg))")
     #end        
-    return rho
+    #return rho
 end
 
 function g(dist, m, rmax; norm = 1.0)

@@ -200,7 +200,7 @@ function distances_etc_3bdy_parallel_old(crys, cutoff=missing, cutoff2=missing; 
     found_arr = zeros(Bool, nr)
     found_arr[:] .= false
     
-    @threads for r1 = -R[1]:R[1]
+     for r1 = -R[1]:R[1] #@threads
     #for r1 = -R[1]:R[1]    
         c1 = r1 + R[1] + 1
         id = threadid()
@@ -727,7 +727,7 @@ function distances_etc_3bdy_parallel(crys, cutoff=missing, cutoff2=missing; var_
         #             for b = 1:crys.nat
 
         #threads
-        @threads for ab = 1:crys.nat^2
+        for ab = 1:crys.nat^2 #@threads 
             b = mod(ab-1, crys.nat)+1
             a = (ab-1) ÷ crys.nat   +1
             
@@ -941,7 +941,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
     found_arr[:] .= false
 
 
-    @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1)
+    for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1) #@threads 
         
         r3 = mod(c-1 , R[3]*2+1 ) - R[3]
         r2 = mod((c-1) ÷ (R[3]*2+1), (R[2]*2+1)) - R[2]
@@ -1134,7 +1134,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
         
         #             for b = 1:crys.nat
 
-        @threads for ab = 1:crys.nat^2
+        for ab = 1:crys.nat^2 #@threads 
             b = mod(ab-1, crys.nat)+1
             a = (ab-1) ÷ crys.nat   +1
             

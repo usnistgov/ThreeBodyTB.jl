@@ -444,7 +444,7 @@ Starting from a converged QE scf calculation...
 - `only_kspace=false` Do not create real-space tb. Usually true in current code, as I can fit directly from k-space tb only.
 - `screening = 1.0` If use a screening factor to reduce value of U in Ewald calculation. Usually leave at 1.0.
 """
-function projwfc_workf(dft::dftout; directory="./", nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false, refuse_nscf=false)
+function projwfc_workf(dft::dftout; directory=missing, nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false, refuse_nscf=false)
 """
 
 Steps:
@@ -457,6 +457,9 @@ Steps:
 """
     prefix=dft.prefix
     outdir=dft.outdir
+    if ismissing( directory)
+        directory = dft.outdir
+    end
     println("projwfc_workflow $prefix $outdir")
     println()
     println("projwfc_workflow---------------------------------------------------------------------------")
@@ -508,7 +511,8 @@ Steps:
 
 #    return
 
-    if maximum(abs.(dft_nscf.bandstruct.eigs[:,1,:] - dft.bandstruct.eigs[:,1,:])) > 1e-2
+
+    if abs.(dft_nscf.bandstruct.eigs[1,1,1] - dft.bandstruct.eigs[1,1,1]) > 1e-2
         println("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
         throw("dft_nscf and dft eigenvalues do not match. catastrophic error. we refuse to continue")
     end
@@ -635,7 +639,7 @@ Steps:
         #A,B,C = AtomicProj.create_tb(p, dft, energy_froz=en_froz+.01); 
         #return A,B,C        
     else
-        ham_k, EIG, Pmat, Nmat, VAL, projection_warning, projectability = AtomicProj.create_tb(p, dft_nscf);
+        ham_k, EIG, Pmat, Nmat, VAL, projection_warning, projectability = AtomicProj.create_tb(p, dft_nscf, dft,  shift_energy=shift_energy);
     end
 
 #    println("done")
@@ -1342,158 +1346,165 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
     #can be tricky. I use a projection heuriestic, but it can fail at band crossings that mix bands.
 
     function do_freeze()
-        if !(ismissing(energy_froz))
-            energy_froz2 = energy_froz+2.0
-            println("energy_froz: $energy_froz , $energy_froz2")
+        move_eigs = true
+        if (ismissing(energy_froz))
+            move_eigs = false
+            energy_froz = efermi_dft
+        end
+        energy_froz2 = energy_froz+0.5
+        
+        println("energy_froz: $energy_froz , $energy_froz2")
 
-            vals_freeze = zeros(p.bs.nks, nwan, p.nspin)
-            vals_freeze_target = zeros(p.bs.nks, nwan, p.nspin)
-            for spin = 1:p.nspin
-                for k = 1:p.bs.nks
-                    val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
-                    val_tb = real(val_tbt)
-                    val_tb_new = deepcopy(val_tb)
-                    #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
+        vals_freeze = zeros(p.bs.nks, nwan, p.nspin)
+        vals_freeze_target = zeros(p.bs.nks, nwan, p.nspin)
+        for spin = 1:p.nspin
+            for k = 1:p.bs.nks
+                val_tbt, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
+                val_tb = real(val_tbt)
+                val_tb_new = deepcopy(val_tb)
+                #            val_pw = p.bs.eigs[k,nsemi+1:nsemi+nwan]
 
-                    nxxx = size(PROJECTABILITY)[3]
-                    val_pw = EIGS[k,1:nxxx, spin]
+                nxxx = size(PROJECTABILITY)[3]
+                val_pw = EIGS[k,1:nxxx, spin]
 
-                    if k == 1
-                        println("val_pw ", val_pw)
-                        println()
-                        println("val_tb ", val_tb)
-                        println()
-                    end
+                if k == 1
+                    println("val_pw ", val_pw)
+                    println()
+                    println("val_tb ", val_tb)
+                    println()
+                end
+                
+                order = Dict()
+                
+                score_mat = zeros(nxxx, nwan)
+
+                proj_sort = sortperm(PROJECTABILITY[spin,k,:], rev=true)
+
+                for n2 = 1:nwan
+                    cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
                     
-                    order = Dict()
+                    dist_min = 1000.0
+                    nmin = 0
                     
-                    score_mat = zeros(nxxx, nwan)
-
-                    proj_sort = sortperm(PROJECTABILITY[spin,k,:], rev=true)
-
-                    for n2 = 1:nwan
-                        cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
+                    #for n1 = 1:nxxx
+                    for (counter_n1, n1) = enumerate(proj_sort[1:nwan])
                         
-                        dist_min = 1000.0
-                        nmin = 0
+                        #                    t = p.proj[k,wan, nsemi + n1] 
+                        #t = PROJ[k,:,spin, n1]
+                        #x = PROJECTABILITY[spin,k,n1]
                         
-                        #for n1 = 1:nxxx
-                        for (counter_n1, n1) = enumerate(proj_sort[1:nwan])
-                            
-                            #                    t = p.proj[k,wan, nsemi + n1] 
-                            #t = PROJ[k,:,spin, n1]
-                            #x = PROJECTABILITY[spin,k,n1]
-                            
-                            #cd_dft = real(t .* conj(t))
-                            
-                            #                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
-                            #dist_cd = sum((cd_dft - cd_vect).^2)
-                            #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
-                            #dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
-                            #                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd  + 1 / (x + 1e-3)
+                        #cd_dft = real(t .* conj(t))
+                        
+                        #                        dist_en = (val_tb[n2] - val_pw[n1]).^2 * 1.0
+                        #dist_cd = sum((cd_dft - cd_vect).^2)
+                        #                        dist = dist_en + dist_cd + 0.1*(n1 - n2)^2
+                        #dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd + 0.05*(n1 - n2)^2 + 1 / (x + 1e-3)
+                        #                        dist = (val_tb[n2] - val_pw[n1]).^2 + dist_cd  + 1 / (x + 1e-3)
 
-                            #dist = abs(n1 - n2) #+ 0.-1 * (val_tb[n2] - val_pw[n1]).^2 + 
-                            #dist = 1000.0* (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
+                        #dist = abs(n1 - n2) #+ 0.-1 * (val_tb[n2] - val_pw[n1]).^2 + 
+                        #dist = 1000.0* (val_tb[n2] - val_pw[n1]).^2 + 1e-2 * dist_cd  + 1e-4 * 1 / (x + 1e-4)
 
-                            #=
-                            if k == 3
-                            #println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
-                            if dist < 0.02
-                            println()
-                            println("!order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
-                            println(cd_dft)
-                            println(cd_vect)
-                            println()
-                            else
-                            println(" order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
-                            end
-                            end
-                            =#
-                            #score_mat[n1,n2] = dist
-                            score_mat[n1,n2] =  abs(n1 - n2)#abs(n1 - n2)
-                            #                    if dist < dist_min
-                            #                        dist_min = dist
-                            #                        nmin = n1
-                            #                    end
-                        end
-                    end
-                    doneset = Set()
-                    for n = 1:nwan
-                        s = sortperm(score_mat[:,n], rev=false)
-                        #if k == 3
-                        #    println("scoremat ", score_mat[:,n])
-                        #    println("scoremat sort ", score_mat[s,n])
-                        #end
-                        for ss in s
-                            if !(ss in doneset)
-                                order[n] = ss
-                                push!(doneset, ss)
-                                if k == 1
-                                    println("orer $n $ss")
-                                end
-                                break
-                            end
-                        end
-                    end
-
-                    
-                    #acutally do the change
-                    for n in 1:nwan
-                        #if true
-                        if val_pw[order[n]] < energy_froz
-                            #if k == 1
-                            #    println("case 1 $n ", val_pw[order[n]])
-                            #end
-                            val_tb_new[n] = val_pw[order[n]]
-                            #elseif val_pw[order[n]] < energy_froz2
+                        #=
+                        if k == 3
+                        #println("order k $k n1 $n1 n2 $n2 dist $dist val_tb $(val_tb[n2]) val_pw $(val_pw[n1])  x $(PROJECTABILITY[spin,k,n1])  cd_dft $(cd_dft)")
+                        if dist < 0.02
+                        println()
+                        println("!order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
+                        println(cd_dft)
+                        println(cd_vect)
+                        println()
                         else
-                            #x=cutoff(val_tb[n], energy_froz, energy_froz2)
-                            x = PROJECTABILITY[spin,k,order[n]]
-                            projectability[k,n,spin] = x
-                            
-                            #      if x > 0.1
-                            #x = x^2
-                            #if k == 1
-                            #    println("case 2 $n x $x val ", val_pw[order[n]] * x + val_tb[n]*(1.0-x))
-                            #end
-                            
-                            val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
-
-                            
-                            #                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
-                            #      end
+                        println(" order n1 $n1 nw $n2 dist $dist valdiff $((val_tb[n2] - val_pw[n1]).^2) dist_cd $dist_cd 1 / (x + 1e-4) $(1e-4 / (x + 1e-4))   val_tb $(val_tb[n2])  val_dft $(val_pw[n1]) ")
                         end
-                        
+                        end
+                        =#
+                        #score_mat[n1,n2] = dist
+                        score_mat[n1,n2] =  abs(n1 - n2)#abs(n1 - n2)
+                        #                    if dist < dist_min
+                        #                        dist_min = dist
+                        #                        nmin = n1
+                        #                    end
                     end
-
-                    #if k == 1
-                    #    println()
-                    #    println("val_tb_new ", val_tb_new, " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-                    #    println()                        
+                end
+                doneset = Set()
+                for n = 1:nwan
+                    s = sortperm(score_mat[:,n], rev=false)
+                    #if k == 3
+                    #    println("scoremat ", score_mat[:,n])
+                    #    println("scoremat sort ", score_mat[s,n])
                     #end
-
-                    #resym
-                    for n = 1:nwan-1
-                        c= [n]
-                        for n2 = n+1:nwan
-                            if abs(val_tb_new[n] - val_tb_new[n2]) < 1e-4
-                                push!(c, n2)
+                    for ss in s
+                        if !(ss in doneset)
+                            order[n] = ss
+                            push!(doneset, ss)
+                            if k == 1
+                                println("orer $n $ss")
                             end
-                        end
-                        if length(c) > 1
-                            t = sum(val_tb_new[c]) / length(c)
-                            val_tb_new[c] .= t
+                            break
                         end
                     end
-                    ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
-                    ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
-                    val_tb_new2, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
-                    m = min(length(val_pw), length(val_tb_new2))
-                    #println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
-                    vals_freeze[k, :,spin] = val_tb_new2
-                    vals_freeze_target[k, :,spin] = val_pw[1:nwan]
+                end
+
+                
+                #acutally do the change
+                for n in 1:nwan
+                    #if true
+                    if val_pw[order[n]] < energy_froz
+                        #if k == 1
+                        #    println("case 1 $n ", val_pw[order[n]])
+                        #end
+                        if move_eigs
+                            val_tb_new[n] = val_pw[order[n]]
+                        end
+                        #elseif val_pw[order[n]] < energy_froz2
+                    else
+                        #x=cutoff(val_tb[n], energy_froz, energy_froz2)
+                        x = PROJECTABILITY[spin,k,order[n]]
+                        projectability[k,n,spin] = x
+                        
+                        #      if x > 0.1
+                        #x = x^2
+                        #if k == 1
+                        #    println("case 2 $n x $x val ", val_pw[order[n]] * x + val_tb[n]*(1.0-x))
+                        #end
+                        if move_eigs
+                            val_tb_new[n] = val_pw[order[n]] * x + val_tb[n]*(1.0-x)
+                        end
+
+                        
+                        #                        println("n $n k $k x $x xsqrt $(sqrt(x)) val_pw $(val_pw[order[n]]) val_tb $(val_tb[n])")
+                        #      end
+                    end
                     
                 end
+
+                #if k == 1
+                #    println()
+                #    println("val_tb_new ", val_tb_new, " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                #    println()                        
+                #end
+
+                #resym
+                for n = 1:nwan-1
+                    c= [n]
+                    for n2 = n+1:nwan
+                        if abs(val_tb_new[n] - val_tb_new[n2]) < 1e-4
+                            push!(c, n2)
+                        end
+                    end
+                    if length(c) > 1
+                        t = sum(val_tb_new[c]) / length(c)
+                        val_tb_new[c] .= t
+                    end
+                end
+                ham_k[:,:,k, spin] = vect*Diagonal(val_tb_new)*vect'
+                ham_k[:,:,k, spin] = (ham_k[:,:,k, spin]  + ham_k[:,:,k, spin]')/2.0
+                val_tb_new2, vect = eigen(Hermitian(ham_k[:,:,k, spin] ))
+                m = min(length(val_pw), length(val_tb_new2))
+                #println("freeze error ", val_pw[1:m] - val_tb_new2[1:m])
+                vals_freeze[k, :,spin] = val_tb_new2
+                vals_freeze_target[k, :,spin] = val_pw[1:nwan]
+                
             end
         end
         band_en_freeze, efermi_freeze = band_energy(vals_freeze, p.bs.kweights, p.bs.nelec, 0.01, returnef=true)
@@ -1504,17 +1515,18 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
     println("do freeze 1 ")
     println()
     do_freeze()
-    println()
-    println("do freeze 2 ")
-    println()
-    do_freeze()
-    println()
-    println("do freeze 3 ")
-    println()
-    do_freeze()
-    
+#    println()
+#    println("do freeze 2 ")
+#    println()
+#    do_freeze()
+#    println()
+#    println("do freeze 3 ")
+#    println()
+#    do_freeze()
+    #    end
     #alternate eigenvalue fix method.
-    if nfroz >= 1 && (ismissing(energy_froz))
+#=
+if nfroz >= 1 && (ismissing(energy_froz))
         println("nfroz: ", nfroz)
         for spin = 1:p.nspin
             for k = 1:p.bs.nks
@@ -1536,7 +1548,7 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
             end
         end
     end
-
+=#
 
     VAL = zeros(Float64, p.bs.nks, nwan, p.nspin)
     VECT = zeros(Complex{Float64}, p.bs.nks, p.nspin, nwan, nwan)

@@ -406,7 +406,7 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
        # hk_g_temp = zeros(eltype(hk_g), nwan, nwan, nk_red)
 
         if scf
-            @inbounds @fastmath @threads for a1 = 1:nwan
+            @inbounds @fastmath for a1 = 1:nwan # @threads 
                 for a2 = 1:nwan
                     for k = 1:nk_red
                         g1,g2,g3 = grid_ind[k,:]
@@ -416,7 +416,7 @@ function psi_gradH_psi3_sym(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid,
             end
         end
         
-        @inbounds @fastmath @threads for c = 1:nk_red
+        @inbounds @fastmath for c = 1:nk_red #@threads 
                     k1,k2,k3=grid_ind[c,:]
         for a1 = 1:nwan
             for a2 = 1:nwan
@@ -448,7 +448,7 @@ function psi_gradH_psi3_sym2(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, nat, grid
 #        sk_g_i[:] = imag(sk_g)
 #        hk_g_r[:] = real(hk_g)
         #        hk_g_i[:] = imag(hk_g)
-        @inbounds @fastmath @threads  for a1 = 1:nwan
+        @inbounds @fastmath  for a1 = 1:nwan #@threads 
             for a2 = 1:nwan
                 for k = 1:nk_red
                     g1 = grid_ind[k,1]
@@ -604,7 +604,7 @@ function psi_gradH_psi3_sym2_sparse(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, na
 #        println("typeof  ", [typeof(h1), typeof(h1spin), typeof(sk_g_r)])
 #        println("scf")
         if scf
-            @threads for a1 = 1:nwan
+            for a1 = 1:nwan #@threads 
                 for a2 = 1:nwan
                     for k = 1:nk_red
                         g1 = grid_ind[k,1]
@@ -643,7 +643,7 @@ function psi_gradH_psi3_sym2_sparse(VALS0, hk_g, sk_g, h1, h1spin, scf, nwan, na
         end
 =#
         VAL_threads = zeros(nk_red, nthreads())
-        @threads for a1 = 1:nwan
+        for a1 = 1:nwan #@threads 
             id = threadid()
             for a2 = 1:nwan
                 for c = 1:nk_red
@@ -805,7 +805,7 @@ function forloops2_SINGLE_check!(tbc, hr_g, sr_g, size_ret, FIND, grid, g)
         
         ind = tbc.tb.ind_arr[c,:]
         new_ind = [mod(ind[1], grid[1])+1, mod(ind[2], grid[2])+1, mod(ind[3], grid[3])+1]
-        @threads for nb = 1:tbc.tb.nwan
+        for nb = 1:tbc.tb.nwan #@threads 
             for na = 1:tbc.tb.nwan
                 if abs(g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]) > 1e-10
                     hr_g[new_ind[1], new_ind[2], new_ind[3], na, nb] += g[na + (nb-1) * tbc.tb.nwan + tbc.tb.nwan^2 * (c-1) , FIND]
