@@ -127,6 +127,9 @@ function setup_proto_data()
 
     CalcD = Dict()
 
+    CalcD["trimer_dumb"] = ["$STRUCTDIR/dimer.in", "relax", "2Dxy", "dumb", "nscf", false]
+
+    
     CalcD["dimer_charge_big"] = ["$STRUCTDIR/binary/dimer.in.big", "relax", "all", "dimer-charge-big2", "nscf", false]
     CalcD["dimer_charge_verybig"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybig", "nscf", false]
     CalcD["dimer_charge_verybigA"] = ["$STRUCTDIR/binary/dimer.in.verybig", "relax", "all", "dimer-charge-verybigA", "nscf", false]
@@ -239,7 +242,7 @@ function setup_proto_data()
     CalcD["graphene"] = ["$STRUCTDIR/fake_graphene.in", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-mid", "nscf", false]
     CalcD["hex_short"] = ["$STRUCTDIR/hex.in.up", "vc-relax", "2Dxy", "2D-short", "nscf", false]
-    CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "scf", "nscf", false]
+    CalcD["square"] = ["$STRUCTDIR/square.in.up", "vc-relax", "2Dxy", "vol-mid", "nscf", false]
     CalcD["square_big"] = ["$STRUCTDIR/square.in.up.big", "scf", "all", "vol-mid", "nscf", false]
 
     CalcD["hex_simple"] = ["$STRUCTDIR/hex_simple.in.up", "vc-relax", "all", "2D-mid", "nscf", false]
@@ -527,6 +530,8 @@ function setup_proto_data()
     CalcD["bpt"] = ["$STRUCTDIR/binary/POSCAR_bpt", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["pd3s"] = ["$STRUCTDIR/binary/POSCAR_JVASP-pd3s", "vc-relax", "all", "vol2", "nscf", false]
 
+
+    CalcD["dia_4lay"] = ["$STRUCTDIR/diamond_111.in.up", "vc-relax", "2Dxy", "vol2", "nscf", false]
 
     CalcD["bcc_5lay"] = ["$STRUCTDIR/binary/POSCAR_bcc_5lay", "vc-relax", "all", "vol2", "nscf", false]
     CalcD["fcc_5lay"] = ["$STRUCTDIR/binary/POSCAR_fcc_5lay", "vc-relax", "all", "vol2", "nscf", false]
@@ -824,6 +829,9 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
             #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125 0.6 1.0])
             ncalc = 14
+        elseif newst == "dumb"
+            ncalc = 12
+
         elseif newst == "dimer-arr"
 #            ncalc = length( [-0.20 -0.17 -0.14 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5])
 #            ncalc = length([-0.20 -0.15 -0.10 -0.07 -0.03 0.0 0.03 0.07 0.10 0.15 0.2 0.25 0.35 0.5 -0.175 -0.125])
@@ -2099,6 +2107,29 @@ function  do_run(pd, T1, T2, T3, tmpname, dir, procs, torun; nscf_only = false, 
                 c = makecrys([dist * 3 0 0; 1.0 dist * 1.5 0; 1.0 0.5 dist*1.5], [0 0 0; 1/3 0 0 ], [cnew.stypes[1], cnew.stypes[2]])
                 push!(torun, deepcopy(c))
                 push!(torun, deepcopy(c*0.95))
+
+            elseif newst == "dumb"
+                dist = abs.(cnew.coords[1,3] - cnew.coords[2,3])
+                t = cnew.stypes[1]
+                dist = minimum(abs.([dist, dist + 1, dist-1]))
+                dist = dist * cnew.A[3,3] / 26
+
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist; 0.5 0.5 0.5-dist], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5 0.5-dist], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5 0.5-dist*0.85], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5 0.5-dist*1.15], [t,t,t]); push!(torun, deepcopy(c))
+
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist;      0.5 0.5-dist  0.5], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5-dist 0.5], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5-dist*0.85 0.5], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5-dist*1.15 0.5], [t,t,t]); push!(torun, deepcopy(c))
+
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist;      0.5 0.5+sqrt(3)/2*dist 0.5+dist*0.5    ], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5+sqrt(3)/2*dist 0.5+dist*0.5], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.9; 0.5 0.5+sqrt(3)/2*dist*0.9 0.5+dist*0.5*0.9], [t,t,t]); push!(torun, deepcopy(c))
+                c = makecrys([12 0 0; 0 26 0; 0 0 26], [0.5 0.5 0.5; 0.5 0.5 0.5+dist*0.85; 0.5 0.5+sqrt(3)/2*dist*1.15 0.5+dist*0.5*1.15], [t,t,t]); push!(torun, deepcopy(c))
+                
+
                 
             elseif newst == "coords"
                 println("start coords")
