@@ -1266,7 +1266,8 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
             P[1:max_ind,1:max_ind] = B[:,1:max_ind]'*B[:,1:max_ind]
             PROJECTABILITY[spin,k,:] = real.(diag(P))
 
-            #            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
+
+            println("PROJECTABILITY spin $spin k $k ", PROJECTABILITY[spin,k,:])
             
 
             Palt = B[:,1:max_ind]*B[:,1:max_ind]'
@@ -1376,10 +1377,12 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
                 
                 order = Dict()
                 
-                score_mat = zeros(nxxx, nwan)
+                score_mat = ones(nxxx, nwan) * 1000
 
                 proj_sort = sortperm(PROJECTABILITY[spin,k,:], rev=true)
 
+                println("proj sort k $k spin $spin ", proj_sort ) 
+                
                 for n2 = 1:nwan
                     cd_vect = real(vect[:,n2].*conj(vect[:,n2]))
                     
@@ -1419,7 +1422,7 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
                         end
                         =#
                         #score_mat[n1,n2] = dist
-                        score_mat[n1,n2] =  abs(n1 - n2)#abs(n1 - n2)
+                        score_mat[n1,n2] =  abs(n1 - n2) #abs(n2 - counter_n1)#
                         #                    if dist < dist_min
                         #                        dist_min = dist
                         #                        nmin = n1
@@ -1427,6 +1430,9 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
                     end
                 end
                 doneset = Set()
+                if k == 1
+                    println("score_mat ", score_mat)
+                end
                 for n = 1:nwan
                     s = sortperm(score_mat[:,n], rev=false)
                     #if k == 3
@@ -1445,6 +1451,7 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
                     end
                 end
 
+                
                 
                 #acutally do the change
                 for n in 1:nwan

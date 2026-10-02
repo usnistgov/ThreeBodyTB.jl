@@ -145,7 +145,7 @@ Base.show(io::IO, d::dftout) = begin
     println(io)
     println("Energy (direct from dft) ", d.energy, " Ryd")
     println(io)    
-    println(io,"STRUCTURE =====================| FORCES =================")
+    println(io,"STRUCTURE ======================== | FORCES ====================")
     println(io)
 
     forces = convert_force(d.forces)
@@ -153,10 +153,10 @@ Base.show(io::IO, d::dftout) = begin
     for i in 1:d.crys.nat
         @printf(io, "%-3s  % .5f  % .5f  % .5f | % .5f % .5f % .5f\n", d.crys.types[i], d.crys.coords[i,1], d.crys.coords[i,2], d.crys.coords[i,3], forces[i,1], forces[i,2], forces[i,3])
     end
-    println(io,)
-    println(io,"=========================================================")
+#    println(io,)
+#    println(io,"=========================================================")
     println(io)
-    println(io,"STRESS ==================")
+    println(io,"STRESS ===========================")
 
     stress = convert_stress(d.stress)
     

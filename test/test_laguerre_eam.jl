@@ -50,12 +50,14 @@ function test1()
         begin
             #        if true
 
+            
             database = Dict()
+            function g()
             database[(:Li, :Li)] = ThreeBodyTB.CalcTB.make_coefs(Set(["Li", "Li"]), 2, use_eam=true, N_cheb = 2, n_eam = 2, rho_decay = [0.8, 0.5], rho_max = [1.0, 1.0], version=6 )
             database[(:Li, :Li)].datS[1] = 0.0
             database[(:Li, :Li)].datS[2:end] .= 0.0
             database[(:Li, :Li)].datH .= 0.0
-            database[(:Li, :Li)].datH[end:end] .= [1.0]
+            database[(:Li, :Li)].datH[end-1] = 1.0
             
             tbc1 = ThreeBodyTB.CalcTB.calc_tb_LV(c1, database, use_threebody=false, use_threebody_onsite=false, use_eam=true);
             tbc2 = ThreeBodyTB.CalcTB.calc_tb_LV(c2, database, use_threebody=false, use_threebody_onsite=false, use_eam=true);
@@ -78,7 +80,10 @@ function test1()
             
             
             tbc_list = [tbc1, tbc2, tbc3, tbc4, tbc5, tbc6, tbc7, tbc8, tbc9, tbc4a, tbc4b, tbc4c, tbcX1, tbcX2, tbcX3, tbcX4, tbcX5]
-
+                return tbc_list
+            end
+            tbc_list = g()
+            
             newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false, fit_eam=true, N_cheb = 2, n_eam = 2, rho_decay = [0.8, 0.5], rho_max = [1.0, 1.0], fitting_version=6)
 
             #println(newdatabase[(:Li, :Li)].datH)

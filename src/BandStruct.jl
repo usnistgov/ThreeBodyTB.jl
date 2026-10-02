@@ -280,11 +280,11 @@ function plot_bandstr_sym(tbc::tb_crys;  sym_prec = 5e-4, npts=-1, efermi = miss
         else
             sparse = false
         end
-        energy_tot, efermi, e_den, dq, V, VALS, error_flag, tbc  = scf_energy(c_std, database, e_den0=tbc.eden, nspin=nspin, sparse=sparse)
+        energy_tot, efermi, e_den, dq, dq_eden, V, VALS, error_flag, tbc  = scf_energy(c_std, database, e_den0=tbc.eden, nspin=nspin, sparse=sparse)
     end
     
     
-
+    println(typeof(tbc))
     p = plot_bandstr(tbc, kpath=kpts, names=names, npts=npts,efermi=efermi, color=color, MarkerSize=MarkerSize, yrange=yrange, plot_hk=plot_hk, align=align, proj_types=proj_types, proj_orbs=proj_orbs, proj_nums=proj_nums, clear_previous=clear_previous, do_display=do_display, color_spin = color_spin, spin = spin)
 
     

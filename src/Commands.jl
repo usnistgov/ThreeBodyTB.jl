@@ -78,10 +78,21 @@ and mpi commands (if any)
         catch err
             println(err)
             println("possible error running qe pwscf, throwing err")
+            try
+                rm("torun.$r.x")
+            catch
+                println("fail rm $r within error block, continuing")
+            end
+
             throw(err)
         end
         
-#        rm("torun.$r.x")
+        try
+            rm("torun.$r.x")
+        catch
+            println("fail rm $r, continuing")
+        end
+        
         return st
     end
 

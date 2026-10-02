@@ -1572,17 +1572,17 @@ function do_fitting_direct_main(list_of_tbcs_nonscf, list_of_tbcs, prepare_data;
 
                         #magic to get lowest energy band correct especially near gamma
                         if k == 1 && nk > 1 && i == 1
-                            w_special = 10.0
+                            w_special = 1.0
 #                        elseif i == 1
 #                            w_special = 2.0
                         else
                             w_special = 1.0
                         end
                         
-                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special * (list_of_tbcs[n].tb.projectability[k, i, spin])^10
+                        NEWX[counter, 1:ncols] = vals_test_other[i,:] .* WEIGHTS[calc, k, i, spin] * w_special * (list_of_tbcs[n].tb.projectability[k, i, spin])^2
 
                         X_TOTEN[:] +=            vals_test_other[i,:] .* (KWEIGHTS[calc][k] * OCCS_FITTED[calc,k,i, spin])  #* list_of_tbcs[calc].nspin
-                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] * (list_of_tbcs[n].tb.projectability[k, i, spin])^10
+                        NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:] * (list_of_tbcs[n].tb.projectability[k, i, spin])^2
 
                         #NEWX_S[counter, 1:ncols_S] = VALS_FITTED[calc, k,i,spin] *  WEIGHTS[calc, k, i, spin] * w_special * Svals_test_other[i,:]
 

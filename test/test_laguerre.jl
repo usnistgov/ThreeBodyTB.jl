@@ -74,7 +74,8 @@ function test1()
           end
           tbc_list = prepare_data()
             newdatabase = ThreeBodyTB.FitTB.do_fitting(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false)
-#            newdatabase = ThreeBodyTB.FitTB.do_fitting_recursive(tbc_list, fit_threebody=false, do_plot=false)
+
+          newdatabase_direct, err = ThreeBodyTB.FitTB.do_fitting_direct(tbc_list, fit_threebody=false, fit_threebody_onsite=false, do_plot=false)
 
 
             #        println("newdartabase")
@@ -84,6 +85,8 @@ function test1()
             println(sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)))
             @test sum(abs.(newdatabase[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1.5e-3
 
+            @test sum(abs.(newdatabase_direct[(:Li, :Li)].datH .- database[(:Li, :Li)].datH)) ≤ 1.5e-3
+          
           if false
               for t in tbc_list
                   en = 0.0

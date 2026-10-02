@@ -69,7 +69,10 @@ using Random
 
 #include("Coef_format_convert.jl")
 
-EXP_a = [2.5]
+EXP_a = [2.0]  #was 2.5
+
+EXP_a3 = [EXP_a[1]]
+
 
 const fitting_version_default = 6
 
@@ -1123,7 +1126,7 @@ function plot_database(database, entry, t=:H; linestyle=:solid)#::coefs)
         return st
     end
 
-    dist = collect((dat.min_dist * 0.98):0.1:21)
+    dist = collect((dat.min_dist ):0.1:21)
     cut2 = cutoff_fn.(dist, cutoff2X-cutoff_length, cutoff2X)
     cut3 = cutoff_fn.(dist, cutoff3bX-cutoff_length, cutoff3bX)
     cut_on = cutoff_fn.(dist, cutoff_onX-cutoff_length, cutoff_onX)
@@ -1233,24 +1236,24 @@ function plot_database(database, entry, t=:H; linestyle=:solid)#::coefs)
 #                    s = styles[cs%ns + 1]
                     cs += 1
                     plot!(dist, a.*cut_on,  label=legendS, LineWidth=linew[cs], linestyle=linestyle, color=color[colorcounter]); colorcounter+=1;
-                if key[2] == :p && key[3] == :p
-                    b = two_body_H(dist, d[ind[1+n_2body_onsite:n_2body_onsite*2]])
+                #if key[2] == :p && key[3] == :p
+                #    b = two_body_H(dist, d[ind[1+n_2body_onsite:n_2body_onsite*2]])
                     #                    s = styles[cs%ns + 1]
-                    cs += 1
-                    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs], linestyle=linestyle,color=color[colorcounter]); colorcounter+=1;
+                #    cs += 1
+                #    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs], linestyle=linestyle,color=color[colorcounter]); colorcounter+=1;
 
-                end
-                if key[2] == :d && key[3] == :d
-                    b = two_body_H(dist, d[ind[1+n_2body_onsite:n_2body_onsite*2]])
+                #end
+                #if key[2] == :d && key[3] == :d
+                #    b = two_body_H(dist, d[ind[1+n_2body_onsite:n_2body_onsite*2]])
                     #                    s = styles[cs%ns + 1]
-                    cs += 1
-                    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs], linestyle=linestyle, color=color[colorcounter]); colorcounter+=1;
+                #    cs += 1
+                #    plot!(dist, b.*cut2,  label=legendS*"_π", LineWidth=linew[cs], linestyle=linestyle, color=color[colorcounter]); colorcounter+=1;
 #                    b = two_body_H(dist, d[ind[1+n_2body_onsite*2:n_2body_onsite*3]])
                     #                    s = styles[cs%ns + 1]
 #                    cs += 1
 #                    plot!(dist, b.*cut2,  label=legendS*"_δ", LineWidth=linew[cs])
 
-                end
+                #end
 
                 
 #                end
@@ -1867,7 +1870,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
                 for o2 in orbsX
 
                     #this is the change
-                    if (o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d)
+                    if (o2 == :s && o1 == :p) || (o2 == :s && o1 == :d) || (o2 == :p && o1 == :d)  ||  (o1 == :s && o2 == :p) || (o1 == :s && o2 == :d) || (o1 == :p && o2 == :d)
                         continue
                     end
 
@@ -1886,11 +1889,12 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
                         data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
                         tot += n
                     elseif (o1 == :p && o2 == :p )
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
-                        tot += n*2
+#                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        tot += n #*2
 
                     elseif o1 == :s && o2 == :d
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot #+n
                         data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
                         tot += n
 
@@ -1900,9 +1904,9 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
                         tot += n
 
                     elseif o1 == :d && o2 == :d
-                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n*2
+                        data_info[[atX, o1, o2, :O]] = tot+1:tot+n #*2
                         data_info[[atX, o2, o1, :O]] = data_info[[atX, o1, o2, :O]]
-                        tot += n*2
+                        tot += n #*2
                         
                     end
                 end
@@ -1910,7 +1914,7 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
             if use_eam 
                 if same_at == true
                     for orb in orbs1
-                        data_info[[at1, at2, :eam]] = tot+1:tot+n_eam
+                        data_info[[at1, orb, at2, :eam]] = tot+1:tot+n_eam
                         tot += n_eam
                     end
                 else
@@ -1942,8 +1946,10 @@ function get_data_info_v6(at_set, dim; use_eam=false, use_pert = false, version=
 
         if at1 == at2
             for o in atoms[at1].orbitals
-                totHO += 1
-                data_info[[at1, o, :A]] = [totHO]
+                if atoms[at1].occupied_dict[o] == false
+                    totHO += 1
+                    data_info[[at1, o, :A]] = [totHO]
+                end
             end
         end
 
@@ -6089,11 +6095,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
 ############
 ############ONSITE
 
-    if use_eam
-        eam_atom_coefs = zeros(crys.nat, n_eam * N_cheb)
-    else
-        eam_atom_coefs = zeros(0)
-    end
+#    if use_eam
+#        eam_atom_coefs = zeros(crys.nat, n_eam * N_cheb)
+#    else
+#        eam_atom_coefs = zeros(0)
+#    end
     
     if true
         for c = 1:nkeep_ab
@@ -6136,7 +6142,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
                     for n = 1:n_eam
                         g_t = get_g(dist, rho_decay[n]) * cut
                         rho[a1, n] += g_t
-                        eam_atom_coefs[a1, (1:N_cheb) .+ (n-1)*N_cheb ] += cheb_energy_fn_prepare(g_t, N_cheb, rho_max[n])
+                        #eam_atom_coefs[a1, (1:N_cheb) .+ (n-1)*N_cheb ] += cheb_energy_fn_prepare(g_t, N_cheb, rho_max[n])
 #                        println("add rho a1 $a1 n $n $(rho[a1, n])")
                     end
                     
@@ -6168,9 +6174,15 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
                         #PUREONSITE
                         if s1 == s2
                             coef = twobody_arrays[at_set][3]
-                            io = coef.inds[[t1, sum1,:A]][1]
-                            twobody_arrays[at_set][1][ind,io] += 1.0
-#                            println("pure onsite ind $ind at_set $at_set io $io")
+                            if [t1, sum1, :A] in keys(coef.inds)
+                                io = coef.inds[[t1, sum1,:A]][1]
+                                
+                                if atoms[t1].occupied_dict[sum1] == false #keep occupied orbitals (in neutral atom) fixed
+                                    twobody_arrays[at_set][1][ind,io] += 1.0
+                                end
+                            end
+
+                            #                            println("pure onsite ind $ind at_set $at_set io $io")
 #                            sleep(1)
                         end
                         
@@ -6234,12 +6246,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
                     sum2 = summarize_orb(s2)
 
                     
-                    io = coef.inds[[t1,t1,:eam]] #fix later
+                    io = coef.inds[[t1,sum2, t1,:eam]] #fix later
 
                     aa,t,s = ind2orb[o]
                     ind = ind_conversion[(o,o,c_zero)]
                     for n = 1:n_eam
-                        twobody_arrays[at_set][1][ind,io[(1:N_cheb) .+ (n-1)*N_cheb]  ] += cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]) - eam_atom_coefs[a,:]
+                        twobody_arrays[at_set][1][ind,io[(1:N_cheb) .+ (n-1)*N_cheb]  ] += cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]) #- eam_atom_coefs[a,:]
                         #println("add eam arrays n $n a $a o $o  ", cheb_energy_fn_prepare(rho[a,n], N_cheb, rho_max[n]))
                     end
                 end
@@ -7558,11 +7570,12 @@ function calc_onsite(t1,s1,s2, database=missing)
             if [t1, summarize_orb(s1), :A] in keys(c.inds)
 #                println()
 #                println("in side ", (t1, summarize_orb(s1), :A))
-                ind = c.inds[[t1, summarize_orb(s1), :A]]
+                if [t1, summarize_orb(s1), :A] in keys( c.inds)
+                    ind = c.inds[[t1, summarize_orb(s1), :A]]
 #                println("ind $ind")
 
-                H += c.datH[ind[1]]
-
+                    H += c.datH[ind[1]]
+                end
                 #println("final add ", c.datH[ind[1]])
             end
         end
@@ -7594,9 +7607,10 @@ end
 
 function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memory, version=fit_version_default)
 
+    a=EXP_a3[1]
+
     if version > 10
         #    a=2.0
-        a=EXP_a[1]
         
 
         ad_0 = a*dist_0
@@ -7686,7 +7700,6 @@ function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memo
 
     elseif version > 3
         #    a=2.0
-        a=EXP_a[1]
         
 
         ad_0 = a*dist_0
@@ -7743,7 +7756,6 @@ function laguerre_fast_threebdy!(dist_0, dist_a, dist_b, same_atom, triple, memo
         
 
         #a=2.0
-        a=EXP_a[1]
 
         ad_0 = a*dist_0
         expa_0 =exp.(-0.5*ad_0) #* 10.0
@@ -7848,7 +7860,7 @@ end
 function laguerre_fast_threebdy_pert!(dist_0, dist_a, dist_b, memory)
 
     #    a=2.0
-    a=EXP_a[1]
+    a=EXP_a3[1]
     
     ad_0 = a*dist_0
     expa_0 =exp.(-0.5*ad_0) #* 10.0
@@ -7874,9 +7886,9 @@ end
 
 function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memory, version = fit_version_default)
 
+    a=EXP_a3[1]
     if version > 10
     
-        a=EXP_a[1]
         #    a=2.0
 
         ad_0 = a*dist_b
@@ -7910,7 +7922,7 @@ function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memor
     
     elseif version > 3
     
-        a=EXP_a[1]
+        #a=EXP_a3[1]
         #    a=2.0
 
         ad_0 = a*dist_b
@@ -7942,7 +7954,7 @@ function laguerre_fast_threebdy_onsite!(dist_0, dist_a, dist_b, same_atom, memor
     else #old version !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         #a=2.0
-        a=EXP_a[1]
+        #a=EXP_a3[1]
 
         ad_0 = a*dist_b
         expa_0 =exp.(-0.5*ad_0) #* 10.0
@@ -7977,10 +7989,10 @@ end
 
 Calculate laguerre polynomials up to order `nmax`
 """
-function laguerre(dist, ind=missing; nmax=6, memory=missing)
+function laguerre(dist, ind=missing; nmax=6, memory=missing, a=EXP_a[1])
 
     #    a=2.0
-    a=EXP_a[1]
+    
     
 
 
@@ -8091,9 +8103,9 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
 
     if version > 10
 
-        d1 = laguerre(dist1, missing, nmax=2)
-        d2 = laguerre(dist2, missing, nmax=2)
-        d3 = laguerre(dist3, missing, nmax=2)
+        d1 = laguerre(dist1, missing, nmax=2, a=EXP_a3[1])
+        d2 = laguerre(dist2, missing, nmax=2, a=EXP_a3[1])
+        d3 = laguerre(dist3, missing, nmax=2, a=EXP_a3[1])
 
         if same_atom
             
@@ -8151,9 +8163,9 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
         
     elseif version == 6
 
-        d1 = laguerre(dist1, missing, nmax=2)
-        d2 = laguerre(dist2, missing, nmax=2)
-        d3 = laguerre(dist3, missing, nmax=2)
+        d1 = laguerre(dist1, missing, nmax=2, a=EXP_a3[1])
+        d2 = laguerre(dist2, missing, nmax=2, a=EXP_a3[1])
+        d3 = laguerre(dist3, missing, nmax=2, a=EXP_a3[1])
 
         if same_atom
             
@@ -8204,9 +8216,9 @@ function three_body_O(dist1, dist2, dist3, same_atom, ind=missing; memoryV = mis
     
     elseif version > 3
     
-        d1 = laguerre(dist1, missing, nmax=1)
-        d2 = laguerre(dist2, missing, nmax=1)
-        d3 = laguerre(dist3, missing, nmax=1)
+        d1 = laguerre(dist1, missing, nmax=1, a=EXP_a3[1])
+        d2 = laguerre(dist2, missing, nmax=1, a=EXP_a3[1])
+        d3 = laguerre(dist3, missing, nmax=1, a=EXP_a3[1])
         
         
 
@@ -8641,9 +8653,9 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
 
     if version > 10
 
-        zero =  laguerre(dist0,missing, nmax=2, memory=memory0) 
-        a = laguerre(dist1,missing, nmax=3, memory=memory1)
-        b = laguerre(dist2,missing, nmax=3, memory=memory2)
+        zero =  laguerre(dist0,missing, nmax=2, memory=memory0, a=EXP_a3[1]) 
+        a = laguerre(dist1,missing, nmax=3, memory=memory1, a=EXP_a3[1])
+        b = laguerre(dist2,missing, nmax=3, memory=memory2, a=EXP_a3[1])
 
         #    println(same_atom, "three_body_H ", zero, a,b)
 
@@ -8750,9 +8762,9 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
         
     elseif version > 3
 
-        zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
-        a = laguerre(dist1,missing, nmax=1, memory=memory1)
-        b = laguerre(dist2,missing, nmax=1, memory=memory2)
+        zero =  laguerre(dist0,missing, nmax=1, memory=memory0, a=EXP_a3[1]) 
+        a = laguerre(dist1,missing, nmax=1, memory=memory1, a=EXP_a3[1])
+        b = laguerre(dist2,missing, nmax=1, memory=memory2, a=EXP_a3[1])
 
         #    println(same_atom, "three_body_H ", zero, a,b)
 
@@ -8866,9 +8878,9 @@ function three_body_H(dist0, dist1, dist2, same_atom, triple, ind=missing; memor
         #    return 0.0
 
         #    zero =  laguerre(dist0,missing, nmax=1, memory=memory0) * 10.0
-        zero =  laguerre(dist0,missing, nmax=1, memory=memory0) 
-        a = laguerre(dist1,missing, nmax=1, memory=memory1)
-        b = laguerre(dist2,missing, nmax=1, memory=memory2)
+        zero =  laguerre(dist0,missing, nmax=1, memory=memory0, a=EXP_a3[1]) 
+        a = laguerre(dist1,missing, nmax=1, memory=memory1, a=EXP_a3[1])
+        b = laguerre(dist2,missing, nmax=1, memory=memory2, a=EXP_a3[1])
 
         #    println(same_atom, "three_body_H ", zero, a,b)
 
@@ -10019,7 +10031,18 @@ function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, n_2body_onsite)
     o1 = summarize_orb(orb1)
     o2 = summarize_orb(orb2)    
 
+    O = zeros(n_2body_onsite)
+    
     if orb1 == orb2
+        O_split = two_body_O(dist, missing, n_2body_onsite)  #kfg change
+        sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
+        O[:] = O_split[:]*sym
+    end
+    #kfg change temp
+
+    #=
+    #if orb1 == orb2
+    if (o1 == :s && o2 == :s)
         O = two_body_O(dist, missing, n_2body_onsite)
     else
         O = zeros(n_2body_onsite)
@@ -10034,14 +10057,15 @@ function fit_twobody_onsite(t1,t2,orb1,orb2, dist,lmn, n_2body_onsite)
 #    elseif o1 == :p && o2 == :p
 
 
-    elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d) #kfg new change
+        elseif (o1 == :p && o2 == :p) || (o1 == :d && o2 == :d) #kfg new change
+    #else
         if orb1 == orb2
-            O_split = two_body_O(dist, missing, n_2body_onsite)
+            O_split = two_body_O(dist, missing, n_2body_onsite)  #kfg change
             sym = symmetry_factor(orb1,:s,lmn, [1.0 ]) * symmetry_factor(orb2,:s,lmn, [1.0 ])
             O = hcat(O', O_split'*sym) #two terms
         end
     end
-
+=#
     return O
         
 end
@@ -12083,9 +12107,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     twobody_LV = begin #@time 
         
         rho_th = zeros(var_type, crys.nat, 5, nthreads())
-        if use_eam
-            eam_atom = zeros(var_type, crys.nat)
-        end
+#        if use_eam
+#            eam_atom = zeros(var_type, crys.nat)
+#        end
         #println("nkeep_ab $nkeep_ab")
         begin
             #@time twobody(nkeep_ab)
@@ -12171,15 +12195,20 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 #                            println("use eam $use_eam")
                             t = crys.stypes[a1]
                             co  = database[(t,t)]
-                            if [t,t,:eam] in keys(co.inds)
-                                inds = co.inds[[t,t,:eam]]
+                            if [t,:s,t,:eam] in keys(co.inds)
+
                                 n_eam = co.n_eam
                                 N_cheb = co.N_cheb
                                 
                                 for n = 1:n_eam
                                     g_t = get_g(dist_a, co.rho_decay[n]) * cut_on
+
                                     rho_th[a1, n, id] += g_t
-                                    eam_atom[a1] += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], g_t, N_cheb, co.rho_max[n])
+
+
+                                    
+                                    
+#                                    eam_atom[a1] += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], g_t, N_cheb, co.rho_max[n])
 #                                    println("add eam n $n $t $a1 $a2 dist $dist_a g_t $g_t ")
                                 end
                             end
@@ -12215,7 +12244,8 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
                         if database[crys.stypes[a1], crys.stypes[a1]].use_neighbors && use_neighbors
                             DAT_ARR[t1,t2,:,:] = DAT_ARR_sr[t1,t2,:,:] * x_frac_onsite + DAT_ARR_lr[t1,t2,:,:] * (1-x_frac_onsite)
                         end
-                        core_x_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
+                        #core_x_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
+                        core_x_onsite2!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
                         
                         if use_v
                             core_v!()
@@ -12233,7 +12263,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     if use_eam #@time 
     #if use_eam #&& !only_U
         rho = sum(rho_th, dims=3)
-#        println("rho $rho")
+#        println("rho $rho  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         #        println("rho $rho")
         for a = 1:crys.nat
@@ -12241,29 +12271,38 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
             co  = database[(t,t)]
             if co.use_eam
                 
-                eam_energy = 0.0
-                
-                if [t,t,:eam] in keys(co.inds)
-                    inds = co.inds[[t,t,:eam]]
-                    n_eam = co.n_eam
-                    N_cheb = co.N_cheb
+                for o1 = 1:norb[a]
+                    eam_energy = 0.0
+                    o1x = orbs_arr[a,o1,1]
+                    a1,t,s = ind2orb[o1x]
+                    sum1 = summarize_orb(s)
+ #                   println("sum1 $sum1 ", [t,sum1, t,:eam], " check ",  [t,sum1, t,:eam] in keys(co.inds))
+                    if [t,sum1, t,:eam] in keys(co.inds)
+                        inds = co.inds[[t,sum1,t,:eam]]
+                        n_eam = co.n_eam
+                        N_cheb = co.N_cheb
                     
-                    for n = 1:n_eam
-                        eam_energy += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n])
-                    end
-                    println("eam_energy a $a  $eam_energy rho $(rho[a,1])")
+                        for n = 1:n_eam
+#                            println("inds $inds ", inds[ (1:N_cheb) .+ (n-1)*N_cheb ], " " , co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], " rho ",  rho[a,n], "N_cheb $N_cheb co.rho_max[n] $(co.rho_max[n])")
+#                            println("res ",  cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n]))
+                            eam_energy += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n])
+                        end
+
+                        
+                        #println("eam_energy a $a  $eam_energy rho $(rho[a,1])")
                     #println("eam energy ", cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n]))
+                    end
+#                    println("add $([ o1x, o1x, c_zero]) ",  eam_energy)
+                    H[ o1x, o1x, c_zero] += eam_energy #- eam_atom[a]
                 end
-                eam_energy = eam_energy - eam_atom[a]
-
                 
-                for o = orb2ind[a]
-                    a2a,t2a,s2 = ind2orb[o]
-                    sum2 = summarize_orb(s2)
-                    
-                    H[ o, o, c_zero] += eam_energy - eam_atom[a]
-
-                end
+                #for o = orb2ind[a]
+                #    a2a,t2a,s2 = ind2orb[o]
+                #    sum2 = summarize_orb(s2)
+                #    
+                #    H[ o, o, c_zero] += eam_energy - eam_atom[a]##
+                # 
+                #end
             end
         end
         
@@ -12565,7 +12604,7 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
 end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+#=
 function calc_tb_LV_energyversion(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_energy=true, use_energy_threebody=true)
 
     repel=false
@@ -13447,7 +13486,7 @@ function calc_tb_LV_energyversion(crys::crystal, database=missing; reference_tbc
     return tbc
 
 end
-
+=#
 
 function core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn, sym_dat, sym_datS, n_2body, n_2body_S)
     
@@ -13726,6 +13765,78 @@ function core_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag
     end
 end
 
+function core_x_onsite2!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2, n_2body_onsite)
+
+#    sym_dat1[1] = 1.0
+#    sym_dat1[2] = 0.0
+#    sym_dat1[3] = 0.0
+
+#    sym_dat2[1] = 1.0
+#    sym_dat2[2] = 0.0
+#    sym_dat2[3] = 0.0
+    
+    
+    @inbounds @simd    for o2x = 1:norb[a1]
+        o2 = orbs_arr[a1,o2x,1]
+        s2 = orbs_arr[a1,o2x,2]
+        sum2 = orbs_arr[a1,o2x,3]
+        for o1x = 1:norb[a1]
+
+#            sym_dat1[1] = 1.0
+#            sym_dat2[1] = 1.0
+
+            o1 = orbs_arr[a1,o1x,1]
+            s1 = orbs_arr[a1,o1x,2]
+            sum1 = orbs_arr[a1,o1x,3]
+
+#            println("t1 $t2 t2 $t2 sum1 $sum1 sum2 $sum2 s1 $s1 s2 $s2 o1 $o1 o2 $o2 o1x $o1x o2x $o2x")
+
+            
+            nind = DAT_IND_ARR_O[t1,t2,sum1,sum2,1]
+            #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+            
+
+            temp1 = 0.0
+            if o1x == o2x
+                for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                    temp1 +=  lag_arr[n]*DAT_ARR[t1,t2,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
+                end
+                temp1 = temp1 * symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
+            end
+
+            temp2 = 0.0
+            if sum1 != sum2
+                if DAT_IND_ARR_O[t1,t2,sum1,sum2,2] > 0
+                    for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+                        temp2 +=  lag_arr[n]*DAT_ARR[t1,t2,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1]  ]
+                    end
+                    temp2= temp2* symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
+                end
+            end
+
+            temp3 = 0.0
+            
+            #if o1x == o2x && ((sum1 == 2 && sum2 == 2) || (sum1 == 3 && sum2 == 3))
+            #    if DAT_IND_ARR_O[t1,t2,sum1,sum2,1+1+n_2body_onsite] > 0
+            #        for n = 1:n_2body_onsite #DAT_IND_ARR[t1,t2,1,orbs_arr[a1,o1x,2],orbs_arr[a2,o2x,2],1]
+            #            temp3 +=  lag_arr[n]*DAT_ARR[t1,t2,DAT_IND_ARR_O[t1,t2,sum1,sum2,n+1+n_2body_onsite]  ]
+            #        end
+            #    end
+            #    temp3 = temp3 * symmetry_factor_int(s1, 1, lmn, one)*symmetry_factor_int(s2, 1, lmn, one)
+            #
+            #end
+
+            H[ o1, o2, c_zero] += (temp1 + temp2 + temp3)  * cut_on
+
+            #if abs((temp1 + temp2)) > 1e-5
+            #    println("$c_zero, $a1, $a2, $t1, $t2, $(temp1 + temp2)   $cut_on")
+            #end
+            
+        end
+    end
+end
+
+#=
 function core_x_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H,  lmn, sym_dat1, sym_dat2, n_2body_onsite)
 
 #    sym_dat1[1] = 1.0
@@ -13795,6 +13906,7 @@ function core_x_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, l
         end
     end
 end
+=#
 
 function core3!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread, id, sym_dat1, sym_dat2, lmn31, lmn32)
 

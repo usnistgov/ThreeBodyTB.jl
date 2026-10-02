@@ -171,6 +171,7 @@ mutable struct atom
     Umat::Array{Float64,2}
     neutral_occ::Array{Float64,1}
     background_charge_interaction::Float64
+    occupied_dict::Dict
 end
 
 
@@ -266,7 +267,25 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     band_energy0, efermi, occ = band_energy(EIGS, [1.0], nval, returnboth=true)
     smear_energy = smearing_energy(EIGS, [1.0], efermi)
 
-
+    occupied_dict = Dict()
+    c = 0
+    for (i,o) in enumerate(orb2)
+        if o == :s
+            c+=1
+        elseif o == :p
+            c += 3
+        elseif o == :d
+            c += 5
+        elseif o == :f
+            c += 7
+        end
+        if occ[c] > 1e-5
+            occupied_dict[o] = true
+        else
+            occupied_dict[o] = false
+        end
+    end
+    
     println("band_energy0 $band_energy0 efermi $efermi smear_energy $smear_energy")
 #    if name=="Ta"
 #        println("name $name")
@@ -471,7 +490,7 @@ function makeatom(name, Z, row, col, mass, nval, nsemicore, orbitals, etot, eigs
     end
     
     println("makeatom name $name adj $adj")
-    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0, efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Uarr, Umat, occ[:], background_charge_interaction)
+    return atom(name, Z, row, col, mass, nval, nsemicore, nwan, orb2, etot, d, energy_offset, U, adj, semicore_orbitals, dsemi, semi_band_energy0, efermi, fullU, Uarr[1], Uarr[2], Uarr[3], Uarr[4], Uarr[5], Uarr[6], Uarr[7], Uarr[8], Uarr, Umat, occ[:], background_charge_interaction, occupied_dict)
     
 end
     
