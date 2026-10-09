@@ -36,6 +36,9 @@ using ..ThreeBodyTB:TEMPLATES
 using ..ThreeBodyTB:PSEUDOS
 
 using ..BandTools:smear_default
+
+QE_CACHE = Dict()
+
 """
     function run_pwscf(inputstr, outputstr, nprocs=1, directory="./", use_backup=false)
 
@@ -640,7 +643,10 @@ Load a QE SCF DFT calculation into a `dftout` object.
 """
 function loadXML(savedir)
 
-#    println("start loadXML")
+    if savedir in keys(QE_CACHE)
+        println("QE_CACHE HIT")
+        return QE_CACHE[savedir]
+    end
     convert_ha_ryd = 2.0
 
     
@@ -811,8 +817,12 @@ function loadXML(savedir)
 
     d = DFToutMod.makedftout(A, coords_crys, types, energy, energy_smear, forces, stress, bs, prefix=prefix, outdir=outdir, tot_charge=tot_charge, nspin=nspin, mag_tot=mag_tot, mag_abs=mag_abs, hybrid=hybrid, exx=exx, degauss=degauss, directory=savedir, occupations=occupations, input_occupations=input_occupations)
 
-#    println("end loadXML")
-
+    QE_CACHE[savedir] = d
+    if savedir[end] == '/'
+        savedir = savedir[1:end-1]
+    end
+    QE_CACHE[savedir*"/qe.save"] = d
+    
     return d
     
 end

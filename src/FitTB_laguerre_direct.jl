@@ -627,8 +627,17 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
                            energy_diff_calc = false, gen_add_ham=false, fitting_version = fitting_version_default, opt_S = false,
                            conjgrad=false, cs_startX = missing, use_sym=true, fit_umat=false, debug_gamma=false,   N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], nbig = 25,
                            use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,
-                           fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0)
-    
+                           fit_energy=false, fit_energy_threebody=false, conv_thr = -1.0,
+                           use_arr = false, database_arr = missing, ch_arr = missing, arr_ind = -999)
+
+
+    if arr_ind == -999 && use_arr
+        println()
+        println("err arr_ind  $arr_ind  and  use_arr $use_arr not compatible")
+        println()
+        return
+    end
+        
     println("do_fitting_direct version fitting_version niters $niters update_all $update_all fit_threebody $fit_threebody fit_threebody_onsite $fit_threebody_onsite  energy_weight $energy_weight  rs_weight $rs_weight ks_weight $ks_weight lambda $lambda RW_PARAM $RW_PARAM RW_LIM $RW_LIM NLIM $NLIM fit_eam $fit_eam energy_diff_calc $energy_diff_calc opt_S $opt_S ")
     println("N_cheb $N_cheb, n_eam $n_eam, rho_decay $rho_decay, rho_max $rho_max")
     if rho_max == :auto && fit_eam
@@ -689,7 +698,7 @@ function do_fitting_direct(list_of_tbcs_nonscf ; weights_list = missing, dft_lis
         #        println("fitting_version $fitting_version")
         
         @time begin
-            pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody)
+            pd = do_fitting_linear(list_of_tbcs; kpoints = KPOINTS, mode=:kspace, dft_list = dft_list,  fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite, do_plot = false, starting_database=starting_database_t, return_database=false, NLIM=NLIM, refit_database=refit_database, fit_eam=fit_eam, ch_startX = ch_startX, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max,use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody, use_arr = use_arr, database_arr = database_arr, ch_arr = ch_arr, arr_ind = arr_ind)
         end
         println("do_fitting_linear time (above)")
         #        println("pd 2 $(pd[2])")

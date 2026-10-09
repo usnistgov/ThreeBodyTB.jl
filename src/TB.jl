@@ -5272,7 +5272,7 @@ function calc_energy_charge_fft_band2_sym(hk3, sk3, nelec; smearing=smear_defaul
         end
         
             
-        println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
+#        println("energy_smear , ", energy_smear * nspin, " energy0 ", sum(occ .* VALS0) / nk * 2.0)
         
     end
 

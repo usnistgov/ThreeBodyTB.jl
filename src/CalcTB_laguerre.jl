@@ -1,4 +1,4 @@
-###include("Crystal.jl")
+##include("Crystal.jl")
 ###include("DFToutMod.jl")
 #using XMLDict
 
@@ -364,6 +364,10 @@ mutable struct coefs
     datE::Array{Float64,1}
     datE_ensemble::Array{Float64,1}
     sizeE::Int64
+    use_arr::Bool
+    n_bound::Int64
+    bound_arr::Array{Float64,2}
+    datH_arr::Array{Float64,2}
 end
 
 function construct_coef_string(co)
@@ -495,7 +499,13 @@ function write_coefs(filename, co::coefs; compress=true)
 
     addelement!(c, "datE", arr2str(co.datE))
     addelement!(c, "datE_ensemble", arr2str(co.datE_ensemble))
-    
+
+    addelement!(c, "use_arr", "$(co.use_arr)")
+    if co.use_arr
+        addelement!(c, "bound_arr", arr2str(co.bound_arr[:]))
+        addelement!(c, "n_bound", "$(co.n_bound)")
+        addelement!(c, "datH_arr", arr2str(co.datH_arr[:]))
+    end
 
     
     prettyprint(io, doc);
@@ -692,6 +702,29 @@ function read_coefs(filename, directory = missing)
         n_3body_diff_energy= 0
         datE_ensemble = Float64[]
     end
+
+    use_arr = false
+    if haskey(d["coefs"], "use_arr")
+        use_arr = parse(Bool, d["coefs"]["use_arr"])
+    end
+    if use_arr
+        n_bound = parse(Int64, d["coefs"]["n_bound"])
+        datH_arr = parse_str_ARR_float(d["coefs"]["datH_arr"])
+        bound_arr = parse_str_ARR_float(d["coefs"]["bound_arr"])
+        if length(bound_arr)//2 != n_bound
+            println("loading error use_arr $n_bound $(size(bound_arr))")
+        end
+        bound_arr = reshape(bound_arr, (n_bound, 2))
+        if (n_bound+1) * sizeH != length(datH_arr)
+            println("load datH_arr err $(n_bound * sizeH) != $(length(datH_arr))")
+        end
+        datH_arr = reshape(datH_arr, (sizeH, n_bound+1))
+    else
+        datH_arr = zeros(0,0)
+        n_bound = 0
+        bound_arr = zeros(0)
+    end
+        
     
 
     #    if haskey(d["coefs"], "use_pert")
@@ -716,7 +749,8 @@ function read_coefs(filename, directory = missing)
                     rho_max = rho_max,
                     rho_decay=rho_decay,
                     neighbor_dist=neighbor_dist, neighbor_spread=neighbor_spread, neighbor_number=neighbor_number, datH_dense = datH_dense, datH_lowdim=datH_lowdim, use_neighbors=use_neighbors,
-                    use_energy=use_energy, datE = datE, datE_ensemble = datE_ensemble, use_energy_threebody = use_energy_threebody
+                    use_energy=use_energy, datE = datE, datE_ensemble = datE_ensemble, use_energy_threebody = use_energy_threebody,
+                    use_arr = use_arr, n_bound = n_bound, datH_arr = datH_arr, bound_arr = bound_arr
                     )
 
     return co
@@ -732,7 +766,7 @@ Constructor for `coefs`. Can create coefs filled with ones for testing purposes.
 
 See `coefs` to understand arguments.
 """
-function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=6, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing, Uarr = missing, background_charge_correction = 0.0, n_eam=0, N_cheb = 0, rho_max = Float64[], rho_decay = Float64[], datH_dense  = Float64[], datH_lowdim = Float64[], use_neighbors=false, neighbor_dist = 4.0, neighbor_spread = 0.5, neighbor_number = 3.25 , use_energy = false, datE = missing, datE_ensemble = missing , use_energy_threebody=false)
+function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_dist = 3.0, fillzeros=false, dist_frontier=missing, version=6, lim=missing, repval=missing, use_eam=false, use_pert=false, datH_ensemble = missing, Uarr = missing, background_charge_correction = 0.0, n_eam=0, N_cheb = 0, rho_max = Float64[], rho_decay = Float64[], datH_dense  = Float64[], datH_lowdim = Float64[], use_neighbors=false, neighbor_dist = 4.0, neighbor_spread = 0.5, neighbor_number = 3.25 , use_energy = false, datE = missing, datE_ensemble = missing , use_energy_threebody=false, n_bound = 4, use_arr = false, bound_arr = [2.0 3.0; 3.0 4.0;4.0 5.0; 5.0 6.0], datH_arr = missing)
 
     #    println("make coefs")
     #    sort!(at_list)
@@ -1030,6 +1064,34 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
         use_Uarr = true        
     end
 
+    if use_arr
+        if ismissing(datH_arr)
+            datH_arr = zeros(totH, n_bound+1)
+        end
+        if ismissing(bound_arr)
+            println("problem with use_arr $use_arr and bound_arr $bound_arr")
+        end
+        if ismissing(datH_arr)
+            println("problem with use_arr $use_arr and datH_arr size $(size(datH_arr))")
+        end
+        
+        if n_bound != size(bound_arr)[1]
+            println("n_bound $n_bound entered wrongly $(size(bound_arr)[1]) ")
+        end
+        if (n_bound+1) != size(datH_arr)[2]
+            println("n_bound $n_bound entered wrongly datH_arr $(size(datH_arr)) ")
+        end
+        if totH != size(datH_arr)[1]
+            println("totH $totH  datH_arr $(size(datH_arr)) ")
+        end
+        
+        
+    else
+        n_bound = 0
+        bound_arr = zeros(0,0)
+        datH_arr = zeros(0,0)
+    end
+    
     
 #    println("use energy ", use_energy)
 #    println(use_energy_threebody)
@@ -1092,7 +1154,10 @@ function make_coefs(at_list, dim; datH=missing, datS=missing, cutoff=18.01, min_
                  n_3body_diff_energy,
                  datE,
                  datE_ensemble,
-                 length(datE))
+                 length(datE),
+                 use_arr, n_bound, bound_arr, datH_arr
+                 
+                 )
 end
    
 
@@ -5542,7 +5607,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
                               neighbor_spread = 0.5,
                               neighbor_dist = 3.5,
                               use_energy=false,
-                              use_energy_threebody=false)
+                              use_energy_threebody=false, use_arr = false, database_arr = missing)
 
 
 
@@ -5678,8 +5743,7 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
 
 
 
-    frac_vec = zeros(var_type, nkeep*nwan*nwan)
-
+    
     hvec = zeros(var_type, nkeep*nwan*nwan)
     svec = zeros(var_type, nkeep*nwan*nwan)
     dist2 = zeros(var_type,  nkeep*nwan*nwan)
@@ -5717,11 +5781,18 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
     
     rho = zeros(var_type, crys.nat, 5)
 
-    if use_neighbors
+    if use_arr
+        NN_ARR, decision = get_nn(crys, database=database_arr)
+        frac_vec = zeros(var_type, nkeep*nwan*nwan, 12)
+    elseif use_neighbors
         NN_ARR, decision = get_nn(crys, neighbor_dist=neighbor_dist, var_type=Float64 , diststuff=DIST)
+        frac_vec = zeros(var_type, nkeep*nwan*nwan)
     else
         decision = ones(crys.nat)
+        frac_vec = zeros(var_type, nkeep*nwan*nwan)
     end
+        
+    
 #        NN_ARR = zeros(Float64, crys.nat)
 #        neighbor_number = zeros(Float64, crys.nat)
 #        At =collect((crys.A)')
@@ -5831,7 +5902,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
                 hvec[ind] = real(reference_tbc.tb.H[spin, o1,o2,c_ref])
                 svec[ind] = real(reference_tbc.tb.S[o1,o2,c_ref])
 
-                frac_vec[ind] = 0.5*(decision[a1] + decision[a2])
+                if use_arr
+                    frac_vec[ind,:] = 0.5*(decision[a1,:] + decision[a2,:])
+                else
+                    frac_vec[ind] = 0.5*(decision[a1] + decision[a2])
+                end
                 
                 dist2[ind] = dist
 #                if abs(svec[ind]) > 0.001
@@ -5878,7 +5953,12 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
     INDvec = INDvec[1:counter,:]
     hvec = hvec[1:counter]
     svec = svec[1:counter]
-    frac_vec = frac_vec[1:counter]
+    if use_arr
+        frac_vec = frac_vec[1:counter,:]
+    else
+        frac_vec = frac_vec[1:counter,:]
+    end
+        
 #    for i = 1:counter
 #        if abs(svec[i]) > 0.001
 #            println("SVEC ", Rvec[i,:], " " ,   INDvec[i,:], " ", svec[i])
@@ -6194,8 +6274,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
 
                         hvec[ind] = hvec[ind] - h
                         svec[ind] = svec[ind] - s
-                        frac_vec[ind] = decision[a1a]
-                        
+                        if use_arr
+                            frac_vec[ind,:] = decision[a1a,:]
+                        else
+                            frac_vec[ind] = decision[a1a]
+                        end
                         #                    if o1 == 1 && o2 == 1
                         #                        println(" onsite $o1 $o2 $a1a $a2a $ind $s1 $s2 $s   ", svec[ind])
                         #                    end
@@ -6393,7 +6476,11 @@ function calc_tb_prepare_fast(reference_tbc::tb_crys; use_threebody=false,
         end
         
         hvec = hvec[keep]
-        frac_vec = frac_vec[keep]
+        if use_arr
+            frac_vec = frac_vec[keep,:]
+        else
+            frac_vec = frac_vec[keep]
+        end
         svec = svec[keep]
     else
         ind_conversion = collect(1:length(hvec))
@@ -7543,7 +7630,7 @@ end
 
 Handles atomic matrix els. We do not currently fit onsite matrix els
 """
-function calc_onsite(t1,s1,s2, database=missing)
+function calc_onsite(t1,s1,s2, database=missing; use_arr=true, decision=missing)
 
     #S
     if s1 == s2
@@ -7564,6 +7651,8 @@ function calc_onsite(t1,s1,s2, database=missing)
 
         if !ismissing(database)
             c=database[(t1,t1)]
+
+
 #PUREONSITE
  #           println("pure onsite t1 $t1 s1 $s1 A :A  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
  #           println("keys ", keys(c.inds))
@@ -7571,10 +7660,15 @@ function calc_onsite(t1,s1,s2, database=missing)
 #                println()
 #                println("in side ", (t1, summarize_orb(s1), :A))
                 if [t1, summarize_orb(s1), :A] in keys( c.inds)
-                    ind = c.inds[[t1, summarize_orb(s1), :A]]
-#                println("ind $ind")
-
-                    H += c.datH[ind[1]]
+                    if use_arr && c.use_arr
+                        ind = c.inds[[t1, summarize_orb(s1), :A]]
+                        for i = 1:(c.n_bound+1)
+                            H += c.datH_arr[ind[1], i] * decision[i]
+                        end
+                    else
+                        ind = c.inds[[t1, summarize_orb(s1), :A]]
+                        H += c.datH[ind[1]]
+                    end
                 end
                 #println("final add ", c.datH[ind[1]])
             end
@@ -11640,16 +11734,17 @@ function get_nn(crys; database=missing, neighbor_dist = missing, var_type=Float6
             #end
             if dist_a > 1e-5
                 #NN_ARR[a1] += 1 ./ (exp.( (dist_a .- neighbor_dist_in) / neighbor_spread ) .+ 1.0)
-                NN_ARR[a1] += cutoff_fn(dist_a, neighbor_dist_in , neighbor_dist_in *1.3)
-                #                if verbose
-                #                    tot = cutoff_fn(dist_a, neighbor_dist_in - neighbor_spread, neighbor_dist + neighbor_spread)
-                #                    if tot > 0.8
-                #                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) !!")
-                #                    elseif tot > 0.3
-                #                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) !")
-                #                    else
-                #                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) ")
-                #                    end
+                NN_ARR[a1] += cutoff_fn(dist_a, neighbor_dist_in , neighbor_dist_in *1.1)
+                if verbose
+                    tot = cutoff_fn(dist_a, neighbor_dist_in , neighbor_dist_in *1.1)
+                    if tot > 0.8
+                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) !!")
+                    elseif tot > 0.3
+                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) !")
+#                    else
+#                        println("add a1 $a1 a2 $a2 dist_a $dist_a neighbor_dist $(neighbor_dist )  spread $(neighbor_spread)  total $(tot ) ")
+                    end
+                end
             end
             #                else
             #                   neighbor_number[a1] = neighbor_number
@@ -11660,6 +11755,42 @@ function get_nn(crys; database=missing, neighbor_dist = missing, var_type=Float6
     #decision = 1 ./ (exp.( (NN_ARR  .- neighbor_number ) / 0.5 ) .+ 1.0)
     decision = 1 .- cutoff_fn.(NN_ARR, 1.0, 3.0)
 
+    
+    if !ismissing(database) &&   database[crys.stypes[1], crys.stypes[1]].use_arr 
+        decision = zeros(crys.nat, 12)
+        for a = 1:crys.nat
+            d = database[crys.stypes[a], crys.stypes[a]]
+
+#            println("a $a NN_ARR[a]  $( NN_ARR[a])")
+#            println([NN_ARR[a] <  d.bound_arr[1,1], NN_ARR[a] <  d.bound_arr[1,1]])
+            if NN_ARR[a] <  (d.bound_arr[1,1] + 1e-10)
+#                println("case 1")
+                decision[a,1] = 1.0
+            elseif NN_ARR[a] >  (d.bound_arr[end,2] - 1e-10)
+#                println("case 2")                
+                decision[a,d.n_bound+1] = 1.0
+            else
+#                println("case 3")                
+                for i = 1:database[crys.stypes[a], crys.stypes[a]].n_bound
+#                    println("i $i ",  [NN_ARR[a] >= d.bound_arr[i,1],  NN_ARR[a] <= d.bound_arr[i,2]])
+
+                    if (i > 1) && (NN_ARR[a] > d.bound_arr[i-1,2] - 1e-10) && (NN_ARR[a] <  d.bound_arr[i,1] + 1e-10)
+                        decision[a,i] = 1.0
+                    end
+                    
+                    if   NN_ARR[a] >= (d.bound_arr[i,1] ) && NN_ARR[a] <= (d.bound_arr[i,2] )
+                        #println("cut i $i  " , [d.bound_arr[i,1], d.bound_arr[i,2]] , " " ,  cutoff_fn(NN_ARR[a], d.bound_arr[i,1], d.bound_arr[i,2]))
+                        decision[a,i] = cutoff_fn(NN_ARR[a], d.bound_arr[i,1], d.bound_arr[i,2])
+                        decision[a,i+1] = 1 -  decision[a,i]
+
+#                        println("change $a $i to $(decision[a,i]) and $a $(i+1) to $( decision[a,i+1] )")
+                        
+                    end
+                end
+            end
+        end
+    end
+    
     
 #    println("NN_ARR $NN_ARR ")
 #    print("decision ", decision)
@@ -11675,6 +11806,993 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_neighbors = false, use_energy=false, use_threebody_energy=false, use_arr=true)
+
+    repel=false
+
+#    println("database")
+#    println(database)
+#    println()
+    
+#    verbose=true
+    #    println("test")
+    #    @time twobody(10)
+
+    
+    At = crys.A'
+    
+    if verbose
+        println()
+        println("-----")
+        println("Construct tight-binding model from crystal structure")
+        println()
+    end
+
+    if ismissing(var_type)
+        var_type=Float64
+    end
+
+    if verbose  println("LV $var_type")  end
+    
+    if ismissing(database)
+        println("missing database, creating empty tbc")
+        repel = false
+        #    else
+        #        println(keys(database))
+    end
+    
+    if ismissing(reference_tbc)
+        prepare_for_fitting = false
+    else
+        prepare_for_fitting = true
+    end
+    
+
+    
+    ind2orb, orb2ind, etotal, nval = orbital_index(crys)
+    if verbose println("distances") end
+    begin #@time
+        
+        use_dist_arr = true
+        if !ismissing(DIST)
+            use_dist_arr = false
+            R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3 = DIST
+
+        else
+            if (use_threebody || use_threebody_onsite || use_pert ) && !ismissing(database)
+                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, cutoff3bX,var_type=var_type, return_floats=false)
+                DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3
+
+            else
+                R_keep, R_keep_ab, array_ind3, array_floats3, dist_arr, c_zero, dmin_types, dmin_types3 = distances_etc_3bdy_parallel_LV(crys,cutoff2X, 0.0,var_type=var_type, return_floats=false)
+                DIST = R_keep, R_keep_ab, array_ind3, c_zero, dmin_types, dmin_types3             
+            end
+        end
+
+        
+        
+        within_fit = true
+        
+        if !ismissing(database)
+            for key in keys(dmin_types)
+                for key2 in keys(database)
+                    if key == Set(key2)
+                        if dmin_types[key] < database[key2].min_dist*0.9999999999 && length(key2) == 2 && var_type == Float64
+                            println("WARNING : structure has 2body distances less than min fitting data distances, may result in errors")
+                            println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist, "   key $key key2 $key2")
+                            #println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                            within_fit = false
+                        elseif dmin_types[key] < database[key2].min_dist*1.0199 && length(key2) == 2 && var_type == Float64
+                            println("WARNING : structure has 2body distances close to min fitting data distances, may result in errors")
+                            println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist, "   key $key key2 $key2")
+                            #println(key," " ,key2, " : ", dmin_types[key], " <~ ", database[key2].min_dist)
+                        end
+                    end
+                end
+            end
+            
+            c_zero_ref=1
+            if !(ismissing(reference_tbc))
+                if size(reference_tbc.tb.ind_arr)[1] > 1
+                    c_zero_ref = reference_tbc.tb.r_dict[[0,0,0]]
+                end
+            end
+        end
+    end
+    println("use_dist_arr $use_dist_arr")
+    if verbose println("check_frontier") end
+    if !ismissing(database) && check_frontier #@time 
+        #    if false
+#        println("check ---------------------------------")
+        violation_list, vio_bool, repel_vals = calc_frontier(crys, database, test_frontier=true, diststuff=DIST, verbose=verbose, var_type=var_type, use_threebody=use_threebody)
+#        println("repel ", repel_vals)
+        if vio_bool == false 
+            within_fit = false
+        end
+    else
+        repel_vals = zeros(var_type, crys.nat)
+    end
+
+    if verbose println("stuff") end
+    
+    begin #@time 
+    
+        #    println("repel_vals ", repel_vals)
+        
+        if check_only==true
+            #        println("repel_vals ", repel_vals)
+            return within_fit , sum(abs.(repel_vals)) < 1e-12
+        end
+        
+        nwan = length(keys(ind2orb))
+
+        Umat = zeros(var_type, nwan)
+        nkeep=size(R_keep)[1]
+
+        Vmat = zeros(var_type, nwan, nwan, nkeep)
+        
+        
+        #    nkeep2=size(R_keep2)[1]    
+        #    println("nkeep, $nkeep, nkeep2, $nkeep2")
+        
+
+        if verbose; println("memory"); end
+        begin
+            if ismissing(Hin)
+                H = zeros(var_type, nwan, nwan, nkeep)
+                S = zeros(var_type, nwan, nwan, nkeep)
+            else
+                H = Hin
+                S = Sin
+                H .= 0.0
+                S .= 0.0
+            end
+        end
+        #println("done memory")
+        ind_arr = zeros(Int64, nkeep, 3)
+        ind_arr[:,:] = R_keep[:,2:4]
+
+        #    println("ind_arr")
+        #    for c in 1:size(ind_arr)[1]
+        #        println("$c ", ind_arr[c,:])
+        #    end
+        
+        r_dict = make_rdict(ind_arr)
+
+        norb = zeros(UInt16, crys.nat)
+        orbs = zeros(UInt16, crys.nat, 1+3+5+7)
+        sorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+        sumorbs = zeros(UInt16, crys.nat, 1+3+5+7)
+        for a = 1:crys.nat
+            ox = orb2ind[a]
+            norb[a] = length(ox)            
+            for (co,o) = enumerate(orb2ind[a])
+                a1,t,s = ind2orb[o]
+                sumO = summarize_orb_num(s)
+                orbs[a,co] = o
+                
+                sorbs[a,co] = orb_num(s)
+                sumorbs[a,co] = sumO + 1
+                #            println("first ", [a1,t,s,sumO,o])
+            end
+        end
+
+        
+        warned = false
+        warned_onsite = false
+
+        nkeep_ab = size(R_keep_ab)[1]
+
+
+
+
+
+
+        if !ismissing(database)
+
+            
+            begin
+                
+                types_dict = Dict()
+                types_dict_reverse = Dict()
+                types_counter = 0
+                types_arr = zeros(Int64, crys.nat)
+                for a = 1:crys.nat
+                    if !(crys.stypes[a]  in keys(types_dict))
+                        types_counter += 1
+                        types_dict[crys.stypes[a]] = types_counter
+                        types_dict_reverse[types_counter] = crys.stypes[a]
+                    end
+                    types_arr[a] = types_dict[crys.stypes[a]]
+                end
+                
+                orbs_arr = zeros(Int64, crys.nat, 9, 3)
+                DAT_IND_ARR = zeros(Int64, types_counter, types_counter, 2,4,4, 36 )
+                DAT_ARR = zeros(var_type, types_counter, types_counter, 164)
+                DAT_ARR_S = zeros(Float64, types_counter, types_counter, 164)
+
+                DAT_ARR_sr = zeros(Float64, types_counter, types_counter, 164)
+                DAT_ARR_lr = zeros(Float64, types_counter, types_counter, 164)
+
+                DAT_ARR_arr = zeros(Float64, types_counter, types_counter, 164, 8)
+                
+                DAT_IND_ARR_O = zeros(Int64, types_counter, types_counter, 4,4, 36 )
+
+                DAT_NTYPES_ARR = zeros(Int64, types_counter, types_counter, 3 )                
+
+                cutoff_arr = zeros(crys.nat, crys.nat, 2)
+                cutoff_arr3 = zeros(crys.nat, crys.nat, crys.nat)
+                get_cutoff_pre = Dict()       
+                s = Set(crys.stypes)
+                for s1 in s
+                    for s2 in s
+                        get_cutoff_pre[(s1,s2)] = get_cutoff(s1,s2)[:] 
+                        for s3 in s 
+                            get_cutoff_pre[(s1,s2,s3)] = get_cutoff(s1,s2,s3)[1] 
+                        end
+                    end
+                end
+                
+                for a = 1:crys.nat
+                    ta = crys.stypes[a]
+                    for b = 1:crys.nat
+                        tb = crys.stypes[b]            
+                        cutoff_arr[a,b,:] = get_cutoff_pre[(ta,tb)][:]
+                        for c = 1:crys.nat
+                            tc = crys.stypes[c]            
+                            cutoff_arr3[a,b,c] =  get_cutoff_pre[(ta,tb,tc)]
+                        end
+                    end
+                end
+
+                badlist = Set()
+                
+                for c1 = 1:types_counter
+                    for c2 = 1:types_counter
+                        t1 = types_dict_reverse[c1]
+                        t2 = types_dict_reverse[c2]
+                        if (t1,t2) in keys(database)
+                            coef = database[(t1,t2)]
+                            indH, indS, inH, inS = coef.inds_int[[t1,t2]]
+                            DAT_IND_ARR[c1,c2,1,:,:,2:33] = indH
+                            DAT_IND_ARR[c1,c2,2,:,:,2:33] = indS
+                            DAT_IND_ARR[c1,c2,1,:,:,1] = inH
+                            DAT_IND_ARR[c1,c2,2,:,:,1] = inS
+                            DAT_ARR[c1,c2,1:coef.sizeH] = coef.datH
+                            DAT_ARR_S[c1,c2,1:coef.sizeS] = coef.datS
+
+                            DAT_ARR_sr[c1,c2,1:length(coef.datH_dense)] = coef.datH_dense
+                            DAT_ARR_lr[c1,c2,1:length(coef.datH_lowdim)] = coef.datH_lowdim
+
+                            if use_arr && coef.use_arr
+                                for i = 1:(coef.n_bound+1)
+                                    DAT_ARR_arr[c1,c2,1:coef.sizeH,i] = coef.datH_arr[:,i]
+                                end
+                            end
+                            
+                            indO, inO = coef.inds_int[[t1]]
+                            DAT_IND_ARR_O[c1,c2,:,:,1] = inO
+                            
+                            DAT_IND_ARR_O[c1,c2,:,:,2:33] = indO
+
+                            DAT_NTYPES_ARR[c1,c2,:] = [coef.n_2body, coef.n_2body_S, coef.n_2body_onsite]
+                            
+                        else
+                            println("WARNING, ",(t1,t2), " database not found")
+                            within_fit = false
+                            push!(badlist, (t1,t2))
+                            println("badlist ", badlist)
+                        end
+                    end
+                end
+
+                if use_threebody || use_threebody_onsite || use_pert
+                    
+                    DAT_IND_ARR_3 = zeros(Int64, types_counter, types_counter, types_counter, 4,4, 33 )
+                    DAT_ARR_3 = zeros(var_type, types_counter, types_counter, types_counter, 224)
+                    DAT_ARR_3_sr = zeros(Float64, types_counter, types_counter, types_counter, 224)
+                    DAT_ARR_3_lr = zeros(Float64, types_counter, types_counter, types_counter, 224)
+
+                    DAT_ARR_3_arr = zeros(Float64, types_counter, types_counter, types_counter, 224, 8)
+
+                    DAT_VERSION_3 = zeros(Int64, types_counter, types_counter, types_counter )                
+                    
+                    for c1 = 1:types_counter
+                        t1 = types_dict_reverse[c1]
+                        for c2 = 1:types_counter
+                            t2 = types_dict_reverse[c2]
+                            for c3 = 1:types_counter
+                                t3 = types_dict_reverse[c3]
+                                if (t1,t2,t3) in keys(database)
+                                    cdat = database[(t1,t2,t3)]
+                                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3]]
+                                    DAT_IND_ARR_3[c1,c2,c3,:,:,1] = nindX
+                                    DAT_IND_ARR_3[c1,c2,c3,:,:,2:33] = cindX
+                                    DAT_ARR_3[c1,c2,c3, 1:length(cdat.datH)] = cdat.datH
+
+                                    DAT_ARR_3_sr[c1,c2,c3, 1:length(cdat.datH_dense)] = cdat.datH_dense
+                                    DAT_ARR_3_lr[c1,c2,c3, 1:length(cdat.datH_lowdim)] = cdat.datH_lowdim
+
+                                    if use_arr && cdat.use_arr
+                                        for i = 1:(cdat.n_bound+1)
+                                            DAT_ARR_3_arr[c1,c2,c3,1:cdat.sizeH,i] = cdat.datH_arr[:,i]
+                                        end
+                                    end
+
+
+                                    
+                                    
+                                    DAT_VERSION_3[c1,c2,c3] = cdat.version
+                                else
+                                    println("WARNING, ",(t1,t2,t3), " database not found")
+                                    #within_fit = false
+                                    push!(badlist, (t1,t2,t3))
+                                    println("badlist ", badlist)
+                                    
+                                end
+                            end
+                        end
+                    end
+                end
+                if use_threebody_onsite
+                    DAT_IND_ARR_onsite_3 = zeros(Int64, types_counter, types_counter, types_counter, 4, 33 )
+                    #            DAT_ARR_onsite_3 = zeros(Float64, types_counter, types_counter, types_counter, 32)
+                    for c1 = 1:types_counter
+                        t1 = types_dict_reverse[c1]
+                        for c2 = 1:types_counter
+                            t2 = types_dict_reverse[c2]
+                            for c3 = 1:types_counter
+                                t3 = types_dict_reverse[c3]
+                                if !((t1,t2,t3) in badlist)
+                                    cdat = database[(t1,t2,t3)]
+                                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3,:O]]
+                                    DAT_IND_ARR_onsite_3[c1,c2,c3,:,1] = nindX
+                                    DAT_IND_ARR_onsite_3[c1,c2,c3,:,2:33] = cindX
+                                    #                        DAT_ARR_onsite_3[c1,c2,c3, 1:length(cdat.datO)] = cdat.datH
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if use_pert
+                    DAT_IND_ARR_pert_3 = zeros(Int64, types_counter, types_counter, types_counter, 4, 4, 33 )
+
+                    for c1 = 1:types_counter
+                        t1 = types_dict_reverse[c1]
+                        for c2 = 1:types_counter
+                            t2 = types_dict_reverse[c2]
+                            for c3 = 1:types_counter
+                                t3 = types_dict_reverse[c3]
+                                if (t1,t2,t3) in keys(database)
+                                    cdat = database[(t1,t2,t3)]
+                                    (cindX, nindX) = cdat.inds_int[[t1,t2,t3,:P]]
+                                    println("size ", size(nindX), " " , size(cindX))
+                                    println("size ",  size(DAT_IND_ARR_pert_3[c1,c2,c3,:,:,1]))
+                                    DAT_IND_ARR_pert_3[c1,c2,c3,:,:,1] = nindX
+                                    DAT_IND_ARR_pert_3[c1,c2,c3,:,:,2:33] = cindX
+                                else
+                                    println("WARNING, ",(t1,t2,t3,:P), " database not found")
+                                    within_fit = false
+                                    push!(badlist, (t1,t2,t3))
+                                    println("badlist ", badlist)
+                                    
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                
+                for a = 1:crys.nat
+                    t1 = crys.stypes[a]
+                    for o1x = 1:norb[a]
+                        o1 = orbs[a,o1x]
+                        s1 = sorbs[a,o1x]
+                        sum1 = sumorbs[a,o1x]
+                        orbs_arr[a,o1x,1] = o1
+                        orbs_arr[a,o1x,2] = s1
+                        orbs_arr[a,o1x,3] = sum1
+                        #                println("$t1 norb[a] ", norb[a], ", orbs arr $a $o1x | $o1 $s1 $sum1")
+                    end
+                end
+                
+                lag_arr_TH = zeros(var_type, 6, nthreads())
+                lmn_arr_TH = zeros(var_type, 3, nthreads())
+                sym_arr_TH = zeros(var_type, 3, nthreads())
+                sym_arrS_TH = zeros(var_type, 3, nthreads())
+
+            end
+            #; println("end")
+            
+
+        end
+    end
+
+    #if use_nn_count
+    if use_neighbors || use_arr
+        NN_ARR, decision = get_nn(crys, database=database, var_type=var_type, diststuff=DIST)
+#        NN_ARR = zeros(var_type, crys.nat)
+#        neighbor_number = zeros(var_type, crys.nat)
+#        decision = zeros(var_type, crys.nat)
+#        for c = 1:nkeep_ab
+#            begin
+#                a1 = R_keep_ab[c,2]
+#                a2 = R_keep_ab[c,3]
+#                co = database[crys.stypes[a1], crys.stypes[a2]]
+#                
+#                if atom > 0 && !(a1 == atom || a2 == atom)
+#                    continue
+#                end
+#                
+#                if use_dist_arr
+#                    dist_a = dist_arr[c,1]
+#                else
+#                    dist_a, _ = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+#                end
+#                if dist_a > 1e-5
+#                    
+#                    NN_ARR[a1] += cutoff_fn(dist_a, co.neighbor_dist - co.neighbor_spread, co.neighbor_dist + co.neighbor_spread)
+#                    #NN_ARR[a1] += 1 ./ (exp.( (dist_a .- co.neighbor_dist) / co.neighbor_spread ) .+ 1.0)
+#                    #println("add a1 $a1 a2 $a2 dist_a $dist_a co.neighbor_dist $(co.neighbor_dist )  spread $(co.neighbor_spread)  tot $(cutoff_fn(dist_a, co.neighbor_dist - co.neighbor_dist, co.neighbor_dist + co.neighbor_spread))")
+#                else
+#                    neighbor_number[a1] = co.neighbor_number
+#                end
+#            end
+#        end
+        
+        #decision = 1 ./ (exp.( (NN_ARR  .- neighbor_number ) / 0.5 ) .+ 1.0)
+ #       decision = 1 .- cutoff_fn.(NN_ARR, neighbor_number .- 1.0, neighbor_number .+ 1.0)
+        
+
+#        println("NN_ARR $NN_ARR ")
+#        print("decision ", decision)
+#        return NN_ARR, decision
+    else
+        decision = ones(crys.nat)
+    end
+    
+    if verbose println("2body LV") end
+
+
+    twobody_LV = begin #@time 
+        
+        rho_th = zeros(var_type, crys.nat, 5, nthreads())
+#        if use_eam
+#            eam_atom = zeros(var_type, crys.nat)
+#        end
+        #println("nkeep_ab $nkeep_ab")
+        begin
+            #@time twobody(nkeep_ab)
+            for c = 1:nkeep_ab
+#                println("twobody c $c")
+                begin
+                    id = threadid()
+                    lmn_arr = lmn_arr_TH[:,id]
+                    sym_arr = sym_arr_TH[:,id]
+                    sym_arrS = sym_arrS_TH[:,id]
+                    lag_arr = lag_arr_TH[:,id]
+                    
+                    cind = R_keep_ab[c,1]
+                    cham = R_keep_ab[c,7]
+                    a1 = R_keep_ab[c,2]
+                    a2 = R_keep_ab[c,3]
+
+                    if database[crys.stypes[a1], crys.stypes[a2]].use_neighbors && use_neighbors
+                        x_frac = 0.5*(decision[a1] + decision[a2])
+                        x_frac_onsite = decision[a1]
+                    end
+
+                    
+                    if atom > 0 && !(a1 == atom || a2 == atom)
+                        continue
+                    end
+                    #                        println("atom $atom a1 $a1 a2 $a2")
+                    rind1 = ind_arr[cham,1:3]
+
+                    t1 = types_arr[a1]
+                    t2 = types_arr[a2]
+
+                    
+                    n_2body, n_2body_S, n_2body_onsite = DAT_NTYPES_ARR[t1,t2,:]
+                    
+
+                    if use_dist_arr
+                        dist_a = dist_arr[c,1]
+                        lmn_arr[1] = dist_arr[c,2]
+                        lmn_arr[2] = dist_arr[c,3]
+                        lmn_arr[3] = dist_arr[c,4]
+                        cut_a = dist_arr[c,5]
+                        cut_on = dist_arr[c,6]
+                    else
+                        dist_a, lmn_arr[:] = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+                        cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
+                        cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
+                        cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                          
+                        
+                    end
+                    
+                    if dist_a <  1e-5    # true onsite
+
+                        for o1x = 1:norb[a1]
+                            o1 = orbs_arr[a1,o1x,1]
+                            sum1 = orbs_arr[a1,o1x,3]
+                            t1symbol =   crys.stypes[a1]
+                            a1a,t1a,s1 = ind2orb[o1x]
+                            
+                            (h,s) = calc_onsite(t1symbol,s1,s1, database, use_arr=use_arr, decision=decision[a1,:])
+                            S[o1, o1, c_zero] += s 
+                            H[o1, o1, c_zero] += h
+
+                            
+                            if repel
+                                H[o1, o1, c_zero] += repel_vals[a1] * 0.1
+                                #println("add repel $a1 $o1 ", repel_vals[a1] * 0.1)
+                            end
+                            if use_u
+                                if (t1symbol, sum1) in keys(uv_dict)
+                                    Umat[o1] = uv_dict[t1symbol, sum1]
+                                elseif t1symbol in keys(uv_dict)
+                                    Umat[o1] = uv_dict[t1symbol]
+                                end
+                            end
+                        end
+                        
+                        
+                    else #normal case
+#                        
+#                        println("normal case ")
+                        laguerre_fast!(dist_a, lag_arr)
+
+                        
+                        if use_eam
+#                            println("use eam $use_eam")
+                            t = crys.stypes[a1]
+                            co  = database[(t,t)]
+                            if [t,:s,t,:eam] in keys(co.inds)
+
+                                n_eam = co.n_eam
+                                N_cheb = co.N_cheb
+                                
+                                for n = 1:n_eam
+                                    g_t = get_g(dist_a, co.rho_decay[n]) * cut_on
+
+                                    rho_th[a1, n, id] += g_t
+
+
+                                    
+                                    
+#                                    eam_atom[a1] += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], g_t, N_cheb, co.rho_max[n])
+#                                    println("add eam n $n $t $a1 $a2 dist $dist_a g_t $g_t ")
+                                end
+                            end
+                            
+                            #end
+                            #                            rho_th[a1, 1, id] += exp.(-1.5*dist_a) * cut_on
+                        #                            rho_th[a1, 2, id] += exp.(-3.0*dist_a) * cut_on
+                            #                            rho_th[a1, 3, id] += exp.(-3.0*dist_a) * cut_on
+                            #l1 = 1 ./ (exp.( (dist_a .- 2.0) / 1.0 ) .+ 1.0) * cut_on
+                            #l2 = 1 ./ (exp.( (dist_a .- 3.0) / 1.0 ) .+ 1.0) * cut_on
+                            #l3 = 1 ./ (exp.( (dist_a .- 4.0) / 1.0 ) .+ 1.0) * cut_on
+                            #rho_th[a1, 1, id] += l1 
+                            #rho_th[a1, 2, id] += l2
+                            #rho_th[a1, 3, id] += l3
+                            #                            co  = database[(t1,t1)]
+                        #t = crys.stypes[a1]
+                        #    co  = database[(t,t)]
+                        #    println("add eam atom")
+                        #    if [t,t,:eam] in keys(co.inds)
+                        #        d = co.datH[co.inds[[t,t,:eam]]]
+                        #        println("add dist_a $dist_a $l1 $l2 $l3 eam ", eam_fn(l1,l2,l3,d))
+                         #       eam_atom[a1] += eam_fn(l1,l2,l3,d)
+                            #    end
+                            
+                        end
+                        
+                        if database[crys.stypes[a1], crys.stypes[a2]].use_neighbors && use_neighbors
+                            DAT_ARR[t1,t2,:] = DAT_ARR_sr[t1,t2,:] * x_frac + DAT_ARR_lr[t1,t2,:] * (1-x_frac)
+                        end
+                        if database[crys.stypes[a1], crys.stypes[a2]].use_arr  && use_arr
+                            DAT_ARR[t1,t2,:]  .= 0.0
+                            for i = 1:(database[crys.stypes[a1], crys.stypes[a2]].n_bound+1)
+                                DAT_ARR[t1,t2,:] += DAT_ARR_arr[t1,t2,:,i] * (decision[a1,i] + decision[a2,i]) * 0.5
+                            end
+                        end
+
+                        
+                        
+#                        core!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
+                        core_x!(cham, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR, lag_arr, DAT_ARR,DAT_ARR_S, cut_a, H, S, lmn_arr, sym_arr, sym_arrS, n_2body, n_2body_S)
+
+                        if database[crys.stypes[a1], crys.stypes[a1]].use_neighbors && use_neighbors
+                            DAT_ARR[t1,t2,:,:] = DAT_ARR_sr[t1,t2,:,:] * x_frac_onsite + DAT_ARR_lr[t1,t2,:,:] * (1-x_frac_onsite)
+                        end
+                        if database[crys.stypes[a1], crys.stypes[a2]].use_arr  && use_arr
+                            DAT_ARR[t1,t2,:]  .= 0.0
+                            for i = 1:(database[crys.stypes[a1], crys.stypes[a2]].n_bound+1)
+                                DAT_ARR[t1,t2,:] += DAT_ARR_arr[t1,t2,:,i] * (decision[a1,i])
+                            end
+                        end
+
+
+                        #core_x_onsite!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
+                        core_x_onsite2!(c_zero, a1, a2, t1, t2, norb, orbs_arr, DAT_IND_ARR_O, lag_arr, DAT_ARR, cut_on, H, lmn_arr, sym_arr, sym_arrS, n_2body_onsite)
+                        
+                        if use_v
+                            core_v!()
+                        end
+                        
+                    end
+                    
+                end
+                
+            end
+        end
+    end
+
+    if verbose println("use_eam"); end
+    if use_eam #@time 
+    #if use_eam #&& !only_U
+        rho = sum(rho_th, dims=3)
+#        println("rho $rho  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+        #        println("rho $rho")
+        for a = 1:crys.nat
+            t = crys.stypes[a]
+            co  = database[(t,t)]
+            if co.use_eam
+                
+                for o1 = 1:norb[a]
+                    eam_energy = 0.0
+                    o1x = orbs_arr[a,o1,1]
+                    a1,t,s = ind2orb[o1x]
+                    sum1 = summarize_orb(s)
+ #                   println("sum1 $sum1 ", [t,sum1, t,:eam], " check ",  [t,sum1, t,:eam] in keys(co.inds))
+                    if [t,sum1, t,:eam] in keys(co.inds)
+                        inds = co.inds[[t,sum1,t,:eam]]
+                        n_eam = co.n_eam
+                        N_cheb = co.N_cheb
+                    
+                        for n = 1:n_eam
+#                            println("inds $inds ", inds[ (1:N_cheb) .+ (n-1)*N_cheb ], " " , co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], " rho ",  rho[a,n], "N_cheb $N_cheb co.rho_max[n] $(co.rho_max[n])")
+#                            println("res ",  cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n]))
+                            eam_energy += cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n])
+                        end
+
+                        
+                        #println("eam_energy a $a  $eam_energy rho $(rho[a,1])")
+                    #println("eam energy ", cheb_energy_fn(co.datH[inds[ (1:N_cheb) .+ (n-1)*N_cheb ]], rho[a,n] , N_cheb, co.rho_max[n]))
+                    end
+#                    println("add $([ o1x, o1x, c_zero]) ",  eam_energy)
+                    H[ o1x, o1x, c_zero] += eam_energy #- eam_atom[a]
+                end
+                
+                #for o = orb2ind[a]
+                #    a2a,t2a,s2 = ind2orb[o]
+                #    sum2 = summarize_orb(s2)
+                #    
+                #    H[ o, o, c_zero] += eam_energy - eam_atom[a]##
+                # 
+                #end
+            end
+        end
+        
+    end
+
+        
+        
+        #                dist_a, lmn = get_dist(a1,a2, R_keep_ab[c,4:6], crys, At)
+
+        #            dist_a_old = dist_arr[a1,a2,cind,1]
+        
+        
+        #                if (dist_a > cutoff2Xt || dist_a < 1e-5)
+        #                    continue
+        #                end
+        
+        
+        
+        
+
+    if verbose println("threebdy_LV") end
+    threebdy_LV = begin #@time 
+        
+        
+            begin
+            #                @time H_thread = zeros(var_type,   nwan, nwan,  nkeep,  nthreads() )
+            #                @time H_thread3 = zeros(var_type,   nwan, nwan,  nthreads() )
+            #                H_thread2 = zeros(var_type,   9, 9,  nthreads() )
+
+            hh = zeros(var_type, nthreads(), 3,3)
+
+            skip = 0
+            keep = 0
+
+            lmn_arr_TH_1 = zeros(var_type, 3, nthreads())
+            lmn_arr_TH_2 = zeros(var_type, 3, nthreads())
+            lmn_arr_TH_3 = zeros(var_type, 3, nthreads())
+
+            #                lag_arr_TH = zeros(var_type, 2, nthreads())
+            #                lag_arr_TH = zeros(var_type, 2, nthreads())
+            #                lag_arr_TH = zeros(var_type, 2, nthreads())
+
+            memory_TH = zeros(var_type, 15, nthreads())
+            memory_TH2 = zeros(var_type, 15, nthreads())
+        end
+        
+        if use_threebody || use_threebody_onsite || use_pert
+
+            meta_count = []
+            old = 1
+            for  counter = 1: (size(array_ind3)[1]-1 ) #add threads back
+                if array_ind3[counter,1] != array_ind3[counter+1,1]
+                    push!(meta_count, old:counter)
+                    #                        println("mc ", old:counter)
+                    old = counter+1
+                end
+            end
+            push!(meta_count, old:size(array_ind3)[1])
+            
+            if verbose println("3body LV") end
+            
+            #                for mc in meta_count #@threads 
+            #                    for counter in mc
+            for  counter = 1: (size(array_ind3)[1] ) #add threads back
+                
+                id = threadid()
+
+
+                
+                a1 = array_ind3[counter,1]
+                a2 = array_ind3[counter,2]
+                a3 = array_ind3[counter,3]
+
+                if database[crys.stypes[a1], crys.stypes[a2]].use_neighbors && use_neighbors
+                    x_frac = 0.5*(decision[a1] + decision[a2])
+                    x_frac_onsite = decision[a1]
+                end
+                
+#                println("atoms $a1 $a2 $a3")
+                
+                if atom > 0 && !(a1 == atom || a2 == atom || a3 == atom)
+                    continue
+                end
+
+                
+                t1s = crys.stypes[a1]
+                t2s = crys.stypes[a2]
+                t3s = crys.stypes[a3]
+
+                if !haskey(database, (t1s, t2s, t3s))
+                    continue
+                end
+
+                t1 = types_arr[a1]
+                t2 = types_arr[a2]
+                t3 = types_arr[a3]
+                
+                if (t1,t2,t3) in badlist
+                    continue
+                end
+                
+                lmn12 = lmn_arr_TH_1[:,id]
+                lmn13 = lmn_arr_TH_2[:,id]
+                lmn23 = lmn_arr_TH_3[:,id]
+
+                sym_arr1 = sym_arr_TH[:,id]
+                sym_arr2 = sym_arrS_TH[:,id]
+                
+
+                cind1 = array_ind3[counter,4]
+                cind2 = array_ind3[counter,5]
+
+                #                    println("$counter ref $a1 $a2 $a3 , $cind1 $cind2")
+                
+                rind1 = ind_arr[cind1,1:3]
+                rind2 = ind_arr[cind2,1:3]
+
+                version = DAT_VERSION_3[t1,t2,t3]
+                
+                if use_dist_arr
+                    dist12 = array_floats3[counter, 1]
+                    dist13 = array_floats3[counter, 2]
+                    dist23 = array_floats3[counter, 3]                    
+
+                    for i = 1:3
+                        lmn12[i] = array_floats3[counter, 3+i]
+                        lmn13[i] = array_floats3[counter, 6+i]
+                        lmn23[i] = array_floats3[counter, 9+i]
+                    end
+                    cut_h = array_floats3[counter,13]
+                    cut_o = array_floats3[counter,14]
+
+                    
+
+#                    cut_a = cutoff_fn_fast(dist_a, cutoff2 - cutoff_length, cutoff2)
+ #                   cut_on = cutoff_fn_fast(dist_a, cutoff2on - cutoff_length, cutoff2on)                            
+
+#                    if use_pert
+#                        cutoff2, cutoff2on = cutoff_arr[a1,a2,:]
+#                        cutoff3 = cutoff_arr3[a1,a2,a3]
+ #                       cut_p = cutoff3
+                        #cut_ab = cutoff_fn_fast(dist12, cutoff2 - cutoff_length, cutoff2)
+                        #cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
+                        #                        cut_p = cut_ab*cut_bc
+
+                        
+#                        println("a1 $a1 a2 $a2 a3 $a3 $cut_p    $([cut_ab, cut_bc])")
+#                    end
+                    #cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
+ #                   cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
+ #                   cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
+                    
+
+                    
+                    
+                    
+                else
+                    dist12, lmn12[:] = get_dist(a1,a2, rind1, crys, At)
+                    dist13, lmn13[:] = get_dist(a1,a3, rind2, crys, At)
+                    dist23, lmn23[:] = get_dist(a2,a3, -rind1+rind2, crys, At)
+                    
+                    cutoffZZ = cutoff_arr[a1,a2,1]
+                    cutoff3 = cutoff_arr3[a1,a2,a3]
+
+                    cut_ab = cutoff_fn_fast(dist12, cutoffZZ - cutoff_length, cutoffZZ)
+                    cut_ab2 = cutoff_fn_fast(dist12, cutoff3 - cutoff_length, cutoff3)
+                    cut_ac = cutoff_fn_fast(dist13, cutoff3 - cutoff_length, cutoff3)
+                    cut_bc = cutoff_fn_fast(dist23, cutoff3 - cutoff_length, cutoff3)
+                    
+                    cut_h = cut_ab*cut_ac*cut_bc
+                    cut_o = cut_ab2*cut_ac*cut_bc
+#                    cut_p_bc = cut_ab*cut_bc
+#                    cut_p_ac = cut_ab*cut_ac
+                    
+                end
+
+                #                    println("counter $counter $dist12 $dist13 $dist23 $cut_h $cut_o")
+
+                memory = memory_TH[:,id]
+                memory2 = memory_TH[:,id]
+
+                
+                if use_threebody
+                    laguerre_fast_threebdy!(dist12,dist13,dist23, t1==t2, t1 !=t2 && t1 != t3 && t2 != t3, memory,version)
+                    laguerre_fast_threebdy!(dist12,dist13,dist23, false, t1 !=t2 && t1 != t3 && t2 != t3, memory2,version)                    
+
+                    #if database[(t1,t2,t3)].use_neighbors
+                    if database[crys.stypes[a1], crys.stypes[a2]].use_neighbors && use_neighbors
+                    
+                        DAT_ARR_3[t1,t2,t3,:] = DAT_ARR_3_sr[t1,t2,t3,:] * x_frac + DAT_ARR_3_lr[t1,t2,t3,:] * (1-x_frac)
+                    end
+                    if database[crys.stypes[a1], crys.stypes[a2]].use_arr  && use_arr
+                        DAT_ARR_3[t1,t2,t3,:]  .= 0.0
+                        for i = 1:(database[crys.stypes[a1], crys.stypes[a2]].n_bound+1)
+#                            println("size i $i   $( size(DAT_ARR_3[t1,t2,t3,:]))  $(size(DAT_ARR_3_arr[t1,t2,t3,:,i]))  $(size(DAT_ARR_3_arr[t1,t2,t3,:,i][:]))")
+                            DAT_ARR_3[t1,t2,t3,:] += DAT_ARR_3_arr[t1,t2,t3,:,i][:] * (decision[a1,i] + decision[a2,i]) * 0.5
+                        end
+                    end
+
+
+                    core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, memory2, DAT_ARR_3, cut_h, H,sym_arr1, sym_arr2, lmn12, lmn13, lmn23)
+                    #core3b!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, 1.0, H,sym_arr1, sym_arr2, lmn12, lmn13, lmn23)
+
+                    
+                    #                        core3a!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_3, memory, DAT_ARR_3, cut_h, H_thread3,id, sym_arr1, sym_arr2, lmn13, lmn23)
+                    #                        println("size ", size(H), size(H_thread2))
+                    #                        println("x $a1 $a2 ", orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1], " " , orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1])
+
+                    #    H[orbs_arr[a1,1,1]:orbs_arr[a1,norb[a1],1],orbs_arr[a2,1,1]:orbs_arr[a2,norb[a2],1], cind1] += @view H_thread2[1:norb[a1],1:norb[a2],1]
+
+                end
+
+#                if use_pert
+#                    laguerre_fast_threebdy_pert!(dist12,dist13,dist23, memory)
+#                    core3_pert!(cind1,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_pert_3, memory, DAT_ARR_3, cut_p, H, lmn12)
+#                end                    
+                
+
+                if use_threebody_onsite
+                    laguerre_fast_threebdy_onsite!(dist12,dist13,dist23, t1==t2 && t1 == t3, memory, version)
+                    #core_onsite3!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H_thread, id)
+
+                    #println("cuto $cut_o ",  [dist12,dist13,dist23], " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000, " ", exp(-1.0*dist13)*exp(-1.0*dist23)*1000*exp(-1.0*dist12))
+
+                    #if database[(t1,t2,t3)].use_neighbors
+                    if database[crys.stypes[a1], crys.stypes[a1]].use_neighbors && use_neighbors
+                    
+                        DAT_ARR_3[t1,t2,t3,:] = DAT_ARR_3_sr[t1,t2,t3,:] * x_frac_onsite + DAT_ARR_3_lr[t1,t2,t3,:] * (1-x_frac_onsite)
+                    end
+                    if database[crys.stypes[a1], crys.stypes[a2]].use_arr  && use_arr
+                        DAT_ARR_3[t1,t2,t3,:]  .= 0.0
+                        for i = 1:(database[crys.stypes[a1], crys.stypes[a2]].n_bound+1)
+                            DAT_ARR_3[t1,t2,t3,:] += DAT_ARR_3_arr[t1,t2,t3,:,i][:] * decision[a1,i]
+                        end
+                    end
+                    
+                    core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
+                    #core_onsite3b!(c_zero,  a1, a2, a3, t1, t2, t3, norb, orbs_arr, DAT_IND_ARR_onsite_3, memory, DAT_ARR_3, cut_o, H)
+
+                end
+            end
+        end
+        #H[:,:,:] .+= sum(H_thread, dims=4)[ :,:,:]
+
+        #           for id = 1:nthreads()
+        #                println("id $id ", sum(H_thread[:,:,:,id]))
+        #                println(H_thread[:,:,1,id])
+        #                println()
+        #            end
+    end
+
+
+    if verbose println("use_Uarr") end
+    if use_Uarr #@time 
+#        println("use_uarr")
+        gamma_add = zeros(nwan, nwan)
+
+        ind = 0
+        back = 0.0
+        for a in crys.stypes
+            nw = Int64(atoms[a].nwan/2)
+            
+            coef = database[(a,a)]
+            if coef.use_Uarr
+                gamma_add[ind .+ (1:nw), ind .+ (1:nw)] += coef.Uarr
+            end
+            ind += nw
+
+            back += coef.background_charge_correction
+        end
+#        println("gamma add ", gamma_add)
+        println()
+        if ismissing(gamma) 
+            gamma, background_charge_correction = electrostatics_getgamma(crys, screening=screening) #do this once and for all
+        end
+        gamma += gamma_add
+#        println("back $back background_charge_correction before $background_charge_correction")
+        background_charge_correction += back / abs(det(crys.A))
+#        println("background_charge_correction after $background_charge_correction")        
+    end
+    
+
+    if retmat
+        #return H, S
+        return 
+    end
+    if verbose println("make") end
+    begin #@time 
+        #        println("typeof H ", typeof(H), " " , size(H), " S ", typeof(S), " " , size(S))
+        #println("maketb")
+        tb = make_tb( reshape(H, 1,size(H)[1], size(H)[2], size(H)[3])  , ind_arr, S, U = Umat, V = missing)
+        if !ismissing(database) && (haskey(database, "scf") || haskey(database, "SCF"))
+            scf = database["scf"]
+        else
+            scf = false
+        end
+
+#        println("calctb_lv scf $scf")
+#        println(database)
+        
+        #println("make")
+        tbc = make_tb_crys(tb, crys, nval, 0.0, scf=scf, gamma=gamma, background_charge_correction=background_charge_correction, within_fit=within_fit, screening=screening)
+        tbc.tot_charge = tot_charge
+        tbc.nelec = tbc.nelec - tot_charge
+    end
+    if verbose 
+        println("-----")
+        println()
+    end
+
+    
+    return tbc
+
+end
+
+
+
+#####
+#=
 function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verbose=true, var_type=missing, use_threebody=true, use_threebody_onsite=true, use_eam=true, gamma=missing,background_charge_correction=0.0,  screening=1.0, set_maxmin=false, check_frontier=true, check_only=false, repel = true, DIST=missing, tot_charge=0.0, retmat=false, Hin=missing, Sin=missing, atom = -1, use_pert=false, use_u=false, use_v = false, uv_dict = missing, use_Uarr=false, use_neighbors = true, use_energy=false, use_threebody_energy=false)
 
     repel=false
@@ -12602,6 +13720,9 @@ function calc_tb_LV(crys::crystal, database=missing; reference_tbc=missing, verb
     return tbc
 
 end
+
+=#
+#####
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #=

@@ -1079,6 +1079,12 @@ function generate_random_distortion(crys, amag, strain_mag)
     
 end
 
+
+function crys_to_str(crys)
+    st = "$(round.(crys.A, digits=8)) $(round.(crys.coords, digits=8)) $(crys.types)"
+    return st
+end
+
 """
     function write_poscar(crys, filename)
 

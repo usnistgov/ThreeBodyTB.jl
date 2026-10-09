@@ -16,6 +16,7 @@ using ..TB:calc_energy
 using ..TB:calc_energy_fft
 #using ..TB:orbital_index
 using ..CrystalMod:orbital_index
+using ..CrystalMod:crys_to_str
 using ..TB:Hk
 using ..BandTools:band_energy
 using ..BandTools:gaussian
@@ -70,7 +71,10 @@ using ..BandTools:smear_default
 #using ..CalcTB:n_eam_default                   
 
 using ..CalcTB:fitting_version_default
-    
+
+
+FIT_CACHE_DICT = Dict()
+
 #using ..CrystalMod:orbital_index
 
 #using ..TB:get_grid
@@ -203,6 +207,9 @@ function generate_additional_hams(TOTX ,  TOTY, threebody_inds, ch_final; lam = 
     
 end
 
+function clear_cache()
+    FIT_CACHE_DICT = Dict()
+end
 
 
 """
@@ -210,7 +217,7 @@ end
 
 Make lots of preperations for fitting. Moves things around, put stuff in materices, etc.
 """
-function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors = missing, fit_energy=false, fit_energy_threebody=false)
+function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing, fit_threebody=false, fit_threebody_onsite=false, starting_database=missing, refit_database=missing, fit_eam=false, fit_pert=false, fitting_version = fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false, neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors = missing, fit_energy=false, fit_energy_threebody=false, use_arr = false, database_arr = missing, ch_arr = missing, arr_ind = -999)
 
 
     tbc_list = []
@@ -285,10 +292,29 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
         #            println("FIT COUNTER $counter SPIN $spin")
         #rearrange info for fitting.
         println("calc_tb_prepare_fast input $N_cheb $n_eam $rho_decay $rho_max ")
-        @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, use_energy=fit_energy, use_energy_threebody=fit_energy_threebody)
-        if tbc.nspin == 2
-            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, use_energy=fit_energy, use_energy_threebody=fit_energy_threebody)
+        cstr = crys_to_str(tbc.crys)
+        if ismissing(database_arr)
+            db_str = ""
+        else
+            t1 = list_of_tbcs[1]
+            db_str = "$(database_arr[(t1.crys.stypes[1], t1.crys.stypes[1])].bound_arr)"
         end
+        
+        if (cstr,fit_eam, fit_pert, fit_threebody, fit_threebody_onsite, 1 , fitting_version, N_cheb, n_eam, rho_decay, rho_max, use_neighbors, neighbor_number, neighbor_spread, neighbor_dist, fit_energy, fit_energy_threebody, use_arr, db_str) in keys(FIT_CACHE_DICT)
+            twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec = FIT_CACHE_DICT[cstr,fit_eam, fit_pert, fit_threebody, fit_threebody_onsite, 1 , fitting_version, N_cheb, n_eam, rho_decay, rho_max, use_neighbors, neighbor_number, neighbor_spread, neighbor_dist, fit_energy, fit_energy_threebody, use_arr, db_str]
+            println("FIT_CACHE_DICT HIT")
+        else
+            println("FIT_CACHE_DICT MISS")            
+            @time twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 1, fitting_version = fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, use_energy=fit_energy, use_energy_threebody=fit_energy_threebody, use_arr = use_arr, database_arr = database_arr)
+            FIT_CACHE_DICT[cstr,fit_eam, fit_pert, fit_threebody, fit_threebody_onsite, 1 , fitting_version, N_cheb, n_eam, rho_decay, rho_max, use_neighbors, neighbor_number, neighbor_spread, neighbor_dist, fit_energy, fit_energy_threebody, use_arr, db_str] = twobody_arrays, threebody_arrays, hvec, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec
+            
+        end
+
+        if tbc.nspin == 2
+            @time twobody_arrays, threebody_arrays, hvec2, svec, Rvec, INDvec, h_onsite, ind_convert, dmin_types, dmin_types3, frac_vec =  calc_tb_prepare_fast(tbc, use_eam=fit_eam, use_pert = fit_pert, use_threebody=fit_threebody, use_threebody_onsite=fit_threebody_onsite, spin = 2, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors = use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, use_energy=fit_energy, use_energy_threebody=fit_energy_threebody, use_arr = use_arr, database_arr = database_arr)
+        end
+
+        
         #            println("INDVEC ", INDvec)
         
         #take into account prefit information
@@ -752,7 +778,23 @@ function prepare_for_fitting(list_of_tbcs; kpoints = missing, dft_list = missing
                 #ch_temp = [ 1.0 , 0.05  , 0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05  , 0.05 ,  0.05]
                 #println("test XHc ", sum(Xhc - hvec[1]), " test hnew ", sum(X_H_new * ch_temp - hvec[1]), " test both ", sum(X_H_new * ch_temp + X_H_new_frac * ch_neighbors - hvec[1]) , " BOTH!!!!!!!!!!!!!!!!!!!!!!")
             end
-
+            if use_arr &&  ! ismissing(ch_arr)
+                println("DOING ARR")
+                for j = 1:size(ch_arr, 2)
+                    if j == arr_ind
+                        continue
+                    end
+                    X_H_new_frac = deepcopy(X_H_new)
+                    for i = 1:size(X_H_new)[1]
+                        X_H_new_frac[i,:] = X_H_new_frac[i,:] *  frac_vec[i,j]
+                    end
+                    println("size X_H_new_frac ", size( X_H_new_frac), " size ch_arr ", size(ch_arr), " j $j")
+                    Xhc += X_H_new_frac * ch_arr[:,j][:]
+                end
+                for i = 1:size(X_H_new)[1]
+                    X_H_new[i,:] = X_H_new[i,:] * (  frac_vec[i,arr_ind])
+                end
+            end 
             
             #ch_temp = [ 1.0 , 0.05  , 0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05 ,  0.05  , 0.05 ,  0.05]
             #println("x test cH_temp ", sum(X_H_new * ch_temp - hvec[1]))
@@ -949,7 +991,7 @@ Linear fitting (not recursive). Used as starting point of recursive fitting.
 - `refit_database=missing` starting point for coefficients we are fitting. Usually not used, as it doesn't always speed things up in practice. Something may not work about this option.
 """
 function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing,  fit_threebody=true, fit_threebody_onsite=true, do_plot = false, starting_database=missing, mode=:kspace, return_database=true, NLIM=120, refit_database=missing, fit_eam=false, ch_startX = missing, fit_pert= false, lam=1e-15, fitting_version=fitting_version_default, N_cheb = 0, n_eam = 0, rho_decay = Float64[], rho_max = Float64[], use_neighbors=false,neighbor_number = 3.5, neighbor_spread = 0.5, neighbor_dist = 3.5, ch_neighbors=missing,
-                           fit_energy=false, fit_energy_threebody=false)
+                           fit_energy=false, fit_energy_threebody=false, use_arr = false, database_arr = false, ch_arr = missing, arr_ind = -999)
 
     if rho_max == :auto && fit_eam
         rho_max = get_rho_max(list_of_tbcs_nonscf, N_cheb, n_eam, rho_decay )
@@ -982,7 +1024,7 @@ function do_fitting_linear(list_of_tbcs; kpoints = missing, dft_list = missing, 
     X_Hnew_BIG, Y_Hnew_BIG, X_H, X_S, X_Snew_BIG, Y_Snew_BIG,  Y_H, Y_S, Xc_Hnew_BIG, Xc_Snew_BIG, HON, ind_BIG, KEYS, HIND, SIND, DMIN_TYPES, DMIN_TYPES3, keepind, keepdata, YS_new, cs, ch_refit, SPIN, threebody_inds,
     X_Enew_BIG, Xc_Enew_BIG, EIND=
         prepare_for_fitting(list_of_tbcs; kpoints = kpoints,dft_list=dft_list, fit_threebody=fit_threebody, fit_threebody_onsite=fit_threebody_onsite,
-                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody)
+                            starting_database=starting_database, refit_database=refit_database, fit_eam=fit_eam, fit_pert=fit_pert, fitting_version=fitting_version, N_cheb = N_cheb, n_eam = n_eam, rho_decay = rho_decay, rho_max = rho_max, use_neighbors=use_neighbors, neighbor_number = neighbor_number, neighbor_spread = neighbor_spread, neighbor_dist = neighbor_dist, ch_neighbors=ch_neighbors, fit_energy=fit_energy, fit_energy_threebody=fit_energy_threebody, use_arr = use_arr, database_arr = database_arr, ch_arr = ch_arr, arr_ind = arr_ind)
     
     println("done setup matricies")
     println("lsq fitting")
@@ -4277,17 +4319,17 @@ function do_fitting_recursive_main(list_of_tbcs, prepare_data; weights_list=miss
         csX2 = cs_big
 
         chX2_arr = []
-        if gen_add_ham
-            ch_mean = missing
-            ch_arr = missing
-            println("generate_additional_hams")
-            @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, deepcopy(chX2), lam = lambda)
-
-            
-            for ch in ch_arr
-                push!(chX2_arr, ch)
-            end
-        end
+        #if gen_add_ham
+        #    ch_mean = missing
+        #    ch_arr = missing
+        #    println("generate_additional_hams")
+        #    @time ch_mean, ch_arr = generate_additional_hams(TOTX ,  TOTY, threebody_inds, deepcopy(chX2), lam = lambda)
+        #
+        #    
+        #    for ch in ch_arr
+        #        push!(chX2_arr, ch)
+        #    end
+        #end
 
         
 #        else
