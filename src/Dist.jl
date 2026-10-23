@@ -943,7 +943,7 @@ function distances_etc_3bdy_parallel2(crys, cutoff=missing, cutoff2=missing; var
     found_arr[:] .= false
 
 
-    @threads for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1) 
+    for c = 1: (R[1]*2+1) * (R[2]*2+1) * (R[3]*2+1)  #@threads 
         
         r3 = mod(c-1 , R[3]*2+1 ) - R[3]
         r2 = mod((c-1) ÷ (R[3]*2+1), (R[2]*2+1)) - R[2]

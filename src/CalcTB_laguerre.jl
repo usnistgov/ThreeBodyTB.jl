@@ -2526,7 +2526,7 @@ function calc_tb_fast_old(crys::crystal, database=missing; reference_tbc=missing
     if !ismissing(database)
 
         if verbose println("2body") end
-        @time @threads  for c = 1:nkeep_ab 
+        @time   for c = 1:nkeep_ab  #@threads
             #        ind_arr[c,:] = R_keep_ab[c][4:6]
             cind = R_keep_ab[c,1]
             cham = R_keep_ab[c,7]

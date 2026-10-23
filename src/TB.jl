@@ -2860,7 +2860,7 @@ function go_charge14(VECTS, S, occ, nspin, max_occ, DEN)
     for spin = 1:nspin
         DEN .= 0.0
         for n = 1:max_occ
-            @threads for k = 1:nk
+            for k = 1:nk #@threads 
                 for b = 1:nw
                     for a = 1:nw
                         @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,n,k,spin]).*(VECTS[b,n,k,spin])
@@ -2933,7 +2933,7 @@ function go_charge13(VECTS, S, occ, nspin, max_occ)
     for spin = 1:nspin
         DEN .= 0.0
         for n = 1:max_occ
-            @threads for k = 1:nk
+            for k = 1:nk #@threads 
                 for b = 1:nw
                     for a = 1:nw
                         #                             @inbounds DEN[a,b,k] += occ[k,n,spin].*conj(VECTS[a,spin,n,k]).*(VECTS[b,spin, n,k])
