@@ -12,17 +12,21 @@ module TB
 
 using ..ThreeBodyTB:eV
 
-using LinearAlgebra
-using SpecialFunctions
-using EzXML
-using XMLDict
-using GZip
-using Printf
-using Plots
-using FFTW
+using PrecompileTools     
+@recompile_invalidations begin
+
+    using LinearAlgebra
+    using SpecialFunctions
+    using EzXML
+    using XMLDict
+    using GZip
+    using Printf
+    using Plots
+    using FFTW
+    using Base.Threads
+    using LoopVectorization
+end
 #using JLD
-using Base.Threads
-using LoopVectorization
 #include("Atomdata.jl")
 using ..Atomdata:atoms
 using ..Atomdata:formation_energy_ref

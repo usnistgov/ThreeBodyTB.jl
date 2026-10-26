@@ -10,8 +10,12 @@ module BandStruct
 BS plotting
 """
 
-using LinearAlgebra
-using Plots
+using PrecompileTools     
+@recompile_invalidations begin
+    using LinearAlgebra
+    using Plots
+end
+
 using Base.Threads
 using ..CrystalMod:get_grid
 using ..TB:make_kgrid

@@ -17,20 +17,24 @@ using ..Utility:parse_str_ARR_float
 using ..Utility:dict2str
 using ..Utility:str2tuplesdict
 
-using Random
-using LinearAlgebra
-using SpecialFunctions
-using GZip
-using EzXML
-using XMLDict
-using Printf
-using SparseArrays
-using LoopVectorization
+using PrecompileTools     
+@recompile_invalidations begin
+    using Random
+    using LinearAlgebra
+    using SpecialFunctions
+    using GZip
+    using EzXML
+    using XMLDict
+    using Printf
+    using SparseArrays
+    using LoopVectorization
+    using Suppressor
+    
+end
 using ..CrystalMod:distances_etc_3bdy_parallel_LV
 using ..CalcTB:laguerre_fast!
 using ..CalcTB:calc_frontier_list
 using ..CalcTB:calc_frontier
-using Suppressor
 
 #using Statistics
 

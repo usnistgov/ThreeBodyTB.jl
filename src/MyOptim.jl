@@ -1,7 +1,11 @@
 module MyOptim
 
-using LinearAlgebra
-using Suppressor
+using PrecompileTools     
+@recompile_invalidations begin
+
+    using LinearAlgebra
+    using Suppressor
+end
 
 function conjgrad(fn, grad, x0; maxstep=1.0, niters=50, conv_thr = 1e-2, fn_conv = 1e-4, verbosity="low")
 

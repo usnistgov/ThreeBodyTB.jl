@@ -1,5 +1,8 @@
-using LoopVectorization
-using Base.Threads
+using PrecompileTools     
+@recompile_invalidations begin
+    using LoopVectorization
+    using Base.Threads
+end
 using ..AtomicMod:atom
 using ..Utility:cutoff_fn
 using ..Utility:cutoff_fn_fast

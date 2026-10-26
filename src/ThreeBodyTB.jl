@@ -13,6 +13,10 @@ end
 
 #get_ver()
 
+using PrecompileTools
+
+using Suppressor
+using Printf
 
 include("GlobalUnits.jl")
 include("SetDir.jl")
@@ -90,9 +94,6 @@ function set_units(a=missing;energy=missing, length=missing, both=missing)
 end
 
 
-using Suppressor
-
-using Printf
 using .CrystalMod:crystal
 using .CrystalMod:makecrys
 
@@ -701,6 +702,35 @@ end
 
 
 include("ClassicalFit.jl")
+using .ManageDatabase:clear_database
+
+#######precompilation stuff
+@setup_workload begin
+
+    #deal with stopping plots
+    oldkey = missing
+    if "GKSwstype" in keys(ENV)
+        oldkey = deepcopy(ENV["GKSwstype"])
+    end
+    ENV["GKSwstype"] = "100"
+
+    @compile_workload begin
+        redirect_stdout(devnull) do #catch output
+            redirect_stderr(devnull) do
+                my_precompile()
+                clear_database()
+                set_units(both=:eVang)
+            end
+        end
+    end
+
+    delete!(ENV, "GKSwstype")
+    #put the display back the way it was
+    if !ismissing(oldkey)
+        ENV["GKSwstype"] = oldkey
+    end
+    
+end
 
 
 end #end module

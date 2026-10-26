@@ -2,12 +2,17 @@
 
 module Symmetry
 
-using Base.Threads
-using Spglib
+using PrecompileTools     
+@recompile_invalidations begin
+
+    using Base.Threads
+    using Spglib
+    using LoopVectorization
+end
+
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys
 using ..CrystalMod:get_grid
-using LoopVectorization
 
 
 vz2 = 0.25*sqrt(5/pi) * (3*[0 0 0; 0 0 0; 0 0 1] - [1 0 0; 0 1 0; 0 0 1])

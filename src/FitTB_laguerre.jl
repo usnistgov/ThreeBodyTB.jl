@@ -4,9 +4,15 @@ Fit tight binding using Laguere polynomials times decaying exponentials
 """
 
 #using PyPlot
-using Plots
+using PrecompileTools     
+@recompile_invalidations begin
+    using Plots
+    using LinearAlgebra
+    using Random
+    using DelimitedFiles
+end
+
 #using JLD
-using LinearAlgebra
 #using Statistics
 #using Optim
 using Random

@@ -46,3 +46,6 @@ savefig("ScP_rocksalt_DOS.pdf")
 #dos(tbc, proj_type=:orbs) #orbital projection. :none also allowed.
 #savefig("ScP_rocksalt_DOS_orbital.pdf")
 
+println("BAND STRUCTURE DOS COMBO -----------------------------------------")
+plot_bandstr_dos(tbc)
+

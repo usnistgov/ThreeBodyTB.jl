@@ -15,10 +15,15 @@ module SCF
 self-consistent field
 """
 
+using PrecompileTools     
+@recompile_invalidations begin
+    using Printf
+    using LinearAlgebra
+    using SpecialFunctions
+    
+end
 #include("Atomdata.jl")
 using ..Atomdata:atoms
-using Printf
-using LinearAlgebra
 using ..CrystalMod:crystal
 using ..TB:make_tb_crys
 using ..TB:make_tb
@@ -55,7 +60,6 @@ using ..TB:get_magmom
 using ..CrystalMod:get_grid
 using ..CrystalMod:orbital_index
 
-using SpecialFunctions
 using ..ThreeBodyTB:global_energy_units
 using ..ThreeBodyTB:eV
 using ..Symmetry:get_kgrid_sym

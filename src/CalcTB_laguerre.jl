@@ -11,21 +11,24 @@ Create TB matrix sets from coefficients, or prepare to fit the coefficients.
 """
 module CalcTB
 
+using PrecompileTools     
+@recompile_invalidations begin
 
-using LinearAlgebra
-using SpecialFunctions
-using GZip
-using EzXML
-using XMLDict
-using Printf
-using SparseArrays
-using LoopVectorization
-
+    using LinearAlgebra
+    using SpecialFunctions
+    using GZip
+    using EzXML
+    using XMLDict
+    using Printf
+    using SparseArrays
+    using LoopVectorization
+    using Base.Threads
+    
+end
 
 
 #using Statistics
 
-using Base.Threads
 #using Base.lock
 
 using ..AtomicMod:atom
@@ -61,7 +64,7 @@ using ..TB:make_rdict
 
 using ..Utility:dict2str
 using ..Utility:str2tuplesdict
-using ForwardDiff
+#using ForwardDiff
 using ..CrystalMod:makecrys
 
 using Random
@@ -71,8 +74,10 @@ using Random
 const one = [1.0]
 
 #using PyPlot
-using Plots
-
+using PrecompileTools     
+@recompile_invalidations begin
+    using Plots
+end
 
 #include("Atomdata.jl")
 using ..Atomdata:atoms

@@ -19,13 +19,18 @@ Electrostatics
 using ..Atomdata:atoms
 using ..Atomdata:uniform_charge_interaction
 
-using LinearAlgebra
+using PrecompileTools     
+@recompile_invalidations begin
+
+    using LinearAlgebra
+    using SpecialFunctions
+    using Base.Threads
+    using LoopVectorization
+    
+end    
 using ..CrystalMod:crystal
 ###using ..CalcTB:distances_etc_3bdy
-using SpecialFunctions
 import Base.Threads.@spawn
-using Base.Threads
-using LoopVectorization
 
 
 """

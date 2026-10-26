@@ -16,23 +16,24 @@ Scripts to calculate force and stress
 
 #calc for testing non-autodiff forces only 
 #using Calculus
-
-
-using Base.Threads
-import Base.Threads.@spawn
-using FFTW
-using LinearAlgebra
-using ForwardDiff
-#using ReverseDiff
+using PrecompileTools     
+@recompile_invalidations begin
+    using Base.Threads
+    import Base.Threads.@spawn
+    using FFTW
+    using LinearAlgebra
+    using ForwardDiff
+    using LineSearches
+    using LoopVectorization
+end
+    #using ReverseDiff
 ###using Optim
-using LineSearches
 using ..CrystalMod:crystal
 using ..CrystalMod:makecrys
 
 using ..Utility:reshape_vec
 using ..Utility:inv_reshape_vec
 
-using LoopVectorization
 
 using ..CalcTB:calc_tb_fast
 #using ..CalcTB:calc_tb_lowmem

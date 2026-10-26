@@ -52,5 +52,8 @@ println()
 #knames=["Γ", "X", "W", "Γ"]
 #plot_bandstr(tbc, kpath=kpath, names=knames)
 
-
+println()
+energy, forces, stress, tbc = scf_energy_force_stress(cfinal * [1,1,2], grid=[2,2,1])
+energy, forces, stress, tbc = scf_energy_force_stress(cfinal * [1,2,2], grid=[2,1,1])
+energy, forces, stress, tbc = scf_energy_force_stress(cfinal * [2,2,2], grid=[1,1,1])
 
