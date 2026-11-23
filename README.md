@@ -13,7 +13,7 @@
 <img align="right" src="https://github.com/kfgarrity/ThreeBodyTB.jl/blob/main/docs/src/assets/logo.svg" alt="logo" width="200" >
 
 Code for accurate and efficient electronic structure calculations
-using tight-binding (TB), including three-body interactions. Run TB
+using tight-binding (TB), including three-body interactions to generate the Hamiltonian. Run TB
 calculations with nearly DFT (pbesol) accuracy in seconds, using a
 pre-fit and tested model for most elemental or binary systems. NEW:
 ternary coefficients for most common ternary systems are available.
