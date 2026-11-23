@@ -96,7 +96,7 @@ Workflow for doing SCF DFT calculation on `crys`
 
 Return `dftout`
 """
-function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100, input_occupations=missing)
+function runSCF(crys::crystal, inputstr=missing, prefix="qe", tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1, skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx = -1.0, electron_maxstep=100, input_occupations=missing, tot_magnetization=missing)
 """
 Run SCF calculation using QE
 """
@@ -137,7 +137,7 @@ Run SCF calculation using QE
 
 #    println("runSCF 2")
     
-    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations)
+    tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, grid=grid, klines=klines, nstep=nstep, startingpot=startingpot, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations, tot_magnetization = tot_magnetization)
     
     f = open(directory*"/"*inputstr, "w")
     write(f, inputfile)
@@ -164,7 +164,7 @@ Run SCF calculation using QE
     if ret != 0 && updated == false
         println("failed DFT, trying with different mixing")
         #tmpdir, prefix, inputfile =  makeSCF(crys, directory, prefix, tmpdir, functional, wannier, calculation, dofree, tot_charge, smearing, magnetic, mixing="TF", grid=grid, klines=klines)
-        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations)
+        tmpdir, prefix, inputfile =  makeSCF(crys, directory=directory, prefix=prefix, tmpdir=tmpdir, functional=functional, wannier=wannier, calculation=calculation, dofree=dofree, tot_charge=tot_charge, smearing=smearing, magnetic=magnetic, mixing="TF",  grid=grid, klines=klines, nstep=nstep, hybrid=hybrid, electron_maxstep=electron_maxstep, exx=exx, input_occupations=input_occupations, tot_magnetization = tot_magnetization)
         
 
         f = open(directory*"/"*inputstr, "w")
@@ -239,7 +239,7 @@ end
 Make QE inputfile for SCF DFT calculation.
 """
 
-function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0, input_occupations=missing)
+function makeSCF(crys::crystal; directory="./", prefix=missing, tmpdir=missing, functional="PBESOL", wannier=0, calculation="scf", dofree="all", tot_charge = 0.0, smearing = smear_default, magnetic=false, mixing="local-TF", grid=missing, klines = missing, nstep=30, startingpot=missing, hybrid=false, electron_maxstep=100, exx = -1.0, input_occupations=missingo, tot_magnetization=missing)
 """
 Make inputfile for SCF calculation
 """
@@ -516,6 +516,7 @@ Make inputfile for SCF calculation
     
     println("wannier $wannier ")
     if (typeof(wannier) == Bool && wannier==true) || wannier == 2
+        println("run nscf wannier 2")
         nbandsemi = 0
         nbandval = 0        
         
@@ -523,7 +524,7 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 3.5 / 2.0))   #no spin yet
+        nbandtot = 4+1+convert(Int64, round(nbandsemi/2.0 + nbandval * 2.5 / 2.0))   #no spin yet
         ############println("nbandtot ", [4,1,convert(Int64, round(nbandsemi/2.0)), convert(Int64, nbandval * 3.5 / 2.0)])
         if "La" in crys.types
             nbandtot += 7*crys.nat
@@ -536,6 +537,7 @@ Make inputfile for SCF calculation
         
         other *="nbnd = "*string(nbandtot)*"\n"
     elseif wannier == 1 #fewer bands can be more stable
+        println("run nscf wannier 1")
         nbandsemi = 0
         nbandval = 0        
         
@@ -543,9 +545,71 @@ Make inputfile for SCF calculation
             nbandsemi += atoms[t].nsemicore
             nbandval += atoms[t].nwan
         end
-        nbandtot = 0+convert(Int64, round(nbandsemi/2.0 + nbandval * 2.0 / 2.0))   #no spin yet
+        nbandtot = 5+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.5 / 2.0))   #no spin yet
         other *="nbnd = "*string(nbandtot)*"\n"
+
+    elseif wannier == 11 #fewer bands can be more stable
+        println("run nscf wannier 1")
+        nbandsemi = 0
+        nbandval = 0        
+        
+        for t in crys.types
+            nbandsemi += atoms[t].nsemicore
+            nbandval += atoms[t].nwan
+        end
+        nbandtot = 5+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.4 / 2.0))   #no spin yet
+        other *="nbnd = "*string(nbandtot)*"\n"
+
+    elseif wannier == 111 #fewer bands can be more stable
+        println("run nscf wannier 1")
+        nbandsemi = 0
+        nbandval = 0        
+        
+        for t in crys.types
+            nbandsemi += atoms[t].nsemicore
+            nbandval += atoms[t].nwan
+        end
+        nbandtot = 5+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.3 / 2.0))   #no spin yet
+        other *="nbnd = "*string(nbandtot)*"\n"
+
+    elseif wannier == 1111 #fewer bands can be more stable
+        println("run nscf wannier 1")
+        nbandsemi = 0
+        nbandval = 0        
+        
+        for t in crys.types
+            nbandsemi += atoms[t].nsemicore
+            nbandval += atoms[t].nwan
+        end
+        nbandtot = 5+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.2 / 2.0))   #no spin yet
+        other *="nbnd = "*string(nbandtot)*"\n"
+
+    elseif wannier == 11111 #fewer bands can be more stable
+        println("run nscf wannier 1")
+        nbandsemi = 0
+        nbandval = 0        
+        
+        for t in crys.types
+            nbandsemi += atoms[t].nsemicore
+            nbandval += atoms[t].nwan
+        end
+        nbandtot = 5+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.1 / 2.0))   #no spin yet
+        other *="nbnd = "*string(nbandtot)*"\n"
+
+    elseif wannier == 111111 #fewer bands can be more stable
+        println("run nscf wannier 1")
+        nbandsemi = 0
+        nbandval = 0        
+        
+        for t in crys.types
+            nbandsemi += atoms[t].nsemicore
+            nbandval += atoms[t].nwan
+        end
+        nbandtot = 3+convert(Int64, round(nbandsemi/2.0 + nbandval * 1.05 / 2.0))   #no spin yet
+        other *="nbnd = "*string(nbandtot)*"\n"
+
     elseif wannier == -1
+        println("run nscf wannier -1")
         nbandsemi = 0
         nbandval = 0        
         
@@ -562,6 +626,11 @@ Make inputfile for SCF calculation
         other *= "   tot_charge = $tot_charge \n"
     end
 
+    if !ismissing(tot_magnetization) && abs(tot_magnetization) > 1e-5
+        #other *= "   tot_charge = $tot_charge , assume_isolated = 'mp' \n"
+        other *= "   tot_magnetization = $tot_magnetization \n"
+    end
+
     if magnetic
         other *= "   nspin = 2 \n"
         for c in 1:ntypes
@@ -570,7 +639,7 @@ Make inputfile for SCF calculation
     end
 
     if hybrid
-        other *= "input_dft='gaupbesol' \n" #requires modified QE, ask kfg for help.
+        other *= "input_dft='gaupbe' \n" #requires modified QE, ask kfg for help.
         println("warning - hybrid functional pbesol requires modified QE")
         
         other *= "nqx1 = $(qpoints[1]) , nqx2 = $(qpoints[1]) , nqx3 = $(qpoints[1]) ,\n"
@@ -785,7 +854,7 @@ function loadXML(savedir)
 #        println("true")
         if "functional" in keys(d["espresso"]["input"]["dft"])
 #            println("true")            
-            if d["espresso"]["input"]["dft"]["functional"] == "GAUPBESOL"
+            if d["espresso"]["input"]["dft"]["functional"] == "GAUPBE"
                 println("true")                
                 hybrid = true
                 exx = 0.24
@@ -869,8 +938,14 @@ function loadXML_bs(d)
 
 
     nelec = parse(Float64,out["nelec"])
-    efermi = parse(Float64,out["fermi_energy"]) * convert_ha_ryd
-
+    println("keys ", keys(out))
+    if "fermi_energy" in keys(out)
+        efermi = parse(Float64,out["fermi_energy"]) * convert_ha_ryd
+    elseif "two_fermi_energies" in keys(out)
+        s = split(out["two_fermi_energies"])
+        efermi = 0.5*(parse(Float64,s[1]) + parse(Float64,s[2]))
+    end
+        
 
     st = d["espresso"]["output"]
     
@@ -947,7 +1022,7 @@ using ..BandTools:smear_default
 
 Workflow for generic DFT SCF calculation. `code` can only by "QE"
 """
-function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx=-1.0, electron_maxstep=100, input_occupations=missing)
+function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", directory="./", functional="PBESOL", wannier=0, nprocs=1,procs=1, code="QE", skip=false, calculation="scf", dofree="all", tot_charge = 0.0, smearing = missing, magnetic=false, cleanup=false, use_backup=false, grid=missing, klines=missing, nstep=30, startingpot=missing, hybrid=false, exx=-1.0, electron_maxstep=100, input_occupations=missing, tot_magnetization=missing)
     
     println("in runSCF DFT version")
     if exx > 1e-5
@@ -975,7 +1050,7 @@ function runSCF(crys::crystal; inputstr=missing, prefix=missing, tmpdir="./", di
         #try
             println([crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations])
             
-            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations)
+            qeout = QE.runSCF(crys, inputstr, prefix, tmpdir, directory, functional, wannier, nprocs, skip, calculation, dofree, tot_charge, smearing, magnetic, cleanup, use_backup, grid, klines, nstep, startingpot, hybrid, exx, electron_maxstep, input_occupations, tot_magnetization)
         #    return qeout
         #catch err
         #    println("err")

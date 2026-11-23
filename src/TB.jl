@@ -892,7 +892,7 @@ function write_tb_crys(filename, tbc::tb_crys)
 
 
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
-    
+#=    
     function makestr(H,S, nonorth, ind_arr)
 
         nw = size(H)[2]
@@ -951,7 +951,59 @@ function write_tb_crys(filename, tbc::tb_crys)
     #    write(filename, doc);    
 
     return Nothing
+  =#
+
+    function write_H!(io::IO, H, S, nonorth, ind_arr)
+        nw = size(H, 2)
+        nr = size(H, 4)
+        nspin = size(H, 1)
+
+        for r = 1:nr
+            r_is_zero = !nonorth && (ind_arr[r, 1] == 0 && ind_arr[r, 2] == 0 && ind_arr[r, 3] == 0)
+            for m = 1:nw
+                for n = 1:nw
+                    if nonorth
+                        Sr = real(S[m, n, r])
+                        Si = imag(S[m, n, r])
+                    else
+                        Sr = (m == n && r_is_zero) ? 1.0 : 0.0
+                        Si = 0.0
+                    end
+
+                    if nspin == 2
+                        @printf(io, "% 3d % 3d % 3d % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f \n",
+                                r, m, n,
+                                real(H[1, m, n, r]), imag(H[1, m, n, r]),
+                                real(H[2, m, n, r]), imag(H[2, m, n, r]),
+                                Sr, Si)
+                    else
+                        @printf(io, "% 3d % 3d % 3d % 2.10f % 2.10f % 2.10f % 2.10f \n",
+                                r, m, n,
+                                real(H[1, m, n, r]), imag(H[1, m, n, r]),
+                                Sr, Si)
+                    end
+                end
+            end
+        end
+    end
+
+    # 1. Put a lightweight placeholder in <H> and prettyprint the small DOM to a buffer
+    placeholder = "__H_DATA_PLACEHOLDER__"
+    addelement!(tightbinding, "H", placeholder)
+
+    skeleton_buf = IOBuffer()
+    prettyprint(skeleton_buf, doc)
+    before_H, after_H = split(String(take!(skeleton_buf)), placeholder; limit=2)
+
+    # 2. Stream directly to disk
+    open(filename, "w") do io
+        write(io, before_H)
+        write_H!(io, tbc.tb.H, tbc.tb.S, tbc.tb.nonorth, tbc.tb.ind_arr)
+        write(io, after_H)
+    end
     
+    return Nothing
+  
     #    return doc
     
 end
@@ -1005,7 +1057,8 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
     #    addelement!(tightbinding, "h1spin",arr2str(tbc.tb.h1spin))
 
     addelement!(tightbinding, "grid",arr2str(tbc.tb.grid))
-    
+
+#=    
     function makestr(H,S, nonorth)
 
         nspin = size(H)[4]        
@@ -1063,6 +1116,61 @@ function write_tb_crys_kspace(filename, tbc::tb_crys_kspace)
 
     #  write(io, doc);
     #    write(filename, doc);    
+
+    return Nothing
+=#
+
+    function write_H!(io::IO, H, S, nonorth)
+        #nw = size(H, 2)
+        #nr = size(H, 4)
+        #nspin = size(H, 1)
+
+        nspin = size(H)[4]        
+        nw = size(H)[1]
+        nr = size(H)[3]
+
+        for r = 1:nr
+            for m = 1:nw
+                for n = 1:nw
+                    if nonorth
+                        Sr = real(S[m, n, r])
+                        Si = imag(S[m, n, r])
+                    else
+                        Sr = 1.0
+                        Si = 0.0
+                    end
+
+                    if nspin == 2
+                        @printf(io, "% 3d % 3d % 3d % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f % 2.10f \n",
+                                r, m, n,
+                                real(H[m, n, r, 1]), imag(H[m, n, r, 1]),
+                                real(H[m, n, r, 2]), imag(H[m, n, r, 2]),
+                                Sr, Si)
+                    else
+                        @printf(io, "% 3d % 3d % 3d % 2.10f % 2.10f % 2.10f % 2.10f \n",
+                                r, m, n,
+                                real(H[m, n, r, 1]), imag(H[m, n, r, 1]),
+                                Sr, Si)
+                    end
+                end
+            end
+        end
+    end
+
+    # 1. Put a lightweight placeholder in <H> and prettyprint the small DOM to a buffer
+    placeholder = "__H_DATA_PLACEHOLDER__"
+    addelement!(tightbinding, "H", placeholder)
+
+    skeleton_buf = IOBuffer()
+    prettyprint(skeleton_buf, doc)
+    before_H, after_H = split(String(take!(skeleton_buf)), placeholder; limit=2)
+
+    # 2. Stream directly to disk
+    open(filename, "w") do io
+        write(io, before_H)
+        write_H!(io, tbc.tb.Hk, tbc.tb.Sk, tbc.tb.nonorth)
+        write(io, after_H)
+    end
 
     return Nothing
     
@@ -3637,6 +3745,8 @@ end
 
      """
 function myfft(crys, nonorth, grid, kpts,ham_kS, Sk=missing, verbose=false)
+
+    println("myfft grid ", grid)
 
     #     println("size ham_kS ", size(ham_kS))
     

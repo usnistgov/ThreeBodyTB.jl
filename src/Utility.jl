@@ -286,6 +286,32 @@ function read_huge_xml(filename::String)
     # 1. Clear the error stack first
     empty!(EzXML.XML_GLOBAL_ERROR_STACK)
 
+    # 2. Define the XML_PARSE_HUGE bitmask
+    XML_PARSE_HUGE = 524288
+
+    println("parse XML file EzXML directly from disk")
+    
+    # 3. Call xmlReadFile directly instead of xmlReadMemory
+    # libxml2 natively handles both standard .xml and .gz files
+    @time raw_doc_ptr = ccall(
+        (:xmlReadFile, EzXML.libxml2),
+        Ptr{EzXML._Node},
+        (Cstring, Cstring, Cint),
+        filename, C_NULL, XML_PARSE_HUGE)
+
+    if raw_doc_ptr == C_NULL
+        error("Failed to parse XML file: $filename")
+    end
+
+    # 4. Wrap the pointer safely into a native Julia Document
+    return EzXML.Document(raw_doc_ptr)
+end
+
+#=
+function read_huge_xml(filename::String)
+    # 1. Clear the error stack first
+    empty!(EzXML.XML_GLOBAL_ERROR_STACK)
+
     println("load XML file")
     @time begin
         f=missing
@@ -307,27 +333,8 @@ function read_huge_xml(filename::String)
     # 2. Define the XML_PARSE_HUGE bitmask
     XML_PARSE_HUGE = 524288
 
-    # 3. Call libxml2 with the precise return pointer type: Ptr{EzXML._Node}
-#    raw_doc_ptr = ccall(
-#        (:xmlReadFile, EzXML.libxml2),
-#        Ptr{EzXML._Node},  # <-- Fixed this type
-#        (Cstring, Ptr{Cchar}, Cint),
-#        "$SRCDIR/temp_read_xml_file.xml", C_NULL, XML_PARSE_HUGE
-    #    )
-
-#    readcb = EzXML.make_read_callback(typeof(f))
-#    closecb = C_NULL
-#    uri = C_NULL
-#    encoding = C_NULL
     opts = XML_PARSE_HUGE
     
-    #opts, args = parse_options(; options...)
- #   raw_doc_ptr = ccall(
- #       (:xmlReadIO, EzXML.libxml2),
- #       Ptr{EzXML._Node},
- #       (Ptr{Cvoid}, Ptr{Cvoid}, Ref{IO}, Cstring, Cstring, Cint),
- #       readcb, closecb, f, uri, encoding, opts) != C_NULL
-
     println("parse XML file EzXML")
     @time raw_doc_ptr = ccall(
         (:xmlReadMemory, EzXML.libxml2),
@@ -342,45 +349,9 @@ function read_huge_xml(filename::String)
     # 4. Wrap the pointer safely into a native Julia Document
     return EzXML.Document(raw_doc_ptr)
 end
-
-#=function read_huge_xml(filename::String)
-    # 1. Clear the error stack first
-    empty!(EzXML.XML_GLOBAL_ERROR_STACK)
-
-    f = missing
-    try
-        f = gzopen(filename, "r")
-    catch
-        println("error opening $filename")
-    end
-    fs = read(f, String)
-    close(f)
-    fo = open("$SRCDIR/temp_read_xml_file.xml", "w")
-    write(fo, fs)
-    close(fo)
-    
-    # 2. Define the XML_PARSE_HUGE bitmask
-    XML_PARSE_HUGE = 524288
-
-    # 3. Call libxml2 with the precise return pointer type: Ptr{EzXML._Node}
-    raw_doc_ptr = ccall(
-        (:xmlReadFile, EzXML.libxml2),
-        Ptr{EzXML._Node},  # <-- Fixed this type
-        (Cstring, Ptr{Cchar}, Cint),
-        "$SRCDIR/temp_read_xml_file.xml", C_NULL, XML_PARSE_HUGE
-    )
-    if isfile("$SRCDIR/temp_read_xml_file.xml")
-        rm("$SRCDIR/temp_read_xml_file.xml")
-    end
-    
-    if raw_doc_ptr == C_NULL
-        error("Failed to parse XML file: $filename")
-    end
-
-    # 4. Wrap the pointer safely into a native Julia Document
-    return EzXML.Document(raw_doc_ptr)
-end
 =#
+
+
 function my_xmldict(filename::String)
     ret = read_huge_xml(filename)
     return xml_dict(ret)

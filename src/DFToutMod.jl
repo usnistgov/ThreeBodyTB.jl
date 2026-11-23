@@ -344,8 +344,17 @@ Creates a struct with the desired data
 #        println([eigs[1], sum( bandstruct.kweights),  bandstruct.nelec,degauss])
 
         if occupations == :smearing
-            bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
-            bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+            if size(beigs)[3] == 2
+                bandenergy = band_energy(beigs[:, ns+1:end,1], bandstruct.kweights, bandstruct.nelec - ns*2,degauss) + band_energy(beigs[:, ns+1:end,2], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+                bandenergy = bandenergy * 0.5
+
+                bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end, 1], bandstruct.kweights, bandstruct.nelec - ns*2,degauss) + band_energy(bandstruct.eigs[:, ns+1:end, 2], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+                bandenergy_orig = bandenergy_orig * 0.5
+
+            else
+                bandenergy = band_energy(beigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+                bandenergy_orig = band_energy(bandstruct.eigs[:, ns+1:end], bandstruct.kweights, bandstruct.nelec - ns*2,degauss)
+            end
 #            println("fn mode ", [bandenergy, bandenergy_orig])            
         else
 

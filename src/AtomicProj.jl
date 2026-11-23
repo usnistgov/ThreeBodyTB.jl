@@ -120,6 +120,7 @@ function makedict_proj(savedir)
 #    close(f)
     
     #d = xml_dict(fs)
+    println("filename $filename  $(typeof(filename))")
     d = my_xmldict(filename)
     
 
@@ -384,16 +385,48 @@ function run_nscf(dft, directory; tmpdir="./", nprocs=1, prefix="qe", min_nscf=f
         println("try 0")
         dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=2, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, grid=grid, klines=klines, magnetic=magnetic)
     catch
-        println()
-        println("first nscf failed, trying backup nscf with fewer extra bands")
-        println()
         try
             println("try 1")
             dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
         catch
-            println("try 2")
-            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+            try
+                println("try 11")
+                dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=11, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+            catch
+                try
+                    println("try 111")
+                    dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=111, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+                catch
+                    try
+                        println("try 1111")
+                        dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1111, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+                    catch
+                        try
+                            println("try 11111")
+                            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=11111, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+                        catch
+                        try
+                            println("try -1")
+                            dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+                        catch
+                            println("we give up")
+                        end
+                        end
+                    end
+                end
+            end
         end
+
+        #println()
+        #println("first nscf failed, trying backup nscf with fewer extra bands")
+        #println()
+        #try
+        #    println("try 1")
+        #    dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+        #catch
+        #    println("try 2")
+        #    dft_nscf = runSCF(crys, prefix="$prefix.nscf", directory=directory,tmpdir=directory, wannier=-1, nprocs=nprocs, skip=false, calculation=calc, tot_charge=tot_charge, use_backup=true, grid=grid, klines=klines, magnetic=magnetic)
+        #end
     end
     
     dft_nscf.energy = dft.energy
@@ -444,7 +477,7 @@ Starting from a converged QE scf calculation...
 - `only_kspace=false` Do not create real-space tb. Usually true in current code, as I can fit directly from k-space tb only.
 - `screening = 1.0` If use a screening factor to reduce value of U in Ewald calculation. Usually leave at 1.0.
 """
-function projwfc_workf(dft::dftout; directory=missing, nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false, refuse_nscf=false)
+function projwfc_workf(dft::dftout; directory=missing, nprocs=1, freeze=true, writefile="projham.xml",writefilek="projham_K.xml", skip_og=true, skip_proj=true, shift_energy=true, cleanup=true, skip_nscf=true, localized_factor = 0.15, only_kspace=false, screening = 1.0, min_nscf=false, gamma_only=false, refuse_nscf=false, nonorth=true, use_og=false)
 """
 
 Steps:
@@ -473,12 +506,26 @@ Steps:
     olddir = "$directory/$prefix.save"
     nscfdir = "$directory/$prefix.nscf.save"
 
-    
-    if !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))  #change
 
-        if refuse_nscf
-            return false
+    if refuse_nscf
+        println("refuse_nscf")
+        crys = dft.crys
+        dft_nscf = dft
+        try 
+            dft_nscf = loadXML("$directory/$prefix.nscf.save")            
+            dft_nscf.energy = dft.energy
+            dft_nscf.forces = dft.forces
+            dft_nscf.stress = dft.stress        
+            prefix = prefix*".nscf"
+            println("loaded nscf aaaaaaaaaaaaaaaaaaaaaa")
+
+        catch
+            println("fail to load nscf")
         end
+
+    elseif !(skip_nscf) || !(isdir(nscfdir)) ||  ( !isfile(nscfdir*"/atomic_proj.xml") && !isfile(nscfdir*"/atomic_proj.xml.gz"))  #change
+        
+        println("run nscf")
         
         dft_nscf, prefix = run_nscf(dft, directory; tmpdir=directory, nprocs=nprocs, prefix=prefix, min_nscf=min_nscf, only_kspace=only_kspace, gamma_only=gamma_only)
 
@@ -504,6 +551,8 @@ Steps:
 
     end
         
+    println("nscf grid ", dft_nscf.bandstruct.kgrid)
+    sleep(5)
 #    catch
 #        println("failed nscf")
 #        println(s)
@@ -519,12 +568,13 @@ Steps:
 
     newprefix = prefix
     
-    useog = false
-    if useog
+    #useog = false
+    println("use_og $use_og")
+    if use_og
         println("Step #1 og---------------------------------------------------------------------------------")
         println()
 
-        newprefix=prefix*"_open"
+        #newprefix=prefix*"_open"
         
         function og()
             og= makeOG(prefix, outdir)
@@ -534,30 +584,47 @@ Steps:
         
         if skip_og
             try
-                dftopen_bs = loadXML_bs("$directory/$newprefix.save") #get unfolded k-points and bs
+                dftopen_bs = loadXML_bs("$directory/$prefix.save") #get unfolded k-points and bs
+                dft_nscf = deepcopy(dft)
+                dft_nscf.bandstruct = dftopen_bs
+                dft_nscf.bandstruct.kgrid[:] = dft.bandstruct.kgrid[:]
+
                 println("using precomputed opengrid dir")
             catch
                 println("precomputinga opengrid dir")
                 og()
-                dftopen_bs = loadXML_bs("$directory/$newprefix.save") #get unfolded k-points and bs
+                dftopen_bs = loadXML_bs("$directory/$prefix.save") #get unfolded k-points and bs
+                dft_nscf = deepcopy(dft)
+                dft_nscf.bandstruct = dftopen_bs
+                dft_nscf.bandstruct.kgrid[:] = dft.bandstruct.kgrid[:]
+
                 
             end
         else
             og()
-            dftopen_bs = loadXML_bs("$directory/$newprefix.save") #get unfolded k-points and bs
-        
+            dftopen_bs = loadXML_bs("$directory/$prefix.save") #get unfolded k-points and bs
+            dft_nscf = deepcopy(dft)
+            dft_nscf.bandstruct = dftopen_bs
+            dft_nscf.bandstruct.kgrid[:] = dft.bandstruct.kgrid[:]
+
         end
 
 #        kgrid = copy(dft.bandstruct.kgrid)
 #        dft_nscf.bandstruct = dftopen_bs
 #        dft_nscf.bandstruct.kgrid = kgrid
 
-    else
-        println("DON'T USE OG, since it works poorly")
-        dftopen_bs = loadXML_bs("$directory/$newprefix.save")
+    #else
+    #    println("DON'T USE OG, since it works poorly")
+    #    dftopen_bs = loadXML_bs("$directory/$newprefix.save")
+    #    dft_nscf = deepcopy(dft)
+    #    dft_nscf.bandstruct = dftopen_bs
+
+
     end
 
     
+    println("nscf grid2 ", dft_nscf.bandstruct.kgrid)
+    sleep(5)
 
         
     println()
@@ -601,8 +668,9 @@ Steps:
         println(dft_nscf.crys)
     end
 
-    p.bs.kpts[:,:] = dft_nscf.bandstruct.kpts #fix kpoint rounding issue
-
+    if size(dft_nscf.bandstruct.kpts) == size(p.bs.kpts[:,:])
+        p.bs.kpts[:,:] = dft_nscf.bandstruct.kpts #fix kpoint rounding issue
+    end
     println("P OVERLAPS ", size(p.overlaps))
     println("P NSCF ", size(dft_nscf.bandstruct.eigs))
     
@@ -619,6 +687,8 @@ Steps:
 
     end
 
+    println("nscf grid3 ", dft_nscf.bandstruct.kgrid)
+    sleep(5)
 
     println()
     println("Step #3 ham_k------------------------------------------------------------------------------")
@@ -651,9 +721,12 @@ Steps:
 
     println("after create P OVERLAPS ", size(p.overlaps))
 
+    println("nscf grid4 ", dft_nscf.bandstruct.kgrid)
+    sleep(5)
 
     #get tight binding
-    tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=true, localized_factor = localized_factor, screening=screening, projectability = projectability)
+    println(" dft_nscf.bandstruct.kgrid ",  dft_nscf.bandstruct.kgrid)
+    tbck = prepare_ham_k(p, dft_nscf, dft_nscf.bandstruct.kgrid ,ham_k, nonorth=nonorth, localized_factor = localized_factor, screening=screening, projectability = projectability)
 
 #    return tbck
     
@@ -1246,11 +1319,19 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
 
             for i=max(1,NBND-5):NBND
                 #            if p.bs.eigs[k,i] < energy_cutoff - 1e-3
-                if EIGS[k,i,spin] < energy_cutoff - 1e-3
+                if EIGS[k,i,spin] < energy_cutoff - 1e-5
                     max_ind = i
                 end
             end
-
+            if max_ind < nwan
+                max_ind += 1
+            end
+            if max_ind < nwan
+                max_ind += 1
+            end
+            if max_ind < nwan
+                max_ind += 1
+            end
             
             #        B[:,1:max_ind-nsemi] = p.proj[k,wan, 1+nsemi:max_ind]
             B[:,1:max_ind] = PROJ[k,:,spin, 1:max_ind]
@@ -1304,7 +1385,8 @@ function create_tb(p::proj_dat, d::dftout, d_scf::dftout; energy_froz=missing, n
             #eigenvalues of projection matrix are key to this method
             val, vect = eigen(Hermitian( 0.5 * (P[1:max_ind,1:max_ind] + P[1:max_ind,1:max_ind]')    ) ) # 
 
-            good_proj = (max_ind - nwan + 1 ) : max_ind
+            start = max(max_ind - nwan + 1, 1)
+            good_proj = (start ) : max_ind
 
 
             Btilde[:,1:max_ind] = vect[:,good_proj]'
@@ -1823,10 +1905,12 @@ Constructs the actual k-space hamiltonain, which involves lots of putting matric
 function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float64}, 4}; nonorth=true, K=missing, localized_factor = 0.15, screening=1.0, projectability = missing)
 
     wan, semicore, nwan, nsemi, wan_atom, atom_wan = tb_indexes(d)
-    
+    println("in prepare_ham_k")
     println("grid ", grid)
     println("ham_k size " , size(ham_k))
     println("nonorth: ", nonorth)
+    flush(stdout)
+    sleep(1)
     nwan = size(ham_k)[2]
     
     if ismissing(K)
@@ -1957,8 +2041,8 @@ function prepare_ham_k(p::proj_dat, d::dftout, grid, ham_k::Array{Complex{Float6
     else
         
         Sk = zeros(Complex{Float64}, nwan, nwan,nks)    
-        for i = 1:nks
-            Sk[i,:,:] = I(nwan)
+        for k = 1:nks
+            Sk[:,:,k] = I(nwan)
         end
 
         tbk = make_tb_k(ham_k, K, d.bandstruct.kweights, Sk, grid=grid, nonorth=false)
@@ -2009,7 +2093,7 @@ Do Fourier transform k->R.
     if nonorth
         tb = make_tb(ham_r, ind_arr, r_dict, S_r )        
     else
-        S_r = zeros(size(ham_r))
+        S_r = zeros(size(ham_r)[2:4])
 
         println(size(S_r))
 
